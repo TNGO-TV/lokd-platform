@@ -1,5 +1,42 @@
 import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+
+export const officerApplications = sqliteTable(
+  "officer_applications",
+  {
+    id: text("id").primaryKey(),
+    pathway: text("pathway").notNull(),
+    fullName: text("full_name").notNull(),
+    mobileNormalized: text("mobile_normalized").notNull(),
+    emailNormalized: text("email_normalized").notNull(),
+    city: text("city").notNull(),
+    province: text("province").notNull(),
+    psiraStatus: text("psira_status").notNull(),
+    psiraNumber: text("psira_number"),
+    psiraGrade: text("psira_grade"),
+    serviceInterests: text("service_interests").notNull(),
+    trainingInterests: text("training_interests").notNull(),
+    over18Confirmed: integer("over_18_confirmed").notNull(),
+    eligibilityAcknowledged: integer("eligibility_acknowledged").notNull(),
+    privacyNoticeVersion: text("privacy_notice_version").notNull(),
+    privacyAcknowledgedAt: text("privacy_acknowledged_at").notNull(),
+    identityVerificationStatus: text("identity_verification_status").notNull().default("not_started"),
+    identityProvider: text("identity_provider"),
+    identityProviderReference: text("identity_provider_reference"),
+    identityVerifiedAt: text("identity_verified_at"),
+    status: text("status").notNull().default("submitted"),
+    source: text("source").notNull().default("homepage"),
+    retentionReviewAt: text("retention_review_at").notNull(),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("officer_applications_mobile_idx").on(table.mobileNormalized),
+    index("officer_applications_status_idx").on(table.status),
+    index("officer_applications_pathway_idx").on(table.pathway),
+    index("officer_applications_created_idx").on(table.createdAt),
+  ],
+);
 
 export const officers = sqliteTable("officers", {
   id: text("id").primaryKey(),

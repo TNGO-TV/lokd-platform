@@ -65,7 +65,7 @@ export default function ClientPortal() {
     <main className="portal-shell client-shell">
       <header className="portal-header client-header">
         <a href="/" className="portal-logo"><img src="/lokd-logo.svg" alt="LOKD" /></a>
-        <div className="portal-role-switch"><a href="/">Ops</a><a href="/officer">Officer</a><a className="active" href="/client">Client</a></div>
+        <div className="portal-role-switch"><a href="/ops">Ops</a><a href="/officer">Officer</a><a className="active" href="/client">Client</a></div>
         <div className="client-account"><span><strong>{pilot.state.client.organisationName}</strong><small>Client administrator</small></span><button>NP</button></div>
       </header>
 

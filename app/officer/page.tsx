@@ -42,7 +42,7 @@ export default function OfficerApp() {
     <main className="portal-shell officer-shell officer-v2">
       <header className="portal-header officer-header-v2">
         <a href="/" className="portal-logo"><img src="/lokd-logo.svg" alt="LOKD" /></a>
-        <div className="portal-role-switch pilot-role-switch" aria-label="Pilot role preview"><a href="/">Ops</a><a className="active" href="/officer">Officer</a><a href="/client">Client</a></div>
+        <div className="portal-role-switch pilot-role-switch" aria-label="Pilot role preview"><a href="/ops">Ops</a><a className="active" href="/officer">Officer</a><a href="/client">Client</a></div>
         <button className="portal-profile" aria-label="Open officer profile">{pilot.state?.officer.initials ?? "LK"}</button>
       </header>
 

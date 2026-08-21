@@ -1,308 +1,125 @@
-"use client";
-
-import { useMemo, useState } from "react";
-import WorkspaceView from "./components/workspace-view";
-import { usePilot } from "./lib/use-pilot";
-
-type ShiftState = "on-post" | "confirmed" | "attention";
-
-type Shift = {
-  id: string;
-  officer: string;
-  initials: string;
-  grade: string;
-  service: "Unarmed" | "Armed" | "VIP";
-  requirement: string;
-  contractTerm: string;
-  releaseCadence: "Weekly" | "Monthly";
-  paymentState: string;
-  site: string;
-  post: string;
-  time: string;
-  state: ShiftState;
-  detail: string;
-};
-
-const shifts: Shift[] = [
-  {
-    id: "BK-2081",
-    officer: "Lerato Khumalo",
-    initials: "LK",
-    grade: "Grade B",
-    service: "Unarmed",
-    requirement: "Grade C+ · Unarmed opted in",
-    contractTerm: "1 month",
-    releaseCadence: "Weekly",
-    paymentState: "Client term paid in full",
-    site: "Northbridge Rosebank Offices",
-    post: "Main access",
-    time: "06:00–18:00",
-    state: "on-post",
-    detail: "Grade B meets C+ minimum · Unarmed notifications on · Checked in 05:54",
-  },
-  {
-    id: "BK-2082",
-    officer: "Sibusiso Dlamini",
-    initials: "SD",
-    grade: "Grade B",
-    service: "Armed",
-    requirement: "Grade B+ · Firearm competency",
-    contractTerm: "3 months",
-    releaseCadence: "Weekly",
-    paymentState: "Client term paid in full",
-    site: "Eastline Linbro Yard",
-    post: "Vehicle gate",
-    time: "18:00–06:00",
-    state: "confirmed",
-    detail: "Grade B verified · Firearm competency current · Armed offers enabled",
-  },
-  {
-    id: "BK-2083",
-    officer: "Thabo Mokoena",
-    initials: "TM",
-    grade: "Grade A",
-    service: "VIP",
-    requirement: "Grade B+ · VIP qualification",
-    contractTerm: "6 months",
-    releaseCadence: "Monthly",
-    paymentState: "Client term paid in full",
-    site: "Metsi Midrand Depot",
-    post: "Contractor access",
-    time: "Sat · 06:00–18:00",
-    state: "confirmed",
-    detail: "Grade A verified · Close protection qualification current · VIP opted in",
-  },
-  {
-    id: "SH-2080",
-    officer: "Lerato Khumalo",
-    initials: "LK",
-    grade: "Grade B",
-    service: "Unarmed",
-    requirement: "Grade C+ · Unarmed opted in",
-    contractTerm: "1 month",
-    releaseCadence: "Weekly",
-    paymentState: "Client term paid in full",
-    site: "Northbridge Rosebank Offices",
-    post: "Main access",
-    time: "18 Aug · 06:00–18:00",
-    state: "attention",
-    detail: "Client service confirmation pending · R960 remains in the verification stage",
-  },
+const workCategories = [
+  { name: "Unarmed", note: "Access control, guarding, events and patrol support." },
+  { name: "Armed", note: "For officers whose firearm and assignment requirements are verified." },
+  { name: "VIP", note: "Close-protection opportunities for suitably qualified officers." },
 ];
 
-const navItems = ["Control", "Bookings", "Offers", "Officers", "Clients", "Earnings"];
-
-function StatusDot({ state }: { state: ShiftState }) {
-  return <span className={`status-dot status-dot--${state}`} aria-hidden="true" />;
-}
-
-function MiniMark() {
+export default function PublicHome() {
   return (
-    <div className="mini-mark" aria-hidden="true">
-      <span />
-      <span />
-      <span />
-    </div>
-  );
-}
-
-export default function Home() {
-  const pilot = usePilot();
-  const [activeNav, setActiveNav] = useState("Control");
-  const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  const currentShifts = useMemo(() => shifts.filter((shift) => shift.state === "on-post" || shift.state === "confirmed"), []);
-  const pendingServiceRecords = pilot.state?.shifts.filter((shift) => shift.clientSignoffStatus === "pending").length ?? 0;
-
-  function flash(message: string) {
-    setNotice(message);
-    window.setTimeout(() => setNotice(null), 3200);
-  }
-
-  return (
-    <main className="app-shell">
-      <aside className="side-rail">
-        <div className="brand-lockup">
-          <img src="/lokd-logo.svg" alt="LOKD" />
-        </div>
-
-        <div className="pilot-chip">
-          <span className="pulse-dot" />
-          <span>
-            <strong>Johannesburg pilot</strong>
-            Offer engine · Preview
-          </span>
-        </div>
-
-        <div className="experience-switcher" aria-label="Preview experience">
-          <a className="experience-active" href="/">Ops</a>
-          <a href="/officer">Officer</a>
-          <a href="/client">Client</a>
-        </div>
-
-        <nav aria-label="LOKD operations">
-          <p className="nav-label">Workspace</p>
-          {navItems.map((item) => (
-            <button
-              className={activeNav === item ? "nav-item nav-item--active" : "nav-item"}
-              key={item}
-              onClick={() => setActiveNav(item)}
-            >
-              <span>{item}</span>
-              {item === "Offers" && <em>3</em>}
-              {item === "Earnings" && <em className="nav-warning">1</em>}
-            </button>
-          ))}
+    <main className="public-home">
+      <header className="public-header">
+        <a className="public-logo" href="/" aria-label="LOKD home"><img src="/lokd-logo.svg" alt="LOKD" /></a>
+        <nav aria-label="Main navigation">
+          <a href="#how-it-works">How it works</a>
+          <a href="#officers">For officers</a>
+          <a href="#training">Training</a>
         </nav>
-
-        <div className="rail-footer">
-          <div className="avatar avatar--dark">Z</div>
-          <span>
-            <strong>Operations</strong>
-            Marketplace control
-          </span>
-          <button aria-label="Open account menu">•••</button>
+        <div className="public-header-actions">
+          <a className="public-login" href="/officer">Officer pilot</a>
+          <a className="public-button public-button--dark" href="/client">Book security</a>
         </div>
-      </aside>
+      </header>
 
-      <section className="main-stage">
-        <header className="top-bar">
-          <div className="mobile-brand"><img src="/lokd-logo.svg" alt="LOKD" /></div>
-          <div className="breadcrumb"><span>Operations</span><b>/</b><strong>{activeNav}</strong></div>
-          <div className="top-actions">
-            <button className="icon-button" aria-label="Search">⌕</button>
-            <button className="icon-button notification-button" aria-label="Notifications"><span className="notification-dot" />◦</button>
-            <button className="primary-button" onClick={() => flash("New client booking draft opened.")}><span>＋</span> Create booking</button>
+      <section className="public-hero">
+        <div className="public-hero-copy">
+          <p className="public-kicker"><i /> South African security marketplace</p>
+          <h1>Get verified.<br />Get work-ready.<br /><span>Get LOKD in.</span></h1>
+          <p>LOKD connects approved security officers with clear, matched work opportunities—and gives future officers a guided route toward the qualifications they still need.</p>
+          <div className="public-hero-actions">
+            <a className="public-button public-button--lime" href="/join?path=qualified">I&apos;m already qualified <b>→</b></a>
+            <a className="public-button public-button--outline" href="/join?path=training">I need training <b>→</b></a>
           </div>
-        </header>
+          <div className="public-proof-row"><span>✓ Verified profiles</span><span>✓ Fixed offer terms</span><span>✓ Recorded shift history</span></div>
+        </div>
 
-        <div className="page-content">
-          <div className="preview-banner">
-            <strong>Pilot preview</strong>
-            Private pilot records only. Real client billing and live officer staffing remain locked until the organisation launch checklist is approved.
-          </div>
-
-          {activeNav !== "Control" ? (
-            <WorkspaceView name={activeNav} />
-          ) : <>
-          <section className="hero-copy">
-            <div>
-              <p className="eyebrow">Friday · 21 August · 14:35 SAST</p>
-              <h1>Every confirmed booking is staffed.</h1>
-              <p className="hero-subtitle">{pendingServiceRecords ? `${pendingServiceRecords} completed shift${pendingServiceRecords === 1 ? " is" : "s are"} waiting for client service confirmation.` : "All completed service records are current."}</p>
-            </div>
-            <div className="hero-actions">
-              <button className="secondary-button" onClick={() => flash("Daily operations report prepared.")}>Export daily report</button>
-              <button className="primary-button primary-button--light" disabled={!pendingServiceRecords} onClick={() => setSelectedShift(shifts[3])}>{pendingServiceRecords ? "Review service record" : "Records current"}</button>
-            </div>
-          </section>
-
-          <section className="coverage-panel" aria-labelledby="coverage-title">
-            <div className="coverage-summary">
-              <div className="coverage-heading">
-                <span className="live-label"><i /> Live operations</span>
-                <span>Contracted coverage only</span>
-              </div>
-              <h2 id="coverage-title">2 of 2 client bookings covered today</h2>
-              <p>Each slot passed the service, grade, qualification and officer opt-in rules before the first valid acceptance secured it.</p>
-              <div className="coverage-stats">
-                <div><strong>1</strong><span>On post</span></div>
-                <div><strong>1</strong><span>Accepted offer</span></div>
-                <div><strong>0</strong><span>Open slots</span></div>
-              </div>
-            </div>
-            <div className="coverage-map" aria-label="Schematic view of active LOKD sites">
-              <div className="map-grid" />
-              <div className="map-ring map-ring--one" />
-              <div className="map-ring map-ring--two" />
-              <div className="map-route" />
-              <button className="site-pin site-pin--rosebank" onClick={() => setSelectedShift(shifts[0])}>
-                <span><MiniMark /></span><strong>Rosebank</strong><small>On post · ends 18:00</small>
-              </button>
-              <button className="site-pin site-pin--linbro" onClick={() => setSelectedShift(shifts[1])}>
-                <span><MiniMark /></span><strong>Linbro</strong><small>Confirmed · starts 18:00</small>
-              </button>
-              <div className="map-legend"><i /> LOKD verified coverage</div>
-            </div>
-          </section>
-
-          <section className="operations-grid">
-            <article className="panel panel--shifts">
-              <div className="panel-heading">
-                <div><p className="eyebrow">Booking engine</p><h2>Accepted assignments</h2></div>
-                <button onClick={() => setActiveNav("Bookings")}>View bookings →</button>
-              </div>
-              <div className="shift-list">
-                {currentShifts.map((shift) => (
-                  <button className="shift-row" key={shift.id} onClick={() => setSelectedShift(shift)}>
-                    <div className="avatar">{shift.initials}</div>
-                    <div className="shift-person"><strong>{shift.officer}</strong><span>{shift.grade} · {shift.service} · {shift.id}</span></div>
-                    <div className="shift-site"><strong>{shift.site}</strong><span>{shift.post}</span></div>
-                    <div className="shift-time"><strong>{shift.time}</strong><span><StatusDot state={shift.state} /> {shift.state === "on-post" ? "On post" : "Confirmed"}</span></div>
-                    <span className="row-arrow">›</span>
-                  </button>
-                ))}
-              </div>
-            </article>
-
-            <aside className="panel panel--attention">
-              <div className="panel-heading">
-                <div><p className="eyebrow eyebrow--amber">Needs action</p><h2>Service records</h2></div>
-                <span className="count-badge">{pendingServiceRecords}</span>
-              </div>
-              {pendingServiceRecords ? <button className="attention-card" onClick={() => setSelectedShift(shifts[3])}>
-                <div className="attention-icon">!</div>
-                <div><strong>Completed shift awaiting confirmation</strong><p>R960 is awaiting service verification; normal release controls remain separate.</p><span>SH-2080 · Northbridge Rosebank Offices</span></div>
-              </button> : <div className="clean-state"><span>✓</span><div><strong>Service records current</strong><p>No completed shifts are waiting for client confirmation.</p></div></div>}
-              <div className="clean-state">
-                <span>✓</span>
-                <div><strong>Everything else is clean</strong><p>No unstaffed bookings, expired offers or payout exceptions.</p></div>
-              </div>
-            </aside>
-          </section>
-
-          <footer className="status-footer">
-            <span><i /> All systems operational</span>
-            <span>Persistent pilot · Earnings ledger connected</span>
-          </footer>
-          </>}
+        <div className="public-hero-product" aria-label="Example of a LOKD officer work offer">
+          <div className="product-orbit product-orbit--one" />
+          <div className="product-orbit product-orbit--two" />
+          <article className="public-offer-card">
+            <div className="offer-card-top"><span><i /> New matched offer</span><em>UNARMED</em></div>
+            <p>Saturday · 06:00–18:00</p>
+            <h2>Midrand Depot</h2>
+            <small>Contractor access · 18 km away</small>
+            <dl><div><dt>Your offer</dt><dd>R980</dd></div><div><dt>Release</dt><dd>Weekly</dd></div></dl>
+            <div className="offer-match-row"><span>✓ Grade verified</span><span>✓ Opted in</span></div>
+            <button type="button">Review offer <b>→</b></button>
+          </article>
+          <aside className="public-verified-card"><span>LK</span><div><strong>Profile approved</strong><small>Grade B · Unarmed offers on</small></div><i>✓</i></aside>
+          <aside className="public-earnings-chip"><small>Ready for payout</small><strong>R1,920</strong><span>Thursday request</span></aside>
         </div>
       </section>
 
-      {selectedShift && (
-        <div className="drawer-backdrop" role="presentation" onMouseDown={() => setSelectedShift(null)}>
-          <aside className="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="shift-title" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="drawer-topline"><span className="detail-id">{selectedShift.id}</span><button onClick={() => setSelectedShift(null)} aria-label="Close details">×</button></div>
-            <p className="eyebrow">{selectedShift.state === "attention" ? "Client service record" : "Booking assignment"}</p>
-            <h2 id="shift-title">{selectedShift.officer}</h2>
-            <p className="drawer-subtitle">{selectedShift.grade} · {selectedShift.time}</p>
-            <div className={`detail-status detail-status--${selectedShift.state}`}><StatusDot state={selectedShift.state} />{selectedShift.state === "on-post" ? "Officer is on post" : selectedShift.state === "confirmed" ? "Shift confirmed" : "Supervisor action required"}</div>
-            <dl className="detail-list">
-              <div><dt>Client site</dt><dd>{selectedShift.site}</dd></div>
-              <div><dt>Assigned post</dt><dd>{selectedShift.post}</dd></div>
-              <div><dt>Control evidence</dt><dd>{selectedShift.detail}</dd></div>
-              <div><dt>Service type</dt><dd>{selectedShift.service}</dd></div>
-              <div><dt>Eligibility rule</dt><dd>{selectedShift.requirement}</dd></div>
-              <div><dt>Contract and funding</dt><dd>{selectedShift.contractTerm} · {selectedShift.paymentState}</dd></div>
-              <div><dt>Officer offer</dt><dd>{selectedShift.id === "BK-2082" ? "R1,020 fixed offer" : selectedShift.id === "BK-2083" ? "R980 fixed offer" : "R960 fixed offer"}</dd></div>
-              <div><dt>Earnings release</dt><dd>{selectedShift.releaseCadence} after verified completion</dd></div>
-            </dl>
-            <div className="drawer-timeline">
-              <h3>Connected control trail</h3>
-              <div><i className="done" /><span><strong>Officer approval and eligibility passed</strong><small>PSiRA grade · service qualification · preference · availability</small></span></div>
-              <div><i className="done" /><span><strong>Offer accepted</strong><small>Fixed offer and contract terms captured before assignment</small></span></div>
-              <div><i className={selectedShift.state === "attention" ? "pending" : "done"} /><span><strong>{selectedShift.state === "attention" ? "Client confirmation outstanding" : "Attendance evidence current"}</strong><small>{selectedShift.detail}</small></span></div>
-            </div>
-            <div className="drawer-actions">
-              <button className="secondary-button" onClick={() => flash("Control record exported.")}>Export record</button>
-              <button className="primary-button" onClick={() => { flash("Booking control action recorded."); setSelectedShift(null); }}>Acknowledge</button>
-            </div>
-          </aside>
+      <section className="public-path-section" id="officers">
+        <div className="public-section-heading">
+          <p className="public-kicker">Start where you are</p>
+          <h2>One doorway. Two clear paths.</h2>
+          <p>You do not need to guess which form to complete. Tell LOKD where you are today and we will route your application correctly.</p>
         </div>
-      )}
+        <div className="public-path-grid">
+          <article className="path-card path-card--qualified">
+            <span className="path-number">01</span>
+            <p>Already registered or qualified</p>
+            <h3>Build your officer profile</h3>
+            <ul><li>Add your PSiRA grade and service choices</li><li>Submit qualifications for verification later</li><li>Choose Armed, Unarmed or VIP alerts</li><li>Receive matched offers only after approval</li></ul>
+            <a href="/join?path=qualified">Start officer application <b>→</b></a>
+          </article>
+          <article className="path-card path-card--training">
+            <span className="path-number">02</span>
+            <p>Still need qualifications</p>
+            <h3>Plan your training pathway</h3>
+            <ul><li>Tell us your current registration status</li><li>Select the training areas you need</li><li>Receive course and intake information</li><li>Return for verification when work-ready</li></ul>
+            <a href="/join?path=training">Explore the training route <b>→</b></a>
+          </article>
+        </div>
+        <p className="path-disclaimer">Registration or training does not guarantee approval, work or any particular rate. Every work category remains subject to LOKD verification and the legal requirements of the assignment.</p>
+      </section>
 
-      {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
+      <section className="public-process" id="how-it-works">
+        <div className="public-section-heading public-section-heading--light">
+          <p className="public-kicker">The officer journey</p>
+          <h2>From first application to verified work.</h2>
+        </div>
+        <div className="process-grid">
+          <article><span>01</span><i>PROFILE</i><h3>Tell us where you stand</h3><p>Share basic contact, location, registration status and work interests.</p></article>
+          <article><span>02</span><i>VERIFY</i><h3>Prove who you are</h3><p>Secure ID validation, live-selfie matching and separate credential checks protect the officer and every client.</p></article>
+          <article><span>03</span><i>MATCH</i><h3>Choose your offer types</h3><p>Approved officers receive only work matching their verified eligibility and preferences.</p></article>
+          <article><span>04</span><i>WORK</i><h3>Accept clear terms</h3><p>See the post, shift, fixed offer and earnings-release cadence before accepting.</p></article>
+        </div>
+      </section>
+
+      <section className="public-categories">
+        <div className="public-section-heading">
+          <p className="public-kicker">Work preferences</p>
+          <h2>Higher grade. Your choice of work.</h2>
+          <p>A Grade A or B officer may still choose Unarmed work. LOKD matches the assignment to both verified eligibility and the officer&apos;s own offer settings.</p>
+        </div>
+        <div className="category-grid">{workCategories.map((item, index) => <article key={item.name}><span>0{index + 1}</span><h3>{item.name}</h3><p>{item.note}</p><i>Eligibility verified before activation</i></article>)}</div>
+      </section>
+
+      <section className="public-training" id="training">
+        <div className="training-mark" aria-hidden="true"><span /><span /><span /></div>
+        <div>
+          <p className="public-kicker">LOKD training pathway</p>
+          <h2>Do not let the upfront qualification maze stop you.</h2>
+          <p>Register your interest in security-officer, firearms or specialist training. LOKD will provide training directly where authorised or route you to a verified, accredited training partner.</p>
+          <div className="training-tags"><span>Security-officer training</span><span>Firearms training</span><span>Armed-work readiness</span><span>VIP / close protection</span></div>
+          <a className="public-button public-button--lime" href="/join?path=training">Tell us what training you need <b>→</b></a>
+          <small>Course availability, provider accreditation, entry requirements and certification are confirmed before enrolment. Training does not guarantee registration, app approval or work.</small>
+        </div>
+      </section>
+
+      <section className="public-final-cta">
+        <p className="public-kicker">Your next move</p>
+        <h2>Whether you are qualified or starting from zero, start here.</h2>
+        <a className="public-button public-button--dark" href="/join">Join the LOKD officer network <b>→</b></a>
+      </section>
+
+      <footer className="public-footer">
+        <img src="/lokd-logo.svg" alt="LOKD" />
+        <p>Verified people. Controlled operations. Complete proof.</p>
+        <div><a href="/ops">Operations pilot</a><a href="/officer">Officer pilot</a><a href="/client">Client pilot</a></div>
+        <small>© 2026 LOKD · Private platform pilot</small>
+      </footer>
     </main>
   );
 }
