@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import type { PilotState } from "../lib/pilot-types";
+import { usePilot } from "../lib/use-pilot";
 
 const officers = [
   { name: "Thabo Mokoena", ref: "LKD-001", grade: "Grade A", status: "Approved", services: "Unarmed · Armed · VIP", preference: "All offer alerts on", sites: "All pilot sites", tone: "green" },
@@ -11,35 +13,44 @@ const officers = [
 ];
 
 const workspaceCopy: Record<string, { eyebrow: string; title: string; subtitle: string; action: string }> = {
-  Bookings: { eyebrow: "Pre-funded client demand", title: "Booking control", subtitle: "The full contract term is secured before a booking can release officer offers.", action: "Create booking" },
+  Bookings: { eyebrow: "Pre-funded client demand", title: "Booking control", subtitle: "The full contract payment must be received and confirmed before a booking can release officer offers.", action: "Create booking" },
   Offers: { eyebrow: "Uber-style allocation", title: "Offer engine", subtitle: "Grade, service qualification, preference, area and availability must all match.", action: "Release offer wave" },
   Officers: { eyebrow: "Approved officer network", title: "Officer approval", subtitle: "PSiRA grade is verified separately from Armed, Unarmed and VIP eligibility and offer choices.", action: "Invite officer" },
   Clients: { eyebrow: "Contracted service", title: "Clients and sites", subtitle: "Clients choose Armed, Unarmed or VIP, pay the term in full, then follow delivery.", action: "Add client" },
-  Wallets: { eyebrow: "Officer payable ledger", title: "Wallets and settlements", subtitle: "Up to 3 months releases weekly; longer contracts release monthly before withdrawal.", action: "Prepare Thursday batch" },
+  Earnings: { eyebrow: "Officer payable ledger", title: "Earnings and payouts", subtitle: "Contracts up to 3 months release weekly; longer contracts release monthly before an officer can request payout.", action: "Release eligible earnings" },
 };
 
-function Top({ name, onAction }: { name: string; onAction: () => void }) {
+function Top({ name, onAction, busy }: { name: string; onAction: () => void; busy?: boolean }) {
   const copy = workspaceCopy[name];
   return (
     <section className="workspace-top">
       <div><p className="eyebrow">{copy.eyebrow}</p><h1>{copy.title}</h1><p>{copy.subtitle}</p></div>
-      <button className="primary-button" onClick={onAction}><span>＋</span>{copy.action}</button>
+      <button className="primary-button" disabled={busy} onClick={onAction}><span>＋</span>{busy ? "Working…" : copy.action}</button>
     </section>
   );
 }
 
 export default function WorkspaceView({ name }: { name: string }) {
+  const pilot = usePilot();
   const [message, setMessage] = useState("");
-  const action = () => { setMessage(`${workspaceCopy[name].action} draft created in preview mode.`); window.setTimeout(() => setMessage(""), 2800); };
+  const action = async () => {
+    if (name === "Earnings") {
+      const result = await pilot.runAction({ action: "release_earnings" });
+      setMessage(result ? "Eligible verified earnings moved to Available." : "No earnings were released. Check the release date or exception state.");
+    } else {
+      setMessage(`${workspaceCopy[name].action} draft created in preview mode.`);
+    }
+    window.setTimeout(() => setMessage(""), 3200);
+  };
 
   return (
     <div className="workspace-view">
-      <Top name={name} onAction={action} />
+      <Top name={name} busy={pilot.busy} onAction={() => void action()} />
       {name === "Bookings" && <Bookings />}
-      {name === "Offers" && <Offers />}
+      {name === "Offers" && <Offers state={pilot.state} />}
       {name === "Officers" && <Officers />}
       {name === "Clients" && <Clients />}
-      {name === "Wallets" && <Wallets />}
+      {name === "Earnings" && <Wallets state={pilot.state} loading={pilot.loading} busy={pilot.busy} onRelease={() => void action()} error={pilot.error} />}
       {message && <div className="inline-notice">✓ {message}</div>}
     </div>
   );
@@ -54,18 +65,22 @@ function Bookings() {
   return <section className="workspace-card booking-board"><div className="booking-summary"><div><span>Pre-funded terms</span><strong>R553,200</strong><small>Full client-term value secured</small></div><div><span>Service classes</span><strong>3</strong><small>Unarmed · Armed · VIP</small></div><div><span>Staffing</span><strong>3 / 3</strong><small>All eligibility gates passed</small></div><div><span>Awaiting release</span><strong>1</strong><small>R960 pending weekly cycle</small></div></div><div className="data-head booking-head"><span>Booking</span><span>Client price</span><span>Officer assignment</span><span>Status</span><span /></div>{items.map((item) => <button className="booking-row" key={item.id}><span><strong>{item.id} · {item.site}</strong><small>{item.client} · {item.service} · {item.time}</small></span><span><strong>{item.price}</strong><small>Paid in full · LOKD price</small></span><span><strong>{item.officer}</strong><small>{item.offer}</small></span><span><em className={item.state === "Active" ? "pill tone-green" : "pill tone-blue"}>{item.state}</em></span><b>›</b></button>)}</section>;
 }
 
-function Offers() {
-  return <div className="offer-engine-layout"><section className="workspace-card offer-wave-card"><div className="card-title"><div><span>Live Unarmed wave</span><strong>Midrand · 1-month access contract</strong></div><em>03:12 remaining</em></div><div className="wave-path"><div className="wave-step done"><i>✓</i><span><strong>Term funded</strong><small>Full client payment secured</small></span></div><div className="wave-step done"><i>✓</i><span><strong>Eligibility pool built</strong><small>Grade + qualification + opt-in + area</small></span></div><div className="wave-step live"><i>2</i><span><strong>Offers delivered</strong><small>Fixed R980 · weekly release</small></span></div><div className="wave-step"><i>•</i><span><strong>Atomic assignment</strong><small>Competing offers expire instantly</small></span></div></div><div className="wave-candidates"><div><span>LK</span><strong>Lerato Khumalo</strong><small>Grade B · Unarmed on · viewed 14:33</small><em className="pill tone-amber">Decision pending</em></div><div><span>TM</span><strong>Thabo Mokoena</strong><small>Grade A · Unarmed on · delivered 14:32</small><em className="pill tone-blue">Not viewed</em></div><div><span>SD</span><strong>Sibusiso Dlamini</strong><small>Qualified, but Unarmed notifications off</small><em className="pill tone-red">Preference blocked</em></div></div></section><aside className="workspace-card offer-rules-card"><div className="card-title"><div><span>Offer snapshot</span><strong>Officer terms</strong></div></div><dl><div><dt>Service</dt><dd>Unarmed</dd></div><div><dt>Minimum grade</dt><dd>Grade C+</dd></div><div><dt>Officer amount</dt><dd>R980 fixed / shift</dd></div><div><dt>Contract term</dt><dd>1 month</dd></div><div><dt>Release cadence</dt><dd>Weekly</dd></div><div><dt>Client funding</dt><dd>Full term secured</dd></div></dl><p>A higher grade may accept lower-grade work when qualified and opted in. Client and officer pricing remain separated.</p></aside></div>;
+function Offers({ state }: { state: PilotState | null }) {
+  const offer = state?.offers.find((item) => item.id === "OF-2084");
+  const accepted = offer?.status === "accepted";
+  const declined = offer?.status === "declined";
+  return <div className="offer-engine-layout"><section className="workspace-card offer-wave-card"><div className="card-title"><div><span>{accepted ? "Assigned Unarmed offer" : declined ? "Closed Unarmed offer" : "Live Unarmed offer"}</span><strong>Midrand · 1-month access contract</strong></div><em>{offer ? offer.status : "Loading"}</em></div><div className="wave-path"><div className="wave-step done"><i>✓</i><span><strong>Payment gate passed</strong><small>Full client payment received and confirmed</small></span></div><div className="wave-step done"><i>✓</i><span><strong>Eligibility pool built</strong><small>Grade + qualification + opt-in + area</small></span></div><div className={`wave-step ${accepted || declined ? "done" : "live"}`}><i>{accepted || declined ? "✓" : "2"}</i><span><strong>Fixed offer delivered</strong><small>R980 · weekly release</small></span></div><div className={`wave-step ${accepted ? "done" : ""}`}><i>{accepted ? "✓" : "•"}</i><span><strong>Atomic assignment</strong><small>{accepted ? "Lerato secured the booking" : "First valid acceptance secures the booking"}</small></span></div></div><div className="wave-candidates"><div><span>LK</span><strong>{state?.officer.fullName ?? "Lerato Khumalo"}</strong><small>Grade B · Unarmed on · persistent pilot record</small><em className={`pill ${accepted ? "tone-green" : declined ? "tone-red" : "tone-amber"}`}>{accepted ? "Offer accepted" : declined ? "Offer declined" : "Decision pending"}</em></div><div><span>TM</span><strong>Thabo Mokoena</strong><small>Grade A · Unarmed on · eligible</small><em className="pill tone-blue">Wave candidate</em></div><div><span>SD</span><strong>Sibusiso Dlamini</strong><small>Qualified, but Unarmed notifications off</small><em className="pill tone-red">Preference blocked</em></div></div></section><aside className="workspace-card offer-rules-card"><div className="card-title"><div><span>Offer snapshot</span><strong>Officer terms</strong></div></div><dl><div><dt>Service</dt><dd>Unarmed</dd></div><div><dt>Minimum grade</dt><dd>Grade C</dd></div><div><dt>Officer amount</dt><dd>R980 fixed / shift</dd></div><div><dt>Contract term</dt><dd>1 month</dd></div><div><dt>Release cadence</dt><dd>Weekly</dd></div><div><dt>Client payment</dt><dd>Received and confirmed in full</dd></div></dl><p>A higher-grade officer may accept lower-grade work when qualified and opted in. Client and officer pricing remain separate.</p></aside></div>;
 }
 
-function Wallets() {
-  const ledger = [
-    { officer: "Lerato Khumalo", source: "BK-2077 · 1 month", pending: "—", available: "R960", state: "Weekly release" },
-    { officer: "Lerato Khumalo", source: "BK-2080 · 1 month", pending: "R960", available: "—", state: "Next weekly release" },
-    { officer: "Sibusiso Dlamini", source: "BK-2079 · 3 months", pending: "—", available: "R1,020", state: "Weekly release" },
-    { officer: "Thabo Mokoena", source: "BK-2078 · 6 months", pending: "R980", available: "—", state: "Next monthly release" },
-  ];
-  return <div className="wallet-layout"><section className="workspace-card wallet-ops"><div className="booking-summary wallet-summary"><div><span>Pending</span><strong>R1,940</strong><small>Waiting for weekly/monthly release</small></div><div><span>Available</span><strong>R1,980</strong><small>Can enter Thursday batch</small></div><div><span>Held</span><strong>R0</strong><small>No active disputes</small></div></div><div className="data-head wallet-head"><span>Officer</span><span>Source</span><span>Pending</span><span>Available</span><span>Release</span></div>{ledger.map((item) => <div className="wallet-ledger-row" key={item.source}><span><strong>{item.officer}</strong><small>Approved officer</small></span><span><strong>{item.source}</strong><small>Immutable earning entry</small></span><span>{item.pending}</span><span>{item.available}</span><em>{item.state}</em></div>)}</section><aside className="workspace-card thursday-card"><span>Thursday withdrawal cycle</span><h2>R1,980 ready</h2><p>Only released Available earnings can enter the controlled batch for expected Friday bank clearance.</p><div className="cutoff"><span>Short contracts</span><strong>0–3 months · Weekly</strong></div><div className="cutoff"><span>Long contracts</span><strong>Over 3 months · Monthly</strong></div><div className="cutoff"><span>Expected clearance</span><strong>Friday · Bank dependent</strong></div><button>Prepare payout batch</button><small>Maker/checker approval required before submission.</small><div className="future-card-note"><strong>LOKD Card · Phase 1 workstream</strong><p>Bank-partner discussions, programme design and officer interest capture run in parallel without blocking ordinary payouts.</p></div></aside></div>;
+function money(cents: number) {
+  return new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR", maximumFractionDigits: 0 }).format(cents / 100);
+}
+
+function Wallets({ state, loading, busy, onRelease, error }: { state: PilotState | null; loading: boolean; busy: boolean; onRelease: () => void; error: string }) {
+  if (loading || !state) return <section className="workspace-card"><div className="officer-loading"><span className="pulse-dot" /><strong>{error || "Loading the earnings ledger…"}</strong></div></section>;
+  const heldCents = state.ledger.filter((entry) => entry.state === "held").reduce((sum, entry) => sum + entry.amountCents, 0);
+  const stateLabels: Record<string, string> = { pending_signoff: "Service record pending", pending_release: "Release date pending", available: "Available", withdrawal_queued: "Payout processing", paid: "Paid", held: "Exception hold" };
+  return <div className="wallet-layout"><section className="workspace-card wallet-ops"><div className="booking-summary wallet-summary"><div><span>Pending</span><strong>{money(state.wallet.pendingCents)}</strong><small>Awaiting verification or scheduled release</small></div><div><span>Available</span><strong>{money(state.wallet.availableCents)}</strong><small>Officer can request payout</small></div><div><span>Held</span><strong>{money(heldCents)}</strong><small>{heldCents ? "Affected earnings only" : "No active exceptions"}</small></div></div><div className="data-head wallet-head"><span>Officer</span><span>Source</span><span>Pending</span><span>Available</span><span>Status</span></div>{state.ledger.map((item) => { const pending = item.state === "pending_signoff" || item.state === "pending_release"; return <div className="wallet-ledger-row" key={item.id}><span><strong>{state.officer.fullName}</strong><small>{state.officer.id} · Approved</small></span><span><strong>{item.bookingId} · {item.siteName}</strong><small>{item.releaseCadence} earning record</small></span><span>{pending ? money(item.amountCents) : "—"}</span><span>{item.state === "available" ? money(item.amountCents) : "—"}</span><em>{stateLabels[item.state]}</em></div>; })}</section><aside className="workspace-card thursday-card"><span>LOKD earnings controls</span><h2>{money(state.wallet.availableCents)} available</h2><p>Only verified earnings that have reached their weekly or monthly release date can move to Available.</p><div className="cutoff"><span>Short contracts</span><strong>0–3 months · Weekly</strong></div><div className="cutoff"><span>Long contracts</span><strong>Over 3 months · Monthly</strong></div><div className="cutoff"><span>Payout processing</span><strong>Thursday · expected Friday clearance</strong></div><button disabled={busy} onClick={onRelease}>{busy ? "Releasing…" : "Release eligible earnings"}</button><small>Operations release and payout submission are separate, auditable actions.</small>{error && <p className="pilot-error" role="alert">{error}</p>}<div className="future-card-note"><strong>LOKD Card · interest register</strong><p>Card concept only—not yet available. Ordinary EFT payout access will not depend on a future card.</p></div></aside></div>;
 }
 
 function Roster() {

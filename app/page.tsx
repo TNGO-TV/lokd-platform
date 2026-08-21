@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import WorkspaceView from "./components/workspace-view";
+import { usePilot } from "./lib/use-pilot";
 
 type ShiftState = "on-post" | "confirmed" | "attention";
 
@@ -72,7 +73,7 @@ const shifts: Shift[] = [
     detail: "Grade A verified · Close protection qualification current · VIP opted in",
   },
   {
-    id: "SG-2080",
+    id: "SH-2080",
     officer: "Lerato Khumalo",
     initials: "LK",
     grade: "Grade B",
@@ -85,11 +86,11 @@ const shifts: Shift[] = [
     post: "Main access",
     time: "18 Aug · 06:00–18:00",
     state: "attention",
-    detail: "Client sign-off pending · R960 stays Pending until the weekly release",
+    detail: "Client service confirmation pending · R960 remains in the verification stage",
   },
 ];
 
-const navItems = ["Control", "Bookings", "Offers", "Officers", "Clients", "Wallets"];
+const navItems = ["Control", "Bookings", "Offers", "Officers", "Clients", "Earnings"];
 
 function StatusDot({ state }: { state: ShiftState }) {
   return <span className={`status-dot status-dot--${state}`} aria-hidden="true" />;
@@ -106,11 +107,13 @@ function MiniMark() {
 }
 
 export default function Home() {
+  const pilot = usePilot();
   const [activeNav, setActiveNav] = useState("Control");
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const currentShifts = useMemo(() => shifts.filter((shift) => shift.state === "on-post" || shift.state === "confirmed"), []);
+  const pendingServiceRecords = pilot.state?.shifts.filter((shift) => shift.clientSignoffStatus === "pending").length ?? 0;
 
   function flash(message: string) {
     setNotice(message);
@@ -148,7 +151,7 @@ export default function Home() {
             >
               <span>{item}</span>
               {item === "Offers" && <em>3</em>}
-              {item === "Wallets" && <em className="nav-warning">1</em>}
+              {item === "Earnings" && <em className="nav-warning">1</em>}
             </button>
           ))}
         </nav>
@@ -177,7 +180,7 @@ export default function Home() {
         <div className="page-content">
           <div className="preview-banner">
             <strong>Pilot preview</strong>
-            Demo activity only. Live deployment and client billing remain locked until the organisation launch checklist is approved.
+            Private pilot records only. Real client billing and live officer staffing remain locked until the organisation launch checklist is approved.
           </div>
 
           {activeNav !== "Control" ? (
@@ -187,11 +190,11 @@ export default function Home() {
             <div>
               <p className="eyebrow">Friday · 21 August · 14:35 SAST</p>
               <h1>Every confirmed booking is staffed.</h1>
-              <p className="hero-subtitle">One completed shift is waiting for client sign-off.</p>
+              <p className="hero-subtitle">{pendingServiceRecords ? `${pendingServiceRecords} completed shift${pendingServiceRecords === 1 ? " is" : "s are"} waiting for client service confirmation.` : "All completed service records are current."}</p>
             </div>
             <div className="hero-actions">
               <button className="secondary-button" onClick={() => flash("Daily operations report prepared.")}>Export daily report</button>
-              <button className="primary-button primary-button--light" onClick={() => setSelectedShift(shifts[3])}>Review sign-off</button>
+              <button className="primary-button primary-button--light" disabled={!pendingServiceRecords} onClick={() => setSelectedShift(shifts[3])}>{pendingServiceRecords ? "Review service record" : "Records current"}</button>
             </div>
           </section>
 
@@ -245,13 +248,13 @@ export default function Home() {
 
             <aside className="panel panel--attention">
               <div className="panel-heading">
-                <div><p className="eyebrow eyebrow--amber">Needs action</p><h2>Client sign-off</h2></div>
-                <span className="count-badge">1</span>
+                <div><p className="eyebrow eyebrow--amber">Needs action</p><h2>Service records</h2></div>
+                <span className="count-badge">{pendingServiceRecords}</span>
               </div>
-              <button className="attention-card" onClick={() => setSelectedShift(shifts[3])}>
+              {pendingServiceRecords ? <button className="attention-card" onClick={() => setSelectedShift(shifts[3])}>
                 <div className="attention-icon">!</div>
-                <div><strong>Completed shift awaiting approval</strong><p>R960 remains Pending until verification and this contract's weekly release.</p><span>SG-2080 · Northbridge Rosebank Offices</span></div>
-              </button>
+                <div><strong>Completed shift awaiting confirmation</strong><p>R960 is awaiting service verification; normal release controls remain separate.</p><span>SH-2080 · Northbridge Rosebank Offices</span></div>
+              </button> : <div className="clean-state"><span>✓</span><div><strong>Service records current</strong><p>No completed shifts are waiting for client confirmation.</p></div></div>}
               <div className="clean-state">
                 <span>✓</span>
                 <div><strong>Everything else is clean</strong><p>No unstaffed bookings, expired offers or payout exceptions.</p></div>
@@ -261,7 +264,7 @@ export default function Home() {
 
           <footer className="status-footer">
             <span><i /> All systems operational</span>
-            <span>Last reconciled 14:32 · Wallet ledger balanced</span>
+            <span>Persistent pilot · Earnings ledger connected</span>
           </footer>
           </>}
         </div>
@@ -271,7 +274,7 @@ export default function Home() {
         <div className="drawer-backdrop" role="presentation" onMouseDown={() => setSelectedShift(null)}>
           <aside className="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="shift-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="drawer-topline"><span className="detail-id">{selectedShift.id}</span><button onClick={() => setSelectedShift(null)} aria-label="Close details">×</button></div>
-            <p className="eyebrow">{selectedShift.id.startsWith("SG") ? "Client sign-off record" : "Booking assignment"}</p>
+            <p className="eyebrow">{selectedShift.state === "attention" ? "Client service record" : "Booking assignment"}</p>
             <h2 id="shift-title">{selectedShift.officer}</h2>
             <p className="drawer-subtitle">{selectedShift.grade} · {selectedShift.time}</p>
             <div className={`detail-status detail-status--${selectedShift.state}`}><StatusDot state={selectedShift.state} />{selectedShift.state === "on-post" ? "Officer is on post" : selectedShift.state === "confirmed" ? "Shift confirmed" : "Supervisor action required"}</div>
@@ -289,7 +292,7 @@ export default function Home() {
               <h3>Connected control trail</h3>
               <div><i className="done" /><span><strong>Officer approval and eligibility passed</strong><small>PSiRA grade · service qualification · preference · availability</small></span></div>
               <div><i className="done" /><span><strong>Offer accepted</strong><small>Fixed offer and contract terms captured before assignment</small></span></div>
-              <div><i className={selectedShift.state === "attention" ? "pending" : "done"} /><span><strong>{selectedShift.state === "attention" ? "Client sign-off outstanding" : "Attendance evidence current"}</strong><small>{selectedShift.detail}</small></span></div>
+              <div><i className={selectedShift.state === "attention" ? "pending" : "done"} /><span><strong>{selectedShift.state === "attention" ? "Client confirmation outstanding" : "Attendance evidence current"}</strong><small>{selectedShift.detail}</small></span></div>
             </div>
             <div className="drawer-actions">
               <button className="secondary-button" onClick={() => flash("Control record exported.")}>Export record</button>

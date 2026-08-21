@@ -300,6 +300,11 @@
 .wallet-withdrawal strong { margin-top: 8px; color: #dce0e1; font-size: 13px; }
 .wallet-withdrawal button { min-height: 48px; margin-top: auto; padding: 0 16px; border: 0; border-radius: 12px; background: var(--lime); color: #1b1e14; font-size: 12px; font-weight: 850; cursor: pointer; }
 .wallet-withdrawal button:disabled { opacity: .45; cursor: default; }
+
+.primary-button:disabled, .thursday-card button:disabled, .signoff-actions button:disabled { opacity: .5; cursor: default; }
+.service-record-note { margin: 0 24px 16px; padding: 12px 14px; border-left: 3px solid var(--lime); border-radius: 8px; background: #f3f6ef; color: #59605b; font-size: 11px; line-height: 1.55; }
+.pilot-error { margin: 12px 0 0; color: #a53d32; font-size: 11px; line-height: 1.5; }
+.client-signoff-card > .pilot-error { margin: 0 24px 18px; }
 .earnings-disclaimer { grid-column: 1/-1; margin: 4px 0 0; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.1); color: #7e8588; font-size: 11px; }
 .wallet-activity-v2 { padding: 0 24px 8px; }
 .wallet-activity-v2 .officer-section-heading { padding-left: 0; padding-right: 0; border: 0; border-bottom: 1px solid #e6e9e9; border-radius: 0; }
