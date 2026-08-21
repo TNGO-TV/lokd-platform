@@ -10,6 +10,11 @@ type Shift = {
   officer: string;
   initials: string;
   grade: string;
+  service: "Unarmed" | "Armed" | "VIP";
+  requirement: string;
+  contractTerm: string;
+  releaseCadence: "Weekly" | "Monthly";
+  paymentState: string;
   site: string;
   post: string;
   time: string;
@@ -22,45 +27,65 @@ const shifts: Shift[] = [
     id: "BK-2081",
     officer: "Lerato Khumalo",
     initials: "LK",
-    grade: "Grade C",
+    grade: "Grade B",
+    service: "Unarmed",
+    requirement: "Grade C+ · Unarmed opted in",
+    contractTerm: "1 month",
+    releaseCadence: "Weekly",
+    paymentState: "Client term paid in full",
     site: "Northbridge Rosebank Offices",
     post: "Main access",
     time: "06:00–18:00",
     state: "on-post",
-    detail: "Officer accepted R960 offer · Checked in 05:54 · Geofence verified",
+    detail: "Grade B meets C+ minimum · Unarmed notifications on · Checked in 05:54",
   },
   {
     id: "BK-2082",
     officer: "Sibusiso Dlamini",
     initials: "SD",
-    grade: "Grade C",
+    grade: "Grade B",
+    service: "Armed",
+    requirement: "Grade B+ · Firearm competency",
+    contractTerm: "3 months",
+    releaseCadence: "Weekly",
+    paymentState: "Client term paid in full",
     site: "Eastline Linbro Yard",
     post: "Vehicle gate",
     time: "18:00–06:00",
     state: "confirmed",
-    detail: "Officer accepted R1,020 offer · Eligibility rechecked · Starts 18:00",
+    detail: "Grade B verified · Firearm competency current · Armed offers enabled",
   },
   {
     id: "BK-2083",
-    officer: "Ayanda Ncube",
-    initials: "AN",
-    grade: "Grade C",
+    officer: "Thabo Mokoena",
+    initials: "TM",
+    grade: "Grade A",
+    service: "VIP",
+    requirement: "Grade B+ · VIP qualification",
+    contractTerm: "6 months",
+    releaseCadence: "Monthly",
+    paymentState: "Client term paid in full",
     site: "Metsi Midrand Depot",
     post: "Contractor access",
     time: "Sat · 06:00–18:00",
     state: "confirmed",
-    detail: "Officer accepted R980 offer · Site induction current · Booking staffed",
+    detail: "Grade A verified · Close protection qualification current · VIP opted in",
   },
   {
     id: "SG-2080",
     officer: "Lerato Khumalo",
     initials: "LK",
-    grade: "Grade C",
+    grade: "Grade B",
+    service: "Unarmed",
+    requirement: "Grade C+ · Unarmed opted in",
+    contractTerm: "1 month",
+    releaseCadence: "Weekly",
+    paymentState: "Client term paid in full",
     site: "Northbridge Rosebank Offices",
     post: "Main access",
     time: "18 Aug · 06:00–18:00",
     state: "attention",
-    detail: "Client sign-off pending · R960 earnings remain in Pending",
+    detail: "Client sign-off pending · R960 stays Pending until the weekly release",
   },
 ];
 
@@ -177,7 +202,7 @@ export default function Home() {
                 <span>Contracted coverage only</span>
               </div>
               <h2 id="coverage-title">2 of 2 client bookings covered today</h2>
-              <p>Each slot was offered only to approved, eligible officers. The first valid acceptance secured the assignment.</p>
+              <p>Each slot passed the service, grade, qualification and officer opt-in rules before the first valid acceptance secured it.</p>
               <div className="coverage-stats">
                 <div><strong>1</strong><span>On post</span></div>
                 <div><strong>1</strong><span>Accepted offer</span></div>
@@ -209,7 +234,7 @@ export default function Home() {
                 {currentShifts.map((shift) => (
                   <button className="shift-row" key={shift.id} onClick={() => setSelectedShift(shift)}>
                     <div className="avatar">{shift.initials}</div>
-                    <div className="shift-person"><strong>{shift.officer}</strong><span>{shift.grade} · {shift.id}</span></div>
+                    <div className="shift-person"><strong>{shift.officer}</strong><span>{shift.grade} · {shift.service} · {shift.id}</span></div>
                     <div className="shift-site"><strong>{shift.site}</strong><span>{shift.post}</span></div>
                     <div className="shift-time"><strong>{shift.time}</strong><span><StatusDot state={shift.state} /> {shift.state === "on-post" ? "On post" : "Confirmed"}</span></div>
                     <span className="row-arrow">›</span>
@@ -225,7 +250,7 @@ export default function Home() {
               </div>
               <button className="attention-card" onClick={() => setSelectedShift(shifts[3])}>
                 <div className="attention-icon">!</div>
-                <div><strong>Completed shift awaiting approval</strong><p>R960 remains Pending until the client signs off or the booking term expires.</p><span>SG-2080 · Northbridge Rosebank Offices</span></div>
+                <div><strong>Completed shift awaiting approval</strong><p>R960 remains Pending until verification and this contract's weekly release.</p><span>SG-2080 · Northbridge Rosebank Offices</span></div>
               </button>
               <div className="clean-state">
                 <span>✓</span>
@@ -254,13 +279,15 @@ export default function Home() {
               <div><dt>Client site</dt><dd>{selectedShift.site}</dd></div>
               <div><dt>Assigned post</dt><dd>{selectedShift.post}</dd></div>
               <div><dt>Control evidence</dt><dd>{selectedShift.detail}</dd></div>
-              <div><dt>Service type</dt><dd>Unarmed fixed-site guarding</dd></div>
+              <div><dt>Service type</dt><dd>{selectedShift.service}</dd></div>
+              <div><dt>Eligibility rule</dt><dd>{selectedShift.requirement}</dd></div>
+              <div><dt>Contract and funding</dt><dd>{selectedShift.contractTerm} · {selectedShift.paymentState}</dd></div>
               <div><dt>Officer offer</dt><dd>{selectedShift.id === "BK-2082" ? "R1,020 fixed offer" : selectedShift.id === "BK-2083" ? "R980 fixed offer" : "R960 fixed offer"}</dd></div>
-              <div><dt>Earnings release</dt><dd>Pending until client sign-off or booking term expiry</dd></div>
+              <div><dt>Earnings release</dt><dd>{selectedShift.releaseCadence} after verified completion</dd></div>
             </dl>
             <div className="drawer-timeline">
               <h3>Connected control trail</h3>
-              <div><i className="done" /><span><strong>Officer approval and eligibility passed</strong><small>Profile approved · PSiRA verified · Booking rules clear</small></span></div>
+              <div><i className="done" /><span><strong>Officer approval and eligibility passed</strong><small>PSiRA grade · service qualification · preference · availability</small></span></div>
               <div><i className="done" /><span><strong>Offer accepted</strong><small>Fixed offer and contract terms captured before assignment</small></span></div>
               <div><i className={selectedShift.state === "attention" ? "pending" : "done"} /><span><strong>{selectedShift.state === "attention" ? "Client sign-off outstanding" : "Attendance evidence current"}</strong><small>{selectedShift.detail}</small></span></div>
             </div>
