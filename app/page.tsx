@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import WorkspaceView from "./components/workspace-view";
 
 type ShiftState = "on-post" | "confirmed" | "attention";
 
@@ -18,7 +19,7 @@ type Shift = {
 
 const shifts: Shift[] = [
   {
-    id: "SH-1021",
+    id: "BK-2081",
     officer: "Lerato Khumalo",
     initials: "LK",
     grade: "Grade C",
@@ -26,10 +27,10 @@ const shifts: Shift[] = [
     post: "Main access",
     time: "06:00–18:00",
     state: "on-post",
-    detail: "Checked in at 05:54 · Geofence verified · Post orders accepted",
+    detail: "Officer accepted R960 offer · Checked in 05:54 · Geofence verified",
   },
   {
-    id: "SH-1022",
+    id: "BK-2082",
     officer: "Sibusiso Dlamini",
     initials: "SD",
     grade: "Grade C",
@@ -37,10 +38,10 @@ const shifts: Shift[] = [
     post: "Vehicle gate",
     time: "18:00–06:00",
     state: "confirmed",
-    detail: "Shift confirmed · Rest rule passed · Arrival reminder scheduled 17:15",
+    detail: "Officer accepted R1,020 offer · Eligibility rechecked · Starts 18:00",
   },
   {
-    id: "SH-1023",
+    id: "BK-2083",
     officer: "Ayanda Ncube",
     initials: "AN",
     grade: "Grade C",
@@ -48,22 +49,22 @@ const shifts: Shift[] = [
     post: "Contractor access",
     time: "Sat · 06:00–18:00",
     state: "confirmed",
-    detail: "Shift confirmed · Site induction current · Equipment list prepared",
+    detail: "Officer accepted R980 offer · Site induction current · Booking staffed",
   },
   {
-    id: "TS-1048",
-    officer: "Sibusiso Dlamini",
-    initials: "SD",
+    id: "SG-2080",
+    officer: "Lerato Khumalo",
+    initials: "LK",
     grade: "Grade C",
-    site: "Eastline Linbro Yard",
-    post: "Vehicle gate",
-    time: "20 Aug · 18:00–06:00",
+    site: "Northbridge Rosebank Offices",
+    post: "Main access",
+    time: "18 Aug · 06:00–18:00",
     state: "attention",
-    detail: "11-minute checkout variance requires supervisor review",
+    detail: "Client sign-off pending · R960 earnings remain in Pending",
   },
 ];
 
-const navItems = ["Control", "Roster", "Officers", "Clients", "Incidents", "Compliance"];
+const navItems = ["Control", "Bookings", "Offers", "Officers", "Clients", "Wallets"];
 
 function StatusDot({ state }: { state: ShiftState }) {
   return <span className={`status-dot status-dot--${state}`} aria-hidden="true" />;
@@ -102,8 +103,14 @@ export default function Home() {
           <span className="pulse-dot" />
           <span>
             <strong>Johannesburg pilot</strong>
-            Phase 1 · Internal preview
+            Offer engine · Preview
           </span>
+        </div>
+
+        <div className="experience-switcher" aria-label="Preview experience">
+          <a className="experience-active" href="/">Ops</a>
+          <a href="/officer">Officer</a>
+          <a href="/client">Client</a>
         </div>
 
         <nav aria-label="LOKD operations">
@@ -112,14 +119,11 @@ export default function Home() {
             <button
               className={activeNav === item ? "nav-item nav-item--active" : "nav-item"}
               key={item}
-              onClick={() => {
-                setActiveNav(item);
-                if (item !== "Control") flash(`${item} workspace is being assembled next.`);
-              }}
+              onClick={() => setActiveNav(item)}
             >
               <span>{item}</span>
-              {item === "Incidents" && <em>1</em>}
-              {item === "Compliance" && <em className="nav-warning">2</em>}
+              {item === "Offers" && <em>3</em>}
+              {item === "Wallets" && <em className="nav-warning">1</em>}
             </button>
           ))}
         </nav>
@@ -128,7 +132,7 @@ export default function Home() {
           <div className="avatar avatar--dark">Z</div>
           <span>
             <strong>Operations</strong>
-            Responsible director
+            Marketplace control
           </span>
           <button aria-label="Open account menu">•••</button>
         </div>
@@ -141,7 +145,7 @@ export default function Home() {
           <div className="top-actions">
             <button className="icon-button" aria-label="Search">⌕</button>
             <button className="icon-button notification-button" aria-label="Notifications"><span className="notification-dot" />◦</button>
-            <button className="primary-button" onClick={() => flash("New shift draft opened.")}><span>＋</span> Create shift</button>
+            <button className="primary-button" onClick={() => flash("New client booking draft opened.")}><span>＋</span> Create booking</button>
           </div>
         </header>
 
@@ -151,15 +155,18 @@ export default function Home() {
             Demo activity only. Live deployment and client billing remain locked until the organisation launch checklist is approved.
           </div>
 
+          {activeNav !== "Control" ? (
+            <WorkspaceView name={activeNav} />
+          ) : <>
           <section className="hero-copy">
             <div>
               <p className="eyebrow">Friday · 21 August · 14:35 SAST</p>
-              <h1>Every contracted post is covered.</h1>
-              <p className="hero-subtitle">One timesheet variance needs review before payroll closes.</p>
+              <h1>Every confirmed booking is staffed.</h1>
+              <p className="hero-subtitle">One completed shift is waiting for client sign-off.</p>
             </div>
             <div className="hero-actions">
               <button className="secondary-button" onClick={() => flash("Daily operations report prepared.")}>Export daily report</button>
-              <button className="primary-button primary-button--light" onClick={() => setSelectedShift(shifts[3])}>Review variance</button>
+              <button className="primary-button primary-button--light" onClick={() => setSelectedShift(shifts[3])}>Review sign-off</button>
             </div>
           </section>
 
@@ -169,12 +176,12 @@ export default function Home() {
                 <span className="live-label"><i /> Live operations</span>
                 <span>Contracted coverage only</span>
               </div>
-              <h2 id="coverage-title">2 of 2 scheduled shifts covered today</h2>
-              <p>All assigned officers are directly employed, verified and operating inside the approved unarmed pilot scope.</p>
+              <h2 id="coverage-title">2 of 2 client bookings covered today</h2>
+              <p>Each slot was offered only to approved, eligible officers. The first valid acceptance secured the assignment.</p>
               <div className="coverage-stats">
                 <div><strong>1</strong><span>On post</span></div>
-                <div><strong>1</strong><span>Starts by 18:00</span></div>
-                <div><strong>0</strong><span>Unfilled</span></div>
+                <div><strong>1</strong><span>Accepted offer</span></div>
+                <div><strong>0</strong><span>Open slots</span></div>
               </div>
             </div>
             <div className="coverage-map" aria-label="Schematic view of active LOKD sites">
@@ -195,8 +202,8 @@ export default function Home() {
           <section className="operations-grid">
             <article className="panel panel--shifts">
               <div className="panel-heading">
-                <div><p className="eyebrow">Operational roster</p><h2>Current and next shifts</h2></div>
-                <button onClick={() => { setActiveNav("Roster"); flash("Roster workspace is being assembled next."); }}>View roster →</button>
+                <div><p className="eyebrow">Booking engine</p><h2>Accepted assignments</h2></div>
+                <button onClick={() => setActiveNav("Bookings")}>View bookings →</button>
               </div>
               <div className="shift-list">
                 {currentShifts.map((shift) => (
@@ -213,24 +220,25 @@ export default function Home() {
 
             <aside className="panel panel--attention">
               <div className="panel-heading">
-                <div><p className="eyebrow eyebrow--amber">Needs action</p><h2>Before payroll closes</h2></div>
+                <div><p className="eyebrow eyebrow--amber">Needs action</p><h2>Client sign-off</h2></div>
                 <span className="count-badge">1</span>
               </div>
               <button className="attention-card" onClick={() => setSelectedShift(shifts[3])}>
                 <div className="attention-icon">!</div>
-                <div><strong>Review checkout variance</strong><p>Actual presence is 12h11m. Payable hours remain 12h pending supervisor review.</p><span>TS-1048 · Eastline Linbro Yard</span></div>
+                <div><strong>Completed shift awaiting approval</strong><p>R960 remains Pending until the client signs off or the booking term expires.</p><span>SG-2080 · Northbridge Rosebank Offices</span></div>
               </button>
               <div className="clean-state">
                 <span>✓</span>
-                <div><strong>Everything else is clean</strong><p>No uncovered shifts, expired credentials or priority incidents.</p></div>
+                <div><strong>Everything else is clean</strong><p>No unstaffed bookings, expired offers or payout exceptions.</p></div>
               </div>
             </aside>
           </section>
 
           <footer className="status-footer">
             <span><i /> All systems operational</span>
-            <span>Last reconciled 14:32 · Evidence vault synced</span>
+            <span>Last reconciled 14:32 · Wallet ledger balanced</span>
           </footer>
+          </>}
         </div>
       </section>
 
@@ -238,7 +246,7 @@ export default function Home() {
         <div className="drawer-backdrop" role="presentation" onMouseDown={() => setSelectedShift(null)}>
           <aside className="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="shift-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="drawer-topline"><span className="detail-id">{selectedShift.id}</span><button onClick={() => setSelectedShift(null)} aria-label="Close details">×</button></div>
-            <p className="eyebrow">{selectedShift.id.startsWith("TS") ? "Timesheet control record" : "Shift control record"}</p>
+            <p className="eyebrow">{selectedShift.id.startsWith("SG") ? "Client sign-off record" : "Booking assignment"}</p>
             <h2 id="shift-title">{selectedShift.officer}</h2>
             <p className="drawer-subtitle">{selectedShift.grade} · {selectedShift.time}</p>
             <div className={`detail-status detail-status--${selectedShift.state}`}><StatusDot state={selectedShift.state} />{selectedShift.state === "on-post" ? "Officer is on post" : selectedShift.state === "confirmed" ? "Shift confirmed" : "Supervisor action required"}</div>
@@ -247,16 +255,18 @@ export default function Home() {
               <div><dt>Assigned post</dt><dd>{selectedShift.post}</dd></div>
               <div><dt>Control evidence</dt><dd>{selectedShift.detail}</dd></div>
               <div><dt>Service type</dt><dd>Unarmed fixed-site guarding</dd></div>
+              <div><dt>Officer offer</dt><dd>{selectedShift.id === "BK-2082" ? "R1,020 fixed offer" : selectedShift.id === "BK-2083" ? "R980 fixed offer" : "R960 fixed offer"}</dd></div>
+              <div><dt>Earnings release</dt><dd>Pending until client sign-off or booking term expiry</dd></div>
             </dl>
             <div className="drawer-timeline">
               <h3>Connected control trail</h3>
-              <div><i className="done" /><span><strong>Officer eligibility passed</strong><small>Direct employee · PSiRA verified · Rest rules clear</small></span></div>
-              <div><i className="done" /><span><strong>Assignment confirmed</strong><small>Recorded against officer, site and approved post order</small></span></div>
-              <div><i className={selectedShift.state === "attention" ? "pending" : "done"} /><span><strong>{selectedShift.state === "attention" ? "Timesheet decision outstanding" : "Attendance evidence current"}</strong><small>{selectedShift.detail}</small></span></div>
+              <div><i className="done" /><span><strong>Officer approval and eligibility passed</strong><small>Profile approved · PSiRA verified · Booking rules clear</small></span></div>
+              <div><i className="done" /><span><strong>Offer accepted</strong><small>Fixed offer and contract terms captured before assignment</small></span></div>
+              <div><i className={selectedShift.state === "attention" ? "pending" : "done"} /><span><strong>{selectedShift.state === "attention" ? "Client sign-off outstanding" : "Attendance evidence current"}</strong><small>{selectedShift.detail}</small></span></div>
             </div>
             <div className="drawer-actions">
               <button className="secondary-button" onClick={() => flash("Control record exported.")}>Export record</button>
-              <button className="primary-button" onClick={() => { flash("Supervisor decision recorded."); setSelectedShift(null); }}>Acknowledge</button>
+              <button className="primary-button" onClick={() => { flash("Booking control action recorded."); setSelectedShift(null); }}>Acknowledge</button>
             </div>
           </aside>
         </div>
