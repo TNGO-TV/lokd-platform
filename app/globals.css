@@ -79,7 +79,10 @@
 .lokd-card-preview h2 { margin: 5px 0 8px; font-size: 24px; letter-spacing: -.04em; }
 .lokd-card-preview p:not(.eyebrow) { margin: 0; color: #68704f; font-size: 9px; line-height: 1.6; }
 .lokd-card-preview small { display: block; margin-top: 8px; color: #7b8267; font-size: 8px; }
-.lokd-card-preview > em { align-self: start; padding: 7px 9px; border-radius: 8px; background: rgba(255,255,255,.55); color: #64701f; font-size: 8px; font-style: normal; font-weight: 800; }
+.card-pilot-actions { align-self: stretch; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.card-pilot-actions em { padding: 7px 9px; border-radius: 8px; background: rgba(255,255,255,.55); color: #64701f; font-size: 8px; font-style: normal; font-weight: 800; }
+.card-pilot-actions button { min-width: 105px; padding: 10px 12px; border: 0; border-radius: 10px; background: var(--carbon); color: #fff; font-size: 8px; font-weight: 800; cursor: pointer; }
+.card-pilot-actions button:hover { background: #2d3133; }
 .profile-layout { display: grid; grid-template-columns: minmax(280px,.7fr) minmax(0,1.3fr); gap: 18px; }
 .profile-person { display: flex; gap: 14px; align-items: center; }
 .profile-person > span { width: 52px; height: 52px; border-radius: 15px; background: var(--carbon); color: var(--lime); display: grid; place-items: center; font-size: 12px; font-weight: 800; }
@@ -136,7 +139,7 @@
   .officer-home-grid, .profile-layout { grid-template-columns: 1fr; }
   .officer-quick-stack { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
   .lokd-card-preview { grid-template-columns: 210px 1fr; }
-  .lokd-card-preview > em { grid-column: 2; grid-row: 1; justify-self: end; }
+  .card-pilot-actions { grid-column: 2; grid-row: 1; align-items: flex-end; }
   .lokd-card-preview > div:nth-child(2) { grid-column: 2; grid-row: 1; padding-right: 70px; }
 }
 
@@ -157,8 +160,8 @@
   .wallet-activity-row { grid-template-columns: 1fr 70px; }
   .wallet-activity-row > em { grid-column: 1; }
   .lokd-card-preview { grid-template-columns: 1fr; padding: 18px; }
-  .lokd-card-preview > div:nth-child(2), .lokd-card-preview > em { grid-column: 1; grid-row: auto; padding-right: 0; }
-  .lokd-card-preview > em { justify-self: start; }
+  .lokd-card-preview > div:nth-child(2), .card-pilot-actions { grid-column: 1; grid-row: auto; padding-right: 0; }
+  .card-pilot-actions { align-items: flex-start; }
   .mini-payment-card { width: min(100%,280px); }
   .preference-row { grid-template-columns: 68px 1fr auto; }
   .qualification-box { grid-template-columns: 1fr; }
