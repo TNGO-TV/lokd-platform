@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import type { PilotAction, PilotState, ServiceType } from "../../lib/pilot-types";
+import { evaluateBookingReadiness, PILOT_PASSPORT_NUMBER, PILOT_PASSPORT_TOKEN, readEndorsements, tokenHash } from "../../lib/passport-server";
 
 export const dynamic = "force-dynamic";
 
@@ -48,11 +49,16 @@ function nextReleaseAt(cadence: "Weekly" | "Monthly") {
 }
 
 async function ensurePilotData(db: D1Database) {
+  const passportHash = await tokenHash(PILOT_PASSPORT_TOKEN);
   await db.batch([
     db.prepare(`INSERT OR IGNORE INTO officers
       (id, full_name, mobile, email, city, psira_number, psira_grade, psira_expiry, approval_status, banking_status, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(PILOT_OFFICER_ID, "Lerato Khumalo", "+27 82 555 0184", "lerato@example.co.za", "Johannesburg North", "PSIRA-1842", "Grade B", "2027-05-31", "approved", "verified", "2026-08-01T08:00:00.000Z"),
+    db.prepare(`INSERT OR IGNORE INTO officer_passports
+      (officer_id, passport_number, public_token_hash, status, readiness_label, issued_at, last_reviewed_at, next_review_at, updated_at)
+      VALUES (?, ?, ?, 'active', 'LOKD Ready', ?, ?, ?, ?)`)
+      .bind(PILOT_OFFICER_ID, PILOT_PASSPORT_NUMBER, passportHash, "2026-08-05T09:00:00.000Z", "2026-08-15T09:00:00.000Z", "2026-09-15", "2026-08-15T09:00:00.000Z"),
     db.prepare(`INSERT OR IGNORE INTO officer_services
       (officer_id, service_type, qualified, opted_in, qualification_expiry)
       VALUES (?, ?, ?, ?, ?)`)
@@ -65,6 +71,26 @@ async function ensurePilotData(db: D1Database) {
       (officer_id, service_type, qualified, opted_in, qualification_expiry)
       VALUES (?, ?, ?, ?, ?)`)
       .bind(PILOT_OFFICER_ID, "VIP", 0, 0, null),
+    db.prepare(`INSERT OR IGNORE INTO officer_endorsements
+      (id, officer_id, code, label, category, service_type, purpose_code, status, assessed_at, expires_at, next_due_at, assessor, client_visible)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?, ?, 1)`)
+      .bind("END-CORE-001", PILOT_OFFICER_ID, "core_ready", "Core LOKD Ready", "core", null, null, "2026-08-15T09:00:00.000Z", "2026-09-15", "2026-09-15", "LOKD Academy"),
+    db.prepare(`INSERT OR IGNORE INTO officer_endorsements
+      (id, officer_id, code, label, category, service_type, purpose_code, status, assessed_at, expires_at, next_due_at, assessor, client_visible)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?, ?, 1)`)
+      .bind("END-UNA-001", PILOT_OFFICER_ID, "service_unarmed", "Unarmed Security Professional", "service", "Unarmed", null, "2026-08-12T09:00:00.000Z", "2026-11-30", "2026-09-12", "LOKD Academy"),
+    db.prepare(`INSERT OR IGNORE INTO officer_endorsements
+      (id, officer_id, code, label, category, service_type, purpose_code, status, assessed_at, expires_at, next_due_at, assessor, client_visible)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?, ?, 1)`)
+      .bind("END-ARM-001", PILOT_OFFICER_ID, "service_armed", "Armed monthly readiness", "service", "Armed", null, "2026-08-05T09:00:00.000Z", "2026-09-05", "2026-09-05", "LOKD Academy"),
+    db.prepare(`INSERT OR IGNORE INTO officer_endorsements
+      (id, officer_id, code, label, category, service_type, purpose_code, status, assessed_at, expires_at, next_due_at, assessor, client_visible)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?, ?, 1)`)
+      .bind("END-COM-001", PILOT_OFFICER_ID, "purpose_commercial_access", "Commercial access", "purpose", null, "commercial_access", "2026-08-10T09:00:00.000Z", "2026-12-31", "2026-12-01", "LOKD Academy"),
+    db.prepare(`INSERT OR IGNORE INTO officer_endorsements
+      (id, officer_id, code, label, category, service_type, purpose_code, status, assessed_at, expires_at, next_due_at, assessor, client_visible)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?, ?, 1)`)
+      .bind("END-CON-001", PILOT_OFFICER_ID, "purpose_construction", "Construction sites", "purpose", null, "construction", "2026-08-10T10:00:00.000Z", "2026-12-31", "2026-12-01", "LOKD Academy"),
     db.prepare(`INSERT OR IGNORE INTO compliance_records
       (id, officer_id, record_type, status, verified_at, expires_at, next_due_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)`)
@@ -133,6 +159,14 @@ async function ensurePilotData(db: D1Database) {
       (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind("AUD-001", "system", "LOKD", "pilot_seeded", "officer", PILOT_OFFICER_ID, "Verified pilot profile and funded contracts loaded.", "2026-08-21T08:00:00.000Z"),
+    db.prepare(`UPDATE bookings SET purpose_code = 'commercial_access', purpose_label = 'Commercial access' WHERE id IN ('BK-2081', 'BK-2080')`),
+    db.prepare(`UPDATE bookings SET client_price_cents = 4800000 WHERE id IN ('BK-2081', 'BK-2080')`),
+    db.prepare(`UPDATE bookings SET purpose_code = 'construction', purpose_label = 'Construction site' WHERE id = 'BK-2084'`),
+    db.prepare(`UPDATE bookings SET service_type = 'Unarmed', purpose_code = 'commercial_access', purpose_label = 'Commercial access' WHERE id = 'BK-2078'`),
+    db.prepare(`UPDATE offers SET expires_at = '2026-09-05T16:00:00.000Z'
+      WHERE id = 'OF-2084' AND status = 'open' AND expires_at = '2026-08-21T18:00:00.000Z'`),
+    db.prepare(`UPDATE shifts SET passport_verification_status = 'green', passport_verified_at = COALESCE(passport_verified_at, ?)
+      WHERE id = 'SH-2081' AND passport_verification_status = 'not_checked'`).bind("2026-08-21T03:54:00.000Z"),
   ]);
 }
 
@@ -156,6 +190,26 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
     }>();
   if (!client) throw new PilotError("The pilot client profile is unavailable.", 500);
 
+  const passportRow = await db.prepare(`SELECT passport_number AS passportNumber, status, readiness_label AS readinessLabel,
+    issued_at AS issuedAt, last_reviewed_at AS lastReviewedAt, next_review_at AS nextReviewAt
+    FROM officer_passports WHERE officer_id = ?`).bind(PILOT_OFFICER_ID).first<{
+      passportNumber: string; status: PilotState["officer"]["passport"]["status"]; readinessLabel: string;
+      issuedAt: string | null; lastReviewedAt: string | null; nextReviewAt: string | null;
+    }>();
+  if (!passportRow) throw new PilotError("The pilot LOKD Passport is unavailable.", 500);
+  const endorsements = await readEndorsements(db, PILOT_OFFICER_ID);
+  const today = new Date().toISOString().slice(0, 10);
+  const coreReady = endorsements.find((item) => item.code === "core_ready");
+  const passportOffersEnabled = (passportRow.status === "active" || passportRow.status === "expiring")
+    && officer.psiraExpiry.slice(0, 10) >= today
+    && (!passportRow.nextReviewAt || passportRow.nextReviewAt.slice(0, 10) >= today)
+    && Boolean(
+      coreReady
+      && coreReady.status === "current"
+      && (!coreReady.expiresAt || coreReady.expiresAt.slice(0, 10) >= today)
+      && (!coreReady.nextDueAt || coreReady.nextDueAt.slice(0, 10) >= today),
+    );
+
   const services = await all<{ serviceType: ServiceType; qualified: number; optedIn: number; qualificationExpiry: string | null }>(
     db.prepare(`SELECT service_type AS serviceType, qualified, opted_in AS optedIn,
       qualification_expiry AS qualificationExpiry FROM officer_services WHERE officer_id = ?
@@ -167,22 +221,29 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
   );
   const offers = await all<{
     id: string; bookingId: string; siteName: string; siteArea: string; postName: string; serviceType: ServiceType;
+    purposeCode: string; purposeLabel: string;
     minimumGrade: string; contractMonths: number; shiftStart: string; shiftEnd: string; amountCents: number;
     releaseCadence: "Weekly" | "Monthly"; fundingStatus: string; status: "open" | "accepted" | "declined" | "expired"; expiresAt: string;
   }>(db.prepare(`SELECT o.id, o.booking_id AS bookingId, b.site_name AS siteName, b.site_area AS siteArea,
-    b.post_name AS postName, b.service_type AS serviceType, b.minimum_grade AS minimumGrade,
+    b.post_name AS postName, b.service_type AS serviceType, b.purpose_code AS purposeCode,
+    b.purpose_label AS purposeLabel, b.minimum_grade AS minimumGrade,
     b.contract_months AS contractMonths, b.shift_start AS shiftStart, b.shift_end AS shiftEnd,
     o.amount_cents AS amountCents, b.release_cadence AS releaseCadence, b.funding_status AS fundingStatus,
     o.status, o.expires_at AS expiresAt FROM offers o JOIN bookings b ON b.id = o.booking_id
     WHERE o.officer_id = ? ORDER BY o.expires_at DESC`).bind(PILOT_OFFICER_ID));
   const shifts = await all<{
-    id: string; bookingId: string; siteName: string; postName: string; serviceType: ServiceType; scheduledDate: string;
+    id: string; bookingId: string; siteName: string; postName: string; serviceType: ServiceType;
+    purposeCode: string; purposeLabel: string; scheduledDate: string;
     shiftStart: string; shiftEnd: string; status: string; checkInAt: string | null; checkOutAt: string | null;
-    clientSignoffStatus: string; earningsCents: number; releaseCadence: "Weekly" | "Monthly";
+    clientSignoffStatus: string; passportVerificationStatus: string; passportVerifiedAt: string | null;
+    earningsCents: number; releaseCadence: "Weekly" | "Monthly";
   }>(db.prepare(`SELECT s.id, s.booking_id AS bookingId, b.site_name AS siteName, b.post_name AS postName,
-    b.service_type AS serviceType, s.scheduled_date AS scheduledDate, b.shift_start AS shiftStart,
+    b.service_type AS serviceType, b.purpose_code AS purposeCode, b.purpose_label AS purposeLabel,
+    s.scheduled_date AS scheduledDate, b.shift_start AS shiftStart,
     b.shift_end AS shiftEnd, s.status, s.check_in_at AS checkInAt, s.check_out_at AS checkOutAt,
-    s.client_signoff_status AS clientSignoffStatus, s.earnings_cents AS earningsCents,
+    s.client_signoff_status AS clientSignoffStatus,
+    s.passport_verification_status AS passportVerificationStatus, s.passport_verified_at AS passportVerifiedAt,
+    s.earnings_cents AS earningsCents,
     b.release_cadence AS releaseCadence FROM shifts s JOIN bookings b ON b.id = s.booking_id
     WHERE s.officer_id = ? ORDER BY s.scheduled_date DESC, s.id DESC`).bind(PILOT_OFFICER_ID));
   const ledger = await all<{
@@ -211,6 +272,13 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
       initials,
       services: services.map((service) => ({ ...service, qualified: Boolean(service.qualified), optedIn: Boolean(service.optedIn) })),
       compliance,
+      passport: {
+        ...passportRow,
+        verificationPath: `/verify?token=${PILOT_PASSPORT_TOKEN}`,
+        offersEnabled: passportOffersEnabled,
+        gateMessage: passportOffersEnabled ? "Passport current. Eligible matching offers can be received." : "Passport action required before offers can be received.",
+        endorsements,
+      },
     },
     client,
     offers,
@@ -237,12 +305,18 @@ async function recordAudit(db: D1Database, actorType: string, actorId: string, e
 async function applyAction(db: D1Database, payload: PilotAction) {
   if (payload.action === "accept_offer") {
     const offer = await db.prepare(`SELECT o.id, o.booking_id AS bookingId, o.status, o.amount_cents AS amountCents,
-      b.start_date AS startDate FROM offers o JOIN bookings b ON b.id = o.booking_id
+      o.expires_at AS expiresAt, b.start_date AS startDate FROM offers o JOIN bookings b ON b.id = o.booking_id
       WHERE o.id = ? AND o.officer_id = ?`).bind(payload.offerId, PILOT_OFFICER_ID).first<{
-        id: string; bookingId: string; status: string; amountCents: number; startDate: string;
+        id: string; bookingId: string; status: string; amountCents: number; startDate: string; expiresAt: string;
       }>();
     if (!offer) throw new PilotError("This offer is not available to the pilot officer.", 404);
     if (offer.status !== "open") throw new PilotError("This offer has already been decided.", 409);
+    if (new Date(offer.expiresAt).getTime() <= Date.now()) throw new PilotError("This offer has expired.", 409);
+    const readiness = await evaluateBookingReadiness(db, PILOT_OFFICER_ID, offer.bookingId, {
+      assignmentDate: offer.startDate,
+      requireServiceOptIn: true,
+    });
+    if (!readiness.eligible) throw new PilotError(`LOKD Passport gate: ${readiness.blockers.join(" ")}`, 409);
     const accepted = await db.prepare(`UPDATE offers SET status = 'accepted', responded_at = ?
       WHERE id = ? AND officer_id = ? AND status = 'open'`)
       .bind(new Date().toISOString(), payload.offerId, PILOT_OFFICER_ID).run();
@@ -281,6 +355,15 @@ async function applyAction(db: D1Database, payload: PilotAction) {
   }
 
   if (payload.action === "check_in") {
+    const shift = await db.prepare(`SELECT booking_id AS bookingId, scheduled_date AS scheduledDate,
+      passport_verification_status AS passportVerificationStatus FROM shifts WHERE id = ? AND officer_id = ?`)
+      .bind(payload.shiftId, PILOT_OFFICER_ID).first<{ bookingId: string; scheduledDate: string; passportVerificationStatus: string }>();
+    if (!shift) throw new PilotError("This shift is not assigned to the pilot officer.", 404);
+    const readiness = await evaluateBookingReadiness(db, PILOT_OFFICER_ID, shift.bookingId, {
+      assignmentDate: shift.scheduledDate,
+    });
+    if (!readiness.eligible) throw new PilotError(`LOKD Passport gate: ${readiness.blockers.join(" ")}`, 409);
+    if (shift.passportVerificationStatus !== "green") throw new PilotError("Ask the client to scan your booking QR before check-in.", 409);
     const result = await db.prepare(`UPDATE shifts SET status = 'on_post', check_in_at = ?
       WHERE id = ? AND officer_id = ? AND status = 'confirmed'`)
       .bind(new Date().toISOString(), payload.shiftId, PILOT_OFFICER_ID).run();

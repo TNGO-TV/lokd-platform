@@ -1,6 +1,33 @@
 export type ServiceType = "Unarmed" | "Armed" | "VIP";
 export type OfferStatus = "open" | "accepted" | "declined" | "expired";
 export type LedgerState = "pending_signoff" | "pending_release" | "available" | "withdrawal_queued" | "paid" | "held";
+export type PassportStatus = "active" | "expiring" | "restricted" | "training" | "remediation" | "suspended" | "revoked";
+
+export type PassportEndorsement = {
+  id: string;
+  code: string;
+  label: string;
+  category: "core" | "service" | "purpose" | "skill";
+  serviceType: ServiceType | null;
+  purposeCode: string | null;
+  status: string;
+  assessedAt: string | null;
+  expiresAt: string | null;
+  nextDueAt: string | null;
+};
+
+export type PilotPassport = {
+  passportNumber: string;
+  verificationPath: string;
+  status: PassportStatus;
+  readinessLabel: string;
+  issuedAt: string | null;
+  lastReviewedAt: string | null;
+  nextReviewAt: string | null;
+  offersEnabled: boolean;
+  gateMessage: string;
+  endorsements: PassportEndorsement[];
+};
 
 export type PilotOffer = {
   id: string;
@@ -9,6 +36,8 @@ export type PilotOffer = {
   siteArea: string;
   postName: string;
   serviceType: ServiceType;
+  purposeCode: string;
+  purposeLabel: string;
   minimumGrade: string;
   contractMonths: number;
   shiftStart: string;
@@ -26,12 +55,16 @@ export type PilotShift = {
   siteName: string;
   postName: string;
   serviceType: ServiceType;
+  purposeCode: string;
+  purposeLabel: string;
   scheduledDate: string;
   shiftStart: string;
   shiftEnd: string;
   status: string;
   checkInAt: string | null;
   checkOutAt: string | null;
+  passportVerificationStatus: string;
+  passportVerifiedAt: string | null;
   clientSignoffStatus: string;
   earningsCents: number;
   releaseCadence: "Weekly" | "Monthly";
@@ -73,6 +106,7 @@ export type PilotState = {
       expiresAt: string | null;
       nextDueAt: string | null;
     }>;
+    passport: PilotPassport;
   };
   client: {
     id: string;

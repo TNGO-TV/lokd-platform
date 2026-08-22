@@ -5,12 +5,21 @@ import { usePilot } from "../lib/use-pilot";
 
 type ServiceType = "Unarmed" | "Armed" | "VIP";
 type ContractTerm = "single" | "1" | "3" | "6" | "12";
+type NoticeWindow = "standard" | "priority" | "urgent" | "immediate";
 
 const serviceOptions: { name: ServiceType; note: string; rate: number }[] = [
-  { name: "Unarmed", note: "Access, patrol and site guarding", rate: 1740 },
-  { name: "Armed", note: "Firearm-qualified security coverage", rate: 2240 },
-  { name: "VIP", note: "Verified close-protection officers", rate: 3200 },
+  { name: "Unarmed", note: "Purpose-trained security professional", rate: 2400 },
+  { name: "Armed", note: "Continuously assessed armed professional", rate: 3800 },
+  { name: "VIP", note: "LOKD Protective Operations specialist", rate: 7500 },
 ];
+
+const purposeOptions = ["Commercial access", "Construction site", "School", "Retail", "Residential", "Event", "Logistics / industrial"];
+const urgency: Record<NoticeWindow, { label: string; multiplier: number }> = {
+  standard: { label: "72+ hours · standard", multiplier: 1 },
+  priority: { label: "24–72 hours · +15%", multiplier: 1.15 },
+  urgent: { label: "6–24 hours · +25%", multiplier: 1.25 },
+  immediate: { label: "Under 6 hours · +40%", multiplier: 1.4 },
+};
 
 const termLabels: Record<ContractTerm, string> = {
   single: "Single shift",
@@ -24,10 +33,10 @@ function cadenceFor(term: ContractTerm) {
   return term === "single" || Number(term) <= 3 ? "Weekly" : "Monthly";
 }
 
-function priceFor(service: ServiceType, term: ContractTerm) {
-  const shiftRate = serviceOptions.find((item) => item.name === service)?.rate ?? 1740;
+function priceFor(service: ServiceType, term: ContractTerm, notice: NoticeWindow) {
+  const shiftRate = serviceOptions.find((item) => item.name === service)?.rate ?? 2400;
   const shiftCount = term === "single" ? 1 : Number(term) * 20;
-  return shiftRate * shiftCount;
+  return Math.round(shiftRate * shiftCount * urgency[notice].multiplier);
 }
 
 function money(value: number) {
@@ -39,6 +48,8 @@ export default function ClientPortal() {
   const [requestOpen, setRequestOpen] = useState(false);
   const [service, setService] = useState<ServiceType>("Unarmed");
   const [term, setTerm] = useState<ContractTerm>("1");
+  const [purpose, setPurpose] = useState("Commercial access");
+  const [noticeWindow, setNoticeWindow] = useState<NoticeWindow>("standard");
   const [notice, setNotice] = useState("");
 
   function flash(text: string) {
@@ -46,10 +57,11 @@ export default function ClientPortal() {
     window.setTimeout(() => setNotice(""), 3000);
   }
 
-  const requestedPrice = priceFor(service, term);
+  const requestedPrice = priceFor(service, term, noticeWindow);
   const releaseCadence = cadenceFor(term);
   const serviceRecord = pilot.state?.shifts.find((shift) => shift.id === "SH-2080") ?? null;
   const recordConfirmed = serviceRecord?.clientSignoffStatus === "approved";
+  const passportPath = `${pilot.state?.officer.passport.verificationPath ?? ""}&booking=BK-2081&shift=SH-2081`;
 
   async function confirmServiceRecord() {
     if (!serviceRecord) return;
@@ -72,9 +84,11 @@ export default function ClientPortal() {
       <section className="portal-page client-page">
         <div className="client-welcome"><div><p className="eyebrow">Friday · 21 August</p><h1>Your Rosebank post is active.</h1><p>Your 1-month Unarmed contract is paid in full and staffed.</p></div><button className="primary-button primary-button--light" onClick={() => setRequestOpen(true)}>Request coverage</button></div>
         <section className="client-status-card">
-          <div className="client-status-main"><span className="coverage-active"><i /> Officer on site</span><h2>Northbridge Rosebank Offices</h2><p>Main access · <span className="service-badge service-unarmed">Unarmed</span></p><div className="coverage-timeline"><span className="timeline-start">05:54<br/><small>Verified check-in</small></span><i><b /></i><span className="timeline-end">18:00<br/><small>Scheduled end</small></span></div></div>
-          <div className="client-booking-price"><span>Contract BK-2081 · 1 month</span><strong>R34,800.00</strong><small>Your full-term LOKD service price</small><dl><div><dt>Payment</dt><dd><span className="paid-status">✓ Paid in full</span></dd></div><div><dt>Service</dt><dd>Unarmed</dd></div><div><dt>Officer release cycle</dt><dd>Weekly</dd></div><div><dt>Confirmed hours</dt><dd>{recordConfirmed ? "12 hours" : "Awaiting confirmation"}</dd></div></dl></div>
+          <div className="client-status-main"><span className="coverage-active"><i /> Officer on site</span><h2>Northbridge Rosebank Offices</h2><p>Main access · <span className="service-badge service-unarmed">Unarmed</span> · Commercial access trained</p><div className="coverage-timeline"><span className="timeline-start">05:54<br/><small>Passport-verified check-in</small></span><i><b /></i><span className="timeline-end">18:00<br/><small>Scheduled end</small></span></div></div>
+          <div className="client-booking-price"><span>Contract BK-2081 · 1 month</span><strong>R48,000.00</strong><small>Your full-term LOKD premium service price</small><dl><div><dt>Payment</dt><dd><span className="paid-status">✓ Paid in full</span></dd></div><div><dt>Service</dt><dd>Purpose-trained Unarmed</dd></div><div><dt>Officer release cycle</dt><dd>Weekly</dd></div><div><dt>Confirmed hours</dt><dd>{recordConfirmed ? "12 hours" : "Awaiting confirmation"}</dd></div></dl></div>
         </section>
+
+        <section className="client-passport-card"><div className="client-passport-person"><span>{pilot.state.officer.initials}</span><div><small>ASSIGNED SECURITY PROFESSIONAL</small><h2>{pilot.state.officer.fullName}</h2><p>{pilot.state.officer.passport.passportNumber} · {pilot.state.officer.psiraGrade}</p></div></div><div className="client-passport-status"><i>✓</i><span><strong>LOKD Passport current</strong><small>Core readiness · Unarmed · Commercial access</small></span></div><img src="/lokd-shift-passport-qr.svg" alt="Scan to verify the assigned officer's LOKD Passport" /><a href={passportPath} target="_blank" rel="noreferrer">Open live verification</a></section>
 
         <section className="contract-rule-strip"><span>✓</span><div><strong>Full-term payment received and confirmed before staffing</strong><p>LOKD released this contract to eligible officers only after receiving and confirming the complete client payment. You see the LOKD service price; officer offer terms remain private.</p></div></section>
 
@@ -82,7 +96,7 @@ export default function ClientPortal() {
           <article className="client-signoff-card">
             <div className="card-title"><div><span>Shift completion</span><strong>Confirm service record</strong></div><em>{recordConfirmed ? "Confirmed" : "Ready for review"}</em></div>
             <div className="signoff-body"><div className="signoff-icon">{recordConfirmed ? "✓" : "→"}</div><div><h3>{recordConfirmed ? "Service record confirmed" : "Review completed service"}</h3><p>{recordConfirmed ? "Your confirmation is recorded in the service trail. Normal weekly release controls still apply." : "Confirm that this contracted shift was completed. Report a service issue if any part of this record requires review."}</p></div></div>
-            <div className="signoff-evidence"><div><span>Attendance</span><strong>Geofence check-in verified</strong></div><div><span>Post checks</span><strong>3 of 3 submitted</strong></div><div><span>Incidents</span><strong>1 low · resolved</strong></div></div>
+            <div className="signoff-evidence"><div><span>Attendance</span><strong>Passport QR verified</strong></div><div><span>Readiness</span><strong>Purpose endorsement current</strong></div><div><span>Incidents</span><strong>1 low · resolved</strong></div></div>
             {!recordConfirmed ? <><div className="service-record-note">Your confirmation is evidence for the service record; it is not a manual pay switch. A missing response cannot hold undisputed officer earnings indefinitely.</div><div className="signoff-actions"><button onClick={() => flash("Service issue form opened in pilot mode.")}>Report an issue</button><button disabled={pilot.busy || !serviceRecord} onClick={() => void confirmServiceRecord()}>{pilot.busy ? "Confirming…" : "Confirm completed service"}</button></div></> : <button className="download-record" onClick={() => flash("Confirmed service record prepared.")}>Download service record →</button>}
             {pilot.error && <p className="pilot-error" role="alert">{pilot.error}</p>}
           </article>
@@ -105,10 +119,11 @@ export default function ClientPortal() {
           <fieldset className="service-picker"><legend>Security service</legend>{serviceOptions.map((item) => <button type="button" key={item.name} className={service === item.name ? "selected" : ""} onClick={() => setService(item.name)}><span className={`service-badge service-${item.name.toLowerCase()}`}>{item.name}</span><small>{item.note}</small><i>{service === item.name ? "✓" : ""}</i></button>)}</fieldset>
           <div><label>Contract term<select value={term} onChange={(event) => setTerm(event.target.value as ContractTerm)}><option value="single">Single shift</option><option value="1">1 month</option><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option></select></label><label>Officer release<select value={releaseCadence} disabled><option>{releaseCadence}</option></select></label></div>
           <div><label>Start date<input type="date" defaultValue="2026-08-28" /></label><label>Shift<select><option>06:00–18:00</option><option>18:00–06:00</option></select></label></div>
+          <div><label>Purpose<select value={purpose} onChange={(event) => setPurpose(event.target.value)}>{purposeOptions.map((item) => <option key={item}>{item}</option>)}</select></label><label>Notice window<select value={noticeWindow} onChange={(event) => setNoticeWindow(event.target.value as NoticeWindow)}>{Object.entries(urgency).map(([key, value]) => <option value={key} key={key}>{value.label}</option>)}</select></label></div>
           <label>Post<select><option>Main access</option><option>Patrol and access</option><option>Executive movement</option></select></label>
           <label>Instructions<textarea defaultValue="Standard contracted post instructions apply." /></label>
         </div>
-        <div className="price-summary"><span>Your full-term LOKD price</span><strong>{money(requestedPrice)}</strong><p>{termLabels[term]} · {service} · officer earnings release {releaseCadence.toLowerCase()}</p></div>
+        <div className="price-summary"><span>Your full-term LOKD price</span><strong>{money(requestedPrice)}</strong><p>{termLabels[term]} · {service} · {purpose} · {urgency[noticeWindow].label} · officer earnings release {releaseCadence.toLowerCase()}</p></div>
         <div className="payment-gate"><span>i</span><p><strong>Full-term payment required.</strong> Eligible officers will not receive this offer until LOKD confirms the complete contract payment.</p></div>
         <div className="drawer-actions"><button className="secondary-button" onClick={() => setRequestOpen(false)}>Cancel</button><button className="primary-button primary-button--light" onClick={() => { setRequestOpen(false); flash("Request created. Payment is required before officer offers are released."); }}>Continue to payment</button></div></aside></div>}
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}

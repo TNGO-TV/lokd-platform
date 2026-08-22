@@ -1,23 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { PilotState } from "../lib/pilot-types";
 import { usePilot } from "../lib/use-pilot";
 
 const officers = [
-  { name: "Thabo Mokoena", ref: "LKD-001", grade: "Grade A", status: "Approved", services: "Unarmed · Armed · VIP", preference: "All offer alerts on", sites: "All pilot sites", tone: "green" },
-  { name: "Lerato Khumalo", ref: "LKD-002", grade: "Grade B", status: "On booking", services: "Unarmed · Armed", preference: "Unarmed on · Armed off", sites: "Rosebank · Midrand", tone: "blue" },
-  { name: "Sibusiso Dlamini", ref: "LKD-003", grade: "Grade B", status: "Offer accepted", services: "Unarmed · Armed", preference: "Armed offers on", sites: "Linbro", tone: "blue" },
-  { name: "Ayanda Ncube", ref: "LKD-004", grade: "Grade C", status: "Approved", services: "Unarmed", preference: "Unarmed offers on", sites: "Rosebank · Midrand", tone: "green" },
-  { name: "Kabelo Maseko", ref: "LKD-005", grade: "Grade C", status: "Approval hold", services: "Unarmed", preference: "Offers blocked", sites: "Offers blocked", tone: "red" },
+  { name: "Thabo Mokoena", ref: "LKD-001", grade: "Grade A", status: "Approved", services: "Unarmed · Armed · VIP", preference: "All offer alerts on", sites: "All pilot sites", passport: "Ready", purpose: "Executive protection · Commercial access", nextDue: "Fitness assessment · 04 Sep", tone: "green" },
+  { name: "Lerato Khumalo", ref: "LKD-002", grade: "Grade B", status: "On booking", services: "Unarmed · Armed", preference: "Unarmed on · Armed off", sites: "Rosebank · Midrand", passport: "Ready", purpose: "Commercial access · Construction", nextDue: "Passport review · 15 Sep", tone: "blue" },
+  { name: "Sibusiso Dlamini", ref: "LKD-003", grade: "Grade B", status: "Offer accepted", services: "Unarmed · Armed", preference: "Armed offers on", sites: "Linbro", passport: "Ready", purpose: "Secure logistics · Commercial access", nextDue: "Armed assessment · 29 Aug", tone: "green" },
+  { name: "Ayanda Ncube", ref: "LKD-004", grade: "Grade C", status: "Approved", services: "Unarmed", preference: "Unarmed offers on", sites: "Rosebank · Midrand", passport: "Ready", purpose: "School safety · Commercial access", nextDue: "Skills review · 12 Sep", tone: "green" },
+  { name: "Kabelo Maseko", ref: "LKD-005", grade: "Grade C", status: "Approval hold", services: "Unarmed", preference: "Offers blocked", sites: "Offers blocked", passport: "Restricted", purpose: "No current endorsement", nextDue: "PSiRA reverification required", tone: "red" },
 ];
 
 const workspaceCopy: Record<string, { eyebrow: string; title: string; subtitle: string; action: string }> = {
   Bookings: { eyebrow: "Pre-funded client demand", title: "Booking control", subtitle: "The full contract payment must be received and confirmed before a booking can release officer offers.", action: "Create booking" },
-  Offers: { eyebrow: "Uber-style allocation", title: "Offer engine", subtitle: "Grade, service qualification, preference, area and availability must all match.", action: "Release offer wave" },
-  Officers: { eyebrow: "Approved officer network", title: "Officer approval", subtitle: "PSiRA grade is verified separately from Armed, Unarmed and VIP eligibility and offer choices.", action: "Invite officer" },
+  Offers: { eyebrow: "Purpose-matched allocation", title: "Offer engine", subtitle: "An active LOKD Passport, purpose endorsement, grade, service qualification, preference, area and availability must all match.", action: "Release offer wave" },
+  Officers: { eyebrow: "Purpose-trained officer network", title: "Officer readiness", subtitle: "Every active officer carries a live LOKD Passport backed by current training, assessment and purpose endorsements.", action: "Invite officer" },
   Clients: { eyebrow: "Contracted service", title: "Clients and sites", subtitle: "Clients choose Armed, Unarmed or VIP, pay the term in full, then follow delivery.", action: "Add client" },
   Earnings: { eyebrow: "Officer payable ledger", title: "Earnings and payouts", subtitle: "Contracts up to 3 months release weekly; longer contracts release monthly before an officer can request payout.", action: "Release eligible earnings" },
+  Feedback: { eyebrow: "Team testing loop", title: "Pilot feedback", subtitle: "Review bugs, confusing moments, missing capabilities and ideas submitted from every pilot screen.", action: "Refresh feedback" },
 };
 
 function Top({ name, onAction, busy }: { name: string; onAction: () => void; busy?: boolean }) {
@@ -33,10 +34,14 @@ function Top({ name, onAction, busy }: { name: string; onAction: () => void; bus
 export default function WorkspaceView({ name }: { name: string }) {
   const pilot = usePilot();
   const [message, setMessage] = useState("");
+  const [feedbackReload, setFeedbackReload] = useState(0);
   const action = async () => {
     if (name === "Earnings") {
       const result = await pilot.runAction({ action: "release_earnings" });
       setMessage(result ? "Eligible verified earnings moved to Available." : "No earnings were released. Check the release date or exception state.");
+    } else if (name === "Feedback") {
+      setFeedbackReload((value) => value + 1);
+      setMessage("Feedback queue refreshed.");
     } else {
       setMessage(`${workspaceCopy[name].action} draft created in preview mode.`);
     }
@@ -48,9 +53,10 @@ export default function WorkspaceView({ name }: { name: string }) {
       <Top name={name} busy={pilot.busy} onAction={() => void action()} />
       {name === "Bookings" && <Bookings />}
       {name === "Offers" && <Offers state={pilot.state} />}
-      {name === "Officers" && <Officers />}
+      {name === "Officers" && <Officers state={pilot.state} />}
       {name === "Clients" && <Clients />}
       {name === "Earnings" && <Wallets state={pilot.state} loading={pilot.loading} busy={pilot.busy} onRelease={() => void action()} error={pilot.error} />}
+      {name === "Feedback" && <FeedbackQueue reloadKey={feedbackReload} />}
       {message && <div className="inline-notice">✓ {message}</div>}
     </div>
   );
@@ -58,18 +64,20 @@ export default function WorkspaceView({ name }: { name: string }) {
 
 function Bookings() {
   const items = [
-    { id: "BK-2081", client: "Northbridge Property Services", site: "Rosebank Offices", price: "R34,800", time: "1 month · Weekly release", service: "Unarmed", officer: "Lerato Khumalo", state: "Active", offer: "Grade B · Unarmed opted in" },
-    { id: "BK-2082", client: "Eastline Freight Solutions", site: "Linbro Yard", price: "R134,400", time: "3 months · Weekly release", service: "Armed", officer: "Sibusiso Dlamini", state: "Staffed", offer: "Grade B · competency verified" },
-    { id: "BK-2083", client: "Metsi Industrial Supplies", site: "Midrand Depot", price: "R384,000", time: "6 months · Monthly release", service: "VIP", officer: "Thabo Mokoena", state: "Staffed", offer: "Grade A · VIP verified" },
+    { id: "BK-2081", client: "Northbridge Property Services", site: "Rosebank Offices", price: "R48,000", time: "1 month · Weekly release", service: "Unarmed", purpose: "Commercial access", officer: "Lerato Khumalo", state: "Active", offer: "Passport verified · purpose current" },
+    { id: "BK-2082", client: "Eastline Freight Solutions", site: "Linbro Yard", price: "R134,400", time: "3 months · Weekly release", service: "Armed", purpose: "Secure logistics", officer: "Sibusiso Dlamini", state: "Staffed", offer: "Passport ready · monthly armed assessment current" },
+    { id: "BK-2083", client: "Metsi Industrial Supplies", site: "Midrand Depot", price: "R384,000", time: "6 months · Monthly release", service: "VIP", purpose: "Executive protection", officer: "Thabo Mokoena", state: "Staffed", offer: "Passport ready · tactical readiness current" },
   ];
-  return <section className="workspace-card booking-board"><div className="booking-summary"><div><span>Pre-funded terms</span><strong>R553,200</strong><small>Full client-term value secured</small></div><div><span>Service classes</span><strong>3</strong><small>Unarmed · Armed · VIP</small></div><div><span>Staffing</span><strong>3 / 3</strong><small>All eligibility gates passed</small></div><div><span>Awaiting release</span><strong>1</strong><small>R960 pending weekly cycle</small></div></div><div className="data-head booking-head"><span>Booking</span><span>Client price</span><span>Officer assignment</span><span>Status</span><span /></div>{items.map((item) => <button className="booking-row" key={item.id}><span><strong>{item.id} · {item.site}</strong><small>{item.client} · {item.service} · {item.time}</small></span><span><strong>{item.price}</strong><small>Paid in full · LOKD price</small></span><span><strong>{item.officer}</strong><small>{item.offer}</small></span><span><em className={item.state === "Active" ? "pill tone-green" : "pill tone-blue"}>{item.state}</em></span><b>›</b></button>)}</section>;
+  return <section className="workspace-card booking-board"><div className="booking-summary"><div><span>Pre-funded terms</span><strong>R566,400</strong><small>Full client-term value secured</small></div><div><span>Service classes</span><strong>3</strong><small>Unarmed · Armed · VIP</small></div><div><span>Staffing</span><strong>3 / 3</strong><small>Passport and purpose gates passed</small></div><div><span>Awaiting release</span><strong>1</strong><small>R960 pending weekly cycle</small></div></div><div className="data-head booking-head"><span>Booking</span><span>Client price</span><span>Officer assignment</span><span>Status</span><span /></div>{items.map((item) => <button className="booking-row" key={item.id}><span><strong>{item.id} · {item.site}</strong><small>{item.client} · {item.service} · {item.purpose} · {item.time}</small></span><span><strong>{item.price}</strong><small>Paid in full · LOKD price</small></span><span><strong>{item.officer}</strong><small>{item.offer}</small></span><span><em className={item.state === "Active" ? "pill tone-green" : "pill tone-blue"}>{item.state}</em></span><b>›</b></button>)}</section>;
 }
 
 function Offers({ state }: { state: PilotState | null }) {
   const offer = state?.offers.find((item) => item.id === "OF-2084");
   const accepted = offer?.status === "accepted";
   const declined = offer?.status === "declined";
-  return <div className="offer-engine-layout"><section className="workspace-card offer-wave-card"><div className="card-title"><div><span>{accepted ? "Assigned Unarmed offer" : declined ? "Closed Unarmed offer" : "Live Unarmed offer"}</span><strong>Midrand · 1-month access contract</strong></div><em>{offer ? offer.status : "Loading"}</em></div><div className="wave-path"><div className="wave-step done"><i>✓</i><span><strong>Payment gate passed</strong><small>Full client payment received and confirmed</small></span></div><div className="wave-step done"><i>✓</i><span><strong>Eligibility pool built</strong><small>Grade + qualification + opt-in + area</small></span></div><div className={`wave-step ${accepted || declined ? "done" : "live"}`}><i>{accepted || declined ? "✓" : "2"}</i><span><strong>Fixed offer delivered</strong><small>R980 · weekly release</small></span></div><div className={`wave-step ${accepted ? "done" : ""}`}><i>{accepted ? "✓" : "•"}</i><span><strong>Atomic assignment</strong><small>{accepted ? "Lerato secured the booking" : "First valid acceptance secures the booking"}</small></span></div></div><div className="wave-candidates"><div><span>LK</span><strong>{state?.officer.fullName ?? "Lerato Khumalo"}</strong><small>Grade B · Unarmed on · persistent pilot record</small><em className={`pill ${accepted ? "tone-green" : declined ? "tone-red" : "tone-amber"}`}>{accepted ? "Offer accepted" : declined ? "Offer declined" : "Decision pending"}</em></div><div><span>TM</span><strong>Thabo Mokoena</strong><small>Grade A · Unarmed on · eligible</small><em className="pill tone-blue">Wave candidate</em></div><div><span>SD</span><strong>Sibusiso Dlamini</strong><small>Qualified, but Unarmed notifications off</small><em className="pill tone-red">Preference blocked</em></div></div></section><aside className="workspace-card offer-rules-card"><div className="card-title"><div><span>Offer snapshot</span><strong>Officer terms</strong></div></div><dl><div><dt>Service</dt><dd>Unarmed</dd></div><div><dt>Minimum grade</dt><dd>Grade C</dd></div><div><dt>Officer amount</dt><dd>R980 fixed / shift</dd></div><div><dt>Contract term</dt><dd>1 month</dd></div><div><dt>Release cadence</dt><dd>Weekly</dd></div><div><dt>Client payment</dt><dd>Received and confirmed in full</dd></div></dl><p>A higher-grade officer may accept lower-grade work when qualified and opted in. Client and officer pricing remain separate.</p></aside></div>;
+  const purpose = offer?.purposeLabel ?? "Commercial access";
+  const passport = state?.officer.passport;
+  return <div className="offer-engine-layout"><section className="workspace-card offer-wave-card"><div className="card-title"><div><span>{accepted ? "Assigned Unarmed offer" : declined ? "Closed Unarmed offer" : "Live Unarmed offer"}</span><strong>Midrand · {purpose} · 1-month contract</strong></div><em>{offer ? offer.status : "Loading"}</em></div><div className="wave-path"><div className="wave-step done"><i>✓</i><span><strong>Payment gate passed</strong><small>Full client payment received and confirmed</small></span></div><div className="wave-step done"><i>✓</i><span><strong>Passport pool built</strong><small>Active Passport + purpose endorsement + grade + service + opt-in</small></span></div><div className={`wave-step ${accepted || declined ? "done" : "live"}`}><i>{accepted || declined ? "✓" : "2"}</i><span><strong>Fixed offer delivered</strong><small>R980 · weekly release</small></span></div><div className={`wave-step ${accepted ? "done" : ""}`}><i>{accepted ? "✓" : "•"}</i><span><strong>Atomic assignment</strong><small>{accepted ? "Lerato secured the booking" : "First currently eligible acceptance secures the booking"}</small></span></div></div><div className="wave-candidates"><div><span>LK</span><strong>{state?.officer.fullName ?? "Lerato Khumalo"}</strong><small>{passport ? `Passport ${passport.readinessLabel} · ${purpose} endorsed` : "Checking Passport readiness…"}</small><em className={`pill ${accepted ? "tone-green" : declined ? "tone-red" : passport?.offersEnabled ? "tone-amber" : "tone-red"}`}>{accepted ? "Offer accepted" : declined ? "Offer declined" : passport?.offersEnabled ? "Decision pending" : "Passport blocked"}</em></div><div><span>TM</span><strong>Thabo Mokoena</strong><small>Passport ready · Commercial access endorsed</small><em className="pill tone-blue">Wave candidate</em></div><div><span>SD</span><strong>Sibusiso Dlamini</strong><small>Passport ready, but Unarmed notifications off</small><em className="pill tone-red">Preference blocked</em></div></div></section><aside className="workspace-card offer-rules-card"><div className="card-title"><div><span>Offer snapshot</span><strong>Officer terms</strong></div></div><dl><div><dt>Service</dt><dd>Unarmed</dd></div><div><dt>Purpose</dt><dd>{purpose}</dd></div><div><dt>Passport gate</dt><dd>Active and current</dd></div><div><dt>Minimum grade</dt><dd>Grade C</dd></div><div><dt>Officer amount</dt><dd>R980 fixed / shift</dd></div><div><dt>Contract term</dt><dd>1 month</dd></div><div><dt>Release cadence</dt><dd>Weekly</dd></div><div><dt>Client payment</dt><dd>Received and confirmed in full</dd></div></dl><p>A higher-grade officer may accept lower-grade work only when their Passport, purpose training and service qualification are current and they have opted in.</p></aside></div>;
 }
 
 function money(cents: number) {
@@ -107,12 +115,89 @@ function Roster() {
   );
 }
 
-function Officers() {
+function Officers({ state }: { state: PilotState | null }) {
+  const roster = officers.map((officer) => {
+    if (officer.ref !== "LKD-002" || !state) return officer;
+    const enabledServices = state.officer.services.filter((service) => service.qualified && service.optedIn).map((service) => service.serviceType);
+    const purposeLabels = state.officer.passport.endorsements.filter((endorsement) => endorsement.category === "purpose" && endorsement.status === "current").map((endorsement) => endorsement.label);
+    const nextReview = state.officer.passport.nextReviewAt
+      ? new Intl.DateTimeFormat("en-ZA", { day: "2-digit", month: "short" }).format(new Date(state.officer.passport.nextReviewAt))
+      : "Not scheduled";
+    return {
+      ...officer,
+      name: state.officer.fullName,
+      grade: state.officer.psiraGrade,
+      services: enabledServices.length ? enabledServices.join(" · ") : "No offer classes enabled",
+      passport: state.officer.passport.readinessLabel,
+      purpose: purposeLabels.length ? purposeLabels.join(" · ") : "No current purpose endorsement",
+      nextDue: `Passport review · ${nextReview}`,
+      tone: state.officer.passport.offersEnabled ? officer.tone : "red",
+    };
+  });
   return (
     <section className="workspace-card data-card">
-      <div className="filter-row"><button className="filter-active">All officers <b>5</b></button><button>Approved <b>4</b></button><button>On hold <b>1</b></button><span /><input aria-label="Search officers" placeholder="Search officer" /></div>
-      <div className="data-head"><span>Officer</span><span>Grade verification</span><span>Service eligibility & choices</span><span>Status</span><span /></div>
-      {officers.map((officer) => <button className="data-row" key={officer.ref}><span className="person-cell"><i>{officer.name.split(" ").map((part) => part[0]).join("")}</i><span><strong>{officer.name}</strong><small>{officer.ref} · {officer.sites}</small></span></span><span><strong>{officer.grade} · Verified</strong><small>PSiRA •••• {officer.ref === "LKD-005" ? "6081" : "1842"}</small></span><span><strong>{officer.services}</strong><small>{officer.preference}</small></span><span><em className={`pill tone-${officer.tone}`}>{officer.status}</em></span><span>›</span></button>)}
+      <div className="filter-row"><button className="filter-active">All officers <b>5</b></button><button>Passport ready <b>4</b></button><button>Restricted <b>1</b></button><span /><input aria-label="Search officers" placeholder="Search officer or Passport" /></div>
+      <div className="data-head"><span>Officer</span><span>Grade & Passport</span><span>Purpose fit & services</span><span>Status</span><span /></div>
+      {roster.map((officer) => <button className="data-row" key={officer.ref}><span className="person-cell"><i>{officer.name.split(" ").map((part) => part[0]).join("")}</i><span><strong>{officer.name}</strong><small>{officer.ref} · {officer.sites}</small></span></span><span><strong>{officer.grade} · Passport {officer.passport}</strong><small>{officer.nextDue}</small></span><span><strong>{officer.purpose}</strong><small>{officer.services} · {officer.preference}</small></span><span><em className={`pill tone-${officer.tone}`}>{officer.status}</em></span><span>›</span></button>)}
+    </section>
+  );
+}
+
+type FeedbackItem = {
+  id: string;
+  reviewerEmail: string | null;
+  route: string;
+  role: string;
+  category: "Bug" | "Confusing" | "Missing" | "Idea";
+  score: number;
+  note: string;
+  status: string;
+  createdAt: string;
+};
+
+function FeedbackQueue({ reloadKey }: { reloadKey: number }) {
+  const [items, setItems] = useState<FeedbackItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    void fetch("/api/feedback", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json() as { feedback?: FeedbackItem[]; error?: string };
+        if (!response.ok) throw new Error(payload.error ?? "Feedback could not be loaded.");
+        setItems(payload.feedback ?? []);
+      })
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        setError(reason instanceof Error ? reason.message : "Feedback could not be loaded.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [reloadKey]);
+
+  const newItems = items.filter((item) => item.status === "new").length;
+  const averageScore = items.length ? (items.reduce((total, item) => total + item.score, 0) / items.length).toFixed(1) : "—";
+  const categoryCounts = items.reduce<Record<string, number>>((counts, item) => ({ ...counts, [item.category]: (counts[item.category] ?? 0) + 1 }), {});
+  const statusTone = (status: string) => status === "resolved" ? "green" : status === "reviewed" ? "blue" : "amber";
+  const categoryTone = (category: FeedbackItem["category"]) => category === "Bug" ? "red" : category === "Confusing" ? "amber" : category === "Missing" ? "blue" : "green";
+
+  return (
+    <section className="workspace-card booking-board" aria-live="polite">
+      <div className="booking-summary">
+        <div><span>Submissions</span><strong>{loading ? "…" : items.length}</strong><small>Across the current pilot</small></div>
+        <div><span>New to review</span><strong>{loading ? "…" : newItems}</strong><small>Operations feedback queue</small></div>
+        <div><span>Average clarity</span><strong>{loading ? "…" : averageScore}</strong><small>Team score out of 5</small></div>
+        <div><span>Most reported</span><strong>{loading ? "…" : Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "None"}</strong><small>Bug · Confusing · Missing · Idea</small></div>
+      </div>
+      {error ? <div className="inline-notice" role="alert">{error}</div> : loading ? <div className="officer-loading"><span className="pulse-dot" /><strong>Loading team feedback…</strong></div> : items.length === 0 ? <div className="clean-state"><span>✓</span><div><strong>No feedback submitted yet</strong><p>The floating feedback control is available on every pilot screen.</p></div></div> : <>
+        <div className="data-head booking-head"><span>Feedback</span><span>Experience</span><span>Reviewer</span><span>Status</span><span /></div>
+        {items.map((item) => <div className="booking-row" key={item.id}><span><strong>{item.note}</strong><small>{new Intl.DateTimeFormat("en-ZA", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.createdAt))}</small></span><span><strong><em className={`pill tone-${categoryTone(item.category)}`}>{item.category}</em> · {item.score}/5</strong><small>{item.role} · {item.route}</small></span><span><strong>{item.reviewerEmail ?? "Authenticated team reviewer"}</strong><small>Submitted from the pilot</small></span><span><em className={`pill tone-${statusTone(item.status)}`}>{item.status}</em></span><b>›</b></div>)}
+      </>}
     </section>
   );
 }

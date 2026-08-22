@@ -6,6 +6,15 @@ import type { FormEvent } from "react";
 type Pathway = "qualified" | "training";
 
 const serviceChoices = ["Unarmed", "Armed", "VIP"] as const;
+const purposeChoices = [
+  "Commercial access",
+  "Construction site",
+  "School",
+  "Retail",
+  "Residential",
+  "Event",
+  "Logistics / industrial",
+] as const;
 const trainingChoices = [
   "Entry-level security training",
   "Security grade upgrade",
@@ -18,6 +27,7 @@ export default function JoinPage() {
   const [step, setStep] = useState(1);
   const [pathway, setPathway] = useState<Pathway>("qualified");
   const [services, setServices] = useState<string[]>(["Unarmed"]);
+  const [purposes, setPurposes] = useState<string[]>(["Commercial access"]);
   const [training, setTraining] = useState<string[]>([]);
   const [details, setDetails] = useState({ fullName: "", mobile: "", email: "", city: "", province: "Gauteng", psiraStatus: "active", psiraNumber: "", psiraGrade: "" });
   const [busy, setBusy] = useState(false);
@@ -57,6 +67,7 @@ export default function JoinPage() {
     event.preventDefault();
     setError("");
     if (!services.length) return setError("Choose at least one type of work you would like to hear about.");
+    if (!purposes.length) return setError("Choose at least one work environment you would like to prepare for.");
     if (pathway === "training" && !training.length) return setError("Choose at least one training area.");
     setBusy(true);
     try {
@@ -68,6 +79,7 @@ export default function JoinPage() {
           pathway,
           ...details,
           services,
+          purposes,
           training,
           over18Confirmed: form.get("over18Confirmed") === "on",
           eligibilityAcknowledged: form.get("eligibilityAcknowledged") === "on",
@@ -106,7 +118,7 @@ export default function JoinPage() {
 
           {step === 2 && <div className="join-fields"><div className="join-form-title"><span>YOUR DETAILS</span><h2>How can LOKD reach you?</h2></div><label>Full name<input name="fullName" value={details.fullName} onChange={(event) => updateDetail("fullName", event.target.value)} autoComplete="name" minLength={3} maxLength={100} required placeholder="e.g. Lerato Khumalo" /></label><div className="join-two"><label>Mobile number<input name="mobile" value={details.mobile} onChange={(event) => updateDetail("mobile", event.target.value)} type="tel" autoComplete="tel" required maxLength={24} placeholder="e.g. 082 123 4567" /></label><label>Email address<input name="email" value={details.email} onChange={(event) => updateDetail("email", event.target.value)} type="email" autoComplete="email" required maxLength={120} placeholder="you@example.co.za" /></label></div><div className="join-two"><label>City or nearest town<input name="city" value={details.city} onChange={(event) => updateDetail("city", event.target.value)} autoComplete="address-level2" required maxLength={80} placeholder="e.g. Johannesburg" /></label><label>Province<select name="province" value={details.province} onChange={(event) => updateDetail("province", event.target.value)} required><option>Gauteng</option><option>Western Cape</option><option>Free State</option><option>KwaZulu-Natal</option><option>Eastern Cape</option><option>Mpumalanga</option><option>Limpopo</option><option>North West</option><option>Northern Cape</option></select></label></div><label>Current PSiRA position<select name="psiraStatus" value={details.psiraStatus} onChange={(event) => updateDetail("psiraStatus", event.target.value)} required><option value="active">Registered and current</option><option value="expired">Registered but needs renewal</option><option value="in_training">Currently in training</option><option value="not_registered">Not yet registered</option></select></label><div className="join-two"><label>PSiRA number <small>if you have one</small><input name="psiraNumber" value={details.psiraNumber} onChange={(event) => updateDetail("psiraNumber", event.target.value)} maxLength={40} placeholder="Optional at this stage" /></label><label>Highest grade <small>if applicable</small><select name="psiraGrade" value={details.psiraGrade} onChange={(event) => updateDetail("psiraGrade", event.target.value)}><option value="">Not applicable / unsure</option><option>Grade A</option><option>Grade B</option><option>Grade C</option><option>Grade D</option><option>Grade E</option></select></label></div>{error && <p className="join-error" role="alert">{error}</p>}</div>}
 
-          {step === 3 && <div className="join-fields"><div className="join-form-title"><span>YOUR DIRECTION</span><h2>What would you like to work toward?</h2></div><fieldset className="join-check-grid"><legend>Work categories you are interested in</legend>{serviceChoices.map((item) => <label key={item}><input type="checkbox" checked={services.includes(item)} onChange={() => toggle(item, services, setServices)} /><span><strong>{item}</strong><small>{item === "Unarmed" ? "Guarding, access and event work" : item === "Armed" ? "Separate firearm and assignment checks apply" : "Separate close-protection credentials apply"}</small></span><i>✓</i></label>)}</fieldset>{pathway === "training" && <fieldset className="join-check-grid join-training-grid"><legend>Training information you need</legend>{trainingChoices.map((item) => <label key={item}><input type="checkbox" checked={training.includes(item)} onChange={() => toggle(item, training, setTraining)} /><span><strong>{item}</strong></span><i>✓</i></label>)}</fieldset>}<div className="join-consent-stack"><label className="join-consent"><input name="over18Confirmed" type="checkbox" required /><span>I confirm that I am at least 18 years old.</span></label><label className="join-consent"><input name="eligibilityAcknowledged" type="checkbox" required /><span>I understand that PSiRA registration and work eligibility remain subject to the applicable statutory, training and fit-and-proper requirements.</span></label><label className="join-consent"><input name="contactConsent" type="checkbox" required /><span>I agree that LOKD may store these details and contact me about officer onboarding or relevant training intake information. I understand that this is not an offer of employment or a guarantee of work.</span></label></div><label className="join-honeypot" aria-hidden="true">Company<input name="company" tabIndex={-1} autoComplete="off" /></label>{error && <p className="join-error" role="alert">{error}</p>}</div>}
+          {step === 3 && <div className="join-fields"><div className="join-form-title"><span>YOUR DIRECTION</span><h2>What would you like to work toward?</h2></div><fieldset className="join-check-grid"><legend>Work categories you are interested in</legend>{serviceChoices.map((item) => <label key={item}><input type="checkbox" checked={services.includes(item)} onChange={() => toggle(item, services, setServices)} /><span><strong>{item}</strong><small>{item === "Unarmed" ? "Guarding, access and event work" : item === "Armed" ? "Separate firearm and assignment checks apply" : "Separate close-protection credentials apply"}</small></span><i>✓</i></label>)}</fieldset><fieldset className="join-check-grid join-training-grid"><legend>Work environments you want to prepare for</legend>{purposeChoices.map((item) => <label key={item}><input type="checkbox" checked={purposes.includes(item)} onChange={() => toggle(item, purposes, setPurposes)} /><span><strong>{item}</strong></span><i>✓</i></label>)}<div className="join-form-note" style={{ gridColumn: "1 / -1" }}><strong>Interest is not an endorsement.</strong><p>LOKD training, assessment and approval are required before a purpose is added to your live LOKD Passport or used to match offers.</p></div></fieldset>{pathway === "training" && <fieldset className="join-check-grid join-training-grid"><legend>Training information you need</legend>{trainingChoices.map((item) => <label key={item}><input type="checkbox" checked={training.includes(item)} onChange={() => toggle(item, training, setTraining)} /><span><strong>{item}</strong></span><i>✓</i></label>)}</fieldset>}<div className="join-consent-stack"><label className="join-consent"><input name="over18Confirmed" type="checkbox" required /><span>I confirm that I am at least 18 years old.</span></label><label className="join-consent"><input name="eligibilityAcknowledged" type="checkbox" required /><span>I understand that PSiRA registration and work eligibility remain subject to the applicable statutory, training and fit-and-proper requirements.</span></label><label className="join-consent"><input name="contactConsent" type="checkbox" required /><span>I agree that LOKD may store these details and contact me about officer onboarding or relevant training intake information. I understand that this is not an offer of employment or a guarantee of work.</span></label></div><label className="join-honeypot" aria-hidden="true">Company<input name="company" tabIndex={-1} autoComplete="off" /></label>{error && <p className="join-error" role="alert">{error}</p>}</div>}
 
           <div className="join-form-actions">{step > 1 && <button type="button" onClick={() => { setError(""); setStep(step - 1); }}>← Back</button>}<span />{step < 3 ? <button className="public-button public-button--dark" type="button" onClick={continueForm}>Continue →</button> : <button className="public-button public-button--lime" type="submit" disabled={busy}>{busy ? "Saving…" : pathway === "training" ? "Find my training pathway →" : "Submit officer application →"}</button>}</div>
         </form>

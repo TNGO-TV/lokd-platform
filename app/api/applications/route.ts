@@ -7,8 +7,9 @@ const provinces = new Set(["Gauteng", "Western Cape", "Free State", "KwaZulu-Nat
 const psiraStatuses = new Set(["active", "expired", "in_training", "not_registered"]);
 const grades = new Set(["Grade A", "Grade B", "Grade C", "Grade D", "Grade E"]);
 const serviceOptions = new Set(["Unarmed", "Armed", "VIP"]);
+const purposeOptions = new Set(["Commercial access", "Construction site", "School", "Retail", "Residential", "Event", "Logistics / industrial"]);
 const trainingOptions = new Set(["Entry-level security training", "Security grade upgrade", "Firearms training", "Armed-work readiness", "VIP / close-protection training"]);
-const privacyNoticeVersion = "officer-interest-2026-08-22-v1";
+const privacyNoticeVersion = "officer-interest-2026-08-22-v2";
 
 class ApplicationError extends Error {
   status: number;
@@ -30,6 +31,7 @@ type ApplicationInput = {
   psiraNumber?: unknown;
   psiraGrade?: unknown;
   services?: unknown;
+  purposes?: unknown;
   training?: unknown;
   over18Confirmed?: unknown;
   eligibilityAcknowledged?: unknown;
@@ -96,6 +98,7 @@ export async function POST(request: Request) {
     const requestedGrade = typeof input.psiraGrade === "string" ? input.psiraGrade.trim() : "";
     const psiraGrade = (psiraStatus === "active" || psiraStatus === "expired") && grades.has(requestedGrade) ? requestedGrade : null;
     const services = allowedList(input.services, serviceOptions, "Work category", 3);
+    const purposes = allowedList(input.purposes, purposeOptions, "Work environment", 7);
     const training = pathway === "training" ? allowedList(input.training, trainingOptions, "Training area", 5) : [];
     if (input.over18Confirmed !== true) throw new ApplicationError("You must confirm that you are at least 18 years old.");
     if (input.eligibilityAcknowledged !== true) throw new ApplicationError("Confirm that you understand the PSiRA eligibility requirements.");
@@ -115,25 +118,26 @@ export async function POST(request: Request) {
 
     await db.prepare(`INSERT INTO officer_applications
       (id, pathway, full_name, mobile_normalized, email_normalized, city, province, psira_status,
-       psira_number, psira_grade, service_interests, training_interests, over_18_confirmed,
+       psira_number, psira_grade, service_interests, purpose_interests, training_interests, over_18_confirmed,
        eligibility_acknowledged, privacy_notice_version, privacy_acknowledged_at,
        identity_verification_status, status, source, retention_review_at, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, 'not_started', 'submitted', 'homepage', ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, 'not_started', 'submitted', 'homepage', ?, ?, ?)
       ON CONFLICT(mobile_normalized) DO UPDATE SET pathway = excluded.pathway, full_name = excluded.full_name,
        email_normalized = excluded.email_normalized, city = excluded.city, province = excluded.province,
        psira_status = excluded.psira_status, psira_number = excluded.psira_number, psira_grade = excluded.psira_grade,
-       service_interests = excluded.service_interests, training_interests = excluded.training_interests,
+       service_interests = excluded.service_interests, purpose_interests = excluded.purpose_interests,
+       training_interests = excluded.training_interests,
        over_18_confirmed = 1, eligibility_acknowledged = 1,
        privacy_notice_version = excluded.privacy_notice_version, privacy_acknowledged_at = excluded.privacy_acknowledged_at,
        status = 'submitted', retention_review_at = excluded.retention_review_at, updated_at = excluded.updated_at`)
       .bind(id, pathway, fullName, mobile, email, city, province, psiraStatus, psiraNumber, psiraGrade,
-        JSON.stringify(services), JSON.stringify(training), privacyNoticeVersion, nowIso,
+        JSON.stringify(services), JSON.stringify(purposes), JSON.stringify(training), privacyNoticeVersion, nowIso,
         retentionReview.toISOString(), nowIso, nowIso).run();
 
     await db.prepare(`INSERT INTO audit_events
       (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
       VALUES (?, 'applicant', ?, 'officer_interest_submitted', 'officer_application', ?, ?, ?)`)
-      .bind(`AUD-${crypto.randomUUID()}`, id, id, "Homepage interest submission received; identity and credentials remain unverified.", nowIso).run();
+      .bind(`AUD-${crypto.randomUUID()}`, id, id, "Homepage work, purpose and training interests received; identity and credentials remain unverified.", nowIso).run();
 
     return Response.json({ reference: id }, { status: 202 });
   } catch (cause) {
