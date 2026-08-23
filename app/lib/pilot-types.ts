@@ -40,6 +40,7 @@ export type PilotOffer = {
   purposeLabel: string;
   minimumGrade: string;
   contractMonths: number;
+  startDate: string;
   shiftStart: string;
   shiftEnd: string;
   amountCents: number;

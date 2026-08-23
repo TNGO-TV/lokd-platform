@@ -238,12 +238,12 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
   const offers = await all<{
     id: string; bookingId: string; siteName: string; siteArea: string; postName: string; serviceType: ServiceType;
     purposeCode: string; purposeLabel: string;
-    minimumGrade: string; contractMonths: number; shiftStart: string; shiftEnd: string; amountCents: number;
+    minimumGrade: string; contractMonths: number; startDate: string; shiftStart: string; shiftEnd: string; amountCents: number;
     releaseCadence: "Weekly" | "Monthly"; fundingStatus: string; status: "open" | "accepted" | "declined" | "expired"; expiresAt: string;
   }>(db.prepare(`SELECT o.id, o.booking_id AS bookingId, b.site_name AS siteName, b.site_area AS siteArea,
     b.post_name AS postName, b.service_type AS serviceType, b.purpose_code AS purposeCode,
     b.purpose_label AS purposeLabel, b.minimum_grade AS minimumGrade,
-    b.contract_months AS contractMonths, b.shift_start AS shiftStart, b.shift_end AS shiftEnd,
+    b.contract_months AS contractMonths, b.start_date AS startDate, b.shift_start AS shiftStart, b.shift_end AS shiftEnd,
     o.amount_cents AS amountCents, b.release_cadence AS releaseCadence, b.funding_status AS fundingStatus,
     o.status, o.expires_at AS expiresAt FROM offers o JOIN bookings b ON b.id = o.booking_id
     WHERE o.officer_id = ? ORDER BY o.expires_at DESC`).bind(PILOT_OFFICER_ID));
