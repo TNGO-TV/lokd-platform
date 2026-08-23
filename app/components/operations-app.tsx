@@ -139,7 +139,7 @@ export default function OperationsApp() {
     <main className="app-shell">
       <aside className="side-rail">
         <div className="brand-lockup">
-          <img src="/lokd-logo.svg" alt="LOKD" />
+          <img src="/lokd-logo-reverse.svg" alt="LOKD" />
         </div>
 
         <div className="pilot-chip">
