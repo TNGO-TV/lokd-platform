@@ -1270,6 +1270,46 @@ button { color: inherit; }
 .price-summary span { color: #878e91; font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
 .price-summary strong { display: block; margin-top: 8px; font-size: 24px; }
 .price-summary p { margin: 4px 0 0; color: #7d8487; font-size: 8px; }
+.request-drawer { width: min(650px,100%); }
+.engagement-picker, .risk-assessment { margin: 0; padding: 0; border: 0; }
+.engagement-picker legend, .risk-assessment legend { margin-bottom: 8px; color: #5e6467; font-size: 9px; font-weight: 800; }
+.engagement-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.engagement-picker button { min-height: 88px; padding: 14px; border: 1px solid #dfe3e3; border-radius: 13px; background: #fff; display: grid; grid-template-columns: 1fr auto; gap: 7px 12px; text-align: left; cursor: pointer; }
+.engagement-picker button.selected { border-color: #93b925; background: #f6faea; box-shadow: inset 0 0 0 1px #93b925; }
+.engagement-picker strong { font-size: 11px; }
+.engagement-picker small { grid-column: 1/-1; color: #7e8588; font-size: 8px; line-height: 1.45; }
+.engagement-picker i { color: #637b18; font-size: 10px; font-style: normal; font-weight: 900; }
+.risk-assessment { padding: 16px; border: 1px solid #e0e5d1; border-radius: 14px; background: #f8faF2; }
+.risk-assessment > p { margin: -2px 0 14px; color: #7a826d; font-size: 8px; line-height: 1.5; }
+.risk-input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.risk-check { margin-top: 13px; display: flex; gap: 9px; align-items: center; line-height: 1.45; }
+.risk-check input { width: 16px; height: 16px; margin: 0; accent-color: #7edb04; }
+.risk-result { padding: 18px; border-radius: 15px; background: #eef5dc; display: grid; grid-template-columns: 1fr auto; gap: 14px; }
+.risk-result > div > span { color: #657a21; font-size: 8px; font-weight: 900; letter-spacing: .08em; }
+.risk-result h3 { margin: 7px 0 5px; font-size: 16px; letter-spacing: -.025em; }
+.risk-result p { margin: 0; color: #66705b; font-size: 9px; line-height: 1.5; }
+.risk-result ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; align-content: start; }
+.risk-result li { padding: 6px 8px; border-radius: 7px; background: rgba(255,255,255,.72); color: #5d6e24; font-size: 7px; font-weight: 800; }
+.risk-result > strong { grid-column: 1/-1; padding-top: 11px; border-top: 1px solid rgba(90,104,50,.14); color: #825f1e; font-size: 8px; }
+.risk-result.risk-high, .risk-result.risk-critical { background: #fff2dc; }
+.risk-result.risk-high > div > span, .risk-result.risk-critical > div > span { color: #94651c; }
+.service-picker button:disabled, .service-picker button.blocked { opacity: .52; cursor: not-allowed; }
+.price-breakdown { margin: 14px 0 9px; display: grid; grid-template-columns: 1fr 1fr; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; overflow: hidden; }
+.price-breakdown div { padding: 10px; border-right: 1px solid rgba(255,255,255,.1); border-bottom: 1px solid rgba(255,255,255,.1); display: flex; justify-content: space-between; gap: 12px; }
+.price-breakdown div:nth-child(2n) { border-right: 0; }
+.price-breakdown div:nth-last-child(-n+2) { border-bottom: 0; }
+.price-breakdown dt { color: #858c8f; font-size: 8px; }
+.price-breakdown dd { margin: 0; font-size: 8px; font-weight: 800; }
+.price-summary > small { color: #92999c; font-size: 7px; line-height: 1.45; }
+.flex-availability-card { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: start; }
+.flex-availability-card h2 { margin: 5px 0 7px; font-size: 25px; letter-spacing: -.04em; }
+.flex-availability-card > div > p:last-child { margin: 0; color: #747b7e; font-size: 12px; line-height: 1.5; }
+.flex-availability-card > dl { grid-column: 1/-1; margin: 0; display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #e4e7e7; border-radius: 12px; overflow: hidden; }
+.flex-availability-card > dl div { padding: 12px; border-right: 1px solid #e4e7e7; }
+.flex-availability-card > dl div:last-child { border: 0; }
+.flex-availability-card dt { color: #858c8f; font-size: 9px; }
+.flex-availability-card dd { margin: 5px 0 0; font-size: 11px; font-weight: 800; }
+.flex-availability-card > small { grid-column: 1/-1; color: #858b8e; font-size: 9px; line-height: 1.55; }
 
 @media (max-width: 900px) {
   .roster-layout, .compliance-grid, .officer-grid, .client-grid-main, .offer-engine-layout, .wallet-layout { grid-template-columns: 1fr; }
@@ -1293,6 +1333,11 @@ button { color: inherit; }
 }
 
 @media (max-width: 620px) {
+  .engagement-picker, .risk-input-grid, .risk-result { grid-template-columns: 1fr; }
+  .risk-result ul { justify-content: flex-start; }
+  .price-breakdown { grid-template-columns: 1fr; }
+  .price-breakdown div { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.1) !important; }
+  .price-breakdown div:last-child { border-bottom: 0 !important; }
   .portal-header { height: 62px; padding: 0 15px; gap: 12px; }
   .portal-logo { width: 78px; }
   .portal-role-switch a { min-width: auto; padding: 6px 8px; }

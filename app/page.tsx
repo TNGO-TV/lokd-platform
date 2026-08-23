@@ -41,7 +41,7 @@ export default function PublicHome() {
             <p>Saturday · 06:00–18:00</p>
             <h2>Midrand Depot</h2>
             <small>Contractor access · 18 km away</small>
-            <dl><div><dt>Your offer</dt><dd>R980</dd></div><div><dt>Release</dt><dd>Weekly</dd></div></dl>
+            <dl><div><dt>Your offer</dt><dd>R800</dd></div><div><dt>Release</dt><dd>Weekly</dd></div></dl>
             <div className="offer-match-row"><span>✓ Passport current</span><span>✓ Construction endorsed</span></div>
             <button type="button">Review offer <b>→</b></button>
           </article>

@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import type { PilotAction, PilotState, ServiceType } from "../../lib/pilot-types";
-import { addMonths, noticePriceBook, PRICE_BOOK_VERSION, purposePriceBook, quoteBooking, servicePriceBook } from "../../lib/pilot-pricing";
+import { defaultRiskInput, PRICE_BOOK_VERSION, purposePriceBook, quoteBooking, rosterPatterns, servicePriceBook } from "../../lib/pilot-pricing";
 import { evaluateBookingReadiness, PILOT_PASSPORT_NUMBER, PILOT_PASSPORT_TOKEN, readEndorsements, tokenHash } from "../../lib/passport-server";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +53,9 @@ function nextReleaseAt(cadence: "Weekly" | "Monthly") {
 
 async function ensurePilotData(db: D1Database) {
   const passportHash = await tokenHash(PILOT_PASSPORT_TOKEN);
+  const primaryQuote = quoteBooking({ serviceType: "Unarmed", engagementModel: "fixed", term: "1", purposeCode: "commercial_access", startDate: "2026-08-01", shift: "day", rosterPattern: "monday_saturday", riskInput: defaultRiskInput });
+  const depotQuote = quoteBooking({ serviceType: "Unarmed", engagementModel: "fixed", term: "1", purposeCode: "construction", startDate: "2026-08-22", shift: "day", rosterPattern: "monday_saturday", riskInput: defaultRiskInput });
+  const vipQuote = quoteBooking({ serviceType: "VIP", engagementModel: "fixed", term: "6", purposeCode: "executive_protection", startDate: "2026-03-01", shift: "day", rosterPattern: "weekdays", riskInput: defaultRiskInput });
   await db.batch([
     db.prepare(`INSERT OR IGNORE INTO officers
       (id, full_name, mobile, email, city, psira_number, psira_grade, psira_expiry, approval_status, banking_status, created_at)
@@ -121,64 +124,104 @@ async function ensurePilotData(db: D1Database) {
     db.prepare(`INSERT OR IGNORE INTO bookings
       (id, client_id, site_name, site_area, post_name, service_type, minimum_grade, contract_months, start_date, end_date, shift_start, shift_end, client_price_cents, officer_rate_cents, funding_status, release_cadence, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("BK-2081", PILOT_CLIENT_ID, "Northbridge Rosebank Offices", "Rosebank", "Main access", "Unarmed", "Grade C", 1, "2026-08-01", "2026-08-31", "06:00", "18:00", 3480000, 96000, "paid_in_full", "Weekly", "active"),
+      .bind("BK-2081", PILOT_CLIENT_ID, "Northbridge Rosebank Offices", "Rosebank", "Main access", "Unarmed", "Grade C", 1, "2026-08-01", "2026-08-31", "06:00", "18:00", primaryQuote.clientPriceCents, primaryQuote.officerRateCents, "paid_in_full", "Weekly", "active"),
     db.prepare(`INSERT OR IGNORE INTO bookings
       (id, client_id, site_name, site_area, post_name, service_type, minimum_grade, contract_months, start_date, end_date, shift_start, shift_end, client_price_cents, officer_rate_cents, funding_status, release_cadence, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("BK-2080", PILOT_CLIENT_ID, "Northbridge Rosebank Offices", "Rosebank", "Main access", "Unarmed", "Grade C", 1, "2026-08-01", "2026-08-31", "06:00", "18:00", 3480000, 96000, "paid_in_full", "Weekly", "active"),
+      .bind("BK-2080", PILOT_CLIENT_ID, "Northbridge Rosebank Offices", "Rosebank", "Main access", "Unarmed", "Grade C", 1, "2026-08-01", "2026-08-31", "06:00", "18:00", primaryQuote.clientPriceCents, primaryQuote.officerRateCents, "paid_in_full", "Weekly", "active"),
     db.prepare(`INSERT OR IGNORE INTO bookings
       (id, client_id, site_name, site_area, post_name, service_type, minimum_grade, contract_months, start_date, end_date, shift_start, shift_end, client_price_cents, officer_rate_cents, funding_status, release_cadence, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("BK-2084", PILOT_CLIENT_ID, "Metsi Midrand Depot", "Midrand", "Contractor access", "Unarmed", "Grade C", 1, "2026-08-22", "2026-09-21", "06:00", "18:00", 3560000, 98000, "paid_in_full", "Weekly", "offered"),
+      .bind("BK-2084", PILOT_CLIENT_ID, "Metsi Midrand Depot", "Midrand", "Contractor access", "Unarmed", "Grade C", 1, "2026-08-22", "2026-09-21", "06:00", "18:00", depotQuote.clientPriceCents, depotQuote.officerRateCents, "paid_in_full", "Weekly", "offered"),
     db.prepare(`INSERT OR IGNORE INTO bookings
       (id, client_id, site_name, site_area, post_name, service_type, minimum_grade, contract_months, start_date, end_date, shift_start, shift_end, client_price_cents, officer_rate_cents, funding_status, release_cadence, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("BK-2078", PILOT_CLIENT_ID, "Sandton Executive Centre", "Sandton", "Executive reception", "VIP", "Grade B", 6, "2026-03-01", "2026-08-31", "08:00", "20:00", 38400000, 96000, "paid_in_full", "Monthly", "active"),
+      .bind("BK-2078", PILOT_CLIENT_ID, "Sandton Executive Centre", "Sandton", "Executive reception", "VIP", "Grade B", 6, "2026-03-01", "2026-08-31", "08:00", "20:00", vipQuote.clientPriceCents, vipQuote.officerRateCents, "paid_in_full", "Monthly", "active"),
     db.prepare(`INSERT OR IGNORE INTO offers
       (id, booking_id, officer_id, amount_cents, status, expires_at, responded_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .bind("OF-2084", "BK-2084", PILOT_OFFICER_ID, 98000, "open", "2026-08-21T18:00:00.000Z", null),
+      .bind("OF-2084", "BK-2084", PILOT_OFFICER_ID, depotQuote.officerRateCents, "open", "2026-08-21T18:00:00.000Z", null),
     db.prepare(`INSERT OR IGNORE INTO shifts
       (id, booking_id, officer_id, scheduled_date, status, check_in_at, check_out_at, client_signoff_status, signed_off_at, earnings_cents)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("SH-2081", "BK-2081", PILOT_OFFICER_ID, "2026-08-21", "on_post", "2026-08-21T03:54:00.000Z", null, "not_due", null, 96000),
+      .bind("SH-2081", "BK-2081", PILOT_OFFICER_ID, "2026-08-21", "on_post", "2026-08-21T03:54:00.000Z", null, "not_due", null, 80000),
     db.prepare(`INSERT OR IGNORE INTO shifts
       (id, booking_id, officer_id, scheduled_date, status, check_in_at, check_out_at, client_signoff_status, signed_off_at, earnings_cents)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("SH-2080", "BK-2080", PILOT_OFFICER_ID, "2026-08-18", "completed", "2026-08-18T03:55:00.000Z", "2026-08-18T16:03:00.000Z", "pending", null, 96000),
+      .bind("SH-2080", "BK-2080", PILOT_OFFICER_ID, "2026-08-18", "completed", "2026-08-18T03:55:00.000Z", "2026-08-18T16:03:00.000Z", "pending", null, 80000),
     db.prepare(`INSERT OR IGNORE INTO shifts
       (id, booking_id, officer_id, scheduled_date, status, check_in_at, check_out_at, client_signoff_status, signed_off_at, earnings_cents)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("SH-2077", "BK-2081", PILOT_OFFICER_ID, "2026-08-14", "verified", "2026-08-14T03:53:00.000Z", "2026-08-14T16:01:00.000Z", "approved", "2026-08-14T16:15:00.000Z", 96000),
+      .bind("SH-2077", "BK-2081", PILOT_OFFICER_ID, "2026-08-14", "verified", "2026-08-14T03:53:00.000Z", "2026-08-14T16:01:00.000Z", "approved", "2026-08-14T16:15:00.000Z", 80000),
     db.prepare(`INSERT OR IGNORE INTO shifts
       (id, booking_id, officer_id, scheduled_date, status, check_in_at, check_out_at, client_signoff_status, signed_off_at, earnings_cents)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("SH-2078", "BK-2078", PILOT_OFFICER_ID, "2026-07-31", "verified", "2026-07-31T05:56:00.000Z", "2026-07-31T18:04:00.000Z", "approved", "2026-07-31T18:20:00.000Z", 96000),
+      .bind("SH-2078", "BK-2078", PILOT_OFFICER_ID, "2026-07-31", "verified", "2026-07-31T05:56:00.000Z", "2026-07-31T18:04:00.000Z", "approved", "2026-07-31T18:20:00.000Z", 450000),
     db.prepare(`INSERT OR IGNORE INTO ledger_entries
       (id, officer_id, shift_id, amount_cents, state, release_cadence, eligible_release_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("LE-2077", PILOT_OFFICER_ID, "SH-2077", 96000, "available", "Weekly", "2026-08-15T08:00:00.000Z", "2026-08-14T16:15:00.000Z", "2026-08-15T08:00:00.000Z"),
+      .bind("LE-2077", PILOT_OFFICER_ID, "SH-2077", 80000, "available", "Weekly", "2026-08-15T08:00:00.000Z", "2026-08-14T16:15:00.000Z", "2026-08-15T08:00:00.000Z"),
     db.prepare(`INSERT OR IGNORE INTO ledger_entries
       (id, officer_id, shift_id, amount_cents, state, release_cadence, eligible_release_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("LE-2080", PILOT_OFFICER_ID, "SH-2080", 96000, "pending_signoff", "Weekly", null, "2026-08-18T16:03:00.000Z", "2026-08-18T16:03:00.000Z"),
+      .bind("LE-2080", PILOT_OFFICER_ID, "SH-2080", 80000, "pending_signoff", "Weekly", null, "2026-08-18T16:03:00.000Z", "2026-08-18T16:03:00.000Z"),
     db.prepare(`INSERT OR IGNORE INTO ledger_entries
       (id, officer_id, shift_id, amount_cents, state, release_cadence, eligible_release_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("LE-2078", PILOT_OFFICER_ID, "SH-2078", 96000, "pending_release", "Monthly", "2026-08-20T08:00:00.000Z", "2026-07-31T18:20:00.000Z", "2026-07-31T18:20:00.000Z"),
+      .bind("LE-2078", PILOT_OFFICER_ID, "SH-2078", 450000, "pending_release", "Monthly", "2026-08-20T08:00:00.000Z", "2026-07-31T18:20:00.000Z", "2026-07-31T18:20:00.000Z"),
     db.prepare(`INSERT OR IGNORE INTO audit_events
       (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind("AUD-001", "system", "LOKD", "pilot_seeded", "officer", PILOT_OFFICER_ID, "Verified pilot profile and funded contracts loaded.", "2026-08-21T08:00:00.000Z"),
-    db.prepare(`UPDATE bookings SET purpose_code = 'commercial_access', purpose_label = 'Commercial access' WHERE id IN ('BK-2081', 'BK-2080')`),
-    db.prepare(`UPDATE bookings SET client_price_cents = 4800000 WHERE id IN ('BK-2081', 'BK-2080')`),
-    db.prepare(`UPDATE bookings SET purpose_code = 'construction', purpose_label = 'Construction site' WHERE id = 'BK-2084'`),
+    db.prepare(`UPDATE officers SET flex_available = 1, external_work_acknowledged = 1, rest_window_confirmed = 1 WHERE id = ?`).bind(PILOT_OFFICER_ID),
+    db.prepare(`UPDATE bookings SET purpose_code = 'commercial_access', purpose_label = 'Commercial access',
+      engagement_model = 'fixed', notice_window = 'standard', roster_pattern = 'monday_saturday',
+      calendar_category = ?, calendar_label = ?, risk_band = ?, risk_score = ?, risk_reasons = ?, required_endorsements = ?,
+      manual_review = ?, shift_count = ?, client_price_cents = ?, officer_rate_cents = ?, officer_total_cents = ?,
+      gross_platform_contribution_cents = ?, pricing_version = ?, pricing_breakdown = ?
+      WHERE id IN ('BK-2081', 'BK-2080')`).bind(
+        primaryQuote.firstCalendarCategory, primaryQuote.firstCalendarLabel, primaryQuote.risk.band, primaryQuote.risk.score,
+        JSON.stringify(primaryQuote.risk.reasons), JSON.stringify(primaryQuote.risk.requiredEndorsements), primaryQuote.manualReview ? 1 : 0,
+        primaryQuote.shiftCount, primaryQuote.clientPriceCents, primaryQuote.officerRateCents, primaryQuote.officerTotalCents,
+        primaryQuote.grossPlatformContributionCents, primaryQuote.version, JSON.stringify({
+          baseClientCents: primaryQuote.baseClientCents,
+          calendarPremiumCents: primaryQuote.calendarPremiumCents,
+          dispatchPremiumCents: primaryQuote.dispatchPremiumCents,
+          riskPremiumCents: primaryQuote.riskPremiumCents,
+        }),
+      ),
+    db.prepare(`UPDATE bookings SET purpose_code = 'construction', purpose_label = 'Construction site',
+      engagement_model = 'fixed', notice_window = 'standard', roster_pattern = 'monday_saturday',
+      calendar_category = ?, calendar_label = ?, risk_band = ?, risk_score = ?, risk_reasons = ?, required_endorsements = ?,
+      manual_review = ?, shift_count = ?, client_price_cents = ?, officer_rate_cents = ?, officer_total_cents = ?,
+      gross_platform_contribution_cents = ?, pricing_version = ?, pricing_breakdown = ? WHERE id = 'BK-2084'`).bind(
+        depotQuote.firstCalendarCategory, depotQuote.firstCalendarLabel, depotQuote.risk.band, depotQuote.risk.score,
+        JSON.stringify(depotQuote.risk.reasons), JSON.stringify(depotQuote.risk.requiredEndorsements), depotQuote.manualReview ? 1 : 0,
+        depotQuote.shiftCount, depotQuote.clientPriceCents, depotQuote.officerRateCents, depotQuote.officerTotalCents,
+        depotQuote.grossPlatformContributionCents, depotQuote.version, JSON.stringify({
+          baseClientCents: depotQuote.baseClientCents,
+          calendarPremiumCents: depotQuote.calendarPremiumCents,
+          dispatchPremiumCents: depotQuote.dispatchPremiumCents,
+          riskPremiumCents: depotQuote.riskPremiumCents,
+        }),
+      ),
     db.prepare(`UPDATE officer_services SET qualified = 1 WHERE officer_id = ? AND service_type = 'VIP'`).bind(PILOT_OFFICER_ID),
     db.prepare(`UPDATE bookings SET service_type = 'VIP', purpose_code = 'executive_protection', purpose_label = 'Executive protection',
-      client_price_cents = 102000000, officer_rate_cents = 450000, minimum_grade = 'Grade B' WHERE id = 'BK-2078'`),
-    db.prepare(`UPDATE bookings SET client_price_cents = 4800000, officer_rate_cents = 110000 WHERE id IN ('BK-2081', 'BK-2080')`),
-    db.prepare(`UPDATE bookings SET client_price_cents = 4800000, officer_rate_cents = 110000 WHERE id = 'BK-2084'`),
-    db.prepare(`UPDATE offers SET amount_cents = 110000 WHERE id = 'OF-2084' AND status = 'open'`),
+      engagement_model = 'fixed', notice_window = 'standard', roster_pattern = 'weekdays', calendar_category = ?, calendar_label = ?,
+      risk_band = ?, risk_score = ?, risk_reasons = ?, required_endorsements = ?, manual_review = 1, shift_count = ?,
+      client_price_cents = ?, officer_rate_cents = ?, officer_total_cents = ?, gross_platform_contribution_cents = ?,
+      pricing_version = ?, pricing_breakdown = ?, minimum_grade = 'Grade B' WHERE id = 'BK-2078'`).bind(
+        vipQuote.firstCalendarCategory, vipQuote.firstCalendarLabel, vipQuote.risk.band, vipQuote.risk.score,
+        JSON.stringify(vipQuote.risk.reasons), JSON.stringify(vipQuote.risk.requiredEndorsements), vipQuote.shiftCount,
+        vipQuote.clientPriceCents, vipQuote.officerRateCents, vipQuote.officerTotalCents, vipQuote.grossPlatformContributionCents,
+        vipQuote.version, JSON.stringify({ baseClientCents: vipQuote.baseClientCents, calendarPremiumCents: vipQuote.calendarPremiumCents,
+          dispatchPremiumCents: vipQuote.dispatchPremiumCents, riskPremiumCents: vipQuote.riskPremiumCents }),
+      ),
+    db.prepare(`UPDATE offers SET amount_cents = ? WHERE id = 'OF-2084' AND status = 'open'`).bind(depotQuote.officerRateCents),
+    db.prepare(`UPDATE shifts SET earnings_cents = 80000 WHERE id IN ('SH-2081', 'SH-2080', 'SH-2077')`),
+    db.prepare(`UPDATE shifts SET earnings_cents = 450000 WHERE id = 'SH-2078'`),
+    db.prepare(`UPDATE ledger_entries SET amount_cents = 80000 WHERE id IN ('LE-2077', 'LE-2080')`),
+    db.prepare(`UPDATE ledger_entries SET amount_cents = 450000 WHERE id = 'LE-2078'`),
     db.prepare(`UPDATE offers SET expires_at = '2026-09-05T16:00:00.000Z'
       WHERE id = 'OF-2084' AND status = 'open' AND expires_at = '2026-08-21T18:00:00.000Z'`),
     db.prepare(`UPDATE shifts SET passport_verification_status = 'green', passport_verified_at = COALESCE(passport_verified_at, ?)
@@ -191,12 +234,38 @@ async function all<T>(statement: D1PreparedStatement) {
   return result.results ?? [];
 }
 
+function parseStringArray(value: string | null | undefined) {
+  try {
+    const parsed: unknown = JSON.parse(value ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function parsePricingBreakdown(value: string | null | undefined) {
+  try {
+    const parsed = JSON.parse(value ?? "{}") as Partial<PilotState["bookings"][number]["pricingBreakdown"]>;
+    return {
+      baseClientCents: Number(parsed.baseClientCents) || 0,
+      calendarPremiumCents: Number(parsed.calendarPremiumCents) || 0,
+      dispatchPremiumCents: Number(parsed.dispatchPremiumCents) || 0,
+      riskPremiumCents: Number(parsed.riskPremiumCents) || 0,
+    };
+  } catch {
+    return { baseClientCents: 0, calendarPremiumCents: 0, dispatchPremiumCents: 0, riskPremiumCents: 0 };
+  }
+}
+
 async function readPilotState(db: D1Database): Promise<PilotState> {
   const officer = await db.prepare(`SELECT id, full_name AS fullName, city, psira_number AS psiraNumber,
     psira_grade AS psiraGrade, psira_expiry AS psiraExpiry, approval_status AS approvalStatus,
-    banking_status AS bankingStatus FROM officers WHERE id = ?`).bind(PILOT_OFFICER_ID).first<{
+    banking_status AS bankingStatus, flex_available AS flexAvailable,
+    external_work_acknowledged AS externalWorkAcknowledged, rest_window_confirmed AS restWindowConfirmed
+    FROM officers WHERE id = ?`).bind(PILOT_OFFICER_ID).first<{
       id: string; fullName: string; city: string; psiraNumber: string; psiraGrade: string;
-      psiraExpiry: string; approvalStatus: string; bankingStatus: string;
+      psiraExpiry: string; approvalStatus: string; bankingStatus: string; flexAvailable: number;
+      externalWorkAcknowledged: number; restWindowConfirmed: number;
     }>();
   if (!officer) throw new PilotError("The pilot officer profile is unavailable.", 500);
 
@@ -237,24 +306,44 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
   );
   const offers = await all<{
     id: string; bookingId: string; siteName: string; siteArea: string; postName: string; serviceType: ServiceType;
-    purposeCode: string; purposeLabel: string;
+    purposeCode: string; purposeLabel: string; engagementModel: "fixed" | "flex"; rosterPattern: "weekdays" | "monday_saturday" | "daily";
+    calendarCategory: "ordinary" | "sunday" | "public_holiday" | "easter" | "christmas"; calendarLabel: string;
+    riskBand: "Standard" | "Enhanced" | "Elevated" | "High" | "Critical"; riskScore: number; requiredEndorsementsJson: string; shiftCount: number;
     minimumGrade: string; contractMonths: number; startDate: string; shiftStart: string; shiftEnd: string; amountCents: number;
     releaseCadence: "Weekly" | "Monthly"; fundingStatus: string; status: "open" | "accepted" | "declined" | "expired"; expiresAt: string;
   }>(db.prepare(`SELECT o.id, o.booking_id AS bookingId, b.site_name AS siteName, b.site_area AS siteArea,
     b.post_name AS postName, b.service_type AS serviceType, b.purpose_code AS purposeCode,
-    b.purpose_label AS purposeLabel, b.minimum_grade AS minimumGrade,
+    b.purpose_label AS purposeLabel, b.engagement_model AS engagementModel, b.roster_pattern AS rosterPattern,
+    b.calendar_category AS calendarCategory, b.calendar_label AS calendarLabel, b.risk_band AS riskBand,
+    b.risk_score AS riskScore, b.required_endorsements AS requiredEndorsementsJson, b.shift_count AS shiftCount, b.minimum_grade AS minimumGrade,
     b.contract_months AS contractMonths, b.start_date AS startDate, b.shift_start AS shiftStart, b.shift_end AS shiftEnd,
     o.amount_cents AS amountCents, b.release_cadence AS releaseCadence, b.funding_status AS fundingStatus,
     o.status, o.expires_at AS expiresAt FROM offers o JOIN bookings b ON b.id = o.booking_id
     WHERE o.officer_id = ? ORDER BY o.expires_at DESC`).bind(PILOT_OFFICER_ID));
+  const parsedOffers = offers.map(({ requiredEndorsementsJson, ...offer }) => ({
+    ...offer,
+    requiredEndorsements: parseStringArray(requiredEndorsementsJson),
+  }));
   const bookingRows = await all<{
     id: string; siteName: string; siteArea: string; postName: string; serviceType: ServiceType;
-    purposeCode: string; purposeLabel: string; minimumGrade: string; contractMonths: number;
+    purposeCode: string; purposeLabel: string; engagementModel: "fixed" | "flex";
+    noticeWindow: "standard" | "priority" | "urgent" | "immediate"; rosterPattern: "weekdays" | "monday_saturday" | "daily";
+    calendarCategory: "ordinary" | "sunday" | "public_holiday" | "easter" | "christmas"; calendarLabel: string;
+    riskBand: "Standard" | "Enhanced" | "Elevated" | "High" | "Critical"; riskScore: number;
+    riskReasonsJson: string; requiredEndorsementsJson: string; manualReview: number; shiftCount: number;
+    officerTotalCents: number; grossPlatformContributionCents: number; pricingVersion: string; pricingBreakdownJson: string;
+    minimumGrade: string; contractMonths: number;
     startDate: string; endDate: string; shiftStart: string; shiftEnd: string; clientPriceCents: number;
     officerRateCents: number; fundingStatus: string; releaseCadence: "Weekly" | "Monthly"; status: string;
     offerStatus: "open" | "accepted" | "declined" | "expired" | null; assignedOfficer: string | null;
   }>(db.prepare(`SELECT b.id, b.site_name AS siteName, b.site_area AS siteArea, b.post_name AS postName,
     b.service_type AS serviceType, b.purpose_code AS purposeCode, b.purpose_label AS purposeLabel,
+    b.engagement_model AS engagementModel, b.notice_window AS noticeWindow, b.roster_pattern AS rosterPattern,
+    b.calendar_category AS calendarCategory, b.calendar_label AS calendarLabel, b.risk_band AS riskBand,
+    b.risk_score AS riskScore, b.risk_reasons AS riskReasonsJson, b.required_endorsements AS requiredEndorsementsJson,
+    b.manual_review AS manualReview, b.shift_count AS shiftCount, b.officer_total_cents AS officerTotalCents,
+    b.gross_platform_contribution_cents AS grossPlatformContributionCents, b.pricing_version AS pricingVersion,
+    b.pricing_breakdown AS pricingBreakdownJson,
     b.minimum_grade AS minimumGrade, b.contract_months AS contractMonths, b.start_date AS startDate,
     b.end_date AS endDate, b.shift_start AS shiftStart, b.shift_end AS shiftEnd,
     b.client_price_cents AS clientPriceCents, b.officer_rate_cents AS officerRateCents,
@@ -268,7 +357,24 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
       assignmentDate: booking.startDate,
       requireServiceOptIn: true,
     });
-    return { ...booking, matchEligible: readiness.eligible, matchBlockers: readiness.blockers };
+    const availabilityBlockers = booking.engagementModel === "flex"
+      ? [
+        !officer.flexAvailable ? "Officer is not currently available for Flex work." : "",
+        !officer.externalWorkAcknowledged ? "External work declaration is not current." : "",
+        !officer.restWindowConfirmed ? "Rest window has not been confirmed." : "",
+      ].filter(Boolean)
+      : [];
+    const { riskReasonsJson, requiredEndorsementsJson, pricingBreakdownJson, manualReview, ...bookingFields } = booking;
+    const blockers = [...readiness.blockers, ...availabilityBlockers];
+    return {
+      ...bookingFields,
+      riskReasons: parseStringArray(riskReasonsJson),
+      requiredEndorsements: parseStringArray(requiredEndorsementsJson),
+      pricingBreakdown: parsePricingBreakdown(pricingBreakdownJson),
+      manualReview: Boolean(manualReview),
+      matchEligible: blockers.length === 0,
+      matchBlockers: blockers,
+    };
   }));
   const shifts = await all<{
     id: string; bookingId: string; siteName: string; postName: string; serviceType: ServiceType;
@@ -309,6 +415,9 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
     officer: {
       ...officer,
       initials,
+      flexAvailable: Boolean(officer.flexAvailable),
+      externalWorkAcknowledged: Boolean(officer.externalWorkAcknowledged),
+      restWindowConfirmed: Boolean(officer.restWindowConfirmed),
       services: services.map((service) => ({ ...service, qualified: Boolean(service.qualified), optedIn: Boolean(service.optedIn) })),
       compliance,
       passport: {
@@ -320,7 +429,7 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
       },
     },
     client,
-    offers,
+    offers: parsedOffers,
     bookings,
     shifts,
     ledger,
@@ -351,9 +460,9 @@ function requireShortText(value: unknown, label: string, maximum: number) {
 
 async function releaseOfferWave(db: D1Database, bookingId: string) {
   const booking = await db.prepare(`SELECT id, start_date AS startDate, funding_status AS fundingStatus,
-    officer_rate_cents AS officerRateCents, status FROM bookings WHERE id = ? AND client_id = ?`)
+    officer_rate_cents AS officerRateCents, engagement_model AS engagementModel, status FROM bookings WHERE id = ? AND client_id = ?`)
     .bind(bookingId, PILOT_CLIENT_ID).first<{
-      id: string; startDate: string; fundingStatus: string; officerRateCents: number; status: string;
+      id: string; startDate: string; fundingStatus: string; officerRateCents: number; engagementModel: "fixed" | "flex"; status: string;
     }>();
   if (!booking) throw new PilotError("That booking is unavailable.", 404);
   if (booking.fundingStatus !== "paid_in_full") throw new PilotError("The full contract payment must be confirmed before matching.", 409);
@@ -371,10 +480,21 @@ async function releaseOfferWave(db: D1Database, bookingId: string) {
     assignmentDate: booking.startDate,
     requireServiceOptIn: true,
   });
-  if (!readiness.eligible) {
+  const availability = booking.engagementModel === "flex"
+    ? await db.prepare(`SELECT flex_available AS flexAvailable, external_work_acknowledged AS externalWorkAcknowledged,
+        rest_window_confirmed AS restWindowConfirmed FROM officers WHERE id = ?`).bind(PILOT_OFFICER_ID)
+      .first<{ flexAvailable: number; externalWorkAcknowledged: number; restWindowConfirmed: number }>()
+    : null;
+  const availabilityBlockers = booking.engagementModel === "flex" ? [
+    !availability?.flexAvailable ? "Officer is not currently available for Flex work." : "",
+    !availability?.externalWorkAcknowledged ? "External work declaration is not current." : "",
+    !availability?.restWindowConfirmed ? "Rest window has not been confirmed." : "",
+  ].filter(Boolean) : [];
+  const blockers = [...readiness.blockers, ...availabilityBlockers];
+  if (!readiness.eligible || blockers.length) {
     await db.prepare(`UPDATE bookings SET status = 'matching' WHERE id = ?`).bind(bookingId).run();
-    await recordAudit(db, "operations", "OPS-DEMO", "offer_wave_blocked", "booking", bookingId, `No pilot officer matched: ${readiness.blockers.join(" ")}`);
-    return { released: false, blockers: readiness.blockers };
+    await recordAudit(db, "operations", "OPS-DEMO", "offer_wave_blocked", "booking", bookingId, `No pilot officer matched: ${blockers.join(" ")}`);
+    return { released: false, blockers };
   }
 
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
@@ -398,7 +518,7 @@ async function resetDemo(db: D1Database) {
     db.prepare(`DELETE FROM bookings WHERE id LIKE 'BK-DEMO-%'`),
     db.prepare(`UPDATE officer_services SET opted_in = CASE service_type WHEN 'Unarmed' THEN 1 ELSE 0 END
       WHERE officer_id = ?`).bind(PILOT_OFFICER_ID),
-    db.prepare(`UPDATE offers SET status = 'open', responded_at = NULL, amount_cents = 110000, expires_at = ? WHERE id = 'OF-2084'`).bind(offerExpiry),
+    db.prepare(`UPDATE offers SET status = 'open', responded_at = NULL, amount_cents = 80000, expires_at = ? WHERE id = 'OF-2084'`).bind(offerExpiry),
     db.prepare(`UPDATE bookings SET status = 'offered', funding_status = 'paid_in_full' WHERE id = 'BK-2084'`),
     db.prepare(`UPDATE shifts SET status = 'completed', client_signoff_status = 'pending', signed_off_at = NULL WHERE id = 'SH-2080'`),
     db.prepare(`UPDATE ledger_entries SET state = 'pending_signoff', eligible_release_at = NULL, updated_at = ? WHERE id = 'LE-2080'`).bind(now.toISOString()),
@@ -411,8 +531,10 @@ async function resetDemo(db: D1Database) {
 async function applyAction(db: D1Database, payload: PilotAction) {
   if (payload.action === "create_booking") {
     if (!Object.hasOwn(servicePriceBook, payload.serviceType)) throw new PilotError("Choose a valid security service.");
-    if (!Object.hasOwn(noticePriceBook, payload.noticeWindow)) throw new PilotError("Choose a valid notice window.");
+    if (!(["fixed", "flex"] as const).includes(payload.engagementModel)) throw new PilotError("Choose Fixed or Flex cover.");
     if (!["single", "1", "3", "6", "12"].includes(payload.term)) throw new PilotError("Choose a valid contract term.");
+    if (!Object.hasOwn(rosterPatterns, payload.rosterPattern)) throw new PilotError("Choose a valid coverage roster.");
+    if (payload.engagementModel === "fixed" && payload.term === "single") throw new PilotError("Fixed cover requires a contract term.");
     const purpose = purposePriceBook.find((item) => item.code === payload.purposeCode);
     if (!purpose) throw new PilotError("Choose a valid work purpose.");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(payload.startDate) || Number.isNaN(new Date(`${payload.startDate}T00:00:00Z`).getTime())) {
@@ -422,19 +544,60 @@ async function applyAction(db: D1Database, payload: PilotAction) {
     const instructions = requireShortText(payload.instructions, "Instructions", 600);
     const shiftStart = payload.shift === "night" ? "18:00" : "06:00";
     const shiftEnd = payload.shift === "night" ? "06:00" : "18:00";
-    const quote = quoteBooking(payload.serviceType, payload.term, payload.noticeWindow);
+    const riskInput = payload.riskInput;
+    if (!riskInput || !["standard", "valuable", "high_value"].includes(riskInput.assetExposure)
+      || !["controlled", "moderate", "open"].includes(riskInput.publicAccess)
+      || !["none", "isolated", "repeated"].includes(riskInput.incidentHistory)
+      || !["strong", "partial", "limited"].includes(riskInput.existingControls)
+      || typeof riskInput.nightOperation !== "boolean" || typeof riskInput.vulnerablePeople !== "boolean") {
+      throw new PilotError("Complete the LOKD risk assessment.");
+    }
+    let quote: ReturnType<typeof quoteBooking>;
+    try {
+      quote = quoteBooking({
+        serviceType: payload.serviceType,
+        engagementModel: payload.engagementModel,
+        term: payload.term,
+        purposeCode: payload.purposeCode,
+        startDate: payload.startDate,
+        shift: payload.shift,
+        rosterPattern: payload.rosterPattern,
+        riskInput,
+      });
+    } catch (cause) {
+      throw new PilotError(cause instanceof Error ? cause.message : "The booking could not be priced.");
+    }
     const bookingId = `BK-DEMO-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
     await db.prepare(`INSERT INTO bookings
       (id, client_id, site_name, site_area, post_name, service_type, purpose_code, purpose_label,
+       engagement_model, notice_window, roster_pattern, calendar_category, calendar_label,
+       risk_band, risk_score, risk_reasons, required_endorsements, manual_review, shift_count,
        minimum_grade, contract_months, start_date, end_date, shift_start, shift_end,
-       client_price_cents, officer_rate_cents, funding_status, release_cadence, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'awaiting_payment', ?, 'awaiting_payment')`)
+       client_price_cents, officer_rate_cents, officer_total_cents, gross_platform_contribution_cents,
+       pricing_version, pricing_breakdown, funding_status, release_cadence, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(bookingId, PILOT_CLIENT_ID, "Northbridge Rosebank Offices", "Rosebank", postName,
-        payload.serviceType, purpose.code, purpose.label, quote.minimumGrade, quote.contractMonths,
-        payload.startDate, addMonths(payload.startDate, quote.contractMonths), shiftStart, shiftEnd,
-        quote.clientPriceCents, quote.officerRateCents, quote.releaseCadence).run();
+        payload.serviceType, purpose.code, purpose.label, quote.engagementModel, quote.noticeWindow, payload.rosterPattern,
+        quote.firstCalendarCategory, quote.firstCalendarLabel, quote.risk.band, quote.risk.score,
+        JSON.stringify(quote.risk.reasons), JSON.stringify(quote.risk.requiredEndorsements), quote.manualReview ? 1 : 0,
+        quote.shiftCount, quote.minimumGrade, quote.contractMonths, payload.startDate, quote.endDate, shiftStart, shiftEnd,
+        quote.clientPriceCents, quote.officerRateCents, quote.officerTotalCents, quote.grossPlatformContributionCents,
+        quote.version, JSON.stringify({ baseClientCents: quote.baseClientCents, calendarPremiumCents: quote.calendarPremiumCents,
+          dispatchPremiumCents: quote.dispatchPremiumCents, riskPremiumCents: quote.riskPremiumCents }),
+        quote.manualReview ? "review_required" : "awaiting_payment", quote.releaseCadence,
+        quote.manualReview ? "risk_review" : "awaiting_payment").run();
     await recordAudit(db, "client", PILOT_CLIENT_ID, "booking_created", "booking", bookingId,
-      `${PRICE_BOOK_VERSION}; ${quote.noticeLabel}; ${quote.shiftCount} shift${quote.shiftCount === 1 ? "" : "s"}; ${instructions}`);
+      `${PRICE_BOOK_VERSION}; ${quote.engagementModel}; ${quote.noticeLabel}; ${quote.risk.band} ${quote.risk.score}; ${quote.shiftCount} shift${quote.shiftCount === 1 ? "" : "s"}; ${instructions}`);
+    return;
+  }
+
+  if (payload.action === "approve_risk_plan") {
+    const result = await db.prepare(`UPDATE bookings SET funding_status = 'awaiting_payment', status = 'awaiting_payment'
+      WHERE id = ? AND client_id = ? AND status = 'risk_review'`)
+      .bind(payload.bookingId, PILOT_CLIENT_ID).run();
+    if (!result.meta.changes) throw new PilotError("This booking is not awaiting an operations risk review.", 409);
+    await recordAudit(db, "operations", "OPS-DEMO", "risk_plan_approved", "booking", payload.bookingId,
+      "DEMO ONLY: assisted risk recommendation reviewed; quote released to the payment gate.");
     return;
   }
 
@@ -461,9 +624,9 @@ async function applyAction(db: D1Database, payload: PilotAction) {
 
   if (payload.action === "accept_offer") {
     const offer = await db.prepare(`SELECT o.id, o.booking_id AS bookingId, o.status, o.amount_cents AS amountCents,
-      o.expires_at AS expiresAt, b.start_date AS startDate FROM offers o JOIN bookings b ON b.id = o.booking_id
+      o.expires_at AS expiresAt, b.start_date AS startDate, b.engagement_model AS engagementModel FROM offers o JOIN bookings b ON b.id = o.booking_id
       WHERE o.id = ? AND o.officer_id = ?`).bind(payload.offerId, PILOT_OFFICER_ID).first<{
-        id: string; bookingId: string; status: string; amountCents: number; startDate: string; expiresAt: string;
+        id: string; bookingId: string; status: string; amountCents: number; startDate: string; expiresAt: string; engagementModel: "fixed" | "flex";
       }>();
     if (!offer) throw new PilotError("This offer is not available to the pilot officer.", 404);
     if (offer.status !== "open") throw new PilotError("This offer has already been decided.", 409);
@@ -473,6 +636,15 @@ async function applyAction(db: D1Database, payload: PilotAction) {
       requireServiceOptIn: true,
     });
     if (!readiness.eligible) throw new PilotError(`LOKD Passport gate: ${readiness.blockers.join(" ")}`, 409);
+    if (offer.engagementModel === "flex") {
+      const availability = await db.prepare(`SELECT flex_available AS flexAvailable,
+        external_work_acknowledged AS externalWorkAcknowledged, rest_window_confirmed AS restWindowConfirmed
+        FROM officers WHERE id = ?`).bind(PILOT_OFFICER_ID)
+        .first<{ flexAvailable: number; externalWorkAcknowledged: number; restWindowConfirmed: number }>();
+      if (!availability?.flexAvailable || !availability.externalWorkAcknowledged || !availability.restWindowConfirmed) {
+        throw new PilotError("Flex availability, external-work declaration and rest confirmation must still be current.", 409);
+      }
+    }
     const now = new Date().toISOString();
     const claimed = await db.prepare(`UPDATE bookings SET status = 'staffed' WHERE id = ?
       AND funding_status = 'paid_in_full' AND status IN ('offered', 'matching')
@@ -510,6 +682,17 @@ async function applyAction(db: D1Database, payload: PilotAction) {
     await db.prepare(`UPDATE officer_services SET opted_in = ? WHERE officer_id = ? AND service_type = ?`)
       .bind(payload.optedIn ? 1 : 0, PILOT_OFFICER_ID, payload.serviceType).run();
     await recordAudit(db, "officer", PILOT_OFFICER_ID, "offer_preference_changed", "officer", PILOT_OFFICER_ID, `${payload.serviceType} offer notifications switched ${payload.optedIn ? "on" : "off"}.`);
+    return;
+  }
+
+  if (payload.action === "update_flex_availability") {
+    if (payload.available && (!payload.externalWorkAcknowledged || !payload.restWindowConfirmed)) {
+      throw new PilotError("Confirm both the external-work declaration and rest window before going available for Flex.", 409);
+    }
+    await db.prepare(`UPDATE officers SET flex_available = ?, external_work_acknowledged = ?, rest_window_confirmed = ? WHERE id = ?`)
+      .bind(payload.available ? 1 : 0, payload.externalWorkAcknowledged ? 1 : 0, payload.restWindowConfirmed ? 1 : 0, PILOT_OFFICER_ID).run();
+    await recordAudit(db, "officer", PILOT_OFFICER_ID, "flex_availability_changed", "officer", PILOT_OFFICER_ID,
+      `Flex availability switched ${payload.available ? "on" : "off"}; external-work and rest declarations recorded.`);
     return;
   }
 

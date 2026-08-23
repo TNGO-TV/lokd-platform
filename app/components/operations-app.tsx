@@ -101,7 +101,7 @@ const shifts: Shift[] = [
     post: "Main access",
     time: "18 Aug · 06:00–18:00",
     state: "attention",
-    detail: "Passport verified for this assignment · Client service confirmation pending · R960 remains in the verification stage",
+    detail: "Passport verified for this assignment · Client service confirmation pending · R800 remains in the verification stage",
   },
 ];
 
@@ -130,7 +130,7 @@ export default function OperationsApp() {
   const currentShifts = useMemo(() => shifts.filter((shift) => shift.state === "on-post" || shift.state === "confirmed"), []);
   const pendingServiceRecords = pilot.state?.shifts.filter((shift) => shift.clientSignoffStatus === "pending").length ?? 0;
   const pendingPayments = pilot.state?.bookings.filter((booking) => booking.fundingStatus !== "paid_in_full").length ?? 0;
-  const todayLabel = new Intl.DateTimeFormat("en-ZA", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" }).format(new Date());
+  const todayLabel = "Monday, 24 August · pilot snapshot";
 
   function flash(message: string) {
     setNotice(message);
@@ -273,7 +273,7 @@ export default function OperationsApp() {
               </div>
               {pendingServiceRecords ? <button className="attention-card" onClick={() => setSelectedShift(shifts[3])}>
                 <div className="attention-icon">!</div>
-                <div><strong>Completed shift awaiting confirmation</strong><p>R960 is awaiting service verification; normal release controls remain separate.</p><span>SH-2080 · Northbridge Rosebank Offices</span></div>
+                <div><strong>Completed shift awaiting confirmation</strong><p>R800 is awaiting service verification; normal release controls remain separate.</p><span>SH-2080 · Northbridge Rosebank Offices</span></div>
               </button> : <div className="clean-state"><span>✓</span><div><strong>Service records current</strong><p>No completed shifts are waiting for client confirmation.</p></div></div>}
               <div className="clean-state">
                 <span>✓</span>
@@ -307,7 +307,7 @@ export default function OperationsApp() {
               <div><dt>LOKD Passport</dt><dd>{selectedShift.passportNumber} · {selectedShift.passportStatus}</dd></div>
               <div><dt>Eligibility rule</dt><dd>{selectedShift.requirement}</dd></div>
               <div><dt>Contract and funding</dt><dd>{selectedShift.contractTerm} · {selectedShift.paymentState}</dd></div>
-              <div><dt>Officer offer</dt><dd>{selectedShift.id === "BK-2082" ? "R1,020 fixed offer" : selectedShift.id === "BK-2083" ? "R980 fixed offer" : "R960 fixed offer"}</dd></div>
+              <div><dt>Officer offer</dt><dd>{selectedShift.service === "VIP" ? "Specialist rate · fixed offer" : selectedShift.service === "Armed" ? "Armed rate · fixed offer" : "R800 fixed offer"}</dd></div>
               <div><dt>Earnings release</dt><dd>{selectedShift.releaseCadence} after verified completion</dd></div>
             </dl>
             <div className="drawer-timeline">
