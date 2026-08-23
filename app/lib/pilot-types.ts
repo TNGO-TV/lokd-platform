@@ -82,6 +82,31 @@ export type PilotLedgerEntry = {
   updatedAt: string;
 };
 
+export type PilotBooking = {
+  id: string;
+  siteName: string;
+  siteArea: string;
+  postName: string;
+  serviceType: ServiceType;
+  purposeCode: string;
+  purposeLabel: string;
+  minimumGrade: string;
+  contractMonths: number;
+  startDate: string;
+  endDate: string;
+  shiftStart: string;
+  shiftEnd: string;
+  clientPriceCents: number;
+  officerRateCents: number;
+  fundingStatus: string;
+  releaseCadence: "Weekly" | "Monthly";
+  status: string;
+  offerStatus: OfferStatus | null;
+  assignedOfficer: string | null;
+  matchEligible: boolean;
+  matchBlockers: string[];
+};
+
 export type PilotState = {
   officer: {
     id: string;
@@ -115,6 +140,7 @@ export type PilotState = {
     approvalStatus: string;
   };
   offers: PilotOffer[];
+  bookings: PilotBooking[];
   shifts: PilotShift[];
   ledger: PilotLedgerEntry[];
   wallet: {
@@ -135,6 +161,20 @@ export type PilotState = {
 };
 
 export type PilotAction =
+  | {
+      action: "create_booking";
+      serviceType: ServiceType;
+      term: "single" | "1" | "3" | "6" | "12";
+      noticeWindow: "standard" | "priority" | "urgent" | "immediate";
+      purposeCode: string;
+      startDate: string;
+      shift: "day" | "night";
+      postName: string;
+      instructions: string;
+    }
+  | { action: "confirm_booking_payment"; bookingId: string }
+  | { action: "release_offer_wave"; bookingId: string }
+  | { action: "reset_demo" }
   | { action: "accept_offer"; offerId: string }
   | { action: "decline_offer"; offerId: string }
   | { action: "update_service_preference"; serviceType: ServiceType; optedIn: boolean }

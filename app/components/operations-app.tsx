@@ -105,7 +105,7 @@ const shifts: Shift[] = [
   },
 ];
 
-const navItems = ["Control", "Bookings", "Offers", "Officers", "Clients", "Earnings", "Feedback"];
+const navItems = ["Control", "Bookings", "Offers", "Applications", "Officers", "Clients", "Earnings", "Feedback", "Launch readiness"];
 
 function StatusDot({ state }: { state: ShiftState }) {
   return <span className={`status-dot status-dot--${state}`} aria-hidden="true" />;
@@ -129,6 +129,8 @@ export default function OperationsApp() {
 
   const currentShifts = useMemo(() => shifts.filter((shift) => shift.state === "on-post" || shift.state === "confirmed"), []);
   const pendingServiceRecords = pilot.state?.shifts.filter((shift) => shift.clientSignoffStatus === "pending").length ?? 0;
+  const pendingPayments = pilot.state?.bookings.filter((booking) => booking.fundingStatus !== "paid_in_full").length ?? 0;
+  const todayLabel = new Intl.DateTimeFormat("en-ZA", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" }).format(new Date());
 
   function flash(message: string) {
     setNotice(message);
@@ -166,6 +168,8 @@ export default function OperationsApp() {
             >
               <span>{item}</span>
               {item === "Offers" && <em>3</em>}
+              {item === "Bookings" && pendingPayments > 0 && <em className="nav-warning">{pendingPayments}</em>}
+              {item === "Applications" && <em>New</em>}
               {item === "Earnings" && <em className="nav-warning">1</em>}
               {item === "Feedback" && <em>Team</em>}
             </button>
@@ -195,8 +199,8 @@ export default function OperationsApp() {
 
         <div className="page-content">
           <div className="preview-banner">
-            <strong>Pilot preview</strong>
-            Private pilot records only. Real client billing and live officer staffing remain locked until the organisation launch checklist is approved.
+            <strong>Private transactional demo</strong>
+            Booking, matching, attendance and earnings states persist. Payment confirmation, identity checks and regulatory activation remain explicitly simulated or locked.
           </div>
 
           {activeNav !== "Control" ? (
@@ -204,7 +208,7 @@ export default function OperationsApp() {
           ) : <>
           <section className="hero-copy">
             <div>
-              <p className="eyebrow">Friday · 21 August · 14:35 SAST</p>
+              <p className="eyebrow">{todayLabel} SAST</p>
               <h1>Every confirmed booking is staffed.</h1>
               <p className="hero-subtitle">{pendingServiceRecords ? `${pendingServiceRecords} completed shift${pendingServiceRecords === 1 ? " is" : "s are"} waiting for client service confirmation.` : "All completed service records are current."}</p>
             </div>

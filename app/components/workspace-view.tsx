@@ -15,10 +15,12 @@ const officers = [
 const workspaceCopy: Record<string, { eyebrow: string; title: string; subtitle: string; action: string }> = {
   Bookings: { eyebrow: "Pre-funded client demand", title: "Booking control", subtitle: "The full contract payment must be received and confirmed before a booking can release officer offers.", action: "Create booking" },
   Offers: { eyebrow: "Purpose-matched allocation", title: "Offer engine", subtitle: "An active LOKD Passport, purpose endorsement, grade, service qualification, preference, area and availability must all match.", action: "Release offer wave" },
+  Applications: { eyebrow: "Officer intake", title: "Applications and verification", subtitle: "Review qualified and training-pathway applicants without presenting demo checks as real identity or PSiRA verification.", action: "Refresh applications" },
   Officers: { eyebrow: "Purpose-trained officer network", title: "Officer readiness", subtitle: "Every active officer carries a live LOKD Passport backed by current training, assessment and purpose endorsements.", action: "Invite officer" },
   Clients: { eyebrow: "Contracted service", title: "Clients and sites", subtitle: "Clients choose Armed, Unarmed or VIP, pay the term in full, then follow delivery.", action: "Add client" },
   Earnings: { eyebrow: "Officer payable ledger", title: "Earnings and payouts", subtitle: "Contracts up to 3 months release weekly; longer contracts release monthly before an officer can request payout.", action: "Release eligible earnings" },
   Feedback: { eyebrow: "Team testing loop", title: "Pilot feedback", subtitle: "Review bugs, confusing moments, missing capabilities and ideas submitted from every pilot screen.", action: "Refresh feedback" },
+  "Launch readiness": { eyebrow: "Private demo controls", title: "Launch readiness", subtitle: "Regulatory, billing, identity and access gates remain explicitly separated from the connected product demo.", action: "Reset shared demo" },
 };
 
 function Top({ name, onAction, busy }: { name: string; onAction: () => void; busy?: boolean }) {
@@ -42,6 +44,23 @@ export default function WorkspaceView({ name }: { name: string }) {
     } else if (name === "Feedback") {
       setFeedbackReload((value) => value + 1);
       setMessage("Feedback queue refreshed.");
+    } else if (name === "Applications") {
+      setFeedbackReload((value) => value + 1);
+      setMessage("Application queue refreshed.");
+    } else if (name === "Launch readiness") {
+      const result = await pilot.runAction({ action: "reset_demo" });
+      setMessage(result ? "Shared transaction demo reset. Applications and feedback were preserved." : "The demo could not be reset.");
+    } else if (name === "Bookings") {
+      window.location.href = "/client";
+    } else if (name === "Officers") {
+      window.location.href = "/join";
+    } else if (name === "Offers") {
+      const booking = pilot.state?.bookings.find((item) => item.fundingStatus === "paid_in_full" && item.status === "matching");
+      if (!booking) setMessage("No funded booking is waiting for another offer wave.");
+      else {
+        const result = await pilot.runAction({ action: "release_offer_wave", bookingId: booking.id });
+        setMessage(result ? "Eligibility rechecked and the offer-wave result recorded." : "The offer wave could not be released.");
+      }
     } else {
       setMessage(`${workspaceCopy[name].action} draft created in preview mode.`);
     }
@@ -51,33 +70,46 @@ export default function WorkspaceView({ name }: { name: string }) {
   return (
     <div className="workspace-view">
       <Top name={name} busy={pilot.busy} onAction={() => void action()} />
-      {name === "Bookings" && <Bookings />}
+      {name === "Bookings" && <Bookings state={pilot.state} busy={pilot.busy} error={pilot.error} onAction={(bookingId, actionName) => void pilot.runAction({ action: actionName, bookingId })} />}
       {name === "Offers" && <Offers state={pilot.state} />}
+      {name === "Applications" && <Applications reloadKey={feedbackReload} />}
       {name === "Officers" && <Officers state={pilot.state} />}
       {name === "Clients" && <Clients />}
       {name === "Earnings" && <Wallets state={pilot.state} loading={pilot.loading} busy={pilot.busy} onRelease={() => void action()} error={pilot.error} />}
       {name === "Feedback" && <FeedbackQueue reloadKey={feedbackReload} />}
+      {name === "Launch readiness" && <Compliance />}
       {message && <div className="inline-notice">✓ {message}</div>}
     </div>
   );
 }
 
-function Bookings() {
-  const items = [
-    { id: "BK-2081", client: "Northbridge Property Services", site: "Rosebank Offices", price: "R48,000", time: "1 month · Weekly release", service: "Unarmed", purpose: "Commercial access", officer: "Lerato Khumalo", state: "Active", offer: "Passport verified · purpose current" },
-    { id: "BK-2082", client: "Eastline Freight Solutions", site: "Linbro Yard", price: "R134,400", time: "3 months · Weekly release", service: "Armed", purpose: "Secure logistics", officer: "Sibusiso Dlamini", state: "Staffed", offer: "Passport ready · monthly armed assessment current" },
-    { id: "BK-2083", client: "Metsi Industrial Supplies", site: "Midrand Depot", price: "R384,000", time: "6 months · Monthly release", service: "VIP", purpose: "Executive protection", officer: "Thabo Mokoena", state: "Staffed", offer: "Passport ready · tactical readiness current" },
-  ];
-  return <section className="workspace-card booking-board"><div className="booking-summary"><div><span>Pre-funded terms</span><strong>R566,400</strong><small>Full client-term value secured</small></div><div><span>Service classes</span><strong>3</strong><small>Unarmed · Armed · VIP</small></div><div><span>Staffing</span><strong>3 / 3</strong><small>Passport and purpose gates passed</small></div><div><span>Awaiting release</span><strong>1</strong><small>R960 pending weekly cycle</small></div></div><div className="data-head booking-head"><span>Booking</span><span>Client price</span><span>Officer assignment</span><span>Status</span><span /></div>{items.map((item) => <button className="booking-row" key={item.id}><span><strong>{item.id} · {item.site}</strong><small>{item.client} · {item.service} · {item.purpose} · {item.time}</small></span><span><strong>{item.price}</strong><small>Paid in full · LOKD price</small></span><span><strong>{item.officer}</strong><small>{item.offer}</small></span><span><em className={item.state === "Active" ? "pill tone-green" : "pill tone-blue"}>{item.state}</em></span><b>›</b></button>)}</section>;
+function Bookings({ state, busy, error, onAction }: {
+  state: PilotState | null;
+  busy: boolean;
+  error: string;
+  onAction: (bookingId: string, action: "confirm_booking_payment" | "release_offer_wave") => void;
+}) {
+  if (!state) return <section className="workspace-card"><div className="officer-loading"><span className="pulse-dot" /><strong>Loading connected bookings…</strong></div></section>;
+  const funded = state.bookings.filter((item) => item.fundingStatus === "paid_in_full");
+  const staffed = state.bookings.filter((item) => item.status === "staffed" || item.status === "active");
+  const securedCents = funded.reduce((sum, item) => sum + item.clientPriceCents, 0);
+  const serviceCount = new Set(state.bookings.map((item) => item.serviceType)).size;
+  return <section className="workspace-card booking-board"><div className="booking-summary"><div><span>Pre-funded terms</span><strong>{money(securedCents)}</strong><small>Full client-term value marked received</small></div><div><span>Service classes</span><strong>{serviceCount}</strong><small>Unarmed · Armed · VIP price book</small></div><div><span>Staffing</span><strong>{staffed.length} / {state.bookings.length}</strong><small>Connected booking records</small></div><div><span>Payment queue</span><strong>{state.bookings.filter((item) => item.fundingStatus !== "paid_in_full").length}</strong><small>Demo confirmations required</small></div></div><div className="data-head booking-head"><span>Booking</span><span>Client price</span><span>Officer assignment</span><span>Status</span><span /></div>{state.bookings.map((item) => {
+    const requiresPayment = item.fundingStatus !== "paid_in_full";
+    const canRetry = item.fundingStatus === "paid_in_full" && item.status === "matching";
+    const statusTone = item.status === "active" || item.status === "staffed" ? "green" : item.status === "awaiting_payment" ? "amber" : "blue";
+    return <div className="booking-row booking-row--action" key={item.id}><span><strong>{item.id} · {item.siteName}</strong><small>{state.client.organisationName} · {item.serviceType} · {item.purposeLabel} · {item.contractMonths ? `${item.contractMonths} month${item.contractMonths === 1 ? "" : "s"}` : "Single shift"} · {item.releaseCadence}</small></span><span><strong>{money(item.clientPriceCents)}</strong><small>{requiresPayment ? "Awaiting full-term payment" : "Paid in full · demo record"}</small></span><span><strong>{item.assignedOfficer ?? (item.offerStatus === "open" ? "Offer with eligible officer" : "Not assigned")}</strong><small>{item.matchEligible ? "Pilot officer passes current controls" : item.matchBlockers[0] ?? "Matching not run"}</small></span><span><em className={`pill tone-${statusTone}`}>{item.status.replaceAll("_", " ")}</em>{requiresPayment ? <button disabled={busy} onClick={() => onAction(item.id, "confirm_booking_payment")}>Record demo payment</button> : canRetry ? <button disabled={busy} onClick={() => onAction(item.id, "release_offer_wave")}>Retry matching</button> : null}</span><b>›</b></div>;
+  })}{error && <p className="pilot-error" role="alert">{error}</p>}<div className="demo-control-disclosure"><strong>Private demo control</strong><p>“Record demo payment” changes workflow state only. It does not charge a card, issue an invoice or confirm a real bank receipt.</p></div></section>;
 }
 
 function Offers({ state }: { state: PilotState | null }) {
-  const offer = state?.offers.find((item) => item.id === "OF-2084");
+  const offer = state?.offers.find((item) => item.status === "open") ?? state?.offers[0];
   const accepted = offer?.status === "accepted";
   const declined = offer?.status === "declined";
   const purpose = offer?.purposeLabel ?? "Commercial access";
   const passport = state?.officer.passport;
-  return <div className="offer-engine-layout"><section className="workspace-card offer-wave-card"><div className="card-title"><div><span>{accepted ? "Assigned Unarmed offer" : declined ? "Closed Unarmed offer" : "Live Unarmed offer"}</span><strong>Midrand · {purpose} · 1-month contract</strong></div><em>{offer ? offer.status : "Loading"}</em></div><div className="wave-path"><div className="wave-step done"><i>✓</i><span><strong>Payment gate passed</strong><small>Full client payment received and confirmed</small></span></div><div className="wave-step done"><i>✓</i><span><strong>Passport pool built</strong><small>Active Passport + purpose endorsement + grade + service + opt-in</small></span></div><div className={`wave-step ${accepted || declined ? "done" : "live"}`}><i>{accepted || declined ? "✓" : "2"}</i><span><strong>Fixed offer delivered</strong><small>R980 · weekly release</small></span></div><div className={`wave-step ${accepted ? "done" : ""}`}><i>{accepted ? "✓" : "•"}</i><span><strong>Atomic assignment</strong><small>{accepted ? "Lerato secured the booking" : "First currently eligible acceptance secures the booking"}</small></span></div></div><div className="wave-candidates"><div><span>LK</span><strong>{state?.officer.fullName ?? "Lerato Khumalo"}</strong><small>{passport ? `Passport ${passport.readinessLabel} · ${purpose} endorsed` : "Checking Passport readiness…"}</small><em className={`pill ${accepted ? "tone-green" : declined ? "tone-red" : passport?.offersEnabled ? "tone-amber" : "tone-red"}`}>{accepted ? "Offer accepted" : declined ? "Offer declined" : passport?.offersEnabled ? "Decision pending" : "Passport blocked"}</em></div><div><span>TM</span><strong>Thabo Mokoena</strong><small>Passport ready · Commercial access endorsed</small><em className="pill tone-blue">Wave candidate</em></div><div><span>SD</span><strong>Sibusiso Dlamini</strong><small>Passport ready, but Unarmed notifications off</small><em className="pill tone-red">Preference blocked</em></div></div></section><aside className="workspace-card offer-rules-card"><div className="card-title"><div><span>Offer snapshot</span><strong>Officer terms</strong></div></div><dl><div><dt>Service</dt><dd>Unarmed</dd></div><div><dt>Purpose</dt><dd>{purpose}</dd></div><div><dt>Passport gate</dt><dd>Active and current</dd></div><div><dt>Minimum grade</dt><dd>Grade C</dd></div><div><dt>Officer amount</dt><dd>R980 fixed / shift</dd></div><div><dt>Contract term</dt><dd>1 month</dd></div><div><dt>Release cadence</dt><dd>Weekly</dd></div><div><dt>Client payment</dt><dd>Received and confirmed in full</dd></div></dl><p>A higher-grade officer may accept lower-grade work only when their Passport, purpose training and service qualification are current and they have opted in.</p></aside></div>;
+  if (!offer) return <section className="workspace-card"><div className="clean-state"><span>✓</span><div><strong>No offers have been released</strong><p>Create and fund a booking, then release a matching wave.</p></div></div></section>;
+  return <div className="offer-engine-layout"><section className="workspace-card offer-wave-card"><div className="card-title"><div><span>{accepted ? `Assigned ${offer.serviceType} offer` : declined ? `Closed ${offer.serviceType} offer` : `Live ${offer.serviceType} offer`}</span><strong>{offer.siteArea} · {purpose} · {offer.contractMonths ? `${offer.contractMonths}-month contract` : "single shift"}</strong></div><em>{offer.status}</em></div><div className="wave-path"><div className="wave-step done"><i>✓</i><span><strong>Payment gate passed</strong><small>Full client payment recorded before matching</small></span></div><div className="wave-step done"><i>✓</i><span><strong>Passport pool built</strong><small>Passport + purpose + grade + service + opt-in</small></span></div><div className={`wave-step ${accepted || declined ? "done" : "live"}`}><i>{accepted || declined ? "✓" : "2"}</i><span><strong>Fixed offer delivered</strong><small>{money(offer.amountCents)} · {offer.releaseCadence.toLowerCase()} release</small></span></div><div className={`wave-step ${accepted ? "done" : ""}`}><i>{accepted ? "✓" : "•"}</i><span><strong>Single-winner assignment</strong><small>{accepted ? `${state?.officer.fullName} secured the booking` : "First still-eligible acceptance secures the booking"}</small></span></div></div><div className="wave-candidates"><div><span>{state?.officer.initials ?? "LK"}</span><strong>{state?.officer.fullName ?? "Pilot officer"}</strong><small>{passport ? `Passport ${passport.readinessLabel} · ${purpose} checked` : "Checking Passport readiness…"}</small><em className={`pill ${accepted ? "tone-green" : declined ? "tone-red" : passport?.offersEnabled ? "tone-amber" : "tone-red"}`}>{accepted ? "Offer accepted" : declined ? "Offer declined" : passport?.offersEnabled ? "Decision pending" : "Passport blocked"}</em></div></div></section><aside className="workspace-card offer-rules-card"><div className="card-title"><div><span>Offer snapshot</span><strong>Officer terms</strong></div></div><dl><div><dt>Offer</dt><dd>{offer.id}</dd></div><div><dt>Service</dt><dd>{offer.serviceType}</dd></div><div><dt>Purpose</dt><dd>{purpose}</dd></div><div><dt>Passport gate</dt><dd>Active and current</dd></div><div><dt>Minimum grade</dt><dd>{offer.minimumGrade}</dd></div><div><dt>Officer amount</dt><dd>{money(offer.amountCents)} fixed / shift</dd></div><div><dt>Contract term</dt><dd>{offer.contractMonths ? `${offer.contractMonths} months` : "Single shift"}</dd></div><div><dt>Release cadence</dt><dd>{offer.releaseCadence}</dd></div><div><dt>Client payment</dt><dd>{offer.fundingStatus === "paid_in_full" ? "Recorded in full" : "Blocked"}</dd></div></dl><p>Client price and officer offer remain separate. A higher-grade officer may accept lower-grade work only when every qualification and preference gate still passes.</p></aside></div>;
 }
 
 function money(cents: number) {
@@ -141,6 +173,80 @@ function Officers({ state }: { state: PilotState | null }) {
       {roster.map((officer) => <button className="data-row" key={officer.ref}><span className="person-cell"><i>{officer.name.split(" ").map((part) => part[0]).join("")}</i><span><strong>{officer.name}</strong><small>{officer.ref} · {officer.sites}</small></span></span><span><strong>{officer.grade} · Passport {officer.passport}</strong><small>{officer.nextDue}</small></span><span><strong>{officer.purpose}</strong><small>{officer.services} · {officer.preference}</small></span><span><em className={`pill tone-${officer.tone}`}>{officer.status}</em></span><span>›</span></button>)}
     </section>
   );
+}
+
+type ApplicationItem = {
+  id: string;
+  pathway: "qualified" | "training";
+  fullName: string;
+  mobile: string;
+  email: string;
+  city: string;
+  province: string;
+  psiraStatus: string;
+  psiraNumber: string | null;
+  psiraGrade: string | null;
+  services: string[];
+  purposes: string[];
+  training: string[];
+  identityStatus: string;
+  status: string;
+  source: string;
+  createdAt: string;
+};
+
+function Applications({ reloadKey }: { reloadKey: number }) {
+  const [items, setItems] = useState<ApplicationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
+  const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    void fetch("/api/applications", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json() as { applications?: ApplicationItem[]; error?: string };
+        if (!response.ok) throw new Error(payload.error ?? "Applications could not be loaded.");
+        setItems(payload.applications ?? []);
+      })
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        setError(reason instanceof Error ? reason.message : "Applications could not be loaded.");
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [reloadKey, refreshKey]);
+
+  async function review(id: string, action: "start_demo_identity" | "complete_demo_identity" | "route_training" | "approve_assessment") {
+    setBusyId(id);
+    setError("");
+    try {
+      const response = await fetch("/api/applications", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, action }),
+      });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "The application could not be updated.");
+      setRefreshKey((value) => value + 1);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The application could not be updated.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  if (loading) return <section className="workspace-card"><div className="officer-loading"><span className="pulse-dot" /><strong>Loading officer applications…</strong></div></section>;
+  return <section className="workspace-card application-queue"><div className="demo-control-disclosure"><strong>Demo verification only</strong><p>These controls demonstrate workflow states. No bank-grade ID, Home Affairs or live PSiRA verification provider is connected yet, and no action below makes an applicant deployable.</p></div><div className="booking-summary"><div><span>Total applications</span><strong>{items.length}</strong><small>Homepage and demo seed</small></div><div><span>Qualified pathway</span><strong>{items.filter((item) => item.pathway === "qualified").length}</strong><small>Credentials require verification</small></div><div><span>Training pathway</span><strong>{items.filter((item) => item.pathway === "training").length}</strong><small>Academy opportunity</small></div><div><span>Assessment ready</span><strong>{items.filter((item) => item.status === "assessment_ready").length}</strong><small>Demo state only</small></div></div>{items.map((item) => <article key={item.id}>
+    <div className="application-person"><span>{item.fullName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)}</span><div><strong>{item.fullName}</strong><small>{item.id} · {item.city}, {item.province}</small></div></div>
+    <div><strong>{item.psiraGrade ?? "No verified grade"}</strong><small>{item.psiraNumber ?? item.psiraStatus.replaceAll("_", " ")} · {item.services.join(" · ")}</small></div>
+    <div><strong>{item.pathway === "training" ? "Academy pathway" : "Qualified officer pathway"}</strong><small>{item.pathway === "training" ? item.training.join(" · ") : item.purposes.join(" · ")}</small></div>
+    <div className="application-state"><em className={`pill ${item.identityStatus === "demo_verified" ? "tone-green" : item.identityStatus === "checking" ? "tone-blue" : "tone-amber"}`}>{item.identityStatus.replaceAll("_", " ")}</em><small>{item.status.replaceAll("_", " ")}</small></div>
+    <div className="application-actions">{item.pathway === "training" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "route_training")}>Route to Academy</button> : item.identityStatus === "not_started" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "start_demo_identity")}>Start demo check</button> : item.identityStatus === "checking" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "complete_demo_identity")}>Complete demo check</button> : <button disabled={busyId === item.id} onClick={() => void review(item.id, "approve_assessment")}>Approve assessment</button>}</div>
+  </article>)}{error && <p className="pilot-error" role="alert">{error}</p>}</section>;
 }
 
 type FeedbackItem = {
@@ -221,5 +327,14 @@ function Incidents() {
 }
 
 function Compliance() {
-  return <div className="compliance-grid"><section className="workspace-card readiness-card"><div className="readiness-score"><span>Launch controls</span><strong>11/14</strong><em>Three gates remain in preview</em></div><div className="progress"><i /></div>{["Organisation profile approved","Officer employment records verified","PSiRA status checks current","Pilot sites and post orders approved","Payroll and invoice activation","Production data access policy"].map((item,index) => <div className="check-row" key={item}><span className={index < 4 ? "check-done" : "check-open"}>{index < 4 ? "✓" : "•"}</span><strong>{item}</strong><em>{index < 4 ? "Passed" : "Required"}</em></div>)}</section><section className="workspace-card controls-card"><div className="card-title"><div><span>Exception queue</span><strong>Hard controls</strong></div><em>2</em></div><div className="control-alert red"><span>!</span><div><strong>Officer assignment blocked</strong><p>Kabelo Maseko · PSiRA reverification required</p></div></div><div className="control-alert amber"><span>!</span><div><strong>Invoice issuing locked</strong><p>Organisation activation checklist is not complete</p></div></div><div className="audit-health"><span>Audit health</span><strong>All connected records retrievable</strong><p>Assignments, attendance, incidents and timesheet decisions are present in the demo audit trail.</p></div></section></div>;
+  const controls = [
+    { label: "Premium price book and persisted quote", state: "Connected" },
+    { label: "Full-term funding gate and matched offers", state: "Connected" },
+    { label: "LOKD Passport, attendance and service record", state: "Connected" },
+    { label: "Earnings release and payout-request workflow", state: "Connected" },
+    { label: "Company PSiRA and final regulatory activation", state: "In progress this week" },
+    { label: "Production payment, identity and PSiRA providers", state: "Integration required" },
+    { label: "Team roles, external access and production data policy", state: "Required before public access" },
+  ];
+  return <div className="compliance-grid"><section className="workspace-card readiness-card"><div className="readiness-score"><span>Phase 1 demo</span><strong>4/7</strong><em>Four product controls connected · three launch gates open</em></div><div className="progress"><i style={{ width: "57%" }} /></div>{controls.map((item,index) => <div className="check-row" key={item.label}><span className={index < 4 ? "check-done" : "check-open"}>{index < 4 ? "✓" : "•"}</span><strong>{item.label}</strong><em>{item.state}</em></div>)}</section><section className="workspace-card controls-card"><div className="card-title"><div><span>Hard boundaries</span><strong>Private demo mode</strong></div><em>3 open</em></div><div className="control-alert amber"><span>!</span><div><strong>Regulatory activation remains pending</strong><p>The product demo does not represent an operational security deployment or final PSiRA approval.</p></div></div><div className="control-alert amber"><span>!</span><div><strong>Payments are simulated</strong><p>No card charge, invoice or bank receipt is created by the Operations payment control.</p></div></div><div className="control-alert red"><span>!</span><div><strong>Do not publish write access yet</strong><p>Add authenticated team roles before moving from owner-only access to public or external testing.</p></div></div><div className="audit-health"><span>Demo reset</span><strong>Applications and feedback are preserved</strong><p>The reset action clears only team-created demo bookings and returns the pilot transaction to its opening state.</p></div></section></div>;
 }

@@ -77,6 +77,105 @@ function responseError(cause: unknown) {
   return Response.json({ error: error.message }, { status: error.status });
 }
 
+async function ensureDemoApplications(db: D1Database) {
+  const now = new Date().toISOString();
+  const retention = new Date();
+  retention.setUTCFullYear(retention.getUTCFullYear() + 1);
+  await db.batch([
+    db.prepare(`INSERT OR IGNORE INTO officer_applications
+      (id, pathway, full_name, mobile_normalized, email_normalized, city, province, psira_status,
+       psira_number, psira_grade, service_interests, purpose_interests, training_interests,
+       over_18_confirmed, eligibility_acknowledged, privacy_notice_version, privacy_acknowledged_at,
+       identity_verification_status, status, source, retention_review_at, created_at, updated_at)
+      VALUES ('APP-DEMO-001', 'qualified', 'Neo Mahlangu', '+27820000001', 'neo.demo@lokd.example',
+       'Johannesburg', 'Gauteng', 'active', 'PSIRA-DEMO-1001', 'Grade B', '["Unarmed","Armed"]',
+       '["Commercial access","Logistics / industrial"]', '[]', 1, 1, ?, ?, 'not_started',
+       'submitted', 'demo_seed', ?, ?, ?)`).bind(privacyNoticeVersion, now, retention.toISOString(), now, now),
+    db.prepare(`INSERT OR IGNORE INTO officer_applications
+      (id, pathway, full_name, mobile_normalized, email_normalized, city, province, psira_status,
+       psira_number, psira_grade, service_interests, purpose_interests, training_interests,
+       over_18_confirmed, eligibility_acknowledged, privacy_notice_version, privacy_acknowledged_at,
+       identity_verification_status, status, source, retention_review_at, created_at, updated_at)
+      VALUES ('APP-DEMO-002', 'training', 'Amahle Nkosi', '+27820000002', 'amahle.demo@lokd.example',
+       'Soweto', 'Gauteng', 'not_registered', NULL, NULL, '["Unarmed"]',
+       '["Retail","School"]', '["Entry-level security training"]', 1, 1, ?, ?, 'not_started',
+       'submitted', 'demo_seed', ?, ?, ?)`).bind(privacyNoticeVersion, now, retention.toISOString(), now, now),
+  ]);
+}
+
+export async function GET() {
+  try {
+    const db = getDb();
+    await ensureDemoApplications(db);
+    const result = await db.prepare(`SELECT id, pathway, full_name AS fullName, mobile_normalized AS mobile,
+      email_normalized AS email, city, province, psira_status AS psiraStatus, psira_number AS psiraNumber,
+      psira_grade AS psiraGrade, service_interests AS services, purpose_interests AS purposes,
+      training_interests AS training, identity_verification_status AS identityStatus, status, source,
+      created_at AS createdAt, updated_at AS updatedAt FROM officer_applications
+      ORDER BY CASE WHEN source = 'demo_seed' THEN 1 ELSE 0 END, created_at DESC LIMIT 50`).all<{
+        id: string; pathway: string; fullName: string; mobile: string; email: string; city: string; province: string;
+        psiraStatus: string; psiraNumber: string | null; psiraGrade: string | null; services: string;
+        purposes: string; training: string; identityStatus: string; status: string; source: string;
+        createdAt: string; updatedAt: string;
+      }>();
+    return Response.json({ applications: (result.results ?? []).map((item) => ({
+      ...item,
+      services: JSON.parse(item.services) as string[],
+      purposes: JSON.parse(item.purposes) as string[],
+      training: JSON.parse(item.training) as string[],
+    })) });
+  } catch (cause) {
+    return responseError(cause);
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const input = await request.json() as { id?: unknown; action?: unknown };
+    const id = cleanText(input.id, "Application reference", 8, 80);
+    const action = cleanText(input.action, "Review action", 4, 40);
+    const transitions: Record<string, { identity: string; status: string; detail: string }> = {
+      start_demo_identity: {
+        identity: "checking",
+        status: "verification_in_progress",
+        detail: "Demo identity workflow started. No external identity or PSiRA provider has been called.",
+      },
+      complete_demo_identity: {
+        identity: "demo_verified",
+        status: "credentials_review",
+        detail: "Demo identity step completed for workflow testing only; production verification remains required.",
+      },
+      route_training: {
+        identity: "not_started",
+        status: "training_recommended",
+        detail: "Applicant routed to the LOKD Academy training pathway for demo planning.",
+      },
+      approve_assessment: {
+        identity: "demo_verified",
+        status: "assessment_ready",
+        detail: "Applicant cleared for a LOKD assessment in demo mode; this is not operational approval.",
+      },
+    };
+    const transition = transitions[action];
+    if (!transition) throw new ApplicationError("Choose a valid application review action.");
+    const db = getDb();
+    const now = new Date().toISOString();
+    const result = await db.prepare(`UPDATE officer_applications SET identity_verification_status = ?,
+      identity_provider = CASE WHEN ? = 'demo_verified' THEN 'demo_only' ELSE identity_provider END,
+      identity_verified_at = CASE WHEN ? = 'demo_verified' THEN ? ELSE identity_verified_at END,
+      status = ?, updated_at = ? WHERE id = ?`)
+      .bind(transition.identity, transition.identity, transition.identity, now, transition.status, now, id).run();
+    if (!result.meta.changes) throw new ApplicationError("That application could not be found.", 404);
+    await db.prepare(`INSERT INTO audit_events
+      (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
+      VALUES (?, 'operations', 'OPS-DEMO', 'application_demo_reviewed', 'officer_application', ?, ?, ?)`)
+      .bind(`AUD-${crypto.randomUUID()}`, id, transition.detail, now).run();
+    return Response.json({ ok: true });
+  } catch (cause) {
+    return responseError(cause);
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const contentLength = Number(request.headers.get("content-length") ?? "0");
