@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import WorkspaceView from "./workspace-view";
 import { usePilot } from "../lib/use-pilot";
@@ -140,9 +141,9 @@ export default function OperationsApp() {
   return (
     <main className="app-shell">
       <aside className="side-rail">
-        <div className="brand-lockup">
+        <Link className="brand-lockup" href="/" aria-label="LOKD home">
           <img src="/lokd-logo-reverse.svg" alt="LOKD" />
-        </div>
+        </Link>
 
         <div className="pilot-chip">
           <span className="pulse-dot" />
@@ -188,7 +189,7 @@ export default function OperationsApp() {
 
       <section className="main-stage">
         <header className="top-bar">
-          <div className="mobile-brand"><img src="/lokd-logo.svg" alt="LOKD" /></div>
+          <Link className="mobile-brand" href="/" aria-label="LOKD home"><img src="/lokd-logo.svg" alt="LOKD" /></Link>
           <div className="breadcrumb"><span>Operations</span><b>/</b><strong>{activeNav}</strong></div>
           <div className="top-actions">
             <button className="icon-button" aria-label="Search">⌕</button>
@@ -196,6 +197,25 @@ export default function OperationsApp() {
             <button className="primary-button" onClick={() => flash("New client booking draft opened.")}><span>＋</span> Create booking</button>
           </div>
         </header>
+
+        <div className="mobile-ops-controls">
+          <div className="mobile-experience-switcher" aria-label="Preview experience">
+            <a className="active" href="/ops">Ops</a>
+            <a href="/officer">Officer</a>
+            <a href="/client">Client</a>
+          </div>
+          <nav aria-label="LOKD operations mobile navigation">
+            {navItems.map((item) => (
+              <button
+                className={activeNav === item ? "active" : ""}
+                key={item}
+                onClick={() => setActiveNav(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </nav>
+        </div>
 
         <div className="page-content">
           <div className="preview-banner">

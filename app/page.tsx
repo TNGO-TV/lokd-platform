@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const workCategories = [
   { name: "Unarmed", note: "Purpose-trained for the site: construction, school, retail, residential, events or logistics." },
   { name: "Armed", note: "Continuously trained and assessed—not merely qualified once a year." },
@@ -7,8 +9,16 @@ const workCategories = [
 export default function PublicHome() {
   return (
     <main className="public-home">
+      <aside className="team-review-bar" aria-label="Team review shortcuts">
+        <div><strong>Team review</strong><span>Explore the complete working model</span></div>
+        <nav>
+          <a href="/client">Client</a>
+          <a href="/officer">Officer</a>
+          <a href="/ops">Operations</a>
+        </nav>
+      </aside>
       <header className="public-header">
-        <a className="public-logo" href="/" aria-label="LOKD home"><img src="/lokd-logo.svg" alt="LOKD" /></a>
+        <Link className="public-logo" href="/" aria-label="LOKD home"><img src="/lokd-logo.svg" alt="LOKD" /></Link>
         <nav aria-label="Main navigation">
           <a href="#how-it-works">How it works</a>
           <a href="#passport">LOKD Passport</a>
