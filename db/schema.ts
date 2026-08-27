@@ -133,6 +133,168 @@ export const clients = sqliteTable("clients", {
   approvalStatus: text("approval_status").notNull().default("pending"),
 });
 
+export const operationalSites = sqliteTable(
+  "operational_sites",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").notNull().references(() => clients.id),
+    bookingId: text("booking_id").references(() => bookings.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    area: text("area").notNull(),
+    addressLabel: text("address_label").notNull(),
+    latitudeE6: integer("latitude_e6").notNull(),
+    longitudeE6: integer("longitude_e6").notNull(),
+    timezone: text("timezone").notNull().default("Africa/Johannesburg"),
+    riskBand: text("risk_band").notNull().default("Standard"),
+    serviceType: text("service_type").notNull().default("Unarmed"),
+    geofenceRadiusMeters: integer("geofence_radius_meters").notNull().default(120),
+    geofenceVersion: integer("geofence_version").notNull().default(1),
+    telemetryMode: text("telemetry_mode").notNull().default("simulated"),
+    sensitivityClassification: text("sensitivity_classification").notNull().default("operational"),
+    status: text("status").notNull().default("active"),
+    version: integer("version").notNull().default(1),
+    updatedBy: text("updated_by").notNull().default("system"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("operational_sites_client_idx").on(table.clientId),
+    index("operational_sites_booking_idx").on(table.bookingId),
+    index("operational_sites_status_idx").on(table.status),
+  ],
+);
+
+export const sitePosts = sqliteTable(
+  "site_posts",
+  {
+    id: text("id").primaryKey(),
+    siteId: text("site_id").notNull().references(() => operationalSites.id),
+    bookingId: text("booking_id").references(() => bookings.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    serviceType: text("service_type").notNull().default("Unarmed"),
+    purposeCode: text("purpose_code").notNull().default("commercial_access"),
+    minimumGrade: text("minimum_grade").notNull().default("Grade C"),
+    postOrdersVersion: text("post_orders_version").notNull().default("draft"),
+    status: text("status").notNull().default("active"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("site_posts_site_idx").on(table.siteId),
+    index("site_posts_booking_idx").on(table.bookingId),
+    index("site_posts_status_idx").on(table.status),
+  ],
+);
+
+export const sitePresenceSignals = sqliteTable(
+  "site_presence_signals",
+  {
+    id: text("id").primaryKey(),
+    siteId: text("site_id").notNull().references(() => operationalSites.id),
+    shiftId: text("shift_id").references(() => shifts.id, { onDelete: "set null" }),
+    officerId: text("officer_id").references(() => officers.id, { onDelete: "set null" }),
+    signalType: text("signal_type").notNull(),
+    latitudeE6: integer("latitude_e6").notNull(),
+    longitudeE6: integer("longitude_e6").notNull(),
+    accuracyMeters: integer("accuracy_meters"),
+    source: text("source").notNull().default("simulated"),
+    sourceSessionId: text("source_session_id"),
+    sequenceNumber: integer("sequence_number"),
+    idempotencyKey: text("idempotency_key"),
+    policyVersion: text("policy_version").notNull().default("demo-synthetic-v1"),
+    geofenceVersion: integer("geofence_version").notNull().default(1),
+    environment: text("environment").notNull().default("demo"),
+    integrityState: text("integrity_state").notNull().default("synthetic"),
+    reviewRequired: integer("review_required").notNull().default(0),
+    capturedAt: text("captured_at").notNull(),
+    receivedAt: text("received_at").notNull(),
+    retentionReviewAt: text("retention_review_at").notNull(),
+  },
+  (table) => [
+    index("site_presence_site_time_idx").on(table.siteId, table.capturedAt),
+    index("site_presence_shift_idx").on(table.shiftId),
+    index("site_presence_officer_idx").on(table.officerId),
+    uniqueIndex("site_presence_idempotency_idx").on(table.idempotencyKey),
+  ],
+);
+
+export const siteIncidents = sqliteTable(
+  "site_incidents",
+  {
+    id: text("id").primaryKey(),
+    siteId: text("site_id").notNull().references(() => operationalSites.id),
+    shiftId: text("shift_id").references(() => shifts.id, { onDelete: "set null" }),
+    severity: text("severity").notNull(),
+    category: text("category").notNull(),
+    summary: text("summary").notNull(),
+    detail: text("detail").notNull().default(""),
+    status: text("status").notNull().default("open"),
+    visibility: text("visibility").notNull().default("operations"),
+    reportedByType: text("reported_by_type").notNull(),
+    reportedById: text("reported_by_id").notNull(),
+    occurredAt: text("occurred_at").notNull(),
+    reportedAt: text("reported_at").notNull(),
+    ownerId: text("owner_id"),
+    slaDueAt: text("sla_due_at"),
+    acknowledgedAt: text("acknowledged_at"),
+    acknowledgedBy: text("acknowledged_by"),
+    resolvedAt: text("resolved_at"),
+    resolvedBy: text("resolved_by"),
+    resolutionNote: text("resolution_note"),
+    clientNotifiedAt: text("client_notified_at"),
+    retentionReviewAt: text("retention_review_at").notNull(),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    index("site_incidents_site_time_idx").on(table.siteId, table.reportedAt),
+    index("site_incidents_status_idx").on(table.status),
+    index("site_incidents_severity_idx").on(table.severity),
+    index("site_incidents_shift_idx").on(table.shiftId),
+  ],
+);
+
+export const incidentEvents = sqliteTable(
+  "incident_events",
+  {
+    id: text("id").primaryKey(),
+    incidentId: text("incident_id").notNull().references(() => siteIncidents.id),
+    eventType: text("event_type").notNull(),
+    actorType: text("actor_type").notNull(),
+    actorId: text("actor_id").notNull(),
+    detail: text("detail").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [index("incident_events_incident_time_idx").on(table.incidentId, table.createdAt)],
+);
+
+export const operationalExceptions = sqliteTable(
+  "operational_exceptions",
+  {
+    id: text("id").primaryKey(),
+    siteId: text("site_id").notNull().references(() => operationalSites.id),
+    postId: text("post_id").references(() => sitePosts.id, { onDelete: "set null" }),
+    shiftId: text("shift_id").references(() => shifts.id, { onDelete: "set null" }),
+    exceptionType: text("exception_type").notNull(),
+    priority: text("priority").notNull(),
+    status: text("status").notNull().default("new"),
+    summary: text("summary").notNull(),
+    ownerId: text("owner_id"),
+    detectedAt: text("detected_at").notNull(),
+    slaDueAt: text("sla_due_at").notNull(),
+    acknowledgedAt: text("acknowledged_at"),
+    resolvedAt: text("resolved_at"),
+    resolutionCode: text("resolution_code"),
+    resolutionNote: text("resolution_note"),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    index("operational_exceptions_site_time_idx").on(table.siteId, table.detectedAt),
+    index("operational_exceptions_status_idx").on(table.status),
+    index("operational_exceptions_priority_idx").on(table.priority),
+    index("operational_exceptions_shift_idx").on(table.shiftId),
+  ],
+);
+
 export const bookings = sqliteTable(
   "bookings",
   {

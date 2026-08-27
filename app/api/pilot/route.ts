@@ -513,6 +513,15 @@ async function resetDemo(db: D1Database, actorId: string) {
   const now = new Date();
   const offerExpiry = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
   await db.batch([
+    db.prepare(`DELETE FROM incident_events WHERE incident_id IN (SELECT id FROM site_incidents WHERE id LIKE 'INC-RPT-%' OR id LIKE 'INC-OPS-%')`),
+    db.prepare(`DELETE FROM site_incidents WHERE id LIKE 'INC-RPT-%' OR id LIKE 'INC-OPS-%'`),
+    db.prepare(`DELETE FROM incident_events WHERE incident_id = 'INC-DEMO-001' AND id <> 'IE-DEMO-001'`),
+    db.prepare(`UPDATE site_incidents SET status = 'open', owner_id = NULL, acknowledged_at = NULL,
+      acknowledged_by = NULL, resolved_at = NULL, resolved_by = NULL, resolution_note = NULL, version = 1
+      WHERE id = 'INC-DEMO-001'`),
+    db.prepare(`UPDATE operational_exceptions SET status = 'new', owner_id = NULL, acknowledged_at = NULL,
+      resolved_at = NULL, resolution_code = NULL, resolution_note = NULL, version = 1
+      WHERE id = 'EXC-DEMO-001'`),
     db.prepare(`DELETE FROM ledger_entries WHERE shift_id IN (SELECT id FROM shifts WHERE booking_id LIKE 'BK-DEMO-%')`),
     db.prepare(`DELETE FROM shifts WHERE booking_id LIKE 'BK-DEMO-%' OR id = 'SH-2084'`),
     db.prepare(`DELETE FROM offers WHERE booking_id LIKE 'BK-DEMO-%'`),
@@ -736,12 +745,37 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
   }
 
   if (payload.action === "report_issue") {
-    const shift = await db.prepare(`SELECT id FROM shifts WHERE id = ? AND officer_id = ?`)
-      .bind(payload.shiftId, PILOT_OFFICER_ID).first<{ id: string }>();
+    const shift = await db.prepare(`SELECT s.id, os.id AS siteId FROM shifts s
+      LEFT JOIN operational_sites os ON os.booking_id = s.booking_id
+      WHERE s.id = ? AND s.officer_id = ?`)
+      .bind(payload.shiftId, PILOT_OFFICER_ID).first<{ id: string; siteId: string | null }>();
     if (!shift) throw new PilotError("This issue is not linked to one of your shifts.", 404);
     const category = payload.category.trim().slice(0, 80);
     if (!category) throw new PilotError("Choose an issue category.", 400);
-    await recordAudit(db, "officer", actor.email, "shift_issue_reported", "shift", payload.shiftId, `${category} reported from the officer app. Operations follow-up required.`);
+    if (!shift.siteId) {
+      await recordAudit(db, "officer", actor.email, "shift_issue_reported", "shift", payload.shiftId, `${category} reported from the officer app. Operations follow-up required.`);
+      return;
+    }
+    const now = new Date();
+    const incidentId = eventId("INC-RPT");
+    const incidentDetail = "Officer raised an operational issue from the assigned shift. Operations must triage the case before any further conclusion.";
+    await db.batch([
+      db.prepare(`INSERT INTO site_incidents
+        (id, site_id, shift_id, severity, category, summary, detail, status, visibility, reported_by_type, reported_by_id,
+         occurred_at, reported_at, owner_id, sla_due_at, acknowledged_at, acknowledged_by, resolved_at, resolved_by,
+         resolution_note, client_notified_at, retention_review_at, version)
+        VALUES (?, ?, ?, 'medium', ?, ?, ?, 'open', 'operations', 'officer', ?, ?, ?, NULL, ?, NULL, NULL, NULL, NULL, NULL, NULL, ?, 1)`)
+        .bind(incidentId, shift.siteId, payload.shiftId, category.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 48), category, incidentDetail,
+          actor.email, now.toISOString(), now.toISOString(), new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
+          new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString()),
+      db.prepare(`INSERT INTO incident_events (id, incident_id, event_type, actor_type, actor_id, detail, created_at)
+        VALUES (?, ?, 'case_opened', 'officer', ?, ?, ?)`)
+        .bind(eventId("IE"), incidentId, actor.email, `${category} reported from the officer app.`, now.toISOString()),
+      db.prepare(`INSERT INTO audit_events
+        (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
+        VALUES (?, 'officer', ?, 'incident_reported', 'incident', ?, 'Officer report created an Operations incident case.', ?)`)
+        .bind(eventId("AUD"), actor.email, incidentId, now.toISOString()),
+    ]);
     return;
   }
 
