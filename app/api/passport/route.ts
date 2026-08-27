@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { liveShiftScanEnabled, PilotAccessError, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 import { evaluateBookingReadiness, readPublicPassport, tokenHash } from "../../lib/passport-server";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +10,12 @@ function db() {
 }
 
 function response(payload: unknown, status = 200) {
-  return Response.json(payload, { status, headers: { "cache-control": "no-store, private", "x-robots-tag": "noindex, nofollow" } });
+  return Response.json(payload, { status, headers: {
+    "cache-control": "no-store, private",
+    "x-robots-tag": "noindex, nofollow",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+  } });
 }
 
 export async function GET(request: Request) {
@@ -28,7 +34,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const payload = await request.json() as { token?: string; bookingId?: string; shiftId?: string };
+    if (!liveShiftScanEnabled()) return response({ error: "Shift arrival recording is locked until the controlled pilot is activated." }, 423);
+    requireSameOriginJson(request);
+    const principal = requirePilotApiRole(request, "client");
+    const raw = await request.text();
+    if (raw.length > 8_192) return response({ error: "The verification request is too large." }, 413);
+    const payload = JSON.parse(raw) as { token?: string; bookingId?: string; shiftId?: string };
     const token = payload.token?.trim() ?? "";
     const bookingId = payload.bookingId?.trim() ?? "";
     const shiftId = payload.shiftId?.trim() ?? "";
@@ -37,16 +48,21 @@ export async function POST(request: Request) {
     const database = db();
     const hash = await tokenHash(token);
     const assignment = await database.prepare(`SELECT p.officer_id AS officerId, p.passport_number AS passportNumber,
+      b.client_id AS clientId,
       s.scheduled_date AS scheduledDate, s.status, s.passport_verification_status AS verificationStatus
       FROM officer_passports p JOIN shifts s ON s.officer_id = p.officer_id
+      JOIN bookings b ON b.id = s.booking_id
       WHERE p.public_token_hash = ? AND s.id = ? AND s.booking_id = ?`)
       .bind(hash, shiftId, bookingId).first<{
-        officerId: string; passportNumber: string; scheduledDate: string; status: string; verificationStatus: string;
+        officerId: string; passportNumber: string; clientId: string; scheduledDate: string; status: string; verificationStatus: string;
       }>();
 
     if (!assignment) {
       const passport = await readPublicPassport(database, token, bookingId, shiftId);
       return response({ passport, error: "This officer is not assigned to the supplied LOKD shift." }, 409);
+    }
+    if (!principal.owner && principal.clientId !== assignment.clientId) {
+      return response({ error: "This account is not authorised to verify that assignment." }, 403);
     }
 
     const readiness = await evaluateBookingReadiness(database, assignment.officerId, bookingId, {
@@ -68,8 +84,8 @@ export async function POST(request: Request) {
         .bind(scanId, assignment.officerId, assignment.passportNumber, bookingId, shiftId, result, reason, now),
       database.prepare(`INSERT INTO audit_events
         (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
-        VALUES (?, 'client', 'QR-CLIENT', 'passport_scanned', 'shift', ?, ?, ?)`)
-        .bind(`AUD-${crypto.randomUUID()}`, shiftId, `${result.toUpperCase()} Passport verification: ${reason}`, now),
+        VALUES (?, 'client', ?, 'passport_scanned', 'shift', ?, ?, ?)`)
+        .bind(`AUD-${crypto.randomUUID()}`, principal.email, shiftId, `${result.toUpperCase()} Passport verification: ${reason}`, now),
     ];
     statements.push(database.prepare(`UPDATE shifts SET passport_verification_status = ?,
       passport_verified_at = ?, passport_scan_id = ?
@@ -79,7 +95,8 @@ export async function POST(request: Request) {
 
     const passport = await readPublicPassport(database, token, bookingId, shiftId);
     return response({ passport, readiness });
-  } catch {
+  } catch (cause) {
+    if (cause instanceof PilotAccessError) return response({ error: cause.message }, cause.status);
     return response({ error: "Passport verification could not be recorded." }, 503);
   }
 }

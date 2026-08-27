@@ -34,7 +34,7 @@ function Top({ name, onAction, busy }: { name: string; onAction: () => void; bus
 }
 
 export default function WorkspaceView({ name }: { name: string }) {
-  const pilot = usePilot();
+  const pilot = usePilot("operations");
   const [message, setMessage] = useState("");
   const [feedbackReload, setFeedbackReload] = useState(0);
   const action = async () => {
@@ -205,6 +205,8 @@ function Applications({ reloadKey }: { reloadKey: number }) {
 
   useEffect(() => {
     const controller = new AbortController();
+    // This effect owns the remote queue lifecycle, including its loading state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError("");
     void fetch("/api/applications", { cache: "no-store", signal: controller.signal })
@@ -269,6 +271,8 @@ function FeedbackQueue({ reloadKey }: { reloadKey: number }) {
 
   useEffect(() => {
     const controller = new AbortController();
+    // This effect owns the remote queue lifecycle, including its loading state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError("");
     void fetch("/api/feedback", { cache: "no-store", signal: controller.signal })
@@ -329,13 +333,13 @@ function Incidents() {
 
 function Compliance() {
   const controls = [
-    { label: "Premium price book and persisted quote", state: "Connected" },
-    { label: "Full-term funding gate and matched offers", state: "Connected" },
-    { label: "LOKD Passport, attendance and service record", state: "Connected" },
-    { label: "Earnings release and payout-request workflow", state: "Connected" },
-    { label: "Company PSiRA and final regulatory activation", state: "In progress this week" },
-    { label: "Production payment, identity and PSiRA providers", state: "Integration required" },
-    { label: "Team roles, external access and production data policy", state: "Required before public access" },
+    { label: "G0 · Scheduled Unarmed fixed-site scope; LOKD is the licensed contracting principal", state: "Operating model locked", done: true },
+    { label: "G1 · Company PSiRA approval and certificate", state: "In progress", done: false },
+    { label: "G2 · Direct employer or compliant TES; client pays LOKD and officers are paid through payroll", state: "No pass-through wallet", done: false },
+    { label: "G3 · Lawful loaded-cost floor, approved site and cleared funding allocated to roster positions", state: "Evidence required", done: false },
+    { label: "G4 · Verified identity, PSiRA/grade, skills, site induction and computed roster/rest eligibility", state: "Integration required", done: false },
+    { label: "G5 · Production roles/data, attendance, incidents, complaints and append-only audit", state: "First access boundary connected", done: false },
+    { label: "G6 · Payroll batch, payslip and EFT evidence independent of client sign-off", state: "Payroll integration required", done: false },
   ];
-  return <div className="compliance-grid"><section className="workspace-card readiness-card"><div className="readiness-score"><span>Phase 1 demo</span><strong>4/7</strong><em>Four product controls connected · three launch gates open</em></div><div className="progress"><i style={{ width: "57%" }} /></div>{controls.map((item,index) => <div className="check-row" key={item.label}><span className={index < 4 ? "check-done" : "check-open"}>{index < 4 ? "✓" : "•"}</span><strong>{item.label}</strong><em>{item.state}</em></div>)}</section><section className="workspace-card controls-card"><div className="card-title"><div><span>Hard boundaries</span><strong>Private demo mode</strong></div><em>3 open</em></div><div className="control-alert amber"><span>!</span><div><strong>Regulatory activation remains pending</strong><p>The product demo does not represent an operational security deployment or final PSiRA approval.</p></div></div><div className="control-alert amber"><span>!</span><div><strong>Payments are simulated</strong><p>No card charge, invoice or bank receipt is created by the Operations payment control.</p></div></div><div className="control-alert red"><span>!</span><div><strong>Do not publish write access yet</strong><p>Add authenticated team roles before moving from owner-only access to public or external testing.</p></div></div><div className="audit-health"><span>Demo reset</span><strong>Applications and feedback are preserved</strong><p>The reset action clears only team-created demo bookings and returns the pilot transaction to its opening state.</p></div></section></div>;
+  return <div className="compliance-grid"><section className="workspace-card readiness-card"><div className="readiness-score"><span>Phase 1 activation gates</span><strong>1/7</strong><em>The operating model is locked; regulated service activation remains blocked.</em></div><div className="progress"><i style={{ width: "14%" }} /></div>{controls.map((item) => <div className="check-row" key={item.label}><span className={item.done ? "check-done" : "check-open"}>{item.done ? "✓" : "•"}</span><strong>{item.label}</strong><em>{item.state}</em></div>)}<div className="check-row"><span className="check-open">•</span><strong>Scale gate · Thirty clean controlled-pilot days</strong><em>Begins only after G0–G6 activation</em></div></section><section className="workspace-card controls-card"><div className="card-title"><div><span>Hard boundaries</span><strong>Authenticated pre-launch</strong></div><em>Paid shifts locked</em></div><div className="control-alert amber"><span>!</span><div><strong>Regulatory activation remains pending</strong><p>No paid shift can be activated until LOKD&apos;s PSiRA certificate and the labour/employer gates are cleared.</p></div></div><div className="control-alert amber"><span>!</span><div><strong>Payments and payroll are simulated</strong><p>No invoice, cleared bank receipt, payroll batch, payslip or EFT evidence is created by this demo.</p></div></div><div className="control-alert red"><span>!</span><div><strong>Demo and live data must remain separate</strong><p>The working transaction model will not be reused as the database for real client, officer or payroll records.</p></div></div><div className="audit-health"><span>Access boundary</span><strong>Client, Officer and Operations now require assigned sign-in roles</strong><p>Anonymous access is limited to public information, officer-interest submission and read-only Passport verification.</p></div></section></div>;
 }

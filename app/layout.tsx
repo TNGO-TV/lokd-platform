@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { getChatGPTUser } from "./chatgpt-auth";
 import PilotFeedback from "./components/pilot-feedback";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://lokd-security.zenas-capetown.chatgpt.site"),
+  metadataBase: new URL("https://demo.lokd.co.za"),
   title: "LOKD Security Platform",
   description: "Book verified security or start your pathway to becoming a work-ready LOKD officer.",
   openGraph: {
@@ -24,10 +25,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const user = await getChatGPTUser();
   return (
     <html lang="en">
-      <body>{children}<PilotFeedback /></body>
+      <body>{children}{user && <PilotFeedback />}</body>
     </html>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { PassportEndorsement, PassportStatus, ServiceType } from "../lib/pilot-types";
@@ -44,23 +45,38 @@ export default function VerifyPassport() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [retryKey, setRetryKey] = useState(0);
 
-  async function load() {
-    setLoading(true); setError("");
-    try {
-      const query = new URLSearchParams({ token });
-      if (bookingId) query.set("booking", bookingId);
-      if (shiftId) query.set("shift", shiftId);
-      const response = await fetch(`/api/passport?${query}`, { cache: "no-store" });
-      const payload = await response.json() as { passport?: PassportResult; error?: string };
-      if (!response.ok || !payload.passport) throw new Error(payload.error ?? "Passport could not be verified.");
-      setPassport(payload.passport);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Passport could not be verified.");
-    } finally { setLoading(false); }
-  }
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setLoading(true); setError("");
+        try {
+          const query = new URLSearchParams({ token });
+          if (bookingId) query.set("booking", bookingId);
+          if (shiftId) query.set("shift", shiftId);
+          const response = await fetch(`/api/passport?${query}`, { cache: "no-store", signal: controller.signal });
+          const payload = await response.json() as { passport?: PassportResult; error?: string };
+          if (!response.ok || !payload.passport) throw new Error(payload.error ?? "Passport could not be verified.");
+          if (active) setPassport(payload.passport);
+        } catch (cause) {
+          if (active && !(cause instanceof DOMException && cause.name === "AbortError")) {
+            setError(cause instanceof Error ? cause.message : "Passport could not be verified.");
+          }
+        } finally {
+          if (active) setLoading(false);
+        }
+      })();
+    }, 0);
 
-  useEffect(() => { void load(); }, [token, bookingId, shiftId]);
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [token, bookingId, shiftId, retryKey]);
 
   async function confirmShift() {
     setBusy(true); setError("");
@@ -78,9 +94,9 @@ export default function VerifyPassport() {
   }
 
   return <main className="passport-verify-shell">
-    <header><a href="/"><img src="/lokd-logo.svg" alt="LOKD" /></a><span>LIVE PASSPORT VERIFICATION</span></header>
+    <header><Link href="/"><img src="/lokd-logo.svg" alt="LOKD" /></Link><span>LIVE PASSPORT VERIFICATION</span></header>
     {loading ? <section className="passport-loading"><i /><h1>Checking LOKD Passport…</h1><p>Reading the current readiness record.</p></section>
-      : error && !passport ? <section className="passport-error"><strong>!</strong><h1>Verification unavailable</h1><p>{error}</p><button onClick={() => void load()}>Try again</button></section>
+      : error && !passport ? <section className="passport-error"><strong>!</strong><h1>Verification unavailable</h1><p>{error}</p><button onClick={() => setRetryKey((current) => current + 1)}>Try again</button></section>
       : passport && <>
         <section className={`passport-result passport-result--${passport.result}`}>
           <div className="passport-result-mark">{passport.result === "green" ? "✓" : passport.result === "amber" ? "!" : "×"}</div>

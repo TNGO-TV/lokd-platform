@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
 type Pathway = "qualified" | "training";
@@ -24,23 +26,18 @@ const trainingChoices = [
 ] as const;
 
 export default function JoinPage() {
+  const search = useSearchParams();
+  const requestedPath = search.get("path");
+  const initialPathway: Pathway = requestedPath === "training" ? "training" : "qualified";
   const [step, setStep] = useState(1);
-  const [pathway, setPathway] = useState<Pathway>("qualified");
+  const [pathway, setPathway] = useState<Pathway>(initialPathway);
   const [services, setServices] = useState<string[]>(["Unarmed"]);
   const [purposes, setPurposes] = useState<string[]>(["Commercial access"]);
   const [training, setTraining] = useState<string[]>([]);
-  const [details, setDetails] = useState({ fullName: "", mobile: "", email: "", city: "", province: "Gauteng", psiraStatus: "active", psiraNumber: "", psiraGrade: "" });
+  const [details, setDetails] = useState({ fullName: "", mobile: "", email: "", city: "", province: "Gauteng", psiraStatus: initialPathway === "training" ? "not_registered" : "active", psiraNumber: "", psiraGrade: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reference, setReference] = useState("");
-
-  useEffect(() => {
-    const requestedPath = new URLSearchParams(window.location.search).get("path");
-    if (requestedPath === "training" || requestedPath === "qualified") {
-      setPathway(requestedPath);
-      if (requestedPath === "training") setDetails((current) => ({ ...current, psiraStatus: "not_registered" }));
-    }
-  }, []);
 
   const progress = useMemo(() => `${Math.round((step / 3) * 100)}%`, [step]);
 
@@ -98,12 +95,12 @@ export default function JoinPage() {
   }
 
   if (reference) {
-    return <main className="join-shell"><header className="join-header"><a href="/"><img src="/lokd-logo.svg" alt="LOKD" /></a><span>Officer network</span></header><section className="join-success"><div className="join-success-mark">✓</div><p className="public-kicker">Application received</p><h1>Your LOKD journey has started.</h1><p>We have saved your {pathway === "training" ? "training-pathway interest" : "officer application"}. A LOKD team member will contact you when the relevant pilot intake opens.</p><dl><dt>Your reference</dt><dd>{reference}</dd></dl><div><a className="public-button public-button--dark" href="/">Return home</a><a className="public-button public-button--outline-dark" href="/officer">View officer pilot</a></div><small>Keep your reference. The authenticated onboarding stage will use a specialist identity provider for secure ID validation, selfie/liveness and face matching. Do not send identity documents, certificates or banking information by email or chat.</small></section></main>;
+    return <main className="join-shell"><header className="join-header"><Link href="/"><img src="/lokd-logo.svg" alt="LOKD" /></Link><span>Officer network</span></header><section className="join-success"><div className="join-success-mark">✓</div><p className="public-kicker">Application received</p><h1>Your LOKD journey has started.</h1><p>We have saved your {pathway === "training" ? "training-pathway interest" : "officer application"}. A LOKD team member will contact you when the relevant pilot intake opens.</p><dl><dt>Your reference</dt><dd>{reference}</dd></dl><div><Link className="public-button public-button--dark" href="/">Return home</Link><Link className="public-button public-button--outline-dark" href="/officer">View officer pilot</Link></div><small>Keep your reference. The authenticated onboarding stage will use a specialist identity provider for secure ID validation, selfie/liveness and face matching. Do not send identity documents, certificates or banking information by email or chat.</small></section></main>;
   }
 
   return (
     <main className="join-shell">
-      <header className="join-header"><a href="/"><img src="/lokd-logo.svg" alt="LOKD" /></a><span>Officer network</span><a href="/officer">Officer pilot →</a></header>
+      <header className="join-header"><Link href="/"><img src="/lokd-logo.svg" alt="LOKD" /></Link><span>Officer network</span><Link href="/officer">Officer pilot →</Link></header>
       <div className="join-progress" aria-label={`Step ${step} of 3`}><span style={{ width: progress }} /></div>
       <section className="join-layout">
         <aside className="join-intro">

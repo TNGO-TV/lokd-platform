@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { PilotAction, PilotState } from "./pilot-types";
+import type { PilotAction, PilotScope, PilotState } from "./pilot-types";
 
 type PilotResult = {
   state: PilotState | null;
@@ -12,7 +12,7 @@ type PilotResult = {
   runAction: (action: PilotAction) => Promise<PilotState | null>;
 };
 
-export function usePilot(): PilotResult {
+export function usePilot(scope: PilotScope): PilotResult {
   const [state, setState] = useState<PilotState | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -22,7 +22,7 @@ export function usePilot(): PilotResult {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/pilot", { cache: "no-store" });
+      const response = await fetch(`/api/pilot?scope=${scope}`, { cache: "no-store" });
       const payload = (await response.json()) as { state?: PilotState; error?: string };
       if (!response.ok || !payload.state) throw new Error(payload.error ?? "Unable to load the pilot workspace.");
       setState(payload.state);
@@ -31,9 +31,11 @@ export function usePilot(): PilotResult {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
+    // The workspace state is remote D1 state; loading it is the effect's synchronization work.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh]);
 
@@ -41,7 +43,7 @@ export function usePilot(): PilotResult {
     setBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/pilot", {
+      const response = await fetch(`/api/pilot?scope=${scope}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(action),
@@ -56,7 +58,7 @@ export function usePilot(): PilotResult {
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [scope]);
 
   return { state, loading, busy, error, refresh, runAction };
 }

@@ -122,8 +122,8 @@ function MiniMark() {
   );
 }
 
-export default function OperationsApp() {
-  const pilot = usePilot();
+export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "prelaunch" | "pilot"; actorEmail: string }) {
+  const pilot = usePilot("operations");
   const [activeNav, setActiveNav] = useState("Control");
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -181,7 +181,7 @@ export default function OperationsApp() {
           <div className="avatar avatar--dark">Z</div>
           <span>
             <strong>Operations</strong>
-            Marketplace control
+            {actorEmail}
           </span>
           <button aria-label="Open account menu">•••</button>
         </div>
@@ -219,8 +219,8 @@ export default function OperationsApp() {
 
         <div className="page-content">
           <div className="preview-banner">
-            <strong>Private transactional demo</strong>
-            Booking, matching, attendance and earnings states persist. Payment confirmation, identity checks and regulatory activation remain explicitly simulated or locked.
+            <strong>Simulated {stage === "demo" ? "demo" : "pre-launch"} workspace</strong>
+            Role access is server-enforced. Payment confirmation, identity checks, payroll and regulatory activation remain simulated or locked until their launch gates are approved.
           </div>
 
           {activeNav !== "Control" ? (
@@ -229,8 +229,8 @@ export default function OperationsApp() {
           <section className="hero-copy">
             <div>
               <p className="eyebrow">{todayLabel} SAST</p>
-              <h1>Every confirmed booking is staffed.</h1>
-              <p className="hero-subtitle">{pendingServiceRecords ? `${pendingServiceRecords} completed shift${pendingServiceRecords === 1 ? " is" : "s are"} waiting for client service confirmation.` : "All completed service records are current."}</p>
+              <h1>Preview the complete operating flow.</h1>
+              <p className="hero-subtitle">This is simulated data. {pendingServiceRecords ? `${pendingServiceRecords} example shift${pendingServiceRecords === 1 ? " is" : "s are"} waiting for a test service confirmation.` : "All example service records are current."}</p>
             </div>
             <div className="hero-actions">
               <button className="secondary-button" onClick={() => flash("Daily operations report prepared.")}>Export daily report</button>
@@ -241,14 +241,14 @@ export default function OperationsApp() {
           <section className="coverage-panel" aria-labelledby="coverage-title">
             <div className="coverage-summary">
               <div className="coverage-heading">
-                <span className="live-label"><i /> Live operations</span>
-                <span>Contracted coverage only</span>
+                <span className="live-label"><i /> Simulated operations</span>
+                <span>Illustrative coverage only</span>
               </div>
               <h2 id="coverage-title">2 of 2 client bookings covered today</h2>
               <p>Each slot passed the active Passport, purpose endorsement, service, grade and officer opt-in rules before the first valid acceptance secured it.</p>
               <div className="coverage-stats">
-                <div><strong>1</strong><span>On post</span></div>
-                <div><strong>1</strong><span>Accepted offer</span></div>
+                <div><strong>1</strong><span>Example on post</span></div>
+                <div><strong>1</strong><span>Example accepted</span></div>
                 <div><strong>0</strong><span>Open slots</span></div>
               </div>
             </div>
@@ -258,12 +258,12 @@ export default function OperationsApp() {
               <div className="map-ring map-ring--two" />
               <div className="map-route" />
               <button className="site-pin site-pin--rosebank" onClick={() => setSelectedShift(shifts[0])}>
-                <span><MiniMark /></span><strong>Rosebank</strong><small>On post · ends 18:00</small>
+                <span><MiniMark /></span><strong>Rosebank</strong><small>Simulated on post · ends 18:00</small>
               </button>
               <button className="site-pin site-pin--linbro" onClick={() => setSelectedShift(shifts[1])}>
                 <span><MiniMark /></span><strong>Linbro</strong><small>Confirmed · starts 18:00</small>
               </button>
-              <div className="map-legend"><i /> LOKD verified coverage</div>
+              <div className="map-legend"><i /> Illustrative coverage</div>
             </div>
           </section>
 
@@ -293,18 +293,18 @@ export default function OperationsApp() {
               </div>
               {pendingServiceRecords ? <button className="attention-card" onClick={() => setSelectedShift(shifts[3])}>
                 <div className="attention-icon">!</div>
-                <div><strong>Completed shift awaiting confirmation</strong><p>R800 is awaiting service verification; normal release controls remain separate.</p><span>SH-2080 · Northbridge Rosebank Offices</span></div>
+                <div><strong>Example shift awaiting confirmation</strong><p>An illustrative R800 payroll item is awaiting service-record review; no wage or payment is generated.</p><span>SH-2080 · Northbridge Rosebank Offices</span></div>
               </button> : <div className="clean-state"><span>✓</span><div><strong>Service records current</strong><p>No completed shifts are waiting for client confirmation.</p></div></div>}
               <div className="clean-state">
                 <span>✓</span>
-                <div><strong>Everything else is clean</strong><p>No unstaffed bookings, expired offers or payout exceptions.</p></div>
+                <div><strong>Everything else is clean</strong><p>No other simulated booking, offer or service-record exceptions.</p></div>
               </div>
             </aside>
           </section>
 
           <footer className="status-footer">
-            <span><i /> All systems operational</span>
-            <span>Persistent pilot · Earnings ledger connected</span>
+            <span><i /> Simulation healthy</span>
+            <span>Demo records only · No payroll generated</span>
           </footer>
           </>}
         </div>
@@ -317,7 +317,7 @@ export default function OperationsApp() {
             <p className="eyebrow">{selectedShift.state === "attention" ? "Client service record" : "Booking assignment"}</p>
             <h2 id="shift-title">{selectedShift.officer}</h2>
             <p className="drawer-subtitle">{selectedShift.grade} · {selectedShift.time}</p>
-            <div className={`detail-status detail-status--${selectedShift.state}`}><StatusDot state={selectedShift.state} />{selectedShift.state === "on-post" ? "Officer is on post" : selectedShift.state === "confirmed" ? "Shift confirmed" : "Supervisor action required"}</div>
+            <div className={`detail-status detail-status--${selectedShift.state}`}><StatusDot state={selectedShift.state} />{selectedShift.state === "on-post" ? "Simulated officer on post" : selectedShift.state === "confirmed" ? "Example shift confirmed" : "Example supervisor action required"}</div>
             <dl className="detail-list">
               <div><dt>Client site</dt><dd>{selectedShift.site}</dd></div>
               <div><dt>Assigned post</dt><dd>{selectedShift.post}</dd></div>

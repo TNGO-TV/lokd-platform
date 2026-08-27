@@ -6,6 +6,7 @@ export type RiskBand = "Standard" | "Enhanced" | "Elevated" | "High" | "Critical
 export type OfferStatus = "open" | "accepted" | "declined" | "expired";
 export type LedgerState = "pending_signoff" | "pending_release" | "available" | "withdrawal_queued" | "paid" | "held";
 export type PassportStatus = "active" | "expiring" | "restricted" | "training" | "remediation" | "suspended" | "revoked";
+export type PilotScope = "operations" | "client" | "officer";
 
 export type PassportEndorsement = {
   id: string;

@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { PilotAccessError, pilotStage, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 
 export const dynamic = "force-dynamic";
 
@@ -73,8 +74,19 @@ function allowedList(value: unknown, allowed: Set<string>, field: string, maximu
 }
 
 function responseError(cause: unknown) {
-  const error = cause instanceof ApplicationError ? cause : new ApplicationError("We could not save your application.", 500);
-  return Response.json({ error: error.message }, { status: error.status });
+  const error = cause instanceof ApplicationError || cause instanceof PilotAccessError
+    ? cause
+    : new ApplicationError("We could not complete that application request.", 500);
+  return response({ error: error.message }, error.status);
+}
+
+function response(payload: unknown, status = 200) {
+  return Response.json(payload, { status, headers: {
+    "cache-control": "no-store, private",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    vary: "oai-authenticated-user-email",
+  } });
 }
 
 async function ensureDemoApplications(db: D1Database) {
@@ -103,10 +115,11 @@ async function ensureDemoApplications(db: D1Database) {
   ]);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    requirePilotApiRole(request, "operations");
     const db = getDb();
-    await ensureDemoApplications(db);
+    if (pilotStage() === "demo") await ensureDemoApplications(db);
     const result = await db.prepare(`SELECT id, pathway, full_name AS fullName, mobile_normalized AS mobile,
       email_normalized AS email, city, province, psira_status AS psiraStatus, psira_number AS psiraNumber,
       psira_grade AS psiraGrade, service_interests AS services, purpose_interests AS purposes,
@@ -118,7 +131,7 @@ export async function GET() {
         purposes: string; training: string; identityStatus: string; status: string; source: string;
         createdAt: string; updatedAt: string;
       }>();
-    return Response.json({ applications: (result.results ?? []).map((item) => ({
+    return response({ applications: (result.results ?? []).map((item) => ({
       ...item,
       services: JSON.parse(item.services) as string[],
       purposes: JSON.parse(item.purposes) as string[],
@@ -131,7 +144,14 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
-    const input = await request.json() as { id?: unknown; action?: unknown };
+    requireSameOriginJson(request);
+    const actor = requirePilotApiRole(request, "operations");
+    if (pilotStage() !== "demo") throw new ApplicationError("Demo application transitions are disabled outside the isolated demo environment.", 423);
+    const raw = await request.text();
+    if (raw.length > 16_000) throw new ApplicationError("The request is too large.", 413);
+    let input: { id?: unknown; action?: unknown };
+    try { input = JSON.parse(raw) as { id?: unknown; action?: unknown }; }
+    catch { throw new ApplicationError("The request body is not valid JSON."); }
     const id = cleanText(input.id, "Application reference", 8, 80);
     const action = cleanText(input.action, "Review action", 4, 40);
     const transitions: Record<string, { identity: string; status: string; detail: string }> = {
@@ -168,9 +188,9 @@ export async function PATCH(request: Request) {
     if (!result.meta.changes) throw new ApplicationError("That application could not be found.", 404);
     await db.prepare(`INSERT INTO audit_events
       (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
-      VALUES (?, 'operations', 'OPS-DEMO', 'application_demo_reviewed', 'officer_application', ?, ?, ?)`)
-      .bind(`AUD-${crypto.randomUUID()}`, id, transition.detail, now).run();
-    return Response.json({ ok: true });
+      VALUES (?, 'operations', ?, 'application_demo_reviewed', 'officer_application', ?, ?, ?)`)
+      .bind(`AUD-${crypto.randomUUID()}`, actor.email, id, transition.detail, now).run();
+    return response({ ok: true });
   } catch (cause) {
     return responseError(cause);
   }
@@ -178,10 +198,13 @@ export async function PATCH(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const contentLength = Number(request.headers.get("content-length") ?? "0");
-    if (contentLength > 16_000) throw new ApplicationError("The application is too large.", 413);
-    const input = (await request.json()) as ApplicationInput;
-    if (typeof input.company === "string" && input.company.trim()) return Response.json({ reference: "LOKD-RECEIVED" }, { status: 202 });
+    requireSameOriginJson(request);
+    const raw = await request.text();
+    if (raw.length > 16_000) throw new ApplicationError("The application is too large.", 413);
+    let input: ApplicationInput;
+    try { input = JSON.parse(raw) as ApplicationInput; }
+    catch { throw new ApplicationError("The application body is not valid JSON."); }
+    if (typeof input.company === "string" && input.company.trim()) return response({ reference: "LOKD-RECEIVED" }, 202);
 
     const pathway = cleanText(input.pathway, "Pathway", 4, 20);
     if (!pathways.has(pathway)) throw new ApplicationError("Choose an application pathway.");
@@ -194,6 +217,7 @@ export async function POST(request: Request) {
     const psiraStatus = cleanText(input.psiraStatus, "PSiRA position", 4, 30);
     if (!psiraStatuses.has(psiraStatus)) throw new ApplicationError("Choose a valid PSiRA position.");
     const psiraNumber = typeof input.psiraNumber === "string" && input.psiraNumber.trim() ? cleanText(input.psiraNumber, "PSiRA number", 3, 40) : null;
+    if ((psiraStatus === "active" || psiraStatus === "expired") && !psiraNumber) throw new ApplicationError("Enter your PSiRA number.");
     const requestedGrade = typeof input.psiraGrade === "string" ? input.psiraGrade.trim() : "";
     const psiraGrade = (psiraStatus === "active" || psiraStatus === "expired") && grades.has(requestedGrade) ? requestedGrade : null;
     const services = allowedList(input.services, serviceOptions, "Work category", 3);
@@ -211,24 +235,14 @@ export async function POST(request: Request) {
     const existing = await db.prepare(`SELECT id, status FROM officer_applications WHERE mobile_normalized = ?`).bind(mobile).first<{ id: string; status: string }>();
     const id = existing?.id ?? `APP-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
-    if (existing?.status === "converted" || existing?.status === "withdrawn") {
-      return Response.json({ reference: id }, { status: 202 });
-    }
+    if (existing) return response({ reference: "LOKD-RECEIVED" }, 202);
 
     await db.prepare(`INSERT INTO officer_applications
       (id, pathway, full_name, mobile_normalized, email_normalized, city, province, psira_status,
        psira_number, psira_grade, service_interests, purpose_interests, training_interests, over_18_confirmed,
        eligibility_acknowledged, privacy_notice_version, privacy_acknowledged_at,
        identity_verification_status, status, source, retention_review_at, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, 'not_started', 'submitted', 'homepage', ?, ?, ?)
-      ON CONFLICT(mobile_normalized) DO UPDATE SET pathway = excluded.pathway, full_name = excluded.full_name,
-       email_normalized = excluded.email_normalized, city = excluded.city, province = excluded.province,
-       psira_status = excluded.psira_status, psira_number = excluded.psira_number, psira_grade = excluded.psira_grade,
-       service_interests = excluded.service_interests, purpose_interests = excluded.purpose_interests,
-       training_interests = excluded.training_interests,
-       over_18_confirmed = 1, eligibility_acknowledged = 1,
-       privacy_notice_version = excluded.privacy_notice_version, privacy_acknowledged_at = excluded.privacy_acknowledged_at,
-       status = 'submitted', retention_review_at = excluded.retention_review_at, updated_at = excluded.updated_at`)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, 'not_started', 'submitted', 'homepage', ?, ?, ?)`)
       .bind(id, pathway, fullName, mobile, email, city, province, psiraStatus, psiraNumber, psiraGrade,
         JSON.stringify(services), JSON.stringify(purposes), JSON.stringify(training), privacyNoticeVersion, nowIso,
         retentionReview.toISOString(), nowIso, nowIso).run();
@@ -238,7 +252,7 @@ export async function POST(request: Request) {
       VALUES (?, 'applicant', ?, 'officer_interest_submitted', 'officer_application', ?, ?, ?)`)
       .bind(`AUD-${crypto.randomUUID()}`, id, id, "Homepage work, purpose and training interests received; identity and credentials remain unverified.", nowIso).run();
 
-    return Response.json({ reference: id }, { status: 202 });
+    return response({ reference: id }, 202);
   } catch (cause) {
     return responseError(cause);
   }

@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
-import type { PilotAction, PilotState, ServiceType } from "../../lib/pilot-types";
+import { PilotAccessError, pilotStage, requirePilotApiRole, requireSameOriginJson, roleForPilotAction, type PilotPrincipal } from "../../lib/pilot-runtime";
+import type { PilotAction, PilotScope, PilotState, ServiceType } from "../../lib/pilot-types";
 import { defaultRiskInput, PRICE_BOOK_VERSION, purposePriceBook, quoteBooking, rosterPatterns, servicePriceBook } from "../../lib/pilot-pricing";
 import { evaluateBookingReadiness, PILOT_PASSPORT_NUMBER, PILOT_PASSPORT_TOKEN, readEndorsements, tokenHash } from "../../lib/passport-server";
 
@@ -458,7 +459,7 @@ function requireShortText(value: unknown, label: string, maximum: number) {
   return cleaned;
 }
 
-async function releaseOfferWave(db: D1Database, bookingId: string) {
+async function releaseOfferWave(db: D1Database, bookingId: string, actorId: string) {
   const booking = await db.prepare(`SELECT id, start_date AS startDate, funding_status AS fundingStatus,
     officer_rate_cents AS officerRateCents, engagement_model AS engagementModel, status FROM bookings WHERE id = ? AND client_id = ?`)
     .bind(bookingId, PILOT_CLIENT_ID).first<{
@@ -493,7 +494,7 @@ async function releaseOfferWave(db: D1Database, bookingId: string) {
   const blockers = [...readiness.blockers, ...availabilityBlockers];
   if (!readiness.eligible || blockers.length) {
     await db.prepare(`UPDATE bookings SET status = 'matching' WHERE id = ?`).bind(bookingId).run();
-    await recordAudit(db, "operations", "OPS-DEMO", "offer_wave_blocked", "booking", bookingId, `No pilot officer matched: ${blockers.join(" ")}`);
+    await recordAudit(db, "operations", actorId, "offer_wave_blocked", "booking", bookingId, `No pilot officer matched: ${blockers.join(" ")}`);
     return { released: false, blockers };
   }
 
@@ -504,11 +505,11 @@ async function releaseOfferWave(db: D1Database, bookingId: string) {
       VALUES (?, ?, ?, ?, 'open', ?, NULL)`).bind(offerId, bookingId, PILOT_OFFICER_ID, booking.officerRateCents, expiresAt),
     db.prepare(`UPDATE bookings SET status = 'offered' WHERE id = ? AND funding_status = 'paid_in_full'`).bind(bookingId),
   ]);
-  await recordAudit(db, "operations", "OPS-DEMO", "offer_wave_released", "booking", bookingId, "Funded booking passed Passport, grade, service, purpose and opt-in controls; fixed offer released.");
+  await recordAudit(db, "operations", actorId, "offer_wave_released", "booking", bookingId, "Funded booking passed Passport, grade, service, purpose and opt-in controls; fixed offer released.");
   return { released: true, blockers: [] as string[] };
 }
 
-async function resetDemo(db: D1Database) {
+async function resetDemo(db: D1Database, actorId: string) {
   const now = new Date();
   const offerExpiry = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
   await db.batch([
@@ -525,10 +526,10 @@ async function resetDemo(db: D1Database) {
     db.prepare(`UPDATE ledger_entries SET state = 'available', updated_at = ? WHERE id = 'LE-2077'`).bind(now.toISOString()),
     db.prepare(`DELETE FROM payout_requests WHERE officer_id = ? AND status = 'queued_for_thursday'`).bind(PILOT_OFFICER_ID),
   ]);
-  await recordAudit(db, "operations", "OPS-DEMO", "demo_reset", "pilot", "LOKD-PHASE-1", "Shared transactional demo returned to its opening state. Applications and team feedback were preserved.");
+  await recordAudit(db, "operations", actorId, "demo_reset", "pilot", "LOKD-PHASE-1", "Shared transactional demo returned to its opening state. Applications and team feedback were preserved.");
 }
 
-async function applyAction(db: D1Database, payload: PilotAction) {
+async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPrincipal) {
   if (payload.action === "create_booking") {
     if (!Object.hasOwn(servicePriceBook, payload.serviceType)) throw new PilotError("Choose a valid security service.");
     if (!(["fixed", "flex"] as const).includes(payload.engagementModel)) throw new PilotError("Choose Fixed or Flex cover.");
@@ -586,7 +587,7 @@ async function applyAction(db: D1Database, payload: PilotAction) {
           dispatchPremiumCents: quote.dispatchPremiumCents, riskPremiumCents: quote.riskPremiumCents }),
         quote.manualReview ? "review_required" : "awaiting_payment", quote.releaseCadence,
         quote.manualReview ? "risk_review" : "awaiting_payment").run();
-    await recordAudit(db, "client", PILOT_CLIENT_ID, "booking_created", "booking", bookingId,
+    await recordAudit(db, "client", actor.email, "booking_created", "booking", bookingId,
       `${PRICE_BOOK_VERSION}; ${quote.engagementModel}; ${quote.noticeLabel}; ${quote.risk.band} ${quote.risk.score}; ${quote.shiftCount} shift${quote.shiftCount === 1 ? "" : "s"}; ${instructions}`);
     return;
   }
@@ -596,7 +597,7 @@ async function applyAction(db: D1Database, payload: PilotAction) {
       WHERE id = ? AND client_id = ? AND status = 'risk_review'`)
       .bind(payload.bookingId, PILOT_CLIENT_ID).run();
     if (!result.meta.changes) throw new PilotError("This booking is not awaiting an operations risk review.", 409);
-    await recordAudit(db, "operations", "OPS-DEMO", "risk_plan_approved", "booking", payload.bookingId,
+    await recordAudit(db, "operations", actor.email, "risk_plan_approved", "booking", payload.bookingId,
       "DEMO ONLY: assisted risk recommendation reviewed; quote released to the payment gate.");
     return;
   }
@@ -606,19 +607,20 @@ async function applyAction(db: D1Database, payload: PilotAction) {
       WHERE id = ? AND client_id = ? AND funding_status = 'awaiting_payment'`)
       .bind(payload.bookingId, PILOT_CLIENT_ID).run();
     if (!result.meta.changes) throw new PilotError("This demo booking is not awaiting payment confirmation.", 409);
-    await recordAudit(db, "operations", "OPS-DEMO", "demo_payment_confirmed", "booking", payload.bookingId,
+    await recordAudit(db, "operations", actor.email, "demo_payment_confirmed", "booking", payload.bookingId,
       "DEMO ONLY: full-term payment marked as confirmed; no payment was processed.");
-    await releaseOfferWave(db, payload.bookingId);
+    await releaseOfferWave(db, payload.bookingId, actor.email);
     return;
   }
 
   if (payload.action === "release_offer_wave") {
-    await releaseOfferWave(db, payload.bookingId);
+    await releaseOfferWave(db, payload.bookingId, actor.email);
     return;
   }
 
   if (payload.action === "reset_demo") {
-    await resetDemo(db);
+    if (pilotStage() !== "demo") throw new PilotError("Demo reset is disabled outside the isolated demo environment.", 403);
+    await resetDemo(db, actor.email);
     return;
   }
 
@@ -661,7 +663,7 @@ async function applyAction(db: D1Database, payload: PilotAction) {
         VALUES (?, ?, ?, ?, 'confirmed', NULL, NULL, 'not_due', NULL, ?)`)
         .bind(`SH-${offer.bookingId.slice(3)}`, offer.bookingId, PILOT_OFFICER_ID, offer.startDate, offer.amountCents),
     ]);
-    await recordAudit(db, "officer", PILOT_OFFICER_ID, "offer_accepted", "offer", payload.offerId, "Officer accepted the fixed offer; competing offers expired.");
+    await recordAudit(db, "officer", actor.email, "offer_accepted", "offer", payload.offerId, "Officer accepted the fixed offer; competing offers expired.");
     return;
   }
 
@@ -670,7 +672,7 @@ async function applyAction(db: D1Database, payload: PilotAction) {
       WHERE id = ? AND officer_id = ? AND status = 'open'`)
       .bind(new Date().toISOString(), payload.offerId, PILOT_OFFICER_ID).run();
     if (!result.meta.changes) throw new PilotError("This offer is no longer open.", 409);
-    await recordAudit(db, "officer", PILOT_OFFICER_ID, "offer_declined", "offer", payload.offerId, "Officer declined the offer; no penalty was applied.");
+    await recordAudit(db, "officer", actor.email, "offer_declined", "offer", payload.offerId, "Officer declined the offer; no penalty was applied.");
     return;
   }
 
@@ -681,7 +683,7 @@ async function applyAction(db: D1Database, payload: PilotAction) {
     if (payload.optedIn && !service.qualified) throw new PilotError("Qualification must be verified before this offer type can be enabled.", 409);
     await db.prepare(`UPDATE officer_services SET opted_in = ? WHERE officer_id = ? AND service_type = ?`)
       .bind(payload.optedIn ? 1 : 0, PILOT_OFFICER_ID, payload.serviceType).run();
-    await recordAudit(db, "officer", PILOT_OFFICER_ID, "offer_preference_changed", "officer", PILOT_OFFICER_ID, `${payload.serviceType} offer notifications switched ${payload.optedIn ? "on" : "off"}.`);
+    await recordAudit(db, "officer", actor.email, "offer_preference_changed", "officer", PILOT_OFFICER_ID, `${payload.serviceType} offer notifications switched ${payload.optedIn ? "on" : "off"}.`);
     return;
   }
 
@@ -691,7 +693,7 @@ async function applyAction(db: D1Database, payload: PilotAction) {
     }
     await db.prepare(`UPDATE officers SET flex_available = ?, external_work_acknowledged = ?, rest_window_confirmed = ? WHERE id = ?`)
       .bind(payload.available ? 1 : 0, payload.externalWorkAcknowledged ? 1 : 0, payload.restWindowConfirmed ? 1 : 0, PILOT_OFFICER_ID).run();
-    await recordAudit(db, "officer", PILOT_OFFICER_ID, "flex_availability_changed", "officer", PILOT_OFFICER_ID,
+    await recordAudit(db, "officer", actor.email, "flex_availability_changed", "officer", PILOT_OFFICER_ID,
       `Flex availability switched ${payload.available ? "on" : "off"}; external-work and rest declarations recorded.`);
     return;
   }
@@ -710,7 +712,7 @@ async function applyAction(db: D1Database, payload: PilotAction) {
       WHERE id = ? AND officer_id = ? AND status = 'confirmed'`)
       .bind(new Date().toISOString(), payload.shiftId, PILOT_OFFICER_ID).run();
     if (!result.meta.changes) throw new PilotError("This shift cannot be checked in from its current state.", 409);
-    await recordAudit(db, "officer", PILOT_OFFICER_ID, "shift_checked_in", "shift", payload.shiftId, "Officer check-in recorded using server time. Location verification remains a production integration.");
+    await recordAudit(db, "officer", actor.email, "shift_checked_in", "shift", payload.shiftId, "Officer check-in recorded using server time. Location verification remains a production integration.");
     return;
   }
 
@@ -729,7 +731,7 @@ async function applyAction(db: D1Database, payload: PilotAction) {
         VALUES (?, ?, ?, ?, 'pending_signoff', ?, NULL, ?, ?)`)
         .bind(`LE-${payload.shiftId.slice(3)}`, PILOT_OFFICER_ID, payload.shiftId, shift.earningsCents, shift.releaseCadence, now, now),
     ]);
-    await recordAudit(db, "officer", PILOT_OFFICER_ID, "shift_completed", "shift", payload.shiftId, "Officer completed the shift; earnings are awaiting service verification.");
+    await recordAudit(db, "officer", actor.email, "shift_completed", "shift", payload.shiftId, "Officer completed the shift; earnings are awaiting service verification.");
     return;
   }
 
@@ -739,7 +741,7 @@ async function applyAction(db: D1Database, payload: PilotAction) {
     if (!shift) throw new PilotError("This issue is not linked to one of your shifts.", 404);
     const category = payload.category.trim().slice(0, 80);
     if (!category) throw new PilotError("Choose an issue category.", 400);
-    await recordAudit(db, "officer", PILOT_OFFICER_ID, "shift_issue_reported", "shift", payload.shiftId, `${category} reported from the officer app. Operations follow-up required.`);
+    await recordAudit(db, "officer", actor.email, "shift_issue_reported", "shift", payload.shiftId, `${category} reported from the officer app. Operations follow-up required.`);
     return;
   }
 
@@ -759,7 +761,7 @@ async function applyAction(db: D1Database, payload: PilotAction) {
       db.prepare(`UPDATE ledger_entries SET state = 'pending_release', eligible_release_at = ?, updated_at = ?
         WHERE shift_id = ? AND state = 'pending_signoff'`).bind(releaseAt, now, payload.shiftId),
     ]);
-    await recordAudit(db, "client", PILOT_CLIENT_ID, "shift_signed_off", "shift", payload.shiftId, `Client verified the completed shift; earnings scheduled for the ${shift.releaseCadence.toLowerCase()} release.`);
+    await recordAudit(db, "client", actor.email, "shift_signed_off", "shift", payload.shiftId, `Client verified the completed shift; earnings scheduled for the ${shift.releaseCadence.toLowerCase()} release.`);
     return;
   }
 
@@ -769,7 +771,7 @@ async function applyAction(db: D1Database, payload: PilotAction) {
       WHERE state = 'pending_release' AND eligible_release_at IS NOT NULL AND eligible_release_at <= ?`)
       .bind(now, now).run();
     if (!result.meta.changes) throw new PilotError("No verified earnings are due for release yet.", 409);
-    await recordAudit(db, "operations", "OPS-001", "earnings_released", "ledger", "release-batch", `${result.meta.changes} verified earning entr${result.meta.changes === 1 ? "y" : "ies"} moved to Available.`);
+    await recordAudit(db, "operations", actor.email, "earnings_released", "ledger", "release-batch", `${result.meta.changes} verified earning entr${result.meta.changes === 1 ? "y" : "ies"} moved to Available.`);
     return;
   }
 
@@ -789,23 +791,118 @@ async function applyAction(db: D1Database, payload: PilotAction) {
         VALUES (?, ?, ?, 'queued_for_thursday', ?, ?)`)
         .bind(requestId, PILOT_OFFICER_ID, amountCents, new Date().toISOString(), schedule.friday),
     ]);
-    await recordAudit(db, "officer", PILOT_OFFICER_ID, "payout_requested", "payout_request", requestId, `Payout request queued for Thursday processing with expected Friday clearance.`);
+    await recordAudit(db, "officer", actor.email, "payout_requested", "payout_request", requestId, `Payout request queued for Thursday processing with expected Friday clearance.`);
     return;
   }
 
   throw new PilotError("Unknown pilot action.", 400);
 }
 
-function errorResponse(cause: unknown) {
-  const error = cause instanceof PilotError ? cause : new PilotError(cause instanceof Error ? cause.message : "Unexpected pilot error.", 500);
-  return Response.json({ error: error.message }, { status: error.status });
+function stateForScope(state: PilotState, scope: PilotScope): PilotState {
+  if (scope === "operations") return state;
+  const emptyMoney = { pendingCents: 0, availableCents: 0, withdrawalQueuedCents: 0, totalTrackedCents: 0 };
+  if (scope === "client") {
+    const bookingIds = new Set(state.bookings.map((booking) => booking.id));
+    return {
+      ...state,
+      officer: {
+        ...state.officer,
+        psiraNumber: "Verified by LOKD",
+        psiraExpiry: "",
+        bankingStatus: "not disclosed",
+        flexAvailable: false,
+        externalWorkAcknowledged: false,
+        restWindowConfirmed: false,
+        services: [],
+        compliance: [],
+        passport: { ...state.officer.passport, endorsements: [] },
+      },
+      offers: [],
+      bookings: state.bookings.map((booking) => ({
+        ...booking,
+        officerTotalCents: 0,
+        grossPlatformContributionCents: 0,
+        officerRateCents: 0,
+        pricingBreakdown: {
+          ...booking.pricingBreakdown,
+          baseClientCents: booking.clientPriceCents,
+          calendarPremiumCents: 0,
+          dispatchPremiumCents: 0,
+          riskPremiumCents: 0,
+        },
+      })),
+      shifts: state.shifts.filter((shift) => bookingIds.has(shift.bookingId)).map((shift) => ({ ...shift, earningsCents: 0 })),
+      ledger: [],
+      wallet: emptyMoney,
+      audit: [],
+    };
+  }
+  const relatedBookings = new Set([
+    ...state.offers.map((offer) => offer.bookingId),
+    ...state.shifts.map((shift) => shift.bookingId),
+    ...state.ledger.map((entry) => entry.bookingId),
+  ]);
+  return {
+    ...state,
+    client: { ...state.client, contactName: "Authorised client contact" },
+    bookings: state.bookings.filter((booking) => relatedBookings.has(booking.id)).map((booking) => ({
+      ...booking,
+      clientPriceCents: 0,
+      officerTotalCents: 0,
+      grossPlatformContributionCents: 0,
+      pricingBreakdown: { baseClientCents: 0, calendarPremiumCents: 0, dispatchPremiumCents: 0, riskPremiumCents: 0 },
+    })),
+    audit: [],
+  };
 }
 
-export async function GET() {
+function requireScopedPilotEntity(principal: PilotPrincipal, scope: PilotScope) {
+  if (principal.owner || scope === "operations") return;
+  if (scope === "client" && principal.clientId === PILOT_CLIENT_ID) return;
+  if (scope === "officer" && principal.officerId === PILOT_OFFICER_ID) return;
+  throw new PilotAccessError("This account is not assigned to the requested pilot record.", 403);
+}
+
+function scopeFromRequest(request: Request): PilotScope {
+  const scope = new URL(request.url).searchParams.get("scope");
+  if (scope === "operations" || scope === "client" || scope === "officer") return scope;
+  throw new PilotAccessError("Choose a valid LOKD workspace.", 400);
+}
+
+function response(payload: unknown, status = 200) {
+  return Response.json(payload, {
+    status,
+    headers: {
+      "cache-control": "no-store, private",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
+      vary: "oai-authenticated-user-email",
+    },
+  });
+}
+
+function errorResponse(cause: unknown) {
+  const error = cause instanceof PilotError || cause instanceof PilotAccessError
+    ? cause
+    : new PilotError("The LOKD workspace could not complete that request.", 500);
+  return response({ error: error.message }, error.status);
+}
+
+function requireDemoTransactionModel() {
+  if (pilotStage() !== "demo") {
+    throw new PilotAccessError("The transaction simulator is disabled outside the isolated demo environment.", 423);
+  }
+}
+
+export async function GET(request: Request) {
   try {
+    const scope = scopeFromRequest(request);
+    const viewer = requirePilotApiRole(request, scope);
+    requireScopedPilotEntity(viewer, scope);
+    requireDemoTransactionModel();
     const db = getPilotDb();
     await ensurePilotData(db);
-    return Response.json({ state: await readPilotState(db) });
+    return response({ state: stateForScope(await readPilotState(db), scope) });
   } catch (cause) {
     return errorResponse(cause);
   }
@@ -813,11 +910,27 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    requireSameOriginJson(request);
+    const scope = scopeFromRequest(request);
+    const viewer = requirePilotApiRole(request, scope);
+    requireScopedPilotEntity(viewer, scope);
+    const raw = await request.text();
+    if (raw.length > 32_768) throw new PilotError("The request is too large.", 413);
+    let payload: PilotAction;
+    try {
+      payload = JSON.parse(raw) as PilotAction;
+    } catch {
+      throw new PilotError("The request body is not valid JSON.", 400);
+    }
+    if (!payload || typeof payload !== "object" || typeof payload.action !== "string") throw new PilotError("Choose a valid pilot action.", 400);
+    const actionRole = roleForPilotAction(payload.action);
+    const actor = requirePilotApiRole(request, actionRole);
+    if (actionRole === "client" || actionRole === "officer") requireScopedPilotEntity(actor, actionRole);
+    requireDemoTransactionModel();
     const db = getPilotDb();
     await ensurePilotData(db);
-    const payload = (await request.json()) as PilotAction;
-    await applyAction(db, payload);
-    return Response.json({ state: await readPilotState(db) });
+    await applyAction(db, payload, actor);
+    return response({ state: stateForScope(await readPilotState(db), scope) });
   } catch (cause) {
     return errorResponse(cause);
   }

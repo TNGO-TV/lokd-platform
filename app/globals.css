@@ -1621,3 +1621,19 @@ button { color: inherit; }
   .booking-row--action > span:nth-child(4) { align-items: center; }
   .booking-row--action > span:nth-child(4) button { margin-top: 0; }
 }
+
+.pilot-access-shell { min-height: 100vh; padding: 32px; background: #f3f5f3; display: grid; place-items: center; }
+.pilot-access-card { width: min(620px, 100%); padding: 42px; border: 1px solid #e0e5df; border-radius: 24px; background: #fff; box-shadow: 0 24px 70px rgba(18,25,20,.1); }
+.pilot-access-card > a:first-child { display: inline-flex; width: 132px; margin-bottom: 42px; }
+.pilot-access-card img { width: 100%; height: auto; }
+.pilot-access-card h1 { margin: 12px 0 14px; color: var(--carbon); font-size: clamp(30px, 5vw, 50px); line-height: 1.02; letter-spacing: -.045em; }
+.pilot-access-card > p:not(.public-kicker) { max-width: 52ch; color: #626a66; font-size: 15px; line-height: 1.65; }
+.pilot-access-card > div { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 10px; }
+.pilot-access-card > small { display: block; margin-top: 22px; color: #7c847f; font-size: 12px; }
+
+@media (max-width: 620px) {
+  .pilot-access-shell { padding: 16px; }
+  .pilot-access-card { padding: 28px 22px; }
+  .pilot-access-card > div { flex-direction: column; }
+  .pilot-access-card .public-button { width: 100%; justify-content: center; }
+}
