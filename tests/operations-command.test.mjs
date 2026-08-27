@@ -3,12 +3,25 @@ import test from "node:test";
 
 import {
   ageInMinutes,
+  coverageStateLabel,
+  deriveCoverageState,
   deriveOperationalState,
   highestPriority,
   highestSeverity,
   projectGautengCoordinate,
+  minutesUntil,
   signalFreshness,
 } from "../app/lib/operations-core.ts";
+
+const coverageBase = {
+  status: "scheduled",
+  startsAt: "2026-08-27T10:00:00.000Z",
+  arrivalDueAt: "2026-08-27T09:45:00.000Z",
+  checkInDueAt: "2026-08-27T10:10:00.000Z",
+  checkInAt: null,
+  officerId: "OFF-001",
+  activeRelief: false,
+};
 
 test("fresh on-post evidence produces an operational site", () => {
   assert.equal(deriveOperationalState({
@@ -65,4 +78,28 @@ test("Gauteng coordinate projection remains inside the command canvas", () => {
   assert.ok(rosebank.x > 4 && rosebank.x < 96);
   assert.ok(rosebank.y > 4 && rosebank.y < 96);
   assert.deepEqual(projectGautengCoordinate(-90, 180), { x: 96, y: 96 });
+});
+
+test("arrival assurance uses stored deadlines and preserves a check-in grace window", () => {
+  assert.equal(deriveCoverageState({ ...coverageBase, now: new Date("2026-08-27T09:44:00.000Z") }), "confirmed");
+  assert.equal(deriveCoverageState({ ...coverageBase, now: new Date("2026-08-27T09:45:00.000Z") }), "arrival_at_risk");
+  assert.equal(deriveCoverageState({ ...coverageBase, now: new Date("2026-08-27T10:09:00.000Z") }), "arrival_at_risk");
+  assert.equal(deriveCoverageState({ ...coverageBase, now: new Date("2026-08-27T10:11:00.000Z") }), "check_in_missing");
+});
+
+test("check-in evidence overrides arrival risk and never creates an automatic no-show conclusion", () => {
+  assert.equal(deriveCoverageState({ ...coverageBase, checkInAt: "2026-08-27T10:08:00.000Z", now: new Date("2026-08-27T10:20:00.000Z") }), "on_post");
+  assert.equal(coverageStateLabel("check_in_missing"), "Check-in not recorded");
+  assert.ok(!coverageStateLabel("check_in_missing").toLowerCase().includes("no-show"));
+});
+
+test("a required slot can be uncovered without manufacturing a shift or officer", () => {
+  assert.equal(deriveCoverageState({ ...coverageBase, status: "uncovered", officerId: null, now: new Date("2026-08-27T08:00:00.000Z") }), "uncovered");
+  assert.equal(deriveCoverageState({ ...coverageBase, activeRelief: true, now: new Date("2026-08-27T09:50:00.000Z") }), "relief_active");
+});
+
+test("coverage time helpers retain exact UTC interval semantics for night shifts", () => {
+  const now = new Date("2026-08-27T16:00:00.000Z");
+  assert.equal(minutesUntil("2026-08-27T18:00:00.000Z", now), 120);
+  assert.equal(minutesUntil("2026-08-28T06:00:00.000Z", now), 840);
 });

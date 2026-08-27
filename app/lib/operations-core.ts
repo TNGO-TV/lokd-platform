@@ -1,4 +1,5 @@
 import type {
+  CoverageState,
   ExceptionPriority,
   IncidentSeverity,
   OperationalState,
@@ -19,6 +20,47 @@ export function signalFreshness(ageMinutes: number): "fresh" | "stale" | "unavai
   return ageMinutes <= 15 ? "fresh" : "stale";
 }
 
+export function minutesUntil(timestamp: string, now: Date) {
+  const value = new Date(timestamp).getTime();
+  if (!Number.isFinite(value)) return Number.POSITIVE_INFINITY;
+  return Math.ceil((value - now.getTime()) / 60_000);
+}
+
+export function deriveCoverageState(input: {
+  status: string;
+  startsAt: string;
+  arrivalDueAt: string;
+  checkInDueAt: string;
+  checkInAt: string | null;
+  officerId: string | null;
+  activeRelief: boolean;
+  now: Date;
+}): CoverageState {
+  if (input.status === "completed") return "completed";
+  if (input.status === "cancelled") return "cancelled";
+  if (input.checkInAt || input.status === "on_post") return "on_post";
+  if (input.activeRelief || input.status === "relief_active") return "relief_active";
+  if (!input.officerId || input.status === "uncovered") return "uncovered";
+  const minutesToArrivalDue = minutesUntil(input.arrivalDueAt, input.now);
+  const minutesToCheckInDue = minutesUntil(input.checkInDueAt, input.now);
+  if (minutesToCheckInDue < 0) return "check_in_missing";
+  if (minutesToArrivalDue <= 0) return "arrival_at_risk";
+  return "confirmed";
+}
+
+export function coverageStateLabel(state: CoverageState) {
+  return ({
+    confirmed: "Confirmed",
+    arrival_at_risk: "Arrival at risk",
+    check_in_missing: "Check-in not recorded",
+    on_post: "On post",
+    uncovered: "Unfilled post",
+    relief_active: "Relief case open",
+    completed: "Completed",
+    cancelled: "Cancelled",
+  } as const)[state];
+}
+
 export function highestSeverity(values: IncidentSeverity[]) {
   return values.sort((a, b) => severityWeight[b] - severityWeight[a])[0] ?? null;
 }
@@ -33,14 +75,18 @@ export function deriveOperationalState(input: {
   signalAgeMinutes: number;
   highestIncidentSeverity: IncidentSeverity | null;
   highestExceptionPriority: ExceptionPriority | null;
+  coverageState?: CoverageState | null;
 }): OperationalState {
   if (!input.active) return "inactive";
+  if (input.coverageState === "uncovered" || input.coverageState === "check_in_missing") return "critical";
   if (input.highestIncidentSeverity === "critical" || input.highestExceptionPriority === "P0") return "critical";
   if (
     input.highestIncidentSeverity === "high"
     || input.highestIncidentSeverity === "medium"
     || input.highestExceptionPriority === "P1"
     || input.highestExceptionPriority === "P2"
+    || input.coverageState === "arrival_at_risk"
+    || input.coverageState === "relief_active"
     || (input.shiftStatus === "on_post" && input.signalAgeMinutes > 15)
   ) return "attention";
   if (input.shiftStatus === "on_post") return "operational";
@@ -63,7 +109,12 @@ export function nextOperationalAction(input: {
   highestExceptionPriority: ExceptionPriority | null;
   openIncidentCount: number;
   shiftStatus: string | null;
+  coverageState?: CoverageState | null;
 }) {
+  if (input.coverageState === "check_in_missing") return "Open relief case";
+  if (input.coverageState === "uncovered") return "Secure coverage";
+  if (input.coverageState === "arrival_at_risk") return "Prepare relief";
+  if (input.coverageState === "relief_active") return "Monitor relief case";
   if (input.state === "critical") return "Escalate immediately";
   if (input.highestExceptionPriority === "P1") return "Secure coverage";
   if (input.openIncidentCount) return "Review incident";

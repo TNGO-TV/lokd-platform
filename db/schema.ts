@@ -295,6 +295,116 @@ export const operationalExceptions = sqliteTable(
   ],
 );
 
+export const rosterSlots = sqliteTable(
+  "roster_slots",
+  {
+    id: text("id").primaryKey(),
+    siteId: text("site_id").notNull().references(() => operationalSites.id),
+    postId: text("post_id").notNull().references(() => sitePosts.id),
+    bookingId: text("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
+    serviceDate: text("service_date").notNull(),
+    startsAt: text("starts_at").notNull(),
+    endsAt: text("ends_at").notNull(),
+    arrivalDueAt: text("arrival_due_at").notNull(),
+    checkInDueAt: text("check_in_due_at").notNull(),
+    status: text("status").notNull().default("scheduled"),
+    absenceReason: text("absence_reason"),
+    version: integer("version").notNull().default(1),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("roster_slots_site_start_idx").on(table.siteId, table.startsAt),
+    index("roster_slots_status_start_idx").on(table.status, table.startsAt),
+  ],
+);
+
+export const rosterAssignments = sqliteTable(
+  "roster_assignments",
+  {
+    id: text("id").primaryKey(),
+    rosterSlotId: text("roster_slot_id").notNull().references(() => rosterSlots.id),
+    officerId: text("officer_id").notNull().references(() => officers.id),
+    shiftId: text("shift_id").references(() => shifts.id, { onDelete: "set null" }),
+    assignmentKind: text("assignment_kind").notNull().default("primary"),
+    status: text("status").notNull().default("confirmed"),
+    activeKey: text("active_key"),
+    assignedBy: text("assigned_by").notNull(),
+    assignedAt: text("assigned_at").notNull(),
+    confirmedAt: text("confirmed_at"),
+    releasedAt: text("released_at"),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    index("roster_assignments_slot_time_idx").on(table.rosterSlotId, table.assignedAt),
+    index("roster_assignments_officer_status_idx").on(table.officerId, table.status),
+    uniqueIndex("roster_assignments_active_slot_idx").on(table.activeKey),
+    uniqueIndex("roster_assignments_shift_idx").on(table.shiftId),
+  ],
+);
+
+export const officerAvailabilityWindows = sqliteTable(
+  "officer_availability_windows",
+  {
+    id: text("id").primaryKey(),
+    officerId: text("officer_id").notNull().references(() => officers.id, { onDelete: "cascade" }),
+    startsAt: text("starts_at").notNull(),
+    endsAt: text("ends_at").notNull(),
+    source: text("source").notNull().default("officer_declared"),
+    status: text("status").notNull().default("available"),
+    restConfirmedAt: text("rest_confirmed_at").notNull(),
+    version: integer("version").notNull().default(1),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("officer_availability_officer_window_idx").on(table.officerId, table.startsAt, table.endsAt),
+    index("officer_availability_status_window_idx").on(table.status, table.startsAt, table.endsAt),
+  ],
+);
+
+export const reliefDispatches = sqliteTable(
+  "relief_dispatches",
+  {
+    id: text("id").primaryKey(),
+    rosterSlotId: text("roster_slot_id").notNull().references(() => rosterSlots.id),
+    siteId: text("site_id").notNull().references(() => operationalSites.id),
+    exceptionId: text("exception_id").references(() => operationalExceptions.id, { onDelete: "set null" }),
+    replacementOfficerId: text("replacement_officer_id").notNull().references(() => officers.id),
+    activeKey: text("active_key"),
+    status: text("status").notNull().default("case_open"),
+    reasonCode: text("reason_code").notNull(),
+    priority: text("priority").notNull().default("P1"),
+    requestedBy: text("requested_by").notNull(),
+    requestedAt: text("requested_at").notNull(),
+    responseDueAt: text("response_due_at").notNull(),
+    targetArrivalAt: text("target_arrival_at"),
+    acceptedAt: text("accepted_at"),
+    arrivedAt: text("arrived_at"),
+    closedAt: text("closed_at"),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    index("relief_dispatches_slot_time_idx").on(table.rosterSlotId, table.requestedAt),
+    index("relief_dispatches_site_status_idx").on(table.siteId, table.status),
+    index("relief_dispatches_officer_status_idx").on(table.replacementOfficerId, table.status),
+    uniqueIndex("relief_dispatches_active_slot_idx").on(table.activeKey),
+  ],
+);
+
+export const reliefDispatchEvents = sqliteTable(
+  "relief_dispatch_events",
+  {
+    id: text("id").primaryKey(),
+    reliefDispatchId: text("relief_dispatch_id").notNull().references(() => reliefDispatches.id),
+    eventType: text("event_type").notNull(),
+    actorType: text("actor_type").notNull(),
+    actorId: text("actor_id").notNull(),
+    detail: text("detail").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [index("relief_dispatch_events_dispatch_time_idx").on(table.reliefDispatchId, table.createdAt)],
+);
+
 export const bookings = sqliteTable(
   "bookings",
   {

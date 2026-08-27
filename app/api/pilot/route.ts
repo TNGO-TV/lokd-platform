@@ -513,6 +513,14 @@ async function resetDemo(db: D1Database, actorId: string) {
   const now = new Date();
   const offerExpiry = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
   await db.batch([
+    db.prepare(`DELETE FROM relief_dispatch_events`),
+    db.prepare(`DELETE FROM relief_dispatches`),
+    db.prepare(`DELETE FROM operational_exceptions WHERE id LIKE 'EXC-REL-%'`),
+    db.prepare(`UPDATE roster_slots SET status = CASE WHEN EXISTS (
+        SELECT 1 FROM roster_assignments ra WHERE ra.roster_slot_id = roster_slots.id AND ra.active_key = roster_slots.id
+      ) THEN 'scheduled' ELSE 'uncovered' END, absence_reason = CASE WHEN id = 'SLOT-LIN-02'
+      THEN 'Additional coverage requirement' ELSE NULL END, version = 1, updated_at = ?`).bind(now.toISOString()),
+    db.prepare(`DELETE FROM audit_events WHERE entity_type = 'relief_dispatch'`),
     db.prepare(`DELETE FROM incident_events WHERE incident_id IN (SELECT id FROM site_incidents WHERE id LIKE 'INC-RPT-%' OR id LIKE 'INC-OPS-%')`),
     db.prepare(`DELETE FROM site_incidents WHERE id LIKE 'INC-RPT-%' OR id LIKE 'INC-OPS-%'`),
     db.prepare(`DELETE FROM incident_events WHERE incident_id = 'INC-DEMO-001' AND id <> 'IE-DEMO-001'`),

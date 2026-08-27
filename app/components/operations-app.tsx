@@ -4,8 +4,11 @@ import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 import { projectGautengCoordinate } from "../lib/operations-core";
 import type {
+  CoverageState,
   IncidentSeverity,
   OperationsIncident,
+  OperationsReserveOfficer,
+  OperationsRosterSlot,
   OperationsSite,
   OperationalState,
 } from "../lib/operations-types";
@@ -13,7 +16,7 @@ import { useOperations } from "../lib/use-operations";
 import { usePilot } from "../lib/use-pilot";
 import WorkspaceView from "./workspace-view";
 
-const navItems = ["Control", "Incidents", "Bookings", "Offers", "Applications", "Officers", "Clients", "Earnings", "Feedback", "Launch readiness"];
+const navItems = ["Control", "Coverage", "Incidents", "Bookings", "Offers", "Applications", "Officers", "Clients", "Earnings", "Feedback", "Launch readiness"];
 
 function Icon({ name }: { name: "search" | "bell" | "refresh" | "incident" | "close" | "chevron" | "map" }) {
   const paths: Record<typeof name, React.ReactNode> = {
@@ -54,6 +57,21 @@ function stateTone(state: OperationalState) {
   return state === "critical" ? "red" : state === "attention" ? "amber" : state === "scheduled" ? "blue" : state === "operational" ? "green" : "neutral";
 }
 
+function coverageTone(state: CoverageState) {
+  if (state === "check_in_missing" || state === "uncovered") return "red";
+  if (state === "arrival_at_risk" || state === "relief_active") return "amber";
+  if (state === "confirmed") return "blue";
+  if (state === "on_post") return "green";
+  return "neutral";
+}
+
+function startWindowLabel(slot: OperationsRosterSlot) {
+  if (slot.coverageState === "on_post") return `On post · ends ${formatSast(slot.endsAt)}`;
+  if (slot.minutesToStart > 60) return `Starts in ${Math.floor(slot.minutesToStart / 60)}h ${slot.minutesToStart % 60}m`;
+  if (slot.minutesToStart > 0) return `Starts in ${slot.minutesToStart}m`;
+  return `Started ${Math.abs(slot.minutesToStart)}m ago`;
+}
+
 function MiniMark() {
   return <div className="mini-mark" aria-hidden="true"><span /><span /><span /></div>;
 }
@@ -65,6 +83,8 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
   const [notice, setNotice] = useState<string | null>(null);
   const [createIncidentOpen, setCreateIncidentOpen] = useState(false);
   const isCommand = activeNav === "Control" || activeNav === "Incidents";
+  const isCoverage = activeNav === "Coverage";
+  const isOperationalSurface = isCommand || isCoverage;
   const pendingPayments = pilot.state?.bookings.filter((booking) => booking.fundingStatus !== "paid_in_full").length ?? 0;
 
   function flash(message: string) {
@@ -84,6 +104,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
           <p className="nav-label">Workspace</p>
           {navItems.map((item) => <button className={activeNav === item ? "nav-item nav-item--active" : "nav-item"} key={item} onClick={() => setActiveNav(item)}>
             <span>{item}</span>
+            {item === "Coverage" && (operations.state?.summary.arrivalWatch ?? 0) > 0 && <em className="nav-warning">{operations.state?.summary.arrivalWatch}</em>}
             {item === "Incidents" && (operations.state?.summary.openIncidents ?? 0) > 0 && <em className="nav-warning">{operations.state?.summary.openIncidents}</em>}
             {item === "Bookings" && pendingPayments > 0 && <em className="nav-warning">{pendingPayments}</em>}
             {item === "Applications" && <em>New</em>}
@@ -100,7 +121,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
           <div className="top-actions">
             <button className="icon-button" aria-label="Search"><Icon name="search" /></button>
             <button className="icon-button notification-button" aria-label="Notifications"><span className="notification-dot" /><Icon name="bell" /></button>
-            {isCommand ? <button className="primary-button ops-incident-button" onClick={() => setCreateIncidentOpen(true)}><Icon name="incident" /> Create incident</button>
+            {isOperationalSurface ? <button className="primary-button ops-incident-button" onClick={() => setCreateIncidentOpen(true)}><Icon name="incident" /> Create incident</button>
               : <button className="primary-button" onClick={() => flash("Booking creation opens in the Client workspace.")}><span>＋</span> Create booking</button>}
           </div>
         </header>
@@ -110,14 +131,14 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
           <nav aria-label="LOKD operations mobile navigation">{navItems.map((item) => <button className={activeNav === item ? "active" : ""} key={item} onClick={() => setActiveNav(item)}>{item}</button>)}</nav>
         </div>
 
-        <div className={isCommand ? "page-content ops-command-content" : "page-content"}>
+        <div className={isOperationalSurface ? "page-content ops-command-content" : "page-content"}>
           <div className="preview-banner ops-simulation-banner"><strong>Simulated {stage} command data</strong>Fixed sites, signals and cases are synthetic. Browser GPS is disabled; no officer is being tracked and no paid deployment is active.</div>
           {isCommand ? <CommandCentre
             operations={operations}
             incidentFocus={activeNav === "Incidents"}
             openIncident={() => setCreateIncidentOpen(true)}
             flash={flash}
-          /> : <WorkspaceView name={activeNav} />}
+          /> : isCoverage ? <CoverageCentre operations={operations} flash={flash} /> : <WorkspaceView name={activeNav} />}
         </div>
       </section>
 
@@ -158,6 +179,7 @@ function CommandCentre({ operations, incidentFocus, openIncident, flash }: {
 
   const priorityIncidents = state.incidents.filter((incident) => !["resolved", "closed"].includes(incident.status));
   const priorityExceptions = state.exceptions.filter((exception) => !["resolved", "closed"].includes(exception.status));
+  const priorityCoverage = state.roster.filter((slot) => ["arrival_at_risk", "check_in_missing", "uncovered", "relief_active"].includes(slot.coverageState));
   const summaryCards = [
     { label: "Active sites", value: state.summary.sites, detail: "Gauteng pilot picture", tone: "neutral" },
     { label: "On post", value: state.summary.operational, detail: "Fresh simulated evidence", tone: "green" },
@@ -202,8 +224,16 @@ function CommandCentre({ operations, incidentFocus, openIncident, flash }: {
       </article>
 
       <aside className="priority-panel">
-        <header><div><p className="eyebrow eyebrow--amber">Owned action</p><h2>Priority queue</h2></div><span>{priorityIncidents.length + priorityExceptions.length}</span></header>
+        <header><div><p className="eyebrow eyebrow--amber">Owned action</p><h2>Priority queue</h2></div><span>{priorityCoverage.length + priorityIncidents.length + priorityExceptions.length}</span></header>
         <div className="priority-list">
+          {priorityCoverage.map((slot) => {
+            const site = state.sites.find((item) => item.id === slot.siteId);
+            if (!site) return null;
+            return <article className={`priority-item priority-item--coverage priority-item--${slot.coverageState === "check_in_missing" || slot.coverageState === "uncovered" ? "high" : "medium"}`} key={`coverage-${slot.id}`}>
+              <button className="priority-main" onClick={() => openSite(site)}><span className="priority-code">COVERAGE · {slot.id}</span><strong>{slot.coverageLabel}</strong><small>{slot.area} · {slot.postName} · {formatSast(slot.startsAt)}</small></button>
+              <span className="priority-owner">{slot.relief ? "Case owned" : "Open Coverage to act"}</span>
+            </article>;
+          })}
           {priorityIncidents.map((incident) => {
             const site = state.sites.find((item) => item.id === incident.siteId);
             if (!site) return null;
@@ -220,7 +250,7 @@ function CommandCentre({ operations, incidentFocus, openIncident, flash }: {
               {exception.status === "new" ? <button className="priority-action" disabled={operations.busy} onClick={async () => { const result = await operations.runAction({ action: "acknowledge_exception", exceptionId: exception.id, version: exception.version }); if (result) flash("Exception acknowledged and assigned to Operations."); }}>Take ownership</button> : <span className="priority-owner">Owned</span>}
             </article>;
           })}
-          {!priorityIncidents.length && !priorityExceptions.length && <div className="priority-clear"><span>✓</span><strong>No open operational exceptions</strong><p>All synthetic sites are inside their current control thresholds.</p></div>}
+          {!priorityCoverage.length && !priorityIncidents.length && !priorityExceptions.length && <div className="priority-clear"><span>✓</span><strong>No open operational exceptions</strong><p>All synthetic sites are inside their current control thresholds.</p></div>}
         </div>
         <footer><span><i /> SLA clock uses SAST</span><button onClick={() => operations.refresh()}>Refresh queue</button></footer>
       </aside>
@@ -256,6 +286,117 @@ function CommandCentre({ operations, incidentFocus, openIncident, flash }: {
       if (result) { setResolutionNote(""); flash("Incident resolved with an auditable resolution note."); }
     }} />}
   </>;
+}
+
+function CoverageCentre({ operations, flash }: {
+  operations: ReturnType<typeof useOperations>;
+  flash: (message: string) => void;
+}) {
+  const state = operations.state;
+  const [reliefSlotId, setReliefSlotId] = useState<string | null>(null);
+  if (operations.loading && !state) return <div className="command-loading"><span className="pulse-dot" /><strong>Building the coverage picture…</strong><small>Required posts · assignments · arrival controls · relief cases</small></div>;
+  if (!state) return <div className="command-error" role="alert"><strong>Coverage unavailable</strong><p>{operations.error || "The roster snapshot could not be loaded."}</p><button onClick={() => void operations.refresh()}>Try again</button></div>;
+
+  const watchSlots = state.roster.filter((slot) => ["arrival_at_risk", "check_in_missing", "uncovered", "relief_active"].includes(slot.coverageState));
+  const activeReliefSlots = state.roster.filter((slot) => slot.relief && !["cancelled", "closed"].includes(slot.relief.status));
+  const selectedReliefSlot = state.roster.find((slot) => slot.id === reliefSlotId) ?? null;
+  const availableForSelected = selectedReliefSlot
+    ? state.reserveOfficers.filter((officer) => officer.eligibleSlotIds.includes(selectedReliefSlot.id))
+    : [];
+  const coverageCards = [
+    { label: "Posts · next 24h", value: state.summary.rosterSlots, detail: "Required coverage slots", tone: "neutral" },
+    { label: "Assigned", value: state.summary.coveredSlots, detail: `${state.summary.coveragePercent}% roster coverage`, tone: "green" },
+    { label: "Arrival watch", value: state.summary.arrivalWatch, detail: "Evidence or coverage control", tone: state.summary.arrivalWatch ? "amber" : "green" },
+    { label: "Relief cases", value: state.summary.reliefActive, detail: "No messages sent in demo", tone: state.summary.reliefActive ? "amber" : "neutral" },
+  ];
+
+  function openRelief(slot: OperationsRosterSlot) {
+    setReliefSlotId(slot.id);
+  }
+
+  return <>
+    <section className="command-heading coverage-heading">
+      <div><p className="eyebrow">Shift assurance · SAST</p><h1>Coverage control</h1><p>Next 24 hours · roster state refreshes every 30 seconds while visible</p></div>
+      <div className="command-heading-actions"><button className="secondary-button" disabled={operations.busy} onClick={() => void operations.refresh()}><Icon name="refresh" /> Refresh</button>{watchSlots.some((slot) => !slot.relief) && <button className="primary-button primary-button--light" onClick={() => openRelief(watchSlots.find((slot) => !slot.relief)!)}>Open relief case</button>}</div>
+    </section>
+
+    <section className="command-kpis coverage-kpis" aria-label="Coverage summary">{coverageCards.map((card) => <article key={card.label} className={`command-kpi command-kpi--${card.tone}`}><span>{card.label}</span><strong>{card.value}</strong><small>{card.detail}</small></article>)}</section>
+
+    <section className="coverage-primary-grid">
+      <article className="coverage-runway">
+        <header><div><span className="command-section-kicker"><i /> Authoritative roster</span><h2>Coverage runway</h2></div><div className="coverage-meter"><span><strong>{state.summary.coveragePercent}%</strong> assigned</span><i><b style={{ width: `${state.summary.coveragePercent}%` }} /></i></div></header>
+        <div className="coverage-runway-head"><span>Window</span><span>Site and post</span><span>Primary assignment</span><span>Control state</span></div>
+        <div className="coverage-runway-list">{state.roster.map((slot) => <article className={`coverage-runway-row coverage-runway-row--${coverageTone(slot.coverageState)}`} key={slot.id}>
+          <time><strong>{formatSast(slot.startsAt)}</strong><small>{formatSast(slot.endsAt)}</small></time>
+          <span><strong>{slot.siteName}</strong><small>{slot.area} · {slot.postName}</small></span>
+          <span><strong>{slot.officerName ?? "Unassigned"}</strong><small>{slot.officerName ? `${slot.officerGrade ?? "Grade pending"} · Passport ${slot.passportStatus ?? "not connected"}` : "Required post has no primary assignment"}</small></span>
+          <span className="coverage-control-state"><em><i className={`site-state-symbol tone-${coverageTone(slot.coverageState)}`} />{slot.coverageLabel}</em><small>{startWindowLabel(slot)}</small>{["arrival_at_risk", "check_in_missing", "uncovered"].includes(slot.coverageState) && !slot.relief && <button disabled={operations.busy} onClick={() => openRelief(slot)}>Open case</button>}</span>
+        </article>)}</div>
+        <footer><span><i /> Absolute UTC records · SAST display</span><span>Arrival risk uses roster deadlines and check-in evidence—not officer movement</span></footer>
+      </article>
+
+      <aside className="arrival-watch-panel">
+        <header><div><p className="eyebrow eyebrow--amber">Evidence control</p><h2>Arrival watch</h2></div><span>{watchSlots.length}</span></header>
+        <div>{watchSlots.map((slot) => <article className={`arrival-watch-item arrival-watch-item--${coverageTone(slot.coverageState)}`} key={slot.id}>
+          <div><span className="priority-code">{slot.id} · {formatSast(slot.startsAt)}</span><strong>{slot.siteName}</strong><small>{slot.postName} · {slot.coverageLabel}</small></div>
+          <p>{slot.coverageState === "check_in_missing" ? "Start passed without check-in evidence. Operations review is required; the system has not declared a no-show." : slot.coverageState === "uncovered" ? "This required post has no active assignment." : slot.coverageState === "relief_active" ? "A controlled relief case is open; no notification has been sent." : `Arrival assurance became due at ${formatSast(slot.arrivalDueAt)}.`}</p>
+          {slot.relief ? <span className="arrival-owned">Owned · {slot.relief.replacementOfficerName}</span> : <button disabled={operations.busy} onClick={() => openRelief(slot)}>Open relief case</button>}
+        </article>)}{!watchSlots.length && <div className="priority-clear"><span>✓</span><strong>All arrivals assured</strong><p>No roster slot is inside an active control threshold.</p></div>}</div>
+      </aside>
+    </section>
+
+    <section className="coverage-secondary-grid">
+      <article className="relief-board panel">
+        <header className="command-panel-heading"><div><p className="eyebrow">Auditable response</p><h2>Relief control</h2></div><span>{activeReliefSlots.length} active</span></header>
+        {activeReliefSlots.length ? <div className="relief-case-list">{activeReliefSlots.map((slot) => <article key={slot.relief!.id}>
+          <span className="relief-case-mark"><MiniMark /></span><div><span className="priority-code">{slot.relief!.id}</span><strong>{slot.siteName} · {slot.postName}</strong><small>{slot.relief!.reasonCode.replaceAll("_", " ")} · owned by {slot.relief!.requestedBy}</small></div>
+          <div><span>Reserved candidate</span><strong>{slot.relief!.replacementOfficerName}</strong><small>Response control due {formatSast(slot.relief!.responseDueAt)}</small></div>
+          <em>{slot.relief!.status.replaceAll("_", " ")}</em>
+          <button disabled={operations.busy} onClick={async () => { const result = await operations.runAction({ action: "cancel_relief", reliefDispatchId: slot.relief!.id, version: slot.relief!.version }); if (result) flash("Relief case cancelled. No officer notification was sent."); }}>Cancel case</button>
+        </article>)}</div> : <div className="relief-empty"><span>✓</span><div><strong>No active relief cases</strong><p>Opening a case reserves a verified candidate and records ownership. External offer release remains locked until messaging is connected.</p></div></div>}
+        <footer className="relief-control-boundary"><strong>Offer release locked</strong><span>This demo records the case and candidate only. It does not send WhatsApp, SMS, push or email notifications.</span></footer>
+      </article>
+
+      <aside className="standby-pool panel">
+        <header className="command-panel-heading"><div><p className="eyebrow">Slot-specific controls</p><h2>Verified standby pool</h2></div><span>{state.reserveOfficers.length}</span></header>
+        <div>{state.reserveOfficers.map((officer) => <StandbyOfficer key={officer.id} officer={officer} />)}{!state.reserveOfficers.length && <div className="relief-empty"><span>!</span><div><strong>No eligible standby officers</strong><p>No officer passes the full current roster gate.</p></div></div>}</div>
+        <footer>No distance estimates · declared availability windows only</footer>
+      </aside>
+    </section>
+
+    <footer className="status-footer ops-command-footer"><span><i /> Coverage ledger healthy</span><span>Demo policy · 8-hour overlap/rest buffer · live policy approval required</span></footer>
+    {operations.error && <div className="inline-notice" role="alert">{operations.error}</div>}
+
+    {selectedReliefSlot && <ReliefCaseDialog slot={selectedReliefSlot} candidates={availableForSelected} busy={operations.busy} onClose={() => setReliefSlotId(null)} onCreate={async (candidateId, reasonCode) => {
+      const result = await operations.runAction({ action: "open_relief_case", rosterSlotId: selectedReliefSlot.id, version: selectedReliefSlot.version, replacementOfficerId: candidateId, reasonCode });
+      if (result) { setReliefSlotId(null); flash("Relief case opened and owned. Candidate reserved; no notification was sent."); }
+    }} />}
+  </>;
+}
+
+function StandbyOfficer({ officer }: { officer: OperationsReserveOfficer }) {
+  const initials = officer.fullName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2);
+  return <article className="standby-officer"><span>{initials}</span><div><strong>{officer.fullName}</strong><small>{officer.city} · {officer.psiraGrade} · Passport {officer.passportStatus}</small><p>{officer.eligibilityLabel}</p></div><em>{officer.serviceTypes.join(" · ")}</em></article>;
+}
+
+function ReliefCaseDialog({ slot, candidates, busy, onClose, onCreate }: {
+  slot: OperationsRosterSlot;
+  candidates: OperationsReserveOfficer[];
+  busy: boolean;
+  onClose: () => void;
+  onCreate: (candidateId: string, reasonCode: "arrival_not_assured" | "officer_unavailable" | "client_request" | "operations_contingency") => Promise<void>;
+}) {
+  const [candidateId, setCandidateId] = useState(candidates[0]?.id ?? "");
+  const [reasonCode, setReasonCode] = useState<"arrival_not_assured" | "officer_unavailable" | "client_request" | "operations_contingency">(slot.coverageState === "uncovered" ? "operations_contingency" : "arrival_not_assured");
+  return <div className="drawer-backdrop incident-dialog-backdrop" role="presentation" onMouseDown={onClose}><form className="incident-dialog relief-case-dialog" role="dialog" aria-modal="true" aria-labelledby="relief-case-title" onSubmit={(event) => { event.preventDefault(); void onCreate(candidateId, reasonCode); }} onMouseDown={(event) => event.stopPropagation()}>
+    <div className="drawer-topline"><span className="detail-id">CONTROLLED RELIEF CASE</span><button type="button" onClick={onClose} aria-label="Close relief case form"><Icon name="close" /></button></div>
+    <p className="eyebrow eyebrow--amber">{slot.siteName} · {slot.postName}</p><h2 id="relief-case-title">Open a relief control</h2><p className="incident-dialog-intro">This records ownership and reserves one server-eligible candidate. The demo does not notify the officer or claim acceptance.</p>
+    <dl className="relief-dialog-facts"><div><dt>Post window</dt><dd>{formatSast(slot.startsAt, true)}–{formatSast(slot.endsAt)}</dd></div><div><dt>Current state</dt><dd>{slot.coverageLabel}</dd></div><div><dt>Primary officer</dt><dd>{slot.officerName ?? "Unassigned"}</dd></div><div><dt>Check-in evidence</dt><dd>{slot.arrivalEvidence === "checked_in" ? "Recorded" : "Not recorded"}</dd></div></dl>
+    <label>Reason<select value={reasonCode} onChange={(event) => setReasonCode(event.target.value as typeof reasonCode)}><option value="arrival_not_assured">Arrival not assured</option><option value="officer_unavailable">Officer unavailable</option><option value="client_request">Client requested replacement</option><option value="operations_contingency">Operations contingency</option></select></label>
+    <label>Eligible reserve candidate<select value={candidateId} onChange={(event) => setCandidateId(event.target.value)} disabled={!candidates.length}><option value="">{candidates.length ? "Choose an officer" : "No officer passes this slot’s controls"}</option>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.fullName} · {candidate.psiraGrade}</option>)}</select></label>
+    <div className="relief-gate-note"><strong>Server gate</strong><p>LOKD rechecks funding, Passport, PSiRA grade, service, purpose endorsement, declared availability, overlap and the current demo rest buffer when this case is opened.</p></div>
+    <div className="incident-dialog-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button primary-button--light" disabled={busy || !candidateId}>{busy ? "Opening…" : "Open controlled case"}</button></div>
+  </form></div>;
 }
 
 function SiteDrawer({ site, incident, events, busy, resolutionNote, setResolutionNote, onClose, onAcknowledge, onResolve }: {
