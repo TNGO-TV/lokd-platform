@@ -16,7 +16,7 @@ import { useOperations } from "../lib/use-operations";
 import { usePilot } from "../lib/use-pilot";
 import WorkspaceView from "./workspace-view";
 
-const navItems = ["Control", "Coverage", "Incidents", "Bookings", "Offers", "Applications", "Officers", "Clients", "Earnings", "Feedback", "Launch readiness"];
+const navItems = ["Control", "Coverage", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officers", "Clients", "Earnings", "Feedback", "Launch readiness"];
 
 function Icon({ name }: { name: "search" | "bell" | "refresh" | "incident" | "close" | "chevron" | "map" }) {
   const paths: Record<typeof name, React.ReactNode> = {
@@ -84,7 +84,9 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
   const [createIncidentOpen, setCreateIncidentOpen] = useState(false);
   const isCommand = activeNav === "Control" || activeNav === "Incidents";
   const isCoverage = activeNav === "Coverage";
-  const isOperationalSurface = isCommand || isCoverage;
+  const isWorkforce = activeNav === "Workforce";
+  const isLaunchReadiness = activeNav === "Launch readiness";
+  const isOperationalSurface = isCommand || isCoverage || isWorkforce || isLaunchReadiness;
   const pendingPayments = pilot.state?.bookings.filter((booking) => booking.fundingStatus !== "paid_in_full").length ?? 0;
 
   function flash(message: string) {
@@ -138,7 +140,10 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
             incidentFocus={activeNav === "Incidents"}
             openIncident={() => setCreateIncidentOpen(true)}
             flash={flash}
-          /> : isCoverage ? <CoverageCentre operations={operations} flash={flash} /> : <WorkspaceView name={activeNav} />}
+          /> : isCoverage ? <CoverageCentre operations={operations} flash={flash} />
+            : isWorkforce ? <WorkforceControl operations={operations} />
+              : isLaunchReadiness ? <LaunchReadinessControl operations={operations} />
+                : <WorkspaceView name={activeNav} />}
         </div>
       </section>
 
@@ -371,6 +376,54 @@ function CoverageCentre({ operations, flash }: {
       const result = await operations.runAction({ action: "open_relief_case", rosterSlotId: selectedReliefSlot.id, version: selectedReliefSlot.version, replacementOfficerId: candidateId, reasonCode });
       if (result) { setReliefSlotId(null); flash("Relief case opened and owned. Candidate reserved; no notification was sent."); }
     }} />}
+  </>;
+}
+
+function WorkforceControl({ operations }: { operations: ReturnType<typeof useOperations> }) {
+  const state = operations.state;
+  if (operations.loading && !state) return <div className="command-loading"><span className="pulse-dot" /><strong>Resolving workforce responsibility…</strong><small>Network members · employment routes · employer snapshots</small></div>;
+  if (!state) return <div className="command-error" role="alert"><strong>Workforce control unavailable</strong><p>{operations.error || "The workforce snapshot could not be loaded."}</p><button onClick={() => void operations.refresh()}>Try again</button></div>;
+  const summary = state.workforce;
+  const cards = [
+    { label: "Verified Network", value: summary.verifiedNetwork, note: "Approved profiles; not automatically employed", tone: "neutral" },
+    { label: "No employment", value: summary.profilesWithoutEmployment, note: "No LOKD payroll or leave record activated", tone: "blue" },
+    { label: "Direct Flex", value: summary.activeDirectFlex, note: "LOKD payroll · controlled weekly cap", tone: "green" },
+    { label: "Partner supplied", value: summary.activePartner, note: "Recorded partner employer; verification required", tone: "green" },
+    { label: "Managed", value: summary.activeManaged, note: "Recurring LOKD employment route", tone: "green" },
+  ];
+  return <>
+    <section className="command-heading workforce-heading"><div><p className="eyebrow">Employer-of-record control</p><h1>Workforce engine</h1><p>Network membership and employment are deliberately separate records.</p></div><button className="secondary-button" disabled={operations.busy} onClick={() => void operations.refresh()}><Icon name="refresh" /> Refresh</button></section>
+    <section className="workforce-rule-banner"><span>10,000</span><div><strong>Verified members do not equal 10,000 employees.</strong><p>A member has no LOKD payroll, leave or benefit record until a compliant Direct Flex or Managed employment route is activated. Partner-supplied work records the verified partner employer.</p></div></section>
+    <section className="command-kpis workforce-kpis" aria-label="Workforce model summary">{cards.map((card) => <article key={card.label} className={`command-kpi command-kpi--${card.tone}`}><span>{card.label}</span><strong>{card.value}</strong><small>{card.note}</small></article>)}</section>
+    <section className="workforce-layout">
+      <article className="workforce-register panel"><header className="command-panel-heading"><div><p className="eyebrow">Current synthetic cohort</p><h2>Officer engagement register</h2></div><span>{summary.officers.length} profiles</span></header>
+        <div className="workforce-register-head"><span>Officer</span><span>Network</span><span>Employment route</span><span>Employer and control</span></div>
+        {summary.officers.map((officer) => <div className="workforce-register-row" key={officer.officerId}><span><strong>{officer.officerName}</strong><small>{officer.officerId} · Passport {officer.passportStatus ?? "not connected"}</small></span><span><em className="pill tone-green">{officer.networkStatus}</em><small>Membership only</small></span><span><strong>{officer.workforceModel ? officer.workforceModel.replaceAll("_", " ") : "Not employed"}</strong><small>{officer.employmentStatus.replaceAll("_", " ")}</small></span><span><strong>{officer.employerName ?? "No employer of record"}</strong><small>{officer.nextControl}</small></span></div>)}
+      </article>
+      <aside className="workforce-boundaries panel"><header className="command-panel-heading"><div><p className="eyebrow">Non-negotiable boundary</p><h2>What activates liability</h2></div></header>
+        <ol><li><span>01</span><div><strong>Network</strong><p>Identity, PSiRA and Passport eligibility only. No work promise, roster or payroll record.</p></div></li><li><span>02</span><div><strong>Resolve the route</strong><p>Every paid assignment names Direct Flex, an approved Partner, or Managed employment.</p></div></li><li><span>03</span><div><strong>Capture the employer</strong><p>The assignment records its employer and terms snapshot. Production immutability and atomic activation remain a launch gate.</p></div></li><li><span>04</span><div><strong>Settle correctly</strong><p>Direct work routes to payroll; partner work routes to the partner company—not an officer wallet.</p></div></li></ol>
+        <div className={`snapshot-health ${summary.assignmentsMissingEmployerSnapshot ? "has-gap" : "is-clean"}`}><span>{summary.assignmentsMissingEmployerSnapshot ? "!" : "✓"}</span><div><strong>{summary.assignmentsWithEmployerSnapshot}/{summary.assignmentsWithEmployerSnapshot + summary.assignmentsMissingEmployerSnapshot} active synthetic assignments carry an employer snapshot</strong><p>{summary.assignmentsMissingEmployerSnapshot ? "Missing snapshots block production activation." : "The demo roster has no employer-of-record gaps; production enforcement is not yet enabled."}</p></div></div>
+      </aside>
+    </section>
+    <footer className="status-footer ops-command-footer"><span><i /> Network membership remains non-employment</span><span>Advisory Direct Flex demo cap · 24 hours per week · reservation enforcement and final NBCPSS/PSSPF policy remain launch gates</span></footer>
+  </>;
+}
+
+function LaunchReadinessControl({ operations }: { operations: ReturnType<typeof useOperations> }) {
+  const state = operations.state;
+  if (operations.loading && !state) return <div className="command-loading"><span className="pulse-dot" /><strong>Evaluating launch controls…</strong><small>Regulatory · workforce · finance · production operations</small></div>;
+  if (!state) return <div className="command-error" role="alert"><strong>Launch controls unavailable</strong><p>{operations.error || "The launch-gate register could not be loaded."}</p><button onClick={() => void operations.refresh()}>Try again</button></div>;
+  const launch = state.launch;
+  const percent = launch.totalHardGates ? Math.round((launch.passedHardGates / launch.totalHardGates) * 100) : 0;
+  const groups = [...new Set(launch.gates.map((gate) => gate.category))];
+  const gate = (code: string) => launch.gates.find((item) => item.code === code);
+  const gateLabel = (code: string) => (gate(code)?.status ?? "blocked").replaceAll("_", " ");
+  return <>
+    <section className="command-heading launch-heading"><div><p className="eyebrow">Fail-closed activation</p><h1>Launch readiness</h1><p>Paid deployment remains locked until every hard gate is independently evidenced and passed.</p></div><button className="secondary-button" disabled={operations.busy} onClick={() => void operations.refresh()}><Icon name="refresh" /> Re-evaluate</button></section>
+    <section className={`launch-decision ${launch.activationLocked ? "is-locked" : "is-ready"}`}><div><span>{launch.activationLocked ? "LOCKED" : "READY"}</span><strong>{launch.activationLocked ? "Production paid-shift activation is disabled" : "Controlled pilot activation available"}</strong><p>{launch.activationLocked ? `${launch.blockers.length} required controls still need valid evidence or approval.` : "Every required control is present, evidenced and current."}</p></div><div className="launch-score"><strong>{launch.passedHardGates}/{launch.totalHardGates}</strong><span>required gates passed</span><i><b style={{ width: `${percent}%` }} /></i></div></section>
+    <section className="psira-milestone"><div><span>01</span><p>Company paperwork</p><strong>{gateLabel("G1_PSIRA_PAPERWORK")}</strong><small>{gate("G1_PSIRA_PAPERWORK")?.detail ?? "Required gate missing"}</small></div><i /><div><span>02</span><p>Control-room inspection</p><strong>{gateLabel("G2_CONTROL_ROOM_INSPECTION")}</strong><small>{gate("G2_CONTROL_ROOM_INSPECTION")?.detail ?? "Required gate missing"}</small></div><i /><div><span>03</span><p>Business registration</p><strong>{gateLabel("G3_PSIRA_CERTIFICATE")}</strong><small>{gate("G3_PSIRA_CERTIFICATE")?.detail ?? "Required gate missing"}</small></div></section>
+    <section className="launch-gate-groups">{groups.map((group) => <article className="launch-gate-group panel" key={group}><header><span>{group.replaceAll("_", " ")}</span><strong>{launch.gates.filter((gate) => gate.category === group && gate.status === "passed").length}/{launch.gates.filter((gate) => gate.category === group).length}</strong></header>{launch.gates.filter((gate) => gate.category === group).map((gate) => <div className={`launch-gate launch-gate--${gate.status}`} key={gate.code}><span>{gate.status === "passed" ? "✓" : gate.status === "reported" ? "R" : gate.status === "blocked" ? "×" : "•"}</span><div><strong>{gate.label}</strong><p>{gate.detail}</p><small>{gate.code} · {gate.evidenceLevel.replaceAll("_", " ")}</small></div><em>{gate.status.replaceAll("_", " ")}</em></div>)}</article>)}</section>
+    <section className="launch-truth panel"><span>!</span><div><strong>The control-room inspection is not the only remaining launch item.</strong><p>It is the current external PSiRA milestone. Identity verification, cleared client funds, payroll/statutory processing, insurance and production access still have to pass before the platform may turn a synthetic roster into a paid deployment.</p></div></section>
   </>;
 }
 

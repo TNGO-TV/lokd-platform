@@ -133,6 +133,87 @@ export const clients = sqliteTable("clients", {
   approvalStatus: text("approval_status").notNull().default("pending"),
 });
 
+export const launchControls = sqliteTable(
+  "launch_controls",
+  {
+    code: text("code").primaryKey(),
+    label: text("label").notNull(),
+    category: text("category").notNull(),
+    status: text("status").notNull().default("pending"),
+    evidenceLevel: text("evidence_level").notNull().default("none"),
+    evidenceReference: text("evidence_reference"),
+    detail: text("detail").notNull().default(""),
+    hardGate: integer("hard_gate").notNull().default(1),
+    sortOrder: integer("sort_order").notNull().default(0),
+    verifiedBy: text("verified_by"),
+    verifiedAt: text("verified_at"),
+    expiresAt: text("expires_at"),
+    version: integer("version").notNull().default(1),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("launch_controls_category_idx").on(table.category, table.sortOrder),
+    index("launch_controls_status_idx").on(table.status),
+  ],
+);
+
+export const workforceEmployers = sqliteTable(
+  "workforce_employers",
+  {
+    id: text("id").primaryKey(),
+    legalName: text("legal_name").notNull(),
+    employerType: text("employer_type").notNull(),
+    environment: text("environment").notNull().default("demo"),
+    psiraStatus: text("psira_status").notNull().default("pending"),
+    nbcpssStatus: text("nbcpss_status").notNull().default("pending"),
+    psspfStatus: text("psspf_status").notNull().default("pending"),
+    uifStatus: text("uif_status").notNull().default("pending"),
+    coidaStatus: text("coida_status").notNull().default("pending"),
+    insuranceStatus: text("insurance_status").notNull().default("pending"),
+    serviceAgreementStatus: text("service_agreement_status").notNull().default("pending"),
+    status: text("status").notNull().default("pending"),
+    lastReviewedAt: text("last_reviewed_at"),
+    reviewDueAt: text("review_due_at"),
+    version: integer("version").notNull().default(1),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("workforce_employers_type_status_idx").on(table.employerType, table.status),
+    index("workforce_employers_review_idx").on(table.reviewDueAt),
+  ],
+);
+
+export const workforceEngagements = sqliteTable(
+  "workforce_engagements",
+  {
+    id: text("id").primaryKey(),
+    officerId: text("officer_id").notNull().references(() => officers.id, { onDelete: "cascade" }),
+    employerId: text("employer_id").notNull().references(() => workforceEmployers.id),
+    model: text("model").notNull(),
+    environment: text("environment").notNull().default("demo"),
+    status: text("status").notNull().default("pending_activation"),
+    activeKey: text("active_key"),
+    engagementReference: text("engagement_reference").notNull(),
+    termsVersion: text("terms_version"),
+    payrollStatus: text("payroll_status").notNull().default("not_ready"),
+    benefitsStatus: text("benefits_status").notNull().default("not_ready"),
+    weeklyHourCap: integer("weekly_hour_cap"),
+    activatedAt: text("activated_at"),
+    endedAt: text("ended_at"),
+    reviewDueAt: text("review_due_at"),
+    version: integer("version").notNull().default(1),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("workforce_engagements_officer_status_idx").on(table.officerId, table.status),
+    index("workforce_engagements_employer_status_idx").on(table.employerId, table.status),
+    index("workforce_engagements_model_status_idx").on(table.model, table.status),
+    uniqueIndex("workforce_engagements_active_officer_idx").on(table.activeKey),
+  ],
+);
+
 export const operationalSites = sqliteTable(
   "operational_sites",
   {
@@ -340,6 +421,29 @@ export const rosterAssignments = sqliteTable(
     index("roster_assignments_officer_status_idx").on(table.officerId, table.status),
     uniqueIndex("roster_assignments_active_slot_idx").on(table.activeKey),
     uniqueIndex("roster_assignments_shift_idx").on(table.shiftId),
+  ],
+);
+
+export const assignmentWorkforceSnapshots = sqliteTable(
+  "assignment_workforce_snapshots",
+  {
+    id: text("id").primaryKey(),
+    rosterAssignmentId: text("roster_assignment_id").notNull().references(() => rosterAssignments.id),
+    workforceEngagementId: text("workforce_engagement_id").notNull().references(() => workforceEngagements.id),
+    officerId: text("officer_id").notNull().references(() => officers.id),
+    employerId: text("employer_id").notNull().references(() => workforceEmployers.id),
+    workforceModel: text("workforce_model").notNull(),
+    employerLegalName: text("employer_legal_name").notNull(),
+    termsVersion: text("terms_version").notNull(),
+    decision: text("decision").notNull(),
+    blockers: text("blockers").notNull().default("[]"),
+    environment: text("environment").notNull().default("demo"),
+    capturedAt: text("captured_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("assignment_workforce_roster_assignment_idx").on(table.rosterAssignmentId),
+    index("assignment_workforce_officer_idx").on(table.officerId),
+    index("assignment_workforce_employer_idx").on(table.employerId),
   ],
 );
 

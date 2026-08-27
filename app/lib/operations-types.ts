@@ -5,6 +5,8 @@ export type ExceptionPriority = "P0" | "P1" | "P2" | "P3";
 export type ExceptionStatus = "new" | "acknowledged" | "investigating" | "resolved" | "closed";
 export type CoverageState = "confirmed" | "arrival_at_risk" | "check_in_missing" | "on_post" | "uncovered" | "relief_active" | "completed" | "cancelled";
 export type ReliefStatus = "case_open" | "offer_pending" | "accepted" | "arrived" | "cancelled" | "closed";
+export type WorkforceModel = "direct_flex" | "partner" | "managed";
+export type LaunchGateStatus = "passed" | "reported" | "pending" | "blocked";
 
 export type OperationsSignal = {
   id: string;
@@ -99,6 +101,35 @@ export type OperationsReserveOfficer = {
   eligibilityLabel: string;
 };
 
+export type OperationsWorkforceOfficer = {
+  officerId: string;
+  officerName: string;
+  passportStatus: string | null;
+  networkStatus: string;
+  employmentStatus: "not_employed" | "active" | "pending_activation" | "suspended" | "ended";
+  workforceModel: WorkforceModel | null;
+  employerName: string | null;
+  employerStatus: string | null;
+  payrollStatus: string | null;
+  benefitsStatus: string | null;
+  weeklyHourCap: number | null;
+  termsVersion: string | null;
+  nextControl: string;
+};
+
+export type OperationsLaunchGate = {
+  code: string;
+  label: string;
+  category: string;
+  status: LaunchGateStatus;
+  evidenceLevel: string;
+  evidenceReference: string | null;
+  detail: string;
+  hardGate: boolean;
+  verifiedAt: string | null;
+  expiresAt: string | null;
+};
+
 export type OperationsSite = {
   id: string;
   clientId: string;
@@ -188,6 +219,24 @@ export type OperationsCommandState = {
     arrivalWatch: number;
     reliefActive: number;
     coveragePercent: number;
+  };
+  launch: {
+    activationLocked: boolean;
+    passedHardGates: number;
+    totalHardGates: number;
+    reportedGates: number;
+    blockers: string[];
+    gates: OperationsLaunchGate[];
+  };
+  workforce: {
+    verifiedNetwork: number;
+    profilesWithoutEmployment: number;
+    activeDirectFlex: number;
+    activePartner: number;
+    activeManaged: number;
+    assignmentsWithEmployerSnapshot: number;
+    assignmentsMissingEmployerSnapshot: number;
+    officers: OperationsWorkforceOfficer[];
   };
   sites: OperationsSite[];
   roster: OperationsRosterSlot[];

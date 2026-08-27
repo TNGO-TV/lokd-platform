@@ -12,6 +12,13 @@ import {
   operationalStateLabel,
   signalFreshness,
 } from "./operations-core";
+import {
+  directFlexHoursDecision,
+  durationHours,
+  isoWeekDateRange,
+  launchGateDecision,
+  REQUIRED_LAUNCH_GATE_CODES,
+} from "./workforce-core";
 import type {
   CoverageState,
   OperationsAction,
@@ -24,6 +31,7 @@ import type {
   OperationsReserveOfficer,
   OperationsRosterSlot,
   OperationsSite,
+  OperationsWorkforceOfficer,
 } from "./operations-types";
 
 const PILOT_CLIENT_ID = "CL-001";
@@ -74,6 +82,40 @@ async function reliefCandidateEligibility(db: D1Database, officerId: string, slo
     AND flex_available = 1 AND external_work_acknowledged = 1 AND rest_window_confirmed = 1`)
     .bind(officerId).first<{ id: string }>();
   if (!base) return { eligible: false, reason: "Officer availability declarations are incomplete." };
+  const workforce = await db.prepare(`SELECT we.id, we.model, we.status, we.terms_version AS termsVersion,
+    we.payroll_status AS payrollStatus, we.benefits_status AS benefitsStatus, we.weekly_hour_cap AS weeklyHourCap,
+    we.review_due_at AS engagementReviewDueAt, emp.status AS employerStatus, emp.review_due_at AS employerReviewDueAt,
+    emp.psira_status AS psiraStatus, emp.nbcpss_status AS nbcpssStatus, emp.psspf_status AS psspfStatus,
+    emp.uif_status AS uifStatus, emp.coida_status AS coidaStatus, emp.insurance_status AS insuranceStatus,
+    emp.service_agreement_status AS serviceAgreementStatus
+    FROM workforce_engagements we JOIN workforce_employers emp ON emp.id = we.employer_id
+    WHERE we.officer_id = ? AND we.active_key = we.officer_id AND we.status = 'active' AND we.environment = 'demo'
+    LIMIT 1`).bind(officerId).first<{
+      id: string; model: "direct_flex" | "partner" | "managed"; status: string; termsVersion: string | null;
+      payrollStatus: string; benefitsStatus: string; weeklyHourCap: number | null; engagementReviewDueAt: string | null;
+      employerStatus: string; employerReviewDueAt: string | null; psiraStatus: string; nbcpssStatus: string;
+      psspfStatus: string; uifStatus: string; coidaStatus: string; insuranceStatus: string; serviceAgreementStatus: string;
+    }>();
+  if (!workforce) return { eligible: false, reason: "Verified Network membership is not an active employment or partner engagement." };
+  const validThrough = new Date(slot.endsAt);
+  if (!Number.isFinite(validThrough.getTime())) return { eligible: false, reason: "The post window is invalid." };
+  if (workforce.employerStatus !== "current") return { eligible: false, reason: "The employer of record is not current." };
+  if (!workforce.termsVersion) return { eligible: false, reason: "No accepted workforce terms version is recorded." };
+  if (workforce.engagementReviewDueAt && new Date(workforce.engagementReviewDueAt) < validThrough) return { eligible: false, reason: "The workforce engagement will expire before the post ends." };
+  if (workforce.employerReviewDueAt && new Date(workforce.employerReviewDueAt) < validThrough) return { eligible: false, reason: "The employer compliance review will expire before the post ends." };
+  const employerControls = [workforce.psiraStatus, workforce.nbcpssStatus, workforce.psspfStatus,
+    workforce.uifStatus, workforce.coidaStatus, workforce.insuranceStatus, workforce.serviceAgreementStatus];
+  if (employerControls.some((status) => status !== "current")) return { eligible: false, reason: "Employer compliance is incomplete." };
+  if ((workforce.model === "direct_flex" || workforce.model === "managed")
+    && (workforce.payrollStatus !== "ready" || workforce.benefitsStatus !== "ready")) {
+    return { eligible: false, reason: "Direct payroll or benefit activation is not ready." };
+  }
+  if (workforce.model === "partner" && workforce.payrollStatus !== "partner_confirmed") {
+    return { eligible: false, reason: "The partner has not confirmed payroll responsibility." };
+  }
+  if (workforce.model === "partner" && workforce.benefitsStatus !== "partner_confirmed") {
+    return { eligible: false, reason: "The partner has not confirmed statutory benefit responsibility." };
+  }
   const readiness = await evaluateBookingReadiness(db, officerId, slot.bookingId, {
     assignmentDate: slot.serviceDate,
     requireServiceOptIn: true,
@@ -83,6 +125,17 @@ async function reliefCandidateEligibility(db: D1Database, officerId: string, slo
     WHERE officer_id = ? AND status = 'available' AND starts_at <= ? AND ends_at >= ?
     ORDER BY starts_at DESC LIMIT 1`).bind(officerId, slot.startsAt, slot.endsAt).first<{ id: string }>();
   if (!available) return { eligible: false, reason: "No declared availability window covers the full post." };
+  if (workforce.model === "direct_flex") {
+    const week = isoWeekDateRange(slot.serviceDate);
+    const existing = await all<{ startsAt: string; endsAt: string }>(db.prepare(`SELECT rs.starts_at AS startsAt,
+      rs.ends_at AS endsAt FROM roster_assignments ra JOIN roster_slots rs ON rs.id = ra.roster_slot_id
+      WHERE ra.officer_id = ? AND ra.active_key IS NOT NULL AND ra.status NOT IN ('replaced', 'cancelled')
+        AND rs.id <> ? AND rs.service_date >= ? AND rs.service_date <= ?`)
+      .bind(officerId, slot.id, week.monday, week.sunday));
+    const existingHours = existing.reduce((sum, item) => sum + durationHours(item.startsAt, item.endsAt), 0);
+    const hours = directFlexHoursDecision(existingHours, durationHours(slot.startsAt, slot.endsAt), workforce.weeklyHourCap ?? 24);
+    if (!hours.eligible) return { eligible: false, reason: `The direct Flex weekly cap would be exceeded (${hours.projectedHours}h / ${hours.weeklyHourCap}h).` };
+  }
   const restWindowStart = new Date(new Date(slot.startsAt).getTime() - 8 * 60 * 60 * 1000).toISOString();
   const restWindowEnd = new Date(new Date(slot.endsAt).getTime() + 8 * 60 * 60 * 1000).toISOString();
   const conflictingAssignment = await db.prepare(`SELECT ra.id FROM roster_assignments ra
@@ -135,6 +188,46 @@ export async function ensureOperationsDemoData(db: D1Database) {
        flex_available, external_work_acknowledged, rest_window_confirmed, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', 'verified', 1, 1, 1, ?)`) 
       .bind("OFF-005", "Neo Molefe", "+27 82 555 0505", "neo@example.co.za", "Midrand", "PSIRA-DEMO-505", "Grade C", "2027-09-30", now.toISOString()),
+    ...[
+      ["G0_PHASE1_SCOPE", "Controlled Unarmed Gauteng pilot scope", "operating_model", "passed", "system_verified", "system:phase1-scope-v1", "Phase 1 is limited to scheduled fixed-site Unarmed guarding.", 10],
+      ["G1_PSIRA_PAPERWORK", "PSiRA company paperwork", "regulatory", "reported", "user_reported", null, "Paperwork is reported complete; documentary evidence must still be attached and verified.", 20],
+      ["G2_CONTROL_ROOM_INSPECTION", "PSiRA control-room inspection", "regulatory", "pending", "external_pending", null, "Inspection is the current external regulatory event and has not yet passed.", 30],
+      ["G3_PSIRA_CERTIFICATE", "Active PSiRA business registration", "regulatory", "blocked", "none", null, "Activation waits for the inspection outcome and issued registration evidence.", 40],
+      ["G4_WORKFORCE_ENGINE", "Network, Direct Flex, Partner and Managed workforce controls", "workforce", "pending", "system_partial", null, "The model and demo checks exist; the production assignment transaction and immutable evidence trail remain required.", 50],
+      ["G5_WORKFORCE_TERMS", "Employment, partner and fund rulings", "workforce", "pending", "none", null, "Counsel-approved terms and written NBCPSS/PSSPF treatment remain required.", 60],
+      ["G6_IDENTITY_PROVIDER", "Production identity and PSiRA verification", "integration", "pending", "none", null, "The provider contract, consent flow and fail-closed webhook path are not connected.", 70],
+      ["G7_CLIENT_FUNDS", "Cleared client funds and reconciliation", "finance", "pending", "none", null, "Demo payment controls cannot satisfy a production funding gate.", 80],
+      ["G8_PAYROLL_INSURANCE", "Payroll, UIF, COIDA, benefits and insurance", "workforce", "pending", "none", null, "Production payroll export, payslips, statutory schedules and cover evidence remain required.", 90],
+      ["G9_PRODUCTION_CONTROLS", "Production access, audit and operational staffing", "operations", "pending", "none", null, "Named controllers, production roles, live telemetry policy and a separate production database remain required.", 100],
+    ].map(([code, label, category, status, evidenceLevel, evidenceReference, detail, sortOrder]) => db.prepare(`INSERT OR IGNORE INTO launch_controls
+      (code, label, category, status, evidence_level, evidence_reference, detail, hard_gate, sort_order,
+       verified_by, verified_at, expires_at, version, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, NULL, 1, ?)`)
+      .bind(code, label, category, status, evidenceLevel, evidenceReference, detail, sortOrder,
+        status === "passed" ? "LOKD system policy" : null, status === "passed" ? now.toISOString() : null, now.toISOString())),
+    db.prepare(`INSERT OR IGNORE INTO workforce_employers
+      (id, legal_name, employer_type, environment, psira_status, nbcpss_status, psspf_status, uif_status, coida_status,
+       insurance_status, service_agreement_status, status, last_reviewed_at, review_due_at, version, created_at, updated_at)
+      VALUES ('EMP-LOKD-DEMO', 'LOKD Workforce · synthetic', 'lokd_employer', 'demo', 'current', 'current', 'current',
+       'current', 'current', 'current', 'current', 'current', ?, ?, 1, ?, ?)`)
+      .bind(now.toISOString(), isoOffset(now, 60 * 24 * 90), now.toISOString(), now.toISOString()),
+    db.prepare(`INSERT OR IGNORE INTO workforce_employers
+      (id, legal_name, employer_type, environment, psira_status, nbcpss_status, psspf_status, uif_status, coida_status,
+       insurance_status, service_agreement_status, status, last_reviewed_at, review_due_at, version, created_at, updated_at)
+      VALUES ('EMP-PARTNER-DEMO', 'Approved Partner Security · synthetic', 'partner_company', 'demo', 'current', 'current',
+       'current', 'current', 'current', 'current', 'current', 'current', ?, ?, 1, ?, ?)`)
+      .bind(now.toISOString(), isoOffset(now, 60 * 24 * 60), now.toISOString(), now.toISOString()),
+    ...[
+      ["WE-OFF-001", "OFF-001", "EMP-LOKD-DEMO", "direct_flex", "OFF-001", "DF-DEMO-001", "LOKD-DIRECT-FLEX-DEMO-v1", "ready", "ready", 24],
+      ["WE-OFF-002", "OFF-002", "EMP-PARTNER-DEMO", "partner", "OFF-002", "PARTNER-DEMO-002", "LOKD-PARTNER-DEMO-v1", "partner_confirmed", "partner_confirmed", null],
+      ["WE-OFF-003", "OFF-003", "EMP-LOKD-DEMO", "managed", "OFF-003", "MANAGED-DEMO-003", "LOKD-MANAGED-DEMO-v1", "ready", "ready", null],
+      ["WE-OFF-004", "OFF-004", "EMP-LOKD-DEMO", "direct_flex", "OFF-004", "DF-DEMO-004", "LOKD-DIRECT-FLEX-DEMO-v1", "ready", "ready", 24],
+    ].map(([id, officerId, employerId, model, activeKey, engagementReference, termsVersion, payrollStatus, benefitsStatus, weeklyHourCap]) => db.prepare(`INSERT OR IGNORE INTO workforce_engagements
+      (id, officer_id, employer_id, model, environment, status, active_key, engagement_reference, terms_version,
+       payroll_status, benefits_status, weekly_hour_cap, activated_at, ended_at, review_due_at, version, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'demo', 'active', ?, ?, ?, ?, ?, ?, ?, NULL, ?, 1, ?, ?)`)
+      .bind(id, officerId, employerId, model, activeKey, engagementReference, termsVersion, payrollStatus, benefitsStatus,
+        weeklyHourCap, now.toISOString(), isoOffset(now, 60 * 24 * 90), now.toISOString(), now.toISOString())),
     db.prepare(`INSERT OR IGNORE INTO officer_passports
       (officer_id, passport_number, public_token_hash, status, readiness_label, issued_at, last_reviewed_at, next_review_at, updated_at)
       VALUES (?, ?, ?, 'active', 'LOKD Ready', ?, ?, ?, ?)`) 
@@ -278,6 +371,15 @@ export async function ensureOperationsDemoData(db: D1Database) {
        confirmed_at, released_at, version)
       VALUES (?, ?, ?, ?, 'primary', 'on_post', ?, 'demo-seed', ?, ?, NULL, 1)`)
       .bind("RA-LIN-01", "SLOT-LIN-01", "OFF-003", "SH-2090", "SLOT-LIN-01", isoOffset(now, -130), isoOffset(now, -120)),
+    ...[
+      ["AWS-RA-RSB-01", "RA-RSB-01", "WE-OFF-001", "OFF-001", "EMP-LOKD-DEMO", "direct_flex", "LOKD Workforce · synthetic", "LOKD-DIRECT-FLEX-DEMO-v1"],
+      ["AWS-RA-MID-01", "RA-MID-01", "WE-OFF-002", "OFF-002", "EMP-PARTNER-DEMO", "partner", "Approved Partner Security · synthetic", "LOKD-PARTNER-DEMO-v1"],
+      ["AWS-RA-LIN-01", "RA-LIN-01", "WE-OFF-003", "OFF-003", "EMP-LOKD-DEMO", "managed", "LOKD Workforce · synthetic", "LOKD-MANAGED-DEMO-v1"],
+    ].map(([id, rosterAssignmentId, workforceEngagementId, officerId, employerId, workforceModel, employerLegalName, termsVersion]) => db.prepare(`INSERT OR IGNORE INTO assignment_workforce_snapshots
+      (id, roster_assignment_id, workforce_engagement_id, officer_id, employer_id, workforce_model, employer_legal_name,
+       terms_version, decision, blockers, environment, captured_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'synthetic_authorised', '["Production activation remains locked."]', 'demo', ?)`)
+      .bind(id, rosterAssignmentId, workforceEngagementId, officerId, employerId, workforceModel, employerLegalName, termsVersion, now.toISOString())),
     db.prepare(`INSERT OR IGNORE INTO site_presence_signals
       (id, site_id, shift_id, officer_id, signal_type, latitude_e6, longitude_e6, accuracy_meters, source, source_session_id,
        sequence_number, idempotency_key, policy_version, geofence_version, environment, integrity_state, review_required,
@@ -381,16 +483,22 @@ export async function readOperationsState(db: D1Database): Promise<OperationsCom
     minimum_grade AS minimumGrade, post_orders_version AS postOrdersVersion, status
     FROM site_posts WHERE status <> 'archived' ORDER BY name`));
   const deployments = await all<{
-    siteId: string; shiftId: string; bookingId: string; officerName: string; passportStatus: string | null;
-    postName: string; scheduledDate: string; shiftStart: string; shiftEnd: string; status: string; checkInAt: string | null;
-  }>(db.prepare(`SELECT os.id AS siteId, sh.id AS shiftId, b.id AS bookingId, o.full_name AS officerName,
-    op.status AS passportStatus, b.post_name AS postName, sh.scheduled_date AS scheduledDate,
+    siteId: string; shiftId: string | null; bookingId: string; officerId: string | null; officerName: string | null; passportStatus: string | null;
+    postName: string; scheduledDate: string | null; shiftStart: string; shiftEnd: string; status: string | null; checkInAt: string | null;
+  }>(db.prepare(`SELECT os.id AS siteId, sh.id AS shiftId, b.id AS bookingId, ra.officer_id AS officerId, o.full_name AS officerName,
+    op.status AS passportStatus, sp.name AS postName, sh.scheduled_date AS scheduledDate,
     b.shift_start AS shiftStart, b.shift_end AS shiftEnd, sh.status, sh.check_in_at AS checkInAt
-    FROM operational_sites os JOIN bookings b ON b.id = os.booking_id
-    LEFT JOIN shifts sh ON sh.booking_id = b.id
-    LEFT JOIN officers o ON o.id = sh.officer_id
+    FROM operational_sites os JOIN roster_slots rs ON rs.site_id = os.id
+    JOIN site_posts sp ON sp.id = rs.post_id JOIN bookings b ON b.id = rs.booking_id
+    LEFT JOIN roster_assignments ra ON ra.roster_slot_id = rs.id AND ra.active_key = rs.id
+    LEFT JOIN shifts sh ON sh.id = ra.shift_id LEFT JOIN officers o ON o.id = ra.officer_id
     LEFT JOIN officer_passports op ON op.officer_id = o.id
-    ORDER BY sh.scheduled_date DESC, sh.rowid DESC`));
+    WHERE rs.status <> 'cancelled'
+    ORDER BY os.id,
+      CASE WHEN rs.starts_at <= ? AND rs.ends_at > ? THEN 0 WHEN rs.starts_at > ? THEN 1 ELSE 2 END,
+      CASE WHEN rs.ends_at <= ? THEN rs.ends_at END DESC,
+      CASE WHEN rs.starts_at > ? THEN rs.starts_at END ASC,
+      CASE WHEN ra.id IS NULL THEN 1 ELSE 0 END`).bind(now.toISOString(), now.toISOString(), now.toISOString(), now.toISOString(), now.toISOString()));
   const rosterRows = await all<{
     id: string; siteId: string; siteName: string; area: string; postId: string; postName: string; bookingId: string;
     shiftId: string | null; officerId: string | null; officerName: string | null; officerGrade: string | null;
@@ -426,14 +534,16 @@ export async function readOperationsState(db: D1Database): Promise<OperationsCom
     op.status AS passportStatus, GROUP_CONCAT(os.service_type, '|') AS serviceTypes
     FROM officers o JOIN officer_passports op ON op.officer_id = o.id
     JOIN officer_services os ON os.officer_id = o.id
+    JOIN workforce_engagements we ON we.officer_id = o.id AND we.status = 'active'
+      AND we.active_key = o.id AND we.environment = 'demo'
     WHERE o.approval_status = 'approved' AND o.flex_available = 1 AND o.external_work_acknowledged = 1
       AND o.rest_window_confirmed = 1 AND op.status IN ('active', 'expiring') AND os.qualified = 1 AND os.opted_in = 1
     GROUP BY o.id, o.full_name, o.city, o.psira_grade, op.status
-    ORDER BY o.psira_grade, o.full_name`));
+    ORDER BY o.psira_grade, o.full_name LIMIT 30`));
   const signals = await all<{
-    id: string; siteId: string; type: string; latitudeE6: number; longitudeE6: number; accuracyMeters: number | null;
+    id: string; siteId: string; shiftId: string | null; officerId: string | null; type: string; latitudeE6: number; longitudeE6: number; accuracyMeters: number | null;
     source: "simulated"; integrityState: "synthetic"; capturedAt: string; receivedAt: string;
-  }>(db.prepare(`SELECT id, site_id AS siteId, signal_type AS type, latitude_e6 AS latitudeE6,
+  }>(db.prepare(`SELECT id, site_id AS siteId, shift_id AS shiftId, officer_id AS officerId, signal_type AS type, latitude_e6 AS latitudeE6,
     longitude_e6 AS longitudeE6, accuracy_meters AS accuracyMeters, source, integrity_state AS integrityState,
     captured_at AS capturedAt, received_at AS receivedAt
     FROM site_presence_signals WHERE environment = 'demo' ORDER BY captured_at DESC`));
@@ -461,6 +571,40 @@ export async function readOperationsState(db: D1Database): Promise<OperationsCom
     JOIN relief_dispatches rd ON rd.id = rde.relief_dispatch_id
     JOIN operational_sites s ON s.id = rd.site_id
     ORDER BY rde.created_at DESC LIMIT 20`));
+  const launchGates = await all<OperationsCommandState["launch"]["gates"][number]>(db.prepare(`SELECT code, label,
+    category, status, evidence_level AS evidenceLevel, evidence_reference AS evidenceReference, detail,
+    hard_gate AS hardGate, verified_at AS verifiedAt, expires_at AS expiresAt
+    FROM launch_controls ORDER BY sort_order, code`));
+  const workforceRows = await all<{
+    officerId: string; officerName: string; passportStatus: string | null; networkStatus: string;
+    engagementStatus: OperationsWorkforceOfficer["employmentStatus"] | null;
+    workforceModel: OperationsWorkforceOfficer["workforceModel"]; employerName: string | null;
+    employerStatus: string | null; payrollStatus: string | null; benefitsStatus: string | null;
+    weeklyHourCap: number | null; termsVersion: string | null;
+  }>(db.prepare(`SELECT o.id AS officerId, o.full_name AS officerName, op.status AS passportStatus,
+    o.approval_status AS networkStatus, we.status AS engagementStatus, we.model AS workforceModel,
+    emp.legal_name AS employerName, emp.status AS employerStatus, we.payroll_status AS payrollStatus,
+    we.benefits_status AS benefitsStatus, we.weekly_hour_cap AS weeklyHourCap, we.terms_version AS termsVersion
+    FROM officers o LEFT JOIN officer_passports op ON op.officer_id = o.id
+    LEFT JOIN workforce_engagements we ON we.officer_id = o.id AND we.active_key = o.id AND we.environment = 'demo'
+    LEFT JOIN workforce_employers emp ON emp.id = we.employer_id
+    WHERE o.approval_status IN ('approved', 'pending') ORDER BY o.full_name LIMIT 25`));
+  const workforceCounts = await db.prepare(`SELECT
+    COALESCE(SUM(CASE WHEN o.approval_status = 'approved' THEN 1 ELSE 0 END), 0) AS verifiedNetwork,
+    COALESCE(SUM(CASE WHEN we.id IS NULL THEN 1 ELSE 0 END), 0) AS profilesWithoutEmployment,
+    COALESCE(SUM(CASE WHEN we.status = 'active' AND we.model = 'direct_flex' THEN 1 ELSE 0 END), 0) AS activeDirectFlex,
+    COALESCE(SUM(CASE WHEN we.status = 'active' AND we.model = 'partner' THEN 1 ELSE 0 END), 0) AS activePartner,
+    COALESCE(SUM(CASE WHEN we.status = 'active' AND we.model = 'managed' THEN 1 ELSE 0 END), 0) AS activeManaged
+    FROM officers o LEFT JOIN workforce_engagements we ON we.officer_id = o.id
+      AND we.active_key = o.id AND we.environment = 'demo'
+    WHERE o.approval_status IN ('approved', 'pending')`).first<{
+      verifiedNetwork: number; profilesWithoutEmployment: number; activeDirectFlex: number;
+      activePartner: number; activeManaged: number;
+    }>();
+  const assignmentSnapshotCounts = await db.prepare(`SELECT COUNT(*) AS total,
+    COALESCE(SUM(CASE WHEN aws.id IS NOT NULL THEN 1 ELSE 0 END), 0) AS withSnapshots
+    FROM roster_assignments ra LEFT JOIN assignment_workforce_snapshots aws ON aws.roster_assignment_id = ra.id
+    WHERE ra.active_key IS NOT NULL`).first<{ total: number; withSnapshots: number }>();
 
   const activeReliefBySlot = new Map<string, (typeof reliefRows)[number]>();
   for (const relief of reliefRows) {
@@ -529,11 +673,42 @@ export async function readOperationsState(db: D1Database): Promise<OperationsCom
     };
   }));
   const reserveOfficers = reserveCandidates.filter((officer): officer is OperationsReserveOfficer => Boolean(officer));
+  const workforceOfficers: OperationsWorkforceOfficer[] = workforceRows.map((row) => {
+    const employmentStatus = row.engagementStatus ?? "not_employed";
+    let nextControl = "Network member only · no employment or payroll activation";
+    if (row.workforceModel === "direct_flex") nextControl = `LOKD payroll · ${row.weeklyHourCap ?? 24}h weekly Flex cap`;
+    if (row.workforceModel === "partner") nextControl = "Partner remains employer · B2B compliance monitored";
+    if (row.workforceModel === "managed") nextControl = "LOKD managed employment · recurring roster controls";
+    if (employmentStatus !== "not_employed" && employmentStatus !== "active") nextControl = `Engagement ${employmentStatus.replaceAll("_", " ")} · deployment blocked`;
+    return { ...row, employmentStatus, nextControl };
+  });
+  const requiredLaunchGates = launchGates.filter((gate) => REQUIRED_LAUNCH_GATE_CODES.includes(gate.code as (typeof REQUIRED_LAUNCH_GATE_CODES)[number]));
+  const launchGateState = launchGates.map((gate) => ({ ...gate, hardGate: Boolean(gate.hardGate) }));
+  const launchDecision = launchGateDecision(launchGates.map((gate) => ({
+    code: gate.code,
+    status: gate.status,
+    hardGate: Boolean(gate.hardGate),
+    evidenceLevel: gate.evidenceLevel,
+    evidenceReference: gate.evidenceReference,
+    verifiedAt: gate.verifiedAt,
+    expiresAt: gate.expiresAt,
+  })));
+  const launchBlockerLabels = launchDecision.blockers.map((code) => {
+    const gateCode = code.includes(":") ? code.slice(code.indexOf(":") + 1) : code;
+    const label = launchGates.find((gate) => gate.code === gateCode)?.label ?? gateCode;
+    return code.startsWith("MISSING:") ? `Missing required gate: ${label}` : code.startsWith("DUPLICATE:") ? `Duplicate required gate: ${label}` : label;
+  });
+  const assignmentTotal = Number(assignmentSnapshotCounts?.total ?? 0);
+  const assignmentWithSnapshot = Number(assignmentSnapshotCounts?.withSnapshots ?? 0);
 
   const latestDeployment = new Map<string, (typeof deployments)[number]>();
   for (const deployment of deployments) if (!latestDeployment.has(deployment.siteId)) latestDeployment.set(deployment.siteId, deployment);
   const latestSignal = new Map<string, (typeof signals)[number]>();
-  for (const signal of signals) if (!latestSignal.has(signal.siteId)) latestSignal.set(signal.siteId, signal);
+  for (const signal of signals) {
+    const deployment = latestDeployment.get(signal.siteId);
+    if (!deployment?.shiftId || !deployment.officerId || signal.shiftId !== deployment.shiftId || signal.officerId !== deployment.officerId) continue;
+    if (!latestSignal.has(signal.siteId)) latestSignal.set(signal.siteId, signal);
+  }
   const activeIncidents = incidentRows.filter((incident) => !["resolved", "closed"].includes(incident.status));
   const activeExceptions = exceptionRows.filter((exception) => !["resolved", "closed"].includes(exception.status));
   const coverageWeight: Record<CoverageState, number> = {
@@ -696,10 +871,30 @@ export async function readOperationsState(db: D1Database): Promise<OperationsCom
       openIncidents: activeIncidents.length,
       openExceptions: activeExceptions.length,
       rosterSlots: roster.length,
-      coveredSlots: roster.filter((slot) => Boolean(slot.officerId) || Boolean(slot.relief)).length,
+      coveredSlots: roster.filter((slot) => Boolean(slot.officerId)).length,
       arrivalWatch: roster.filter((slot) => ["arrival_at_risk", "check_in_missing", "uncovered"].includes(slot.coverageState)).length,
       reliefActive: reliefRows.filter((relief) => !["cancelled", "closed"].includes(relief.status)).length,
-      coveragePercent: roster.length ? Math.round((roster.filter((slot) => Boolean(slot.officerId) || Boolean(slot.relief)).length / roster.length) * 100) : 100,
+      coveragePercent: roster.length ? Math.round((roster.filter((slot) => Boolean(slot.officerId)).length / roster.length) * 100) : 100,
+    },
+    launch: {
+      activationLocked: !launchDecision.ready,
+      passedHardGates: requiredLaunchGates.filter((gate) => gate.status === "passed"
+        && (gate.evidenceLevel === "system_verified" || gate.evidenceLevel === "independently_verified")
+        && Boolean(gate.evidenceReference) && Boolean(gate.verifiedAt)).length,
+      totalHardGates: REQUIRED_LAUNCH_GATE_CODES.length,
+      reportedGates: launchGates.filter((gate) => gate.status === "reported").length,
+      blockers: launchBlockerLabels,
+      gates: launchGateState,
+    },
+    workforce: {
+      verifiedNetwork: Number(workforceCounts?.verifiedNetwork ?? 0),
+      profilesWithoutEmployment: Number(workforceCounts?.profilesWithoutEmployment ?? 0),
+      activeDirectFlex: Number(workforceCounts?.activeDirectFlex ?? 0),
+      activePartner: Number(workforceCounts?.activePartner ?? 0),
+      activeManaged: Number(workforceCounts?.activeManaged ?? 0),
+      assignmentsWithEmployerSnapshot: assignmentWithSnapshot,
+      assignmentsMissingEmployerSnapshot: Math.max(0, assignmentTotal - assignmentWithSnapshot),
+      officers: workforceOfficers,
     },
     sites,
     roster,

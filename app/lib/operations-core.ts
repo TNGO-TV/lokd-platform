@@ -38,7 +38,7 @@ export function deriveCoverageState(input: {
 }): CoverageState {
   if (input.status === "completed") return "completed";
   if (input.status === "cancelled") return "cancelled";
-  if (input.checkInAt || input.status === "on_post") return "on_post";
+  if (input.checkInAt) return "on_post";
   if (input.activeRelief || input.status === "relief_active") return "relief_active";
   if (!input.officerId || input.status === "uncovered") return "uncovered";
   const minutesToArrivalDue = minutesUntil(input.arrivalDueAt, input.now);

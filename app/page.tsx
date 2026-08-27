@@ -10,7 +10,7 @@ export default function PublicHome() {
   return (
     <main className="public-home">
       <aside className="team-review-bar" aria-label="Launch status">
-        <div><strong>Controlled pre-launch</strong><span>Product testing is active; paid security deployment remains locked pending regulatory approval.</span></div>
+        <div><strong>Controlled pre-launch</strong><span>PSiRA paperwork is reported complete; paid deployment remains locked pending the control-room inspection and production activation checks.</span></div>
         <nav><a href="/join">Officer interest</a><a href="/client">Authorised pilot access</a></nav>
       </aside>
       <header className="public-header">
