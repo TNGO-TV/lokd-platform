@@ -16,7 +16,7 @@ export default function PublicHome() {
       <header className="public-header">
         <Link className="public-logo" href="/" aria-label="LOKD home"><img src="/lokd-logo.svg" alt="LOKD" /></Link>
         <nav aria-label="Main navigation">
-          <a href="#how-it-works">How it works</a>
+          <Link href="/clients">For clients</Link>
           <a href="#passport">LOKD Passport</a>
           <a href="#officers">For officers</a>
           <a href="#training">Training</a>
@@ -54,6 +54,11 @@ export default function PublicHome() {
           <aside className="public-verified-card"><span>LK</span><div><strong>Passport preview ready</strong><small>Illustrative Grade B · Purpose trained</small></div><i>✓</i></aside>
           <aside className="public-earnings-chip"><small>Illustrative payroll item</small><strong>R800</strong><span>No payment generated</span></aside>
         </div>
+      </section>
+
+      <section className="public-client-entry">
+        <div><p className="public-kicker">For clients</p><h2>Know exactly what happens before an officer reaches your site.</h2><p>From the first risk brief and post orders to roster eligibility, attendance, incidents and the final service record—see the complete accountable client journey.</p><Link className="public-button public-button--dark" href="/clients">How LOKD works for clients <b>→</b></Link></div>
+        <ol><li><span>01</span><strong>Assess the site</strong></li><li><span>02</span><strong>Define the post</strong></li><li><span>03</span><strong>Verify the roster</strong></li><li><span>04</span><strong>Prove delivery</strong></li></ol>
       </section>
 
       <section className="public-passport-section" id="passport">
@@ -129,7 +134,7 @@ export default function PublicHome() {
       <footer className="public-footer">
         <img src="/lokd-logo.svg" alt="LOKD" />
         <p>Verified people. Controlled operations. Complete proof.</p>
-        <div><a href="/join">Officer interest</a><a href="/officer">Authorised officer access</a><a href="/client">Authorised client access</a></div>
+        <div><Link href="/clients">Client guide</Link><a href="/join">Officer interest</a><a href="/officer">Authorised officer access</a><a href="/client">Authorised client access</a></div>
         <small>© 2026 LOKD · Controlled pre-launch platform · No paid security deployment is active</small>
       </footer>
     </main>
