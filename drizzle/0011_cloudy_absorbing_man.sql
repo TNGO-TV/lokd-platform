@@ -68,7 +68,7 @@ CREATE TRIGGER `activation_base_provenance_v5`
 BEFORE UPDATE OF `state` ON `assignment_activation_commands`
 WHEN NEW.`state` = 'activated'
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `roster_slots` rs
 		JOIN `bookings` b ON b.`id` = rs.`booking_id`
 		JOIN `clients` c ON c.`id` = b.`client_id`
@@ -80,14 +80,14 @@ BEGIN
 			AND c.`environment` = 'production' AND c.`integrity_state` = 'production_verified'
 			AND os.`environment` = 'production' AND os.`integrity_state` = 'production_verified'
 			AND sp.`environment` = 'production' AND sp.`integrity_state` = 'production_verified'
-	) THEN RAISE(ABORT, 'activation_base_provenance_invalid') END;
+	) THEN RAISE(ABORT, 'activation_base_provenance_invalid') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_final_lifecycle_v5`
 BEFORE UPDATE OF `state` ON `assignment_activation_commands`
 WHEN NEW.`state` = 'activated'
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `roster_assignments` ra
 		JOIN `roster_slots` rs ON rs.`id` = ra.`roster_slot_id`
 		JOIN `shifts` sh ON sh.`id` = ra.`shift_id`
@@ -99,11 +99,11 @@ BEGIN
 			AND sh.`id` = NEW.`shift_id` AND sh.`officer_id` = NEW.`officer_id`
 			AND sh.`status` = 'confirmed' AND sh.`environment` = 'production'
 			AND sh.`integrity_state` = 'production_verified'
-	) THEN RAISE(ABORT, 'activation_final_lifecycle_invalid') END;
-	SELECT CASE WHEN NOT EXISTS (
+	) THEN RAISE(ABORT, 'activation_final_lifecycle_invalid') END);
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `assignment_activation_decisions` d
 		WHERE d.`command_id` = NEW.`id` AND d.`checkpoint` = 'activation'
 			AND d.`decision` = 'activated'
 			AND NOT EXISTS (SELECT 1 FROM `assignment_activation_blockers` b WHERE b.`decision_id` = d.`id`)
-	) THEN RAISE(ABORT, 'final_activation_decision_missing') END;
+	) THEN RAISE(ABORT, 'final_activation_decision_missing') END);
 END;

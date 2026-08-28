@@ -4,7 +4,7 @@ CREATE TRIGGER `hour_reservation_exact_source_segment_v4`
 BEFORE INSERT ON `workforce_hour_reservations`
 WHEN NEW.`status` = 'active'
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `workforce_engagements` we
 		WHERE we.`id` = NEW.`workforce_engagement_id` AND we.`officer_id` = NEW.`officer_id`
 			AND we.`model` = 'direct_flex' AND we.`status` = 'active' AND we.`active_key` = we.`officer_id`
@@ -38,14 +38,14 @@ BEGIN
 						AND rd.`environment` = 'demo' AND rd.`integrity_state` = 'synthetic'
 						AND julianday(NEW.`segment_starts_at`) = MAX(julianday(rs.`starts_at`), julianday(NEW.`iso_week_start`||'T00:00:00+02:00'))
 						AND julianday(NEW.`segment_ends_at`) = MIN(julianday(rs.`ends_at`), julianday(date(NEW.`iso_week_start`,'+7 days')||'T00:00:00+02:00')))))))
-	) THEN RAISE(ABORT, 'hour_source_segment_or_environment_invalid') END;
+	) THEN RAISE(ABORT, 'hour_source_segment_or_environment_invalid') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_production_source_binding_v4`
 BEFORE UPDATE OF `state` ON `assignment_activation_commands`
 WHEN NEW.`state` = 'activated'
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `assignment_activation_snapshots` snap
 		JOIN `roster_assignments` ra ON ra.`id` = snap.`roster_assignment_id`
 		JOIN `shifts` sh ON sh.`id` = snap.`shift_id`
@@ -57,7 +57,7 @@ BEGIN
 			AND sh.`id` = NEW.`shift_id` AND sh.`booking_id` = snap.`booking_id`
 			AND sh.`officer_id` = NEW.`officer_id`
 			AND sh.`environment` = 'production' AND sh.`integrity_state` = 'production_verified'
-	) THEN RAISE(ABORT, 'activation_production_source_binding_invalid') END;
+	) THEN RAISE(ABORT, 'activation_production_source_binding_invalid') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activated_assignment_source_immutable_v4`
@@ -85,7 +85,7 @@ WHEN EXISTS (SELECT 1 FROM `assignment_activation_snapshots` snap
 	AND (NEW.`status` IS NOT OLD.`status` OR NEW.`active_key` IS NOT OLD.`active_key`
 		OR NEW.`confirmed_at` IS NOT OLD.`confirmed_at` OR NEW.`released_at` IS NOT OLD.`released_at`)
 BEGIN
-	SELECT CASE WHEN NOT (
+	SELECT (CASE WHEN NOT (
 		(OLD.`status` = 'reserved' AND NEW.`status` = 'confirmed'
 			AND OLD.`active_key` IS NULL AND NEW.`active_key` = NEW.`roster_slot_id`
 			AND OLD.`confirmed_at` IS NULL AND NEW.`confirmed_at` IS NOT NULL
@@ -101,7 +101,7 @@ BEGIN
 				JOIN `shifts` sh ON sh.`id` = snap.`shift_id`
 				WHERE snap.`roster_assignment_id` = OLD.`id` AND c.`state` = 'activated'
 					AND sh.`status` = 'confirmed' AND sh.`check_in_at` IS NULL AND sh.`check_out_at` IS NULL))
-	) THEN RAISE(ABORT, 'activated_assignment_lifecycle_invalid') END;
+	) THEN RAISE(ABORT, 'activated_assignment_lifecycle_invalid') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activated_shift_lifecycle_v4`
@@ -113,7 +113,7 @@ WHEN (NEW.`status` IS NOT OLD.`status` OR NEW.`check_in_at` IS NOT OLD.`check_in
 	AND EXISTS (SELECT 1 FROM `assignment_activation_snapshots` snap
 		WHERE snap.`shift_id` = OLD.`id` AND snap.`final` = 1)
 BEGIN
-	SELECT CASE WHEN NOT (
+	SELECT (CASE WHEN NOT (
 		(OLD.`status` = 'reserved' AND NEW.`status` = 'confirmed'
 			AND OLD.`check_in_at` IS NEW.`check_in_at` AND NEW.`check_in_at` IS NULL
 			AND OLD.`check_out_at` IS NEW.`check_out_at` AND NEW.`check_out_at` IS NULL
@@ -144,7 +144,7 @@ BEGIN
 			AND OLD.`check_in_at` IS NOT NULL AND OLD.`check_out_at` IS NOT NULL
 			AND NEW.`check_in_at` IS OLD.`check_in_at` AND NEW.`check_out_at` IS OLD.`check_out_at`
 			AND NEW.`client_signoff_status` = 'approved' AND NEW.`signed_off_at` IS NOT NULL)
-	) THEN RAISE(ABORT, 'activated_shift_lifecycle_invalid') END;
+	) THEN RAISE(ABORT, 'activated_shift_lifecycle_invalid') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activated_shift_timestamp_lifecycle_v5`
@@ -153,34 +153,34 @@ WHEN (NEW.`check_in_at` IS NOT OLD.`check_in_at` OR NEW.`check_out_at` IS NOT OL
 	AND EXISTS (SELECT 1 FROM `assignment_activation_snapshots` snap
 		WHERE snap.`shift_id` = OLD.`id` AND snap.`final` = 1)
 BEGIN
-	SELECT CASE WHEN NOT (
+	SELECT (CASE WHEN NOT (
 		(OLD.`status` = 'confirmed' AND NEW.`status` = 'on_post'
 			AND OLD.`check_in_at` IS NULL AND NEW.`check_in_at` IS NOT NULL
 			AND OLD.`check_out_at` IS NEW.`check_out_at`)
 		OR (OLD.`status` = 'on_post' AND NEW.`status` = 'completed'
 			AND OLD.`check_in_at` IS NEW.`check_in_at`
 			AND OLD.`check_out_at` IS NULL AND NEW.`check_out_at` IS NOT NULL)
-	) THEN RAISE(ABORT, 'activated_shift_timestamp_lifecycle_invalid') END;
+	) THEN RAISE(ABORT, 'activated_shift_timestamp_lifecycle_invalid') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `check_in_revalidation_final_state_v5`
 BEFORE UPDATE OF `status` ON `assignment_revalidations`
 WHEN OLD.`checkpoint` = 'check_in' AND OLD.`status` = 'transitioning' AND NEW.`status` = 'passed'
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `assignment_activation_snapshots` snap
 		JOIN `shifts` sh ON sh.`id` = snap.`shift_id`
 		WHERE snap.`id` = OLD.`snapshot_id` AND sh.`status` = 'on_post'
 			AND sh.`check_in_at` IS NOT NULL
 			AND julianday(sh.`check_in_at`) = julianday(OLD.`evaluated_at`)
-	) THEN RAISE(ABORT, 'check_in_revalidation_final_state_invalid') END;
+	) THEN RAISE(ABORT, 'check_in_revalidation_final_state_invalid') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `hour_reservation_release_source_v4`
 BEFORE UPDATE OF `status` ON `workforce_hour_reservations`
 WHEN OLD.`status` = 'active' AND NEW.`status` = 'released'
 BEGIN
-	SELECT CASE WHEN NOT (
+	SELECT (CASE WHEN NOT (
 		(OLD.`source_type` = 'assignment'
 			AND NEW.`release_reason` IN ('assignment_cancelled','assignment_replaced','assignment_released')
 			AND EXISTS (SELECT 1 FROM `roster_assignments` ra
@@ -193,14 +193,14 @@ BEGIN
 				WHERE rd.`id` = OLD.`source_id` AND rd.`id` = OLD.`relief_dispatch_id`
 					AND rd.`status` IN ('cancelled','replaced')
 					AND NEW.`release_reason` = 'relief_' || rd.`status`))
-	) THEN RAISE(ABORT, 'hour_reservation_release_source_invalid') END;
+	) THEN RAISE(ABORT, 'hour_reservation_release_source_invalid') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `hour_reservation_total_week_cap_v4`
 BEFORE INSERT ON `workforce_hour_reservations`
 WHEN NEW.`status` = 'active'
 BEGIN
-	SELECT CASE WHEN EXISTS (
+	SELECT (CASE WHEN EXISTS (
 		SELECT 1 FROM `roster_assignments` ra JOIN `roster_slots` rs ON rs.`id` = ra.`roster_slot_id`
 		JOIN `workforce_engagements` nwe ON nwe.`id` = NEW.`workforce_engagement_id`
 		WHERE ra.`officer_id` = NEW.`officer_id` AND ra.`environment` = nwe.`environment`
@@ -229,8 +229,8 @@ BEGIN
 			AND (julianday(owc.`starts_at`) IS NULL OR julianday(owc.`ends_at`) IS NULL
 				OR julianday(owc.`ends_at`) <= julianday(owc.`starts_at`)
 				OR strftime('%S',owc.`starts_at`) <> '00' OR strftime('%S',owc.`ends_at`) <> '00')
-	) THEN RAISE(ABORT, 'existing_work_interval_invalid') END;
-	SELECT CASE WHEN NEW.`reserved_minutes` + COALESCE((
+	) THEN RAISE(ABORT, 'existing_work_interval_invalid') END);
+	SELECT (CASE WHEN NEW.`reserved_minutes` + COALESCE((
 		SELECT SUM(`work_minutes`) FROM (
 			SELECT r.`reserved_minutes` AS `work_minutes`
 			FROM `workforce_hour_reservations` r
@@ -281,5 +281,5 @@ BEGIN
 				AND julianday(owc.`ends_at`) > julianday(NEW.`iso_week_start`||'T00:00:00+02:00')
 		) `weekly_work`
 	),0) > NEW.`weekly_cap_minutes`
-	THEN RAISE(ABORT,'direct_flex_weekly_cap_exceeded') END;
+	THEN RAISE(ABORT,'direct_flex_weekly_cap_exceeded') END);
 END;

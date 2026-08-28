@@ -18,7 +18,7 @@ CREATE TRIGGER `activation_snapshot_authoritative_calendar_wage_v1`
 BEFORE INSERT ON `assignment_activation_snapshots`
 WHEN NEW.`environment` = 'production'
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		WITH source AS (
 			SELECT rs.`service_date`, date(rs.`starts_at`, '+2 hours') AS derived_service_date,
 				CAST(strftime('%Y', date(rs.`starts_at`, '+2 hours')) AS INTEGER) AS y,
@@ -88,5 +88,5 @@ BEGIN
 			AND NEW.`holiday_premium_cents` = NEW.`funded_offer_cents` - NEW.`ordinary_wage_cents`
 			AND NEW.`statutory_cost_cents` = CASE WHEN NEW.`workforce_model` = 'partner' THEN 0
 				ELSE CAST(ROUND(NEW.`funded_offer_cents` * 0.15) AS INTEGER) END
-	) THEN RAISE(ABORT, 'activation_authoritative_calendar_wage_invalid') END;
+	) THEN RAISE(ABORT, 'activation_authoritative_calendar_wage_invalid') END);
 END;

@@ -100,7 +100,7 @@ CREATE TRIGGER `hour_reservation_shape_v2`
 BEFORE INSERT ON `workforce_hour_reservations`
 WHEN NEW.`status` = 'active'
 BEGIN
-	SELECT CASE WHEN julianday(NEW.`segment_starts_at`) IS NULL
+	SELECT (CASE WHEN julianday(NEW.`segment_starts_at`) IS NULL
 		OR julianday(NEW.`segment_ends_at`) IS NULL
 		OR strftime('%S', NEW.`segment_starts_at`) <> '00'
 		OR strftime('%S', NEW.`segment_ends_at`) <> '00'
@@ -111,8 +111,8 @@ BEGIN
 		OR julianday(NEW.`segment_starts_at`) < julianday(NEW.`iso_week_start` || 'T00:00:00+02:00')
 		OR julianday(NEW.`segment_ends_at`) > julianday(date(NEW.`iso_week_start`, '+7 days') || 'T00:00:00+02:00')
 		OR NEW.`active_key` <> NEW.`officer_id` || ':' || NEW.`iso_week_start` || ':' || NEW.`source_id`
-	THEN RAISE(ABORT, 'hour_interval_or_iso_week_invalid') END;
-	SELECT CASE WHEN NOT (
+	THEN RAISE(ABORT, 'hour_interval_or_iso_week_invalid') END);
+	SELECT (CASE WHEN NOT (
 		(NEW.`source_type` = 'assignment' AND NEW.`source_id` = NEW.`roster_assignment_id`
 			AND NEW.`command_id` IS NOT NULL AND NEW.`roster_assignment_id` IS NOT NULL
 			AND NEW.`relief_dispatch_id` IS NULL AND EXISTS (
@@ -134,8 +134,8 @@ BEGIN
 					AND rd.`status` NOT IN ('cancelled','replaced','closed')
 					AND julianday(NEW.`segment_starts_at`) >= julianday(rs.`starts_at`)
 					AND julianday(NEW.`segment_ends_at`) <= julianday(rs.`ends_at`)))
-	) THEN RAISE(ABORT, 'hour_source_binding_invalid') END;
-	SELECT CASE WHEN EXISTS (
+	) THEN RAISE(ABORT, 'hour_source_binding_invalid') END);
+	SELECT (CASE WHEN EXISTS (
 		SELECT 1 FROM `workforce_hour_reservations` r
 		JOIN `workforce_engagements` rwe ON rwe.`id` = r.`workforce_engagement_id`
 		JOIN `workforce_engagements` nwe ON nwe.`id` = NEW.`workforce_engagement_id`
@@ -144,8 +144,8 @@ BEGIN
 			AND r.`source_type` = NEW.`source_type` AND r.`source_id` = NEW.`source_id`
 			AND julianday(r.`segment_starts_at`) < julianday(NEW.`segment_ends_at`)
 			AND julianday(r.`segment_ends_at`) > julianday(NEW.`segment_starts_at`)
-	) THEN RAISE(ABORT, 'same_source_hour_overlap') END;
-	SELECT CASE WHEN EXISTS (
+	) THEN RAISE(ABORT, 'same_source_hour_overlap') END);
+	SELECT (CASE WHEN EXISTS (
 		SELECT 1 FROM `workforce_hour_reservations` r
 		JOIN `workforce_engagements` rwe ON rwe.`id` = r.`workforce_engagement_id`
 		JOIN `workforce_engagements` nwe ON nwe.`id` = NEW.`workforce_engagement_id`
@@ -154,7 +154,7 @@ BEGIN
 			AND NOT (r.`source_type` = NEW.`source_type` AND r.`source_id` = NEW.`source_id`)
 			AND julianday(r.`segment_starts_at`) < julianday(NEW.`segment_ends_at`, '+8 hours')
 			AND julianday(r.`segment_ends_at`) > julianday(NEW.`segment_starts_at`, '-8 hours')
-	) THEN RAISE(ABORT, 'officer_work_rest_conflict') END;
+	) THEN RAISE(ABORT, 'officer_work_rest_conflict') END);
 END;
 --> statement-breakpoint
 DROP TRIGGER IF EXISTS `relief_dispatch_release_hours`;
@@ -186,7 +186,7 @@ END;
 CREATE TRIGGER `activation_snapshot_binding_v2`
 BEFORE INSERT ON `assignment_activation_snapshots`
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `assignment_activation_commands` c
 		JOIN `roster_slots` rs ON rs.`id` = c.`roster_slot_id`
 		JOIN `bookings` b ON b.`id` = rs.`booking_id`
@@ -226,7 +226,7 @@ BEGIN
 			AND NEW.`statutory_cost_cents` >= 0
 			AND NEW.`reserved_minutes` = CAST(ROUND((julianday(rs.`ends_at`) - julianday(rs.`starts_at`)) * 1440) AS INTEGER)
 			AND NEW.`evidence_valid_through` = rs.`ends_at`
-	) THEN RAISE(ABORT, 'activation_snapshot_source_binding_invalid') END;
+	) THEN RAISE(ABORT, 'activation_snapshot_source_binding_invalid') END);
 END;
 --> statement-breakpoint
 DROP TRIGGER IF EXISTS `activated_shift_check_in_guard`;
@@ -281,16 +281,16 @@ WHEN NEW.`status` = 'on_post' AND EXISTS (
 	SELECT 1 FROM `assignment_activation_snapshots` snap
 	WHERE snap.`shift_id` = NEW.`id` AND snap.`environment` = 'production' AND snap.`final` = 1)
 BEGIN
-	SELECT CASE WHEN OLD.`status` <> 'confirmed' OR OLD.`check_in_at` IS NOT NULL OR NEW.`check_in_at` IS NULL
-		THEN RAISE(ABORT, 'activated_shift_transition_invalid') END;
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN OLD.`status` <> 'confirmed' OR OLD.`check_in_at` IS NOT NULL OR NEW.`check_in_at` IS NULL
+		THEN RAISE(ABORT, 'activated_shift_transition_invalid') END);
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `assignment_activation_snapshots` snap
 		JOIN `assignment_revalidations` rv ON rv.`snapshot_id` = snap.`id`
 			AND rv.`checkpoint` = 'check_in' AND rv.`status` = 'transitioning'
 		JOIN `assignment_activation_decisions` d ON d.`id` = rv.`decision_id`
 		WHERE snap.`shift_id` = NEW.`id` AND d.`checkpoint` = 'check_in' AND d.`decision` = 'passed'
 			AND julianday(d.`evaluated_at`) BETWEEN julianday(CURRENT_TIMESTAMP, '-5 minutes') AND julianday(CURRENT_TIMESTAMP, '+1 minute')
-	) THEN RAISE(ABORT, 'fresh_check_in_revalidation_required') END;
+	) THEN RAISE(ABORT, 'fresh_check_in_revalidation_required') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `assignment_revalidation_identity_v2`
@@ -308,15 +308,15 @@ CREATE TRIGGER `activation_command_final_hardening_v2`
 BEFORE UPDATE OF `state` ON `assignment_activation_commands`
 WHEN NEW.`state` = 'activated'
 BEGIN
-	SELECT CASE WHEN EXISTS (
+	SELECT (CASE WHEN EXISTS (
 		SELECT 1 FROM `launch_controls` lc
 		JOIN `roster_slots` rs ON rs.`id` = NEW.`roster_slot_id`
 		WHERE lc.`code` IN ('G0_PHASE1_SCOPE','G1_PSIRA_PAPERWORK','G2_CONTROL_ROOM_INSPECTION','G3_PSIRA_CERTIFICATE','G4_WORKFORCE_ENGINE','G5_WORKFORCE_TERMS','G6_IDENTITY_PROVIDER','G7_CLIENT_FUNDS','G8_PAYROLL_INSURANCE','G9_PRODUCTION_CONTROLS')
 			AND (lc.`verified_at` IS NULL OR julianday(lc.`verified_at`) > julianday(CURRENT_TIMESTAMP)
 				OR lc.`expires_at` IS NULL OR julianday(lc.`expires_at`) < julianday(rs.`ends_at`))
-	) THEN RAISE(ABORT, 'required_launch_gate_evidence_not_current') END;
+	) THEN RAISE(ABORT, 'required_launch_gate_evidence_not_current') END);
 
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `assignment_activation_snapshots` snap
 		JOIN `roster_slots` rs ON rs.`id` = NEW.`roster_slot_id`
 		JOIN `bookings` b ON b.`id` = snap.`booking_id` AND b.`id` = rs.`booking_id`
@@ -356,9 +356,9 @@ BEGIN
 			AND length(trim(osi.`evidence_reference`)) > 0
 			AND julianday(osi.`completed_at`) <= julianday(CURRENT_TIMESTAMP)
 			AND osi.`expires_at` IS NOT NULL AND julianday(osi.`expires_at`) >= julianday(rs.`ends_at`)
-	) THEN RAISE(ABORT, 'production_funding_site_evidence_invalid') END;
+	) THEN RAISE(ABORT, 'production_funding_site_evidence_invalid') END);
 
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `assignment_activation_snapshots` snap
 		JOIN `roster_slots` rs ON rs.`id` = NEW.`roster_slot_id`
 		JOIN `site_posts` sp ON sp.`id` = snap.`post_id`
@@ -408,9 +408,9 @@ BEGIN
 					AND length(trim(oe.`evidence_reference`)) > 0
 					AND julianday(oe.`assessed_at`) <= julianday(CURRENT_TIMESTAMP)
 					AND date(oe.`expires_at`) >= date(rs.`ends_at`, '+2 hours'))
-	) THEN RAISE(ABORT, 'production_officer_evidence_invalid') END;
+	) THEN RAISE(ABORT, 'production_officer_evidence_invalid') END);
 
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `assignment_activation_snapshots` snap
 		JOIN `roster_slots` rs ON rs.`id` = NEW.`roster_slot_id`
 		JOIN `workforce_engagements` we ON we.`id` = snap.`workforce_engagement_id`
@@ -433,9 +433,9 @@ BEGIN
 			AND length(trim(wta.`evidence_reference`)) > 0
 			AND julianday(wta.`accepted_at`) <= julianday(CURRENT_TIMESTAMP)
 			AND wta.`expires_at` IS NOT NULL AND julianday(wta.`expires_at`) >= julianday(rs.`ends_at`)
-	) THEN RAISE(ABORT, 'production_workforce_route_invalid') END;
+	) THEN RAISE(ABORT, 'production_workforce_route_invalid') END);
 
-	SELECT CASE WHEN (
+	SELECT (CASE WHEN (
 		SELECT COUNT(DISTINCT ece.`control_code`) FROM `assignment_activation_snapshots` snap
 		JOIN `roster_slots` rs ON rs.`id` = NEW.`roster_slot_id`
 		JOIN `employer_compliance_evidence` ece ON ece.`employer_id` = snap.`employer_id`
@@ -446,9 +446,9 @@ BEGIN
 			AND length(trim(ece.`evidence_reference`)) > 0
 			AND julianday(ece.`verified_at`) <= julianday(CURRENT_TIMESTAMP)
 			AND ece.`expires_at` IS NOT NULL AND julianday(ece.`expires_at`) >= julianday(rs.`ends_at`)
-	) <> 7 THEN RAISE(ABORT, 'production_employer_evidence_invalid') END;
+	) <> 7 THEN RAISE(ABORT, 'production_employer_evidence_invalid') END);
 
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `assignment_activation_snapshots` snap
 		JOIN `roster_slots` rs ON rs.`id` = NEW.`roster_slot_id`
 		JOIN `officer_availability_windows` av ON av.`officer_id` = snap.`officer_id`
@@ -461,9 +461,9 @@ BEGIN
 			AND ota.`environment` = 'production' AND ota.`integrity_state` = 'verified'
 			AND length(trim(ota.`evidence_reference`)) > 0 AND julianday(ota.`assessed_at`) <= julianday(CURRENT_TIMESTAMP)
 			AND ota.`valid_until` IS NOT NULL AND julianday(ota.`valid_until`) >= julianday(rs.`ends_at`)
-	) THEN RAISE(ABORT, 'production_availability_travel_invalid') END;
+	) THEN RAISE(ABORT, 'production_availability_travel_invalid') END);
 
-	SELECT CASE WHEN EXISTS (
+	SELECT (CASE WHEN EXISTS (
 		SELECT 1 FROM `roster_assignments` other
 		JOIN `roster_slots` other_slot ON other_slot.`id` = other.`roster_slot_id`
 		JOIN `roster_slots` candidate ON candidate.`id` = NEW.`roster_slot_id`
@@ -489,9 +489,9 @@ BEGIN
 			AND owc.`status` <> 'cancelled'
 			AND julianday(owc.`starts_at`) < julianday(candidate.`ends_at`, '+8 hours')
 			AND julianday(owc.`ends_at`) > julianday(candidate.`starts_at`, '-8 hours')
-	) THEN RAISE(ABORT, 'officer_work_rest_conflict') END;
+	) THEN RAISE(ABORT, 'officer_work_rest_conflict') END);
 
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `assignment_activation_snapshots` snap
 		JOIN `roster_slots` rs ON rs.`id` = NEW.`roster_slot_id`
 		JOIN `bookings` b ON b.`id` = snap.`booking_id`
@@ -508,9 +508,9 @@ BEGIN
 			AND sh.`booking_id` = snap.`booking_id` AND sh.`officer_id` = snap.`officer_id`
 			AND sh.`earnings_cents` = snap.`funded_offer_cents`
 			AND snap.`reserved_minutes` = CAST(ROUND((julianday(rs.`ends_at`) - julianday(rs.`starts_at`)) * 1440) AS INTEGER)
-	) THEN RAISE(ABORT, 'production_frozen_economics_invalid') END;
+	) THEN RAISE(ABORT, 'production_frozen_economics_invalid') END);
 
-	SELECT CASE WHEN EXISTS (
+	SELECT (CASE WHEN EXISTS (
 		SELECT 1 FROM `assignment_activation_snapshots` snap
 		JOIN `roster_slots` rs ON rs.`id` = NEW.`roster_slot_id`
 		WHERE snap.`command_id` = NEW.`id` AND snap.`workforce_model` = 'direct_flex'
@@ -522,10 +522,10 @@ BEGIN
 				HAVING SUM(h.`reserved_minutes`) = snap.`reserved_minutes`
 					AND julianday(MIN(h.`segment_starts_at`)) = julianday(rs.`starts_at`)
 					AND julianday(MAX(h.`segment_ends_at`)) = julianday(rs.`ends_at`))
-	) THEN RAISE(ABORT, 'direct_flex_hour_coverage_invalid') END;
-	SELECT CASE WHEN EXISTS (
+	) THEN RAISE(ABORT, 'direct_flex_hour_coverage_invalid') END);
+	SELECT (CASE WHEN EXISTS (
 		SELECT 1 FROM `assignment_activation_snapshots` snap
 		WHERE snap.`command_id` = NEW.`id` AND snap.`workforce_model` <> 'direct_flex'
 			AND EXISTS (SELECT 1 FROM `workforce_hour_reservations` h WHERE h.`command_id` = NEW.`id` AND h.`status` = 'active')
-	) THEN RAISE(ABORT, 'non_flex_hour_reservation_invalid') END;
+	) THEN RAISE(ABORT, 'non_flex_hour_reservation_invalid') END);
 END;

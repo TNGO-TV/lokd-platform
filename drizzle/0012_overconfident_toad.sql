@@ -58,7 +58,7 @@ END;
 CREATE TRIGGER `assignment_evidence_token_insert_guard_v6`
 BEFORE INSERT ON `assignment_evidence_tokens`
 BEGIN
-  SELECT CASE WHEN NEW.`environment` <> 'production'
+  SELECT (CASE WHEN NEW.`environment` <> 'production'
     OR NEW.`checkpoint` NOT IN ('activation','t_minus_24','t_minus_2','check_in')
     OR typeof(NEW.`source_revision`) <> 'integer' OR NEW.`source_revision` < 1
     OR length(NEW.`evaluation_hash`) <> 64
@@ -71,11 +71,11 @@ BEGIN
     OR json_valid(NEW.`officer_evidence`) <> 1 OR json_type(NEW.`officer_evidence`) <> 'object'
     OR json_valid(NEW.`employer_evidence`) <> 1 OR json_type(NEW.`employer_evidence`) <> 'object'
     OR json_valid(NEW.`schedule_evidence`) <> 1 OR json_type(NEW.`schedule_evidence`) <> 'object'
-  THEN RAISE(ABORT, 'assignment_evidence_token_shape_invalid') END;
-  SELECT CASE WHEN NEW.`source_revision` <> (
+  THEN RAISE(ABORT, 'assignment_evidence_token_shape_invalid') END);
+  SELECT (CASE WHEN NEW.`source_revision` <> (
     SELECT `revision` FROM `activation_evidence_epoch` WHERE `singleton` = 1
-  ) THEN RAISE(ABORT, 'assignment_evidence_token_stale') END;
-  SELECT CASE WHEN NOT EXISTS (
+  ) THEN RAISE(ABORT, 'assignment_evidence_token_stale') END);
+  SELECT (CASE WHEN NOT EXISTS (
     SELECT 1 FROM `assignment_activation_commands` c
     WHERE c.`id` = NEW.`command_id`
       AND c.`environment` = 'production'
@@ -105,7 +105,7 @@ BEGIN
               AND rs.`version` = NEW.`expected_slot_version`
           ))
       )
-  ) THEN RAISE(ABORT, 'assignment_evidence_token_command_binding_invalid') END;
+  ) THEN RAISE(ABORT, 'assignment_evidence_token_command_binding_invalid') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `assignment_evidence_tokens_no_update_v6`
@@ -120,7 +120,7 @@ CREATE TRIGGER `activation_snapshot_token_binding_v6`
 BEFORE INSERT ON `assignment_activation_snapshots`
 WHEN NEW.`environment` = 'production'
 BEGIN
-  SELECT CASE WHEN NOT EXISTS (
+  SELECT (CASE WHEN NOT EXISTS (
     SELECT 1 FROM `assignment_evidence_tokens` token
     WHERE token.`command_id` = NEW.`command_id`
       AND token.`checkpoint` = 'activation'
@@ -133,7 +133,7 @@ BEGIN
       AND token.`employer_evidence` = NEW.`employer_evidence`
       AND token.`schedule_evidence` = NEW.`schedule_evidence`
       AND token.`created_at` = NEW.`created_at`
-  ) THEN RAISE(ABORT, 'activation_snapshot_evidence_token_missing') END;
+  ) THEN RAISE(ABORT, 'activation_snapshot_evidence_token_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_decision_token_binding_v6`
@@ -141,41 +141,41 @@ BEFORE INSERT ON `assignment_activation_decisions`
 WHEN NEW.`environment` = 'production'
   AND NEW.`decision` IN ('activated','passed','failed')
 BEGIN
-  SELECT CASE WHEN NOT EXISTS (
+  SELECT (CASE WHEN NOT EXISTS (
     SELECT 1 FROM `assignment_evidence_tokens` token
     WHERE token.`command_id` = NEW.`command_id`
       AND token.`checkpoint` = NEW.`checkpoint`
       AND token.`evaluation_hash` = NEW.`evaluation_hash`
       AND token.`evaluated_at` = NEW.`evaluated_at`
-  ) THEN RAISE(ABORT, 'activation_decision_evidence_token_missing') END;
+  ) THEN RAISE(ABORT, 'activation_decision_evidence_token_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_final_token_seal_v6`
 BEFORE UPDATE OF `state` ON `assignment_activation_commands`
 WHEN NEW.`state` = 'activated'
 BEGIN
-  SELECT CASE WHEN NOT EXISTS (
+  SELECT (CASE WHEN NOT EXISTS (
     SELECT 1 FROM `assignment_evidence_tokens` token
     WHERE token.`command_id` = NEW.`id`
       AND token.`checkpoint` = 'activation'
       AND token.`roster_slot_id` = NEW.`roster_slot_id`
       AND token.`officer_id` = NEW.`officer_id`
       AND token.`expected_slot_version` = NEW.`expected_slot_version`
-  ) THEN RAISE(ABORT, 'activation_final_evidence_token_missing') END;
-  SELECT CASE WHEN NOT EXISTS (
+  ) THEN RAISE(ABORT, 'activation_final_evidence_token_missing') END);
+  SELECT (CASE WHEN NOT EXISTS (
     SELECT 1 FROM `assignment_workforce_snapshots` aws
     WHERE aws.`roster_assignment_id` = NEW.`roster_assignment_id`
       AND aws.`officer_id` = NEW.`officer_id`
       AND aws.`environment` = 'production'
       AND aws.`decision` = 'production_verified'
-  ) THEN RAISE(ABORT, 'activation_workforce_snapshot_missing') END;
+  ) THEN RAISE(ABORT, 'activation_workforce_snapshot_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `assignment_workforce_snapshot_source_guard_v6`
 BEFORE INSERT ON `assignment_workforce_snapshots`
 WHEN NEW.`environment` = 'production'
 BEGIN
-  SELECT CASE WHEN NEW.`decision` <> 'production_verified'
+  SELECT (CASE WHEN NEW.`decision` <> 'production_verified'
     OR NEW.`blockers` <> '[]'
     OR NOT EXISTS (
       SELECT 1 FROM `roster_assignments` ra
@@ -199,7 +199,7 @@ BEGIN
         AND ra.`status` = 'reserved' AND ra.`active_key` IS NULL
         AND we.`model` = NEW.`workforce_model`
     )
-  THEN RAISE(ABORT, 'assignment_workforce_snapshot_source_invalid') END;
+  THEN RAISE(ABORT, 'assignment_workforce_snapshot_source_invalid') END);
 END;
 --> statement-breakpoint
 
@@ -209,7 +209,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_launchcontrols_update_v6`
@@ -218,7 +218,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_launchcontrols_delete_v6`
@@ -227,7 +227,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officers_insert_v6`
@@ -236,7 +236,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officers_update_v6`
@@ -245,7 +245,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officers_delete_v6`
@@ -254,7 +254,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officerservices_insert_v6`
@@ -263,7 +263,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officerservices_update_v6`
@@ -272,7 +272,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officerservices_delete_v6`
@@ -281,7 +281,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_clients_insert_v6`
@@ -291,7 +291,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_clients_update_v6`
@@ -301,7 +301,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_clients_delete_v6`
@@ -311,7 +311,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_bookings_insert_v6`
@@ -321,7 +321,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_bookings_update_v6`
@@ -331,7 +331,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_bookings_delete_v6`
@@ -341,7 +341,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_operationalsites_insert_v6`
@@ -351,7 +351,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_operationalsites_update_v6`
@@ -361,7 +361,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_operationalsites_delete_v6`
@@ -371,7 +371,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_siteposts_insert_v6`
@@ -381,7 +381,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_siteposts_update_v6`
@@ -391,7 +391,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_siteposts_delete_v6`
@@ -401,7 +401,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_rosterslots_insert_v6`
@@ -411,7 +411,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_rosterslots_update_v6`
@@ -421,7 +421,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_rosterslots_delete_v6`
@@ -431,7 +431,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_bookingfundingreconciliations_insert_v6`
@@ -441,7 +441,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_bookingfundingreconciliations_update_v6`
@@ -451,7 +451,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_bookingfundingreconciliations_delete_v6`
@@ -461,7 +461,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_siteriskassessments_insert_v6`
@@ -471,7 +471,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_siteriskassessments_update_v6`
@@ -481,7 +481,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_siteriskassessments_delete_v6`
@@ -491,7 +491,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_postorderapprovals_insert_v6`
@@ -501,7 +501,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_postorderapprovals_update_v6`
@@ -511,7 +511,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_postorderapprovals_delete_v6`
@@ -521,7 +521,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officersiteinductions_insert_v6`
@@ -531,7 +531,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officersiteinductions_update_v6`
@@ -541,7 +541,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officersiteinductions_delete_v6`
@@ -551,7 +551,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_compliancerecords_insert_v6`
@@ -561,7 +561,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_compliancerecords_update_v6`
@@ -571,7 +571,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_compliancerecords_delete_v6`
@@ -581,7 +581,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officerpassports_insert_v6`
@@ -591,7 +591,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officerpassports_update_v6`
@@ -601,7 +601,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officerpassports_delete_v6`
@@ -611,7 +611,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officerendorsements_insert_v6`
@@ -621,7 +621,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officerendorsements_update_v6`
@@ -631,7 +631,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officerendorsements_delete_v6`
@@ -641,7 +641,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_workforceengagements_insert_v6`
@@ -651,7 +651,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_workforceengagements_update_v6`
@@ -661,7 +661,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_workforceengagements_delete_v6`
@@ -671,7 +671,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_workforceemployers_insert_v6`
@@ -681,7 +681,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_workforceemployers_update_v6`
@@ -691,7 +691,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_workforceemployers_delete_v6`
@@ -701,7 +701,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_workforcetermsacceptances_insert_v6`
@@ -711,7 +711,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_workforcetermsacceptances_update_v6`
@@ -721,7 +721,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_workforcetermsacceptances_delete_v6`
@@ -731,7 +731,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_employercomplianceevidence_insert_v6`
@@ -741,7 +741,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_employercomplianceevidence_update_v6`
@@ -751,7 +751,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_employercomplianceevidence_delete_v6`
@@ -761,7 +761,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officeravailabilitywindows_insert_v6`
@@ -771,7 +771,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officeravailabilitywindows_update_v6`
@@ -781,7 +781,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officeravailabilitywindows_delete_v6`
@@ -791,7 +791,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officertravelassessments_insert_v6`
@@ -801,7 +801,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officertravelassessments_update_v6`
@@ -811,7 +811,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officertravelassessments_delete_v6`
@@ -821,7 +821,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officerworkcommitments_insert_v6`
@@ -831,7 +831,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officerworkcommitments_update_v6`
@@ -841,7 +841,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_officerworkcommitments_delete_v6`
@@ -851,7 +851,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_rosterassignments_insert_v6`
@@ -861,7 +861,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_rosterassignments_update_v6`
@@ -871,7 +871,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_rosterassignments_delete_v6`
@@ -881,7 +881,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_reliefdispatches_insert_v6`
@@ -891,7 +891,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_reliefdispatches_update_v6`
@@ -901,7 +901,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_reliefdispatches_delete_v6`
@@ -911,7 +911,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_shifts_insert_v6`
@@ -921,7 +921,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_shifts_update_v6`
@@ -931,7 +931,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_shifts_delete_v6`
@@ -941,7 +941,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_workforcehourreservations_insert_v6`
@@ -951,7 +951,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_workforcehourreservations_update_v6`
@@ -961,7 +961,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_epoch_workforcehourreservations_delete_v6`
@@ -971,7 +971,7 @@ BEGIN
   UPDATE `activation_evidence_epoch`
   SET `revision` = `revision` + 1, `updated_at` = CURRENT_TIMESTAMP
   WHERE `singleton` = 1;
-  SELECT CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END;
+  SELECT (CASE WHEN changes() <> 1 THEN RAISE(ABORT, 'activation_evidence_epoch_missing') END);
 END;
 --> statement-breakpoint
 
@@ -1017,7 +1017,7 @@ BEFORE INSERT ON `officer_work_commitments`
 WHEN NEW.`environment` = 'production' AND NEW.`status` <> 'cancelled'
 BEGIN
 
-  SELECT CASE WHEN
+  SELECT (CASE WHEN
     NEW.`integrity_state` <> 'verified'
     OR NEW.`status` <> 'declared'
     OR julianday(NEW.`starts_at`) IS NULL
@@ -1032,9 +1032,9 @@ BEGIN
     OR julianday(NEW.`verified_at`) > julianday(CURRENT_TIMESTAMP, '+5 minutes')
     OR julianday(NEW.`expires_at`) IS NULL
     OR julianday(NEW.`expires_at`) < julianday(NEW.`ends_at`)
-  THEN RAISE(ABORT,'production_work_commitment_evidence_invalid') END;
+  THEN RAISE(ABORT,'production_work_commitment_evidence_invalid') END);
 
-  SELECT CASE WHEN
+  SELECT (CASE WHEN
     EXISTS (
       SELECT 1 FROM `roster_assignments` ra
       JOIN `roster_slots` rs ON rs.`id` = ra.`roster_slot_id`
@@ -1063,9 +1063,9 @@ BEGIN
         AND julianday(other.`starts_at`) < julianday(NEW.`ends_at`,'+8 hours')
         AND julianday(other.`ends_at`) > julianday(NEW.`starts_at`,'-8 hours')
     )
-  THEN RAISE(ABORT,'production_work_commitment_rest_conflict') END;
+  THEN RAISE(ABORT,'production_work_commitment_rest_conflict') END);
 
-  SELECT CASE WHEN EXISTS (
+  SELECT (CASE WHEN EXISTS (
     SELECT 1 FROM `workforce_engagements` we
     WHERE we.`officer_id` = NEW.`officer_id`
       AND we.`environment` = 'production'
@@ -1073,9 +1073,9 @@ BEGIN
       AND we.`status` = 'active'
       AND we.`active_key` = we.`officer_id`
       AND (we.`weekly_hour_cap` IS NULL OR we.`weekly_hour_cap` <= 0)
-  ) THEN RAISE(ABORT,'direct_flex_weekly_cap_missing') END;
+  ) THEN RAISE(ABORT,'direct_flex_weekly_cap_missing') END);
 
-  SELECT CASE WHEN EXISTS (
+  SELECT (CASE WHEN EXISTS (
     WITH RECURSIVE commitment_weeks(`iso_week_start`) AS (
       SELECT date(NEW.`starts_at`,'+2 hours',
         printf('-%d days',(CAST(strftime('%w',NEW.`starts_at`,'+2 hours') AS INTEGER)+6)%7))
@@ -1131,7 +1131,7 @@ BEGIN
           AND julianday(other.`ends_at`) > julianday(week.`iso_week_start`||'T00:00:00+02:00')
       ),0)
       > we.`weekly_hour_cap` * 60
-  ) THEN RAISE(ABORT,'production_work_commitment_weekly_cap_exceeded') END;
+  ) THEN RAISE(ABORT,'production_work_commitment_weekly_cap_exceeded') END);
 
 END;
 --> statement-breakpoint
@@ -1140,7 +1140,7 @@ BEFORE UPDATE ON `officer_work_commitments`
 WHEN NEW.`environment` = 'production' AND NEW.`status` <> 'cancelled'
 BEGIN
 
-  SELECT CASE WHEN
+  SELECT (CASE WHEN
     NEW.`integrity_state` <> 'verified'
     OR NEW.`status` <> 'declared'
     OR julianday(NEW.`starts_at`) IS NULL
@@ -1155,9 +1155,9 @@ BEGIN
     OR julianday(NEW.`verified_at`) > julianday(CURRENT_TIMESTAMP, '+5 minutes')
     OR julianday(NEW.`expires_at`) IS NULL
     OR julianday(NEW.`expires_at`) < julianday(NEW.`ends_at`)
-  THEN RAISE(ABORT,'production_work_commitment_evidence_invalid') END;
+  THEN RAISE(ABORT,'production_work_commitment_evidence_invalid') END);
 
-  SELECT CASE WHEN
+  SELECT (CASE WHEN
     EXISTS (
       SELECT 1 FROM `roster_assignments` ra
       JOIN `roster_slots` rs ON rs.`id` = ra.`roster_slot_id`
@@ -1186,9 +1186,9 @@ BEGIN
         AND julianday(other.`starts_at`) < julianday(NEW.`ends_at`,'+8 hours')
         AND julianday(other.`ends_at`) > julianday(NEW.`starts_at`,'-8 hours')
     )
-  THEN RAISE(ABORT,'production_work_commitment_rest_conflict') END;
+  THEN RAISE(ABORT,'production_work_commitment_rest_conflict') END);
 
-  SELECT CASE WHEN EXISTS (
+  SELECT (CASE WHEN EXISTS (
     SELECT 1 FROM `workforce_engagements` we
     WHERE we.`officer_id` = NEW.`officer_id`
       AND we.`environment` = 'production'
@@ -1196,9 +1196,9 @@ BEGIN
       AND we.`status` = 'active'
       AND we.`active_key` = we.`officer_id`
       AND (we.`weekly_hour_cap` IS NULL OR we.`weekly_hour_cap` <= 0)
-  ) THEN RAISE(ABORT,'direct_flex_weekly_cap_missing') END;
+  ) THEN RAISE(ABORT,'direct_flex_weekly_cap_missing') END);
 
-  SELECT CASE WHEN EXISTS (
+  SELECT (CASE WHEN EXISTS (
     WITH RECURSIVE commitment_weeks(`iso_week_start`) AS (
       SELECT date(NEW.`starts_at`,'+2 hours',
         printf('-%d days',(CAST(strftime('%w',NEW.`starts_at`,'+2 hours') AS INTEGER)+6)%7))
@@ -1254,7 +1254,7 @@ BEGIN
           AND julianday(other.`ends_at`) > julianday(week.`iso_week_start`||'T00:00:00+02:00')
       ),0)
       > we.`weekly_hour_cap` * 60
-  ) THEN RAISE(ABORT,'production_work_commitment_weekly_cap_exceeded') END;
+  ) THEN RAISE(ABORT,'production_work_commitment_weekly_cap_exceeded') END);
 
 END;
 --> statement-breakpoint
@@ -1273,4 +1273,3 @@ BEFORE UPDATE OF `environment`,`integrity_state` ON `relief_dispatches`
 WHEN (NEW.`environment` IS NOT OLD.`environment` OR NEW.`integrity_state` IS NOT OLD.`integrity_state`)
   AND EXISTS (SELECT 1 FROM `workforce_hour_reservations` r WHERE r.`relief_dispatch_id` = OLD.`id`)
 BEGIN SELECT RAISE(ABORT,'relief_dispatch_provenance_immutable'); END;
---> statement-breakpoint

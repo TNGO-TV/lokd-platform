@@ -5,29 +5,29 @@
 CREATE TRIGGER `booking_parent_provenance_insert_v9`
 BEFORE INSERT ON `bookings`
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `clients` c
 		WHERE c.`id` = NEW.`client_id`
 			AND c.`environment` = NEW.`environment`
 			AND c.`integrity_state` = NEW.`integrity_state`
-	) THEN RAISE(ABORT, 'booking_client_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'booking_client_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `booking_parent_provenance_update_v9`
 BEFORE UPDATE OF `client_id`,`environment`,`integrity_state` ON `bookings`
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `clients` c
 		WHERE c.`id` = NEW.`client_id`
 			AND c.`environment` = NEW.`environment`
 			AND c.`integrity_state` = NEW.`integrity_state`
-	) THEN RAISE(ABORT, 'booking_client_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'booking_client_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `site_parent_provenance_insert_v9`
 BEFORE INSERT ON `operational_sites`
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `clients` c
 		WHERE c.`id` = NEW.`client_id`
 			AND c.`environment` = NEW.`environment`
@@ -39,13 +39,13 @@ BEGIN
 					AND b.`environment` = NEW.`environment`
 					AND b.`integrity_state` = NEW.`integrity_state`
 			))
-	) THEN RAISE(ABORT, 'site_parent_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'site_parent_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `site_parent_provenance_update_v9`
 BEFORE UPDATE OF `client_id`,`booking_id`,`environment`,`integrity_state` ON `operational_sites`
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `clients` c
 		WHERE c.`id` = NEW.`client_id`
 			AND c.`environment` = NEW.`environment`
@@ -57,13 +57,13 @@ BEGIN
 					AND b.`environment` = NEW.`environment`
 					AND b.`integrity_state` = NEW.`integrity_state`
 			))
-	) THEN RAISE(ABORT, 'site_parent_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'site_parent_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `post_parent_provenance_insert_v9`
 BEFORE INSERT ON `site_posts`
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `operational_sites` s
 		WHERE s.`id` = NEW.`site_id`
 			AND s.`environment` = NEW.`environment`
@@ -76,13 +76,13 @@ BEGIN
 					AND b.`environment` = NEW.`environment`
 					AND b.`integrity_state` = NEW.`integrity_state`
 			))
-	) THEN RAISE(ABORT, 'post_parent_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'post_parent_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `post_parent_provenance_update_v9`
 BEFORE UPDATE OF `site_id`,`booking_id`,`environment`,`integrity_state` ON `site_posts`
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `operational_sites` s
 		WHERE s.`id` = NEW.`site_id`
 			AND s.`environment` = NEW.`environment`
@@ -95,13 +95,13 @@ BEGIN
 					AND b.`environment` = NEW.`environment`
 					AND b.`integrity_state` = NEW.`integrity_state`
 			))
-	) THEN RAISE(ABORT, 'post_parent_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'post_parent_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `slot_parent_provenance_insert_v9`
 BEFORE INSERT ON `roster_slots`
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `operational_sites` s
 		JOIN `site_posts` p ON p.`id` = NEW.`post_id`
 			AND p.`site_id` = s.`id` AND p.`booking_id` = NEW.`booking_id`
@@ -115,13 +115,13 @@ BEGIN
 			AND p.`integrity_state` = NEW.`integrity_state`
 			AND b.`environment` = NEW.`environment`
 			AND b.`integrity_state` = NEW.`integrity_state`
-	) THEN RAISE(ABORT, 'slot_parent_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'slot_parent_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `slot_parent_provenance_update_v9`
 BEFORE UPDATE OF `site_id`,`post_id`,`booking_id`,`environment`,`integrity_state` ON `roster_slots`
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `operational_sites` s
 		JOIN `site_posts` p ON p.`id` = NEW.`post_id`
 			AND p.`site_id` = s.`id` AND p.`booking_id` = NEW.`booking_id`
@@ -135,13 +135,13 @@ BEGIN
 			AND p.`integrity_state` = NEW.`integrity_state`
 			AND b.`environment` = NEW.`environment`
 			AND b.`integrity_state` = NEW.`integrity_state`
-	) THEN RAISE(ABORT, 'slot_parent_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'slot_parent_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `shift_parent_provenance_insert_v9`
 BEFORE INSERT ON `shifts`
 BEGIN
-	SELECT CASE WHEN NOT (
+	SELECT (CASE WHEN NOT (
 		(NEW.`environment` = 'demo' AND NEW.`integrity_state` = 'synthetic')
 		OR (NEW.`environment` = 'production' AND NEW.`integrity_state` = 'production_verified')
 	) OR NOT EXISTS (
@@ -149,13 +149,13 @@ BEGIN
 		WHERE b.`id` = NEW.`booking_id`
 			AND b.`environment` = NEW.`environment`
 			AND b.`integrity_state` = NEW.`integrity_state`
-	) THEN RAISE(ABORT, 'shift_booking_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'shift_booking_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `shift_parent_provenance_update_v9`
 BEFORE UPDATE OF `booking_id`,`officer_id`,`environment`,`integrity_state` ON `shifts`
 BEGIN
-	SELECT CASE WHEN NOT (
+	SELECT (CASE WHEN NOT (
 		(NEW.`environment` = 'demo' AND NEW.`integrity_state` = 'synthetic')
 		OR (NEW.`environment` = 'production' AND NEW.`integrity_state` = 'production_verified')
 	) OR NOT EXISTS (
@@ -171,13 +171,13 @@ BEGIN
 				OR ra.`environment` <> NEW.`environment`
 				OR ra.`integrity_state` <> NEW.`integrity_state`
 				OR rs.`booking_id` <> NEW.`booking_id`)
-	) THEN RAISE(ABORT, 'shift_booking_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'shift_booking_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `assignment_parent_provenance_insert_v9`
 BEFORE INSERT ON `roster_assignments`
 BEGIN
-	SELECT CASE WHEN NOT (
+	SELECT (CASE WHEN NOT (
 		(NEW.`environment` = 'demo' AND NEW.`integrity_state` = 'synthetic')
 		OR (NEW.`environment` = 'production' AND NEW.`integrity_state` = 'production_verified')
 	) OR NOT EXISTS (
@@ -193,13 +193,13 @@ BEGIN
 					AND sh.`environment` = NEW.`environment`
 					AND sh.`integrity_state` = NEW.`integrity_state`
 			))
-	) THEN RAISE(ABORT, 'assignment_parent_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'assignment_parent_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `assignment_parent_provenance_update_v9`
 BEFORE UPDATE OF `roster_slot_id`,`officer_id`,`shift_id`,`environment`,`integrity_state` ON `roster_assignments`
 BEGIN
-	SELECT CASE WHEN NOT (
+	SELECT (CASE WHEN NOT (
 		(NEW.`environment` = 'demo' AND NEW.`integrity_state` = 'synthetic')
 		OR (NEW.`environment` = 'production' AND NEW.`integrity_state` = 'production_verified')
 	) OR NOT EXISTS (
@@ -215,13 +215,13 @@ BEGIN
 					AND sh.`environment` = NEW.`environment`
 					AND sh.`integrity_state` = NEW.`integrity_state`
 			))
-	) THEN RAISE(ABORT, 'assignment_parent_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'assignment_parent_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `relief_parent_provenance_insert_v9`
 BEFORE INSERT ON `relief_dispatches`
 BEGIN
-	SELECT CASE WHEN NOT (
+	SELECT (CASE WHEN NOT (
 		(NEW.`environment` = 'demo' AND NEW.`integrity_state` = 'synthetic')
 		OR (NEW.`environment` = 'production' AND NEW.`integrity_state` = 'production_verified')
 	) OR NOT EXISTS (
@@ -245,13 +245,13 @@ BEGIN
 				SELECT 1 FROM `operational_exceptions` oe
 				WHERE oe.`id` = NEW.`exception_id` AND oe.`site_id` = s.`id`
 			))
-	) THEN RAISE(ABORT, 'relief_parent_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'relief_parent_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `relief_parent_provenance_update_v9`
 BEFORE UPDATE OF `roster_slot_id`,`site_id`,`exception_id`,`environment`,`integrity_state` ON `relief_dispatches`
 BEGIN
-	SELECT CASE WHEN NOT (
+	SELECT (CASE WHEN NOT (
 		(NEW.`environment` = 'demo' AND NEW.`integrity_state` = 'synthetic')
 		OR (NEW.`environment` = 'production' AND NEW.`integrity_state` = 'production_verified')
 	) OR NOT EXISTS (
@@ -275,7 +275,7 @@ BEGIN
 				SELECT 1 FROM `operational_exceptions` oe
 				WHERE oe.`id` = NEW.`exception_id` AND oe.`site_id` = s.`id`
 			))
-	) THEN RAISE(ABORT, 'relief_parent_provenance_mismatch') END;
+	) THEN RAISE(ABORT, 'relief_parent_provenance_mismatch') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `assignment_provenance_immutable_v9`

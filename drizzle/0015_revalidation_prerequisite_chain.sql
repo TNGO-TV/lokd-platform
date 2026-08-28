@@ -2,7 +2,7 @@ CREATE TRIGGER `production_activation_command_base_provenance_v8`
 BEFORE INSERT ON `assignment_activation_commands`
 WHEN NEW.`environment` = 'production'
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `roster_slots` rs
 		JOIN `bookings` b ON b.`id` = rs.`booking_id`
 		JOIN `clients` client ON client.`id` = b.`client_id`
@@ -16,14 +16,14 @@ BEGIN
 			AND client.`environment` = 'production' AND client.`integrity_state` = 'production_verified'
 			AND site.`environment` = 'production' AND site.`integrity_state` = 'production_verified'
 			AND post.`environment` = 'production' AND post.`integrity_state` = 'production_verified'
-	) THEN RAISE(ABORT, 'production_activation_command_base_provenance_invalid') END;
+	) THEN RAISE(ABORT, 'production_activation_command_base_provenance_invalid') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `assignment_evidence_token_time_window_v8`
 BEFORE INSERT ON `assignment_evidence_tokens`
 WHEN NEW.`environment` = 'production'
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `assignment_activation_commands` c
 		JOIN `roster_slots` rs ON rs.`id` = c.`roster_slot_id`
 		WHERE c.`id` = NEW.`command_id`
@@ -47,14 +47,14 @@ BEGIN
 					AND julianday(NEW.`evaluated_at`) <= julianday(rs.`check_in_due_at`)
 					AND julianday(CURRENT_TIMESTAMP) <= julianday(rs.`check_in_due_at`)
 			))
-	) THEN RAISE(ABORT, 'assignment_evidence_token_shift_window_closed') END;
+	) THEN RAISE(ABORT, 'assignment_evidence_token_shift_window_closed') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `assignment_evidence_token_checkpoint_chain_v8`
 BEFORE INSERT ON `assignment_evidence_tokens`
 WHEN NEW.`environment` = 'production' AND NEW.`checkpoint` IN ('t_minus_2','check_in')
 BEGIN
-	SELECT CASE WHEN NEW.`checkpoint` = 't_minus_2' AND NOT EXISTS (
+	SELECT (CASE WHEN NEW.`checkpoint` = 't_minus_2' AND NOT EXISTS (
 		SELECT 1 FROM `assignment_activation_commands` c
 		JOIN `roster_slots` rs ON rs.`id` = c.`roster_slot_id` AND rs.`version` = NEW.`expected_slot_version`
 		JOIN `assignment_activation_snapshots` snap ON snap.`command_id` = c.`id`
@@ -64,8 +64,8 @@ BEGIN
 			AND c.`officer_id` = NEW.`officer_id`
 			AND snap.`final` = 1 AND snap.`environment` = 'production'
 			AND snap.`integrity_state` = 'production_verified' AND rv.`status` = 'passed'
-	) THEN RAISE(ABORT, 't_minus_24_revalidation_must_pass_first') END;
-	SELECT CASE WHEN NEW.`checkpoint` = 'check_in' AND (
+	) THEN RAISE(ABORT, 't_minus_24_revalidation_must_pass_first') END);
+	SELECT (CASE WHEN NEW.`checkpoint` = 'check_in' AND (
 		SELECT COUNT(*) FROM `assignment_activation_commands` c
 		JOIN `roster_slots` rs ON rs.`id` = c.`roster_slot_id` AND rs.`version` = NEW.`expected_slot_version`
 		JOIN `assignment_activation_snapshots` snap ON snap.`command_id` = c.`id`
@@ -76,18 +76,18 @@ BEGIN
 			AND snap.`final` = 1 AND snap.`environment` = 'production'
 			AND snap.`integrity_state` = 'production_verified'
 			AND rv.`checkpoint` IN ('t_minus_24','t_minus_2') AND rv.`status` = 'passed'
-	) <> 2 THEN RAISE(ABORT, 'scheduled_revalidations_must_pass_before_check_in') END;
+	) <> 2 THEN RAISE(ABORT, 'scheduled_revalidations_must_pass_before_check_in') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `activation_command_shift_open_v8`
 BEFORE UPDATE OF `state` ON `assignment_activation_commands`
 WHEN NEW.`state` = 'activated' AND NEW.`environment` = 'production'
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `roster_slots` rs WHERE rs.`id` = NEW.`roster_slot_id`
 			AND julianday(CURRENT_TIMESTAMP) < julianday(rs.`starts_at`)
 			AND julianday(NEW.`completed_at`) < julianday(rs.`starts_at`)
-	) THEN RAISE(ABORT, 'production_activation_shift_window_closed') END;
+	) THEN RAISE(ABORT, 'production_activation_shift_window_closed') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `production_check_in_window_v8`
@@ -98,7 +98,7 @@ WHEN NEW.`status` = 'on_post' AND EXISTS (
 		AND snap.`integrity_state` = 'production_verified' AND snap.`final` = 1
 )
 BEGIN
-	SELECT CASE WHEN NOT EXISTS (
+	SELECT (CASE WHEN NOT EXISTS (
 		SELECT 1 FROM `assignment_activation_snapshots` snap
 		JOIN `assignment_activation_commands` c ON c.`id` = snap.`command_id`
 		JOIN `roster_slots` rs ON rs.`id` = c.`roster_slot_id`
@@ -110,5 +110,5 @@ BEGIN
 			AND julianday(CURRENT_TIMESTAMP) <= julianday(rs.`check_in_due_at`)
 			AND julianday(NEW.`check_in_at`) < julianday(rs.`ends_at`)
 			AND julianday(CURRENT_TIMESTAMP) < julianday(rs.`ends_at`)
-	) THEN RAISE(ABORT, 'production_check_in_window_closed') END;
+	) THEN RAISE(ABORT, 'production_check_in_window_closed') END);
 END;
