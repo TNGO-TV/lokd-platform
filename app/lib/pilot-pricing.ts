@@ -191,6 +191,16 @@ const riskMultipliers: Record<RiskBand, { client: number; officer: number }> = {
   Critical: { client: 1.3, officer: 1.2 },
 };
 
+export type AuthoritativeOfficerShiftEconomics = {
+  serviceDate: string;
+  serviceDateMatchesStart: boolean;
+  calendarCategory: CalendarCategory;
+  calendarLabel: string;
+  ordinaryWageCents: number;
+  holidayPremiumCents: number;
+  officerOfferCents: number;
+};
+
 export function assessRisk(purposeCode: string, input: RiskInput): RiskAssessment {
   const profile = purposeRiskProfiles[purposeCode] ?? purposeRiskProfiles.commercial_access;
   let score = profile.baseScore;
@@ -280,6 +290,44 @@ export function calendarCategoryForDate(dateValue: string): CalendarCategory {
   }
   if (publicHoliday) return "public_holiday";
   return date.getUTCDay() === 0 ? "sunday" : "ordinary";
+}
+
+/**
+ * Prices one roster slot from server-owned rules. South Africa is UTC+02 year-round,
+ * so the service day is derived from the absolute start instant without host locale.
+ */
+export function officerShiftEconomicsForRoster(input: {
+  serviceType: string;
+  riskBand: string;
+  engagementModel: string;
+  serviceDate: string;
+  startsAt: string;
+}): AuthoritativeOfficerShiftEconomics | null {
+  const start = new Date(input.startsAt);
+  if (Number.isNaN(start.getTime()) || !/^\d{4}-\d{2}-\d{2}$/.test(input.serviceDate)) return null;
+  if (!(input.serviceType in servicePriceBook) || !(input.riskBand in riskMultipliers)
+    || !["fixed", "flex"].includes(input.engagementModel)) return null;
+
+  const johannesburgStart = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+  const serviceDate = johannesburgStart.toISOString().slice(0, 10);
+  const calendarCategory = calendarCategoryForDate(serviceDate);
+  const service = servicePriceBook[input.serviceType as ServiceType];
+  const risk = riskMultipliers[input.riskBand as RiskBand].officer;
+  const calendar = calendarPriceBook[calendarCategory];
+  const calendarMultiplier = input.engagementModel === "flex"
+    ? calendar.flexOfficerMultiplier
+    : calendar.fixedOfficerMultiplier;
+  const ordinaryWageCents = Math.round(service.officerShiftCents * risk);
+  const officerOfferCents = Math.round(service.officerShiftCents * risk * calendarMultiplier);
+  return {
+    serviceDate,
+    serviceDateMatchesStart: input.serviceDate === serviceDate,
+    calendarCategory,
+    calendarLabel: calendar.label,
+    ordinaryWageCents,
+    holidayPremiumCents: officerOfferCents - ordinaryWageCents,
+    officerOfferCents,
+  };
 }
 
 export function deriveNoticeWindow(startDate: string, shift: "day" | "night", now = new Date()): NoticeWindow {

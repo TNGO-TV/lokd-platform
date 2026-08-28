@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { projectGautengCoordinate } from "../lib/operations-core";
 import type {
   CoverageState,
   IncidentSeverity,
   OperationsIncident,
+  OperationsAssignmentActivation,
   OperationsReserveOfficer,
   OperationsRosterSlot,
   OperationsSite,
@@ -16,7 +17,7 @@ import { useOperations } from "../lib/use-operations";
 import { usePilot } from "../lib/use-pilot";
 import WorkspaceView from "./workspace-view";
 
-const navItems = ["Control", "Coverage", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officers", "Clients", "Earnings", "Feedback", "Launch readiness"];
+const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officers", "Clients", "Earnings", "Feedback", "Launch readiness"];
 
 function Icon({ name }: { name: "search" | "bell" | "refresh" | "incident" | "close" | "chevron" | "map" }) {
   const paths: Record<typeof name, React.ReactNode> = {
@@ -53,6 +54,10 @@ function formatGenerated(value: string) {
   }).format(new Date(value));
 }
 
+function formatZar(cents: number) {
+  return new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR", maximumFractionDigits: 0 }).format(cents / 100);
+}
+
 function stateTone(state: OperationalState) {
   return state === "critical" ? "red" : state === "attention" ? "amber" : state === "scheduled" ? "blue" : state === "operational" ? "green" : "neutral";
 }
@@ -84,15 +89,22 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
   const [createIncidentOpen, setCreateIncidentOpen] = useState(false);
   const isCommand = activeNav === "Control" || activeNav === "Incidents";
   const isCoverage = activeNav === "Coverage";
+  const isActivation = activeNav === "Assignment activation";
   const isWorkforce = activeNav === "Workforce";
   const isLaunchReadiness = activeNav === "Launch readiness";
-  const isOperationalSurface = isCommand || isCoverage || isWorkforce || isLaunchReadiness;
+  const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isLaunchReadiness;
   const pendingPayments = pilot.state?.bookings.filter((booking) => booking.fundingStatus !== "paid_in_full").length ?? 0;
 
   function flash(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(null), 3400);
   }
+
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.querySelector<HTMLButtonElement>(".mobile-ops-controls nav button.active")
+      ?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "nearest", inline: "center" });
+  }, [activeNav]);
 
   return (
     <main className="app-shell ops-premium-shell">
@@ -141,6 +153,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
             openIncident={() => setCreateIncidentOpen(true)}
             flash={flash}
           /> : isCoverage ? <CoverageCentre operations={operations} flash={flash} />
+            : isActivation ? <AssignmentActivationControl operations={operations} flash={flash} />
             : isWorkforce ? <WorkforceControl operations={operations} />
               : isLaunchReadiness ? <LaunchReadinessControl operations={operations} />
                 : <WorkspaceView name={activeNav} />}
@@ -379,6 +392,49 @@ function CoverageCentre({ operations, flash }: {
   </>;
 }
 
+function AssignmentActivationControl({ operations, flash }: {
+  operations: ReturnType<typeof useOperations>;
+  flash: (message: string) => void;
+}) {
+  const state = operations.state;
+  const [filter, setFilter] = useState<"all" | OperationsAssignmentActivation["state"]>("all");
+  const [scope, setScope] = useState<"all" | OperationsAssignmentActivation["environment"]>("all");
+  if (operations.loading && !state) return <div className="command-loading"><span className="pulse-dot" /><strong>Evaluating assignment activation…</strong><small>Funding · site evidence · Passport · employer route · hours</small></div>;
+  if (!state) return <div className="command-error" role="alert"><strong>Activation queue unavailable</strong><p>{operations.error || "The activation register could not be loaded."}</p><button onClick={() => void operations.refresh()}>Try again</button></div>;
+  const activation = state.activation;
+  const visible = activation.queue.filter((item) => (filter === "all" || item.state === filter)
+    && (scope === "all" || item.environment === scope));
+  const productionCount = activation.queue.filter((item) => item.environment === "production").length;
+  const rehearsalCount = activation.queue.filter((item) => item.environment === "demo_synthetic").length;
+  const cards = [
+    { state: "ready" as const, label: "Ready", value: activation.ready, note: "Evaluation passed; activation not yet committed", tone: "blue" },
+    { state: "blocked" as const, label: "Blocked", value: activation.blocked, note: "Precise fail-closed reasons recorded", tone: "red" },
+    { state: "reserved" as const, label: "Reserved", value: activation.reserved, note: "Inactive transaction stage only", tone: "amber" },
+    { state: "activated" as const, label: "Activated", value: activation.activated, note: "Final protected records shown read-only", tone: "green" },
+  ];
+  return <>
+    {operations.error && <div className="command-error activation-inline-error" role="alert"><strong>Latest action did not complete</strong><p>{operations.error}</p></div>}
+    <section className="command-heading activation-heading"><div><p className="eyebrow">Atomic assignment control</p><h1>Assignment activation</h1><p>One server decision freezes responsibility, evidence, wages and hours—or creates no live assignment at all.</p></div><button className="secondary-button" disabled={operations.busy} onClick={() => void operations.refresh()}><Icon name="refresh" /> Refresh</button></section>
+    <section className="activation-boundary"><span>{state.launch.activationLocked ? "PRODUCTION LOCKED" : "PRODUCTION READ-ONLY"}</span><div><strong>This public Site can inspect activation records; it cannot authorise paid deployment.</strong><p>{state.launch.activationLocked ? "PSiRA documentary verification, the control-room inspection, active business registration and every remaining hard gate must pass first." : "All production commands remain read-only in the public demo. A separately controlled Operations release path is required for paid deployment."} Synthetic funding and employer records never satisfy production activation.</p></div></section>
+    <section className="command-kpis activation-kpis" aria-label="Assignment activation states">{cards.map((card) => <button type="button" aria-pressed={filter === card.state} key={card.state} className={`command-kpi command-kpi--${card.tone} ${filter === card.state ? "is-selected" : ""}`} onClick={() => setFilter(filter === card.state ? "all" : card.state)}><span>{card.label}</span><strong>{card.value}</strong><small>{card.note}</small></button>)}</section>
+    <section className="activation-toolbar"><div><strong>Read-only activation register</strong><span>{visible.length} of {activation.queue.length} shown · {productionCount} production · {rehearsalCount} synthetic</span></div><div className="activation-toolbar-groups"><div role="group" aria-label="Activation environment filter">{(["all", "production", "demo_synthetic"] as const).map((item) => <button type="button" aria-pressed={scope === item} key={item} className={scope === item ? "active" : ""} onClick={() => setScope(item)}>{item === "demo_synthetic" ? "synthetic" : item}</button>)}</div><div role="group" aria-label="Activation state filter">{(["all", "ready", "blocked", "reserved", "activated"] as const).map((item) => <button type="button" aria-pressed={filter === item} key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item.replaceAll("_", " ")}</button>)}</div></div></section>
+    <section className="activation-queue">{visible.map((item) => <article className={`activation-card activation-card--${item.state}`} key={item.commandId ?? `${item.rosterSlotId}:${item.officerId}`}>
+      <header><div><span className="priority-code">{item.environment === "production" ? "PRODUCTION COMMAND" : "SYNTHETIC REHEARSAL"} · {item.commandId ?? "UNRECORDED"}</span><h2>{item.siteName} · {item.postName}</h2><p>{item.clientName} · {formatSast(item.startsAt, true)} → {formatSast(item.endsAt, true)}</p></div><em>{item.state}</em></header>
+      <div className="activation-facts">
+        <dl><div><dt>Officer</dt><dd>{item.officerName}</dd></div><div><dt>Employer route</dt><dd>{item.workforceModel?.replaceAll("_", " ") ?? "Verified Network only"}</dd></div><div><dt>Employer</dt><dd>{item.employerName ?? "No employer of record"}</dd></div><div><dt>Terms</dt><dd>{item.termsVersion ?? "Not accepted"}</dd></div></dl>
+        <dl><div><dt>{item.databaseProtected ? "Frozen funded wage" : "Proposed officer offer"}</dt><dd>{formatZar(item.fundedWageCents)}</dd></div><div><dt>{item.databaseProtected ? "Frozen statutory cost" : "Estimated statutory cost"}</dt><dd>{formatZar(item.statutoryCostCents)}</dd></div><div><dt>Pricing version</dt><dd>{item.pricingVersion}</dd></div><div><dt>Funding status</dt><dd>{item.fundingStatus.replaceAll("_", " ")}</dd></div><div><dt>Funding reference</dt><dd>{item.fundingReference ?? "No verified reference"}</dd></div></dl>
+        <dl><div><dt>Hours</dt><dd>{item.reservedMinutes ? `${item.reservedMinutes / 60}h reserved` : `${item.hourSegments.reduce((sum, segment) => sum + segment.minutes, 0) / 60}h planned`}</dd></div><div><dt>ISO-week split</dt><dd>{item.hourSegments.length ? item.hourSegments.map((segment) => `${segment.isoWeekStart} · ${segment.minutes / 60}h`).join(" / ") : "No Direct Flex reservation"}</dd></div><div><dt>Evidence valid through</dt><dd>{item.evidenceValidThrough ? formatSast(item.evidenceValidThrough, true) : "Not frozen — see blockers"}</dd></div><div><dt>Last evaluated</dt><dd>{formatSast(item.lastDecisionAt, true)}</dd></div><div><dt>Revalidation</dt><dd>{item.revalidation.nextCheckpoint ? `${item.revalidation.nextCheckpoint.replaceAll("_", " ")} · ${formatSast(item.revalidation.nextDueAt!, true)}` : item.revalidation.status.replaceAll("_", " ")}</dd></div></dl>
+      </div>
+      {item.blockers.length ? <div className="activation-blockers"><strong>{item.blockers.length} blocker{item.blockers.length === 1 ? "" : "s"}</strong><ul>{item.blockers.map((blocker) => <li key={blocker.code}><span>{blocker.code}</span><p>{blocker.detail}</p></li>)}</ul></div> : <div className="activation-ready-note"><span>✓</span><div><strong>Evaluation passed</strong><p>Passing evaluation does not create an assignment. The atomic command must still win all database concurrency guards.</p></div></div>}
+      <footer><div><strong>{item.environment === "production" ? (item.databaseProtected ? "Atomic production activation recorded" : "Production candidate · read-only · not authorised for paid deployment") : "Synthetic rehearsal only · not production authorised"}</strong><span>{item.databaseProtected ? "Final snapshot protected by database triggers" : "Evaluation record only; no immutable final snapshot or paid assignment"}</span></div>{item.environment === "demo_synthetic" && ["ready", "blocked"].includes(item.state) && <button className="primary-button" disabled={operations.busy} onClick={async () => {
+        const result = await operations.runAction({ action: "evaluate_assignment_activation", rosterSlotId: item.rosterSlotId, officerId: item.officerId, expectedSlotVersion: item.slotVersion });
+        if (result) flash("Fail-closed activation decision evaluated idempotently. No paid assignment was created.");
+      }}>{item.commandId ? "Re-evaluate" : "Record evaluation"}</button>}</footer>
+    </article>)}{!visible.length && <div className="activation-empty"><span>✓</span><strong>No {filter === "all" ? "activation" : filter} records</strong><p>The queue has no records in this state.</p></div>}</section>
+    <footer className="status-footer ops-command-footer"><span><i /> Append-only decisions and blocker records</span><span>Database-enforced slot, snapshot and Direct Flex hour controls · production remains locked</span></footer>
+  </>;
+}
+
 function WorkforceControl({ operations }: { operations: ReturnType<typeof useOperations> }) {
   const state = operations.state;
   if (operations.loading && !state) return <div className="command-loading"><span className="pulse-dot" /><strong>Resolving workforce responsibility…</strong><small>Network members · employment routes · employer snapshots</small></div>;
@@ -401,11 +457,11 @@ function WorkforceControl({ operations }: { operations: ReturnType<typeof useOpe
         {summary.officers.map((officer) => <div className="workforce-register-row" key={officer.officerId}><span><strong>{officer.officerName}</strong><small>{officer.officerId} · Passport {officer.passportStatus ?? "not connected"}</small></span><span><em className="pill tone-green">{officer.networkStatus}</em><small>Membership only</small></span><span><strong>{officer.workforceModel ? officer.workforceModel.replaceAll("_", " ") : "Not employed"}</strong><small>{officer.employmentStatus.replaceAll("_", " ")}</small></span><span><strong>{officer.employerName ?? "No employer of record"}</strong><small>{officer.nextControl}</small></span></div>)}
       </article>
       <aside className="workforce-boundaries panel"><header className="command-panel-heading"><div><p className="eyebrow">Non-negotiable boundary</p><h2>What activates liability</h2></div></header>
-        <ol><li><span>01</span><div><strong>Network</strong><p>Identity, PSiRA and Passport eligibility only. No work promise, roster or payroll record.</p></div></li><li><span>02</span><div><strong>Resolve the route</strong><p>Every paid assignment names Direct Flex, an approved Partner, or Managed employment.</p></div></li><li><span>03</span><div><strong>Capture the employer</strong><p>The assignment records its employer and terms snapshot. Production immutability and atomic activation remain a launch gate.</p></div></li><li><span>04</span><div><strong>Settle correctly</strong><p>Direct work routes to payroll; partner work routes to the partner company—not an officer wallet.</p></div></li></ol>
-        <div className={`snapshot-health ${summary.assignmentsMissingEmployerSnapshot ? "has-gap" : "is-clean"}`}><span>{summary.assignmentsMissingEmployerSnapshot ? "!" : "✓"}</span><div><strong>{summary.assignmentsWithEmployerSnapshot}/{summary.assignmentsWithEmployerSnapshot + summary.assignmentsMissingEmployerSnapshot} active synthetic assignments carry an employer snapshot</strong><p>{summary.assignmentsMissingEmployerSnapshot ? "Missing snapshots block production activation." : "The demo roster has no employer-of-record gaps; production enforcement is not yet enabled."}</p></div></div>
+        <ol><li><span>01</span><div><strong>Network</strong><p>Identity, PSiRA and Passport eligibility only. No work promise, roster or payroll record.</p></div></li><li><span>02</span><div><strong>Resolve the route</strong><p>Every paid assignment names Direct Flex, an approved Partner, or Managed employment.</p></div></li><li><span>03</span><div><strong>Freeze responsibility</strong><p>The atomic command creates employer and accepted-terms snapshots from server records only. Final Version 19 snapshots are database protected.</p></div></li><li><span>04</span><div><strong>Settle correctly</strong><p>Direct work routes to payroll; partner work routes to the partner company—not an officer wallet.</p></div></li></ol>
+        <div className={`snapshot-health ${summary.assignmentsMissingEmployerSnapshot ? "has-gap" : "is-clean"}`}><span>{summary.assignmentsMissingEmployerSnapshot ? "!" : "✓"}</span><div><strong>{summary.assignmentsWithEmployerSnapshot}/{summary.assignmentsWithEmployerSnapshot + summary.assignmentsMissingEmployerSnapshot} legacy synthetic assignments carry an employer snapshot</strong><p>{summary.assignmentsMissingEmployerSnapshot ? "Missing snapshots block production activation." : "These are synthetic demo records, not production authorisations. New final snapshots use the atomic activation engine."}</p></div></div>
       </aside>
     </section>
-    <footer className="status-footer ops-command-footer"><span><i /> Network membership remains non-employment</span><span>Advisory Direct Flex demo cap · 24 hours per week · reservation enforcement and final NBCPSS/PSSPF policy remain launch gates</span></footer>
+    <footer className="status-footer ops-command-footer"><span><i /> Network membership remains non-employment</span><span>Direct Flex reservations are database enforced · final NBCPSS/PSSPF treatment and production evidence remain launch gates</span></footer>
   </>;
 }
 

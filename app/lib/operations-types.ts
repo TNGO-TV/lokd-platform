@@ -7,6 +7,52 @@ export type CoverageState = "confirmed" | "arrival_at_risk" | "check_in_missing"
 export type ReliefStatus = "case_open" | "offer_pending" | "accepted" | "arrived" | "cancelled" | "closed";
 export type WorkforceModel = "direct_flex" | "partner" | "managed";
 export type LaunchGateStatus = "passed" | "reported" | "pending" | "blocked";
+export type AssignmentActivationState = "ready" | "blocked" | "reserved" | "activated";
+
+export type OperationsActivationBlocker = {
+  code: string;
+  category: string;
+  detail: string;
+};
+
+export type OperationsAssignmentActivation = {
+  commandId: string | null;
+  activationKey: string | null;
+  rosterSlotId: string;
+  slotVersion: number;
+  bookingId: string;
+  clientName: string;
+  siteName: string;
+  postName: string;
+  officerId: string;
+  officerName: string;
+  startsAt: string;
+  endsAt: string;
+  environment: "production" | "demo_synthetic";
+  integrityState: "production_candidate" | "production_verified" | "synthetic_demo_only";
+  recordKind: "production" | "synthetic_rehearsal";
+  state: AssignmentActivationState;
+  lastDecisionAt: string;
+  workforceModel: WorkforceModel | null;
+  employerName: string | null;
+  termsVersion: string | null;
+  fundedWageCents: number;
+  statutoryCostCents: number;
+  pricingVersion: string;
+  fundingStatus: string;
+  fundingReference: string | null;
+  reservedMinutes: number;
+  hourSegments: Array<{ isoWeekStart: string; isoWeekEnd: string; minutes: number }>;
+  evidenceValidThrough: string | null;
+  revalidation: {
+    nextCheckpoint: "t_minus_24" | "t_minus_2" | "check_in" | null;
+    nextDueAt: string | null;
+    status: string;
+  };
+  blockers: OperationsActivationBlocker[];
+  databaseProtected: boolean;
+  productionAuthorised: boolean;
+};
 
 export type OperationsSignal = {
   id: string;
@@ -238,6 +284,13 @@ export type OperationsCommandState = {
     assignmentsMissingEmployerSnapshot: number;
     officers: OperationsWorkforceOfficer[];
   };
+  activation: {
+    ready: number;
+    blocked: number;
+    reserved: number;
+    activated: number;
+    queue: OperationsAssignmentActivation[];
+  };
   sites: OperationsSite[];
   roster: OperationsRosterSlot[];
   reserveOfficers: OperationsReserveOfficer[];
@@ -265,4 +318,10 @@ export type OperationsAction =
       replacementOfficerId: string;
       reasonCode: "arrival_not_assured" | "officer_unavailable" | "client_request" | "operations_contingency";
     }
-  | { action: "cancel_relief"; reliefDispatchId: string; version: number };
+  | { action: "cancel_relief"; reliefDispatchId: string; version: number }
+  | {
+      action: "evaluate_assignment_activation";
+      rosterSlotId: string;
+      officerId: string;
+      expectedSlotVersion: number;
+    };

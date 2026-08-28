@@ -1,0 +1,36 @@
+-- Required launch controls are administrative bootstrap data. They are created by
+-- migration so a public demo request can never create or change the production gate register.
+INSERT OR IGNORE INTO `launch_controls`
+  (`code`,`label`,`category`,`status`,`evidence_level`,`evidence_reference`,`detail`,`hard_gate`,`sort_order`,
+   `verified_by`,`verified_at`,`expires_at`,`version`,`updated_at`)
+VALUES
+  ('G0_PHASE1_SCOPE','Controlled Unarmed Gauteng pilot scope','operating_model','passed','system_verified',
+   'system:phase1-scope-v1','Phase 1 is limited to scheduled fixed-site Unarmed guarding.',1,10,
+   'LOKD system policy',CURRENT_TIMESTAMP,datetime('now','+90 days'),1,CURRENT_TIMESTAMP),
+  ('G1_PSIRA_PAPERWORK','PSiRA company paperwork','regulatory','reported','user_reported',NULL,
+   'Paperwork is reported complete; documentary evidence must still be attached and verified.',1,20,
+   NULL,NULL,NULL,1,CURRENT_TIMESTAMP),
+  ('G2_CONTROL_ROOM_INSPECTION','PSiRA control-room inspection','regulatory','pending','external_pending',NULL,
+   'Inspection is the current external regulatory event and has not yet passed.',1,30,
+   NULL,NULL,NULL,1,CURRENT_TIMESTAMP),
+  ('G3_PSIRA_CERTIFICATE','Active PSiRA business registration','regulatory','blocked','none',NULL,
+   'Activation waits for the inspection outcome and issued registration evidence.',1,40,
+   NULL,NULL,NULL,1,CURRENT_TIMESTAMP),
+  ('G4_WORKFORCE_ENGINE','Network, Direct Flex, Partner and Managed workforce controls','workforce','passed','system_verified',
+   'system:assignment-activation-v19','The atomic activation engine, immutable final snapshots, hour reservations and revalidation controls are database enforced.',1,50,
+   'LOKD system policy',CURRENT_TIMESTAMP,datetime('now','+90 days'),1,CURRENT_TIMESTAMP),
+  ('G5_WORKFORCE_TERMS','Employment, partner and fund rulings','workforce','pending','none',NULL,
+   'Counsel-approved terms and written NBCPSS/PSSPF treatment remain required.',1,60,
+   NULL,NULL,NULL,1,CURRENT_TIMESTAMP),
+  ('G6_IDENTITY_PROVIDER','Production identity and PSiRA verification','integration','pending','none',NULL,
+   'The provider contract, consent flow and fail-closed webhook path are not connected.',1,70,
+   NULL,NULL,NULL,1,CURRENT_TIMESTAMP),
+  ('G7_CLIENT_FUNDS','Cleared client funds and reconciliation','finance','pending','none',NULL,
+   'Demo payment controls cannot satisfy a production funding gate.',1,80,
+   NULL,NULL,NULL,1,CURRENT_TIMESTAMP),
+  ('G8_PAYROLL_INSURANCE','Payroll, UIF, COIDA, benefits and insurance','workforce','pending','none',NULL,
+   'Production payroll export, payslips, statutory schedules and cover evidence remain required.',1,90,
+   NULL,NULL,NULL,1,CURRENT_TIMESTAMP),
+  ('G9_PRODUCTION_CONTROLS','Production access, audit and operational staffing','operations','pending','none',NULL,
+   'Named controllers, production roles, live telemetry policy and a separate production database remain required.',1,100,
+   NULL,NULL,NULL,1,CURRENT_TIMESTAMP);

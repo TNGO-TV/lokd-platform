@@ -39,19 +39,30 @@ export type WorkforceActivationInput = {
   passportEligible: boolean;
 };
 
-export function launchGateDecision(gates: LaunchGateInput[], validThrough = new Date().toISOString()) {
+export function launchGateDecision(
+  gates: LaunchGateInput[],
+  validThrough = new Date().toISOString(),
+  evaluatedAt = new Date().toISOString(),
+) {
   const blockers: string[] = [];
   const validThroughTime = new Date(validThrough).getTime();
-  if (!Number.isFinite(validThroughTime)) return { ready: false, blockers: ["INVALID:VALID_THROUGH"] };
+  const evaluatedTime = new Date(evaluatedAt).getTime();
+  if (!Number.isFinite(validThroughTime) || !Number.isFinite(evaluatedTime)) {
+    return { ready: false, blockers: ["INVALID:VALID_THROUGH"] };
+  }
   const isValidPass = (gate: LaunchGateInput) => {
     const verifiedEvidence = gate.evidenceLevel === "system_verified" || gate.evidenceLevel === "independently_verified";
     const verifiedAt = gate.verifiedAt ? new Date(gate.verifiedAt).getTime() : Number.NaN;
-    const expiry = gate.expiresAt ? new Date(gate.expiresAt).getTime() : null;
+    const expiry = gate.expiresAt ? new Date(gate.expiresAt).getTime() : Number.NaN;
     return gate.status === "passed"
+      && gate.hardGate
       && verifiedEvidence
       && Boolean(gate.evidenceReference)
       && Number.isFinite(verifiedAt)
-      && (expiry === null || (Number.isFinite(expiry) && expiry >= validThroughTime));
+      && verifiedAt <= evaluatedTime
+      && Number.isFinite(expiry)
+      && expiry >= validThroughTime
+      && expiry >= evaluatedTime;
   };
   for (const code of REQUIRED_LAUNCH_GATE_CODES) {
     const matching = gates.filter((gate) => gate.code === code);

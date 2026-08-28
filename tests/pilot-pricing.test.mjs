@@ -5,6 +5,7 @@ import {
   assessRisk,
   calendarCategoryForDate,
   defaultRiskInput,
+  officerShiftEconomicsForRoster,
   quoteBooking,
 } from "../app/lib/pilot-pricing.ts";
 
@@ -70,6 +71,38 @@ test("Peak calendar categories take precedence over Sunday", () => {
   assert.equal(calendarCategoryForDate("2026-04-05"), "easter");
   assert.equal(calendarCategoryForDate("2026-12-25"), "christmas");
   assert.equal(calendarCategoryForDate("2026-08-10"), "public_holiday");
+});
+
+test("roster economics derive Christmas from the Johannesburg start instant", () => {
+  const economics = officerShiftEconomicsForRoster({
+    serviceType: "Unarmed",
+    riskBand: "Standard",
+    engagementModel: "flex",
+    serviceDate: "2039-12-25",
+    startsAt: "2039-12-24T22:30:00.000Z",
+  });
+  assert.deepEqual(economics, {
+    serviceDate: "2039-12-25",
+    serviceDateMatchesStart: true,
+    calendarCategory: "christmas",
+    calendarLabel: "Christmas peak day",
+    ordinaryWageCents: 80000,
+    holidayPremiumCents: 120000,
+    officerOfferCents: 200000,
+  });
+});
+
+test("roster economics report a stored service-date mismatch", () => {
+  const economics = officerShiftEconomicsForRoster({
+    serviceType: "Unarmed",
+    riskBand: "Standard",
+    engagementModel: "flex",
+    serviceDate: "2039-12-24",
+    startsAt: "2039-12-24T22:30:00.000Z",
+  });
+  assert.equal(economics?.serviceDate, "2039-12-25");
+  assert.equal(economics?.serviceDateMatchesStart, false);
+  assert.equal(economics?.calendarCategory, "christmas");
 });
 
 test("High-value retail requires Armed cover and Operations review", () => {

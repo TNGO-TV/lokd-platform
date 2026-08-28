@@ -9,6 +9,35 @@ export const dynamic = "force-dynamic";
 const PILOT_OFFICER_ID = "OFF-001";
 const PILOT_CLIENT_ID = "CL-001";
 
+type PilotOfficerColumn = "officers.id" | "officer.id" | "officer_services.officer_id" | "passport.officer_id";
+
+const PILOT_OFFICER_PRODUCTION_HISTORY = (officerColumn: PilotOfficerColumn) => `
+  EXISTS (SELECT 1 FROM officer_endorsements history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM compliance_records history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM workforce_engagements history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM site_presence_signals history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM roster_assignments history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM assignment_workforce_snapshots history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM officer_availability_windows history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM relief_dispatches history WHERE history.replacement_officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM officer_site_inductions history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM workforce_terms_acceptances history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM officer_work_commitments history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM officer_schedule_declarations history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM officer_travel_assessments history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM assignment_activation_commands history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM assignment_evidence_tokens history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM assignment_activation_snapshots history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM shifts history WHERE history.officer_id = ${officerColumn} AND history.environment = 'production')
+  OR EXISTS (SELECT 1 FROM offers history_offer JOIN bookings history_booking ON history_booking.id = history_offer.booking_id
+    WHERE history_offer.officer_id = ${officerColumn} AND history_booking.environment = 'production')`;
+
+const PILOT_OFFICER_UPDATE_GUARD = (officerColumn: PilotOfficerColumn) => `
+  EXISTS (SELECT 1 FROM officer_passports demo_passport
+    WHERE demo_passport.officer_id = ${officerColumn}
+      AND demo_passport.environment = 'demo' AND demo_passport.integrity_state = 'synthetic')
+  AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY(officerColumn)})`;
+
 class PilotError extends Error {
   status: number;
 
@@ -52,8 +81,92 @@ function nextReleaseAt(cadence: "Weekly" | "Monthly") {
   return release.toISOString();
 }
 
+async function assertPilotSeedIsolation(db: D1Database, passportHash: string) {
+  const collision = await db.prepare(`SELECT entity FROM (
+    SELECT 'officer' AS entity FROM officers
+      WHERE id = ? AND (
+        full_name <> 'Lerato Khumalo' OR mobile <> '+27 82 555 0184'
+        OR email <> 'lerato@example.co.za' OR psira_number <> 'PSIRA-1842'
+        OR NOT EXISTS (SELECT 1 FROM officer_passports passport
+          WHERE passport.officer_id = officers.id AND passport.passport_number = ?
+            AND passport.public_token_hash = ? AND passport.environment = 'demo'
+            AND passport.integrity_state = 'synthetic')
+        OR (${PILOT_OFFICER_PRODUCTION_HISTORY("officers.id")})
+      )
+    UNION ALL
+    SELECT 'passport' FROM officer_passports
+      WHERE (officer_id = ? OR passport_number = ? OR public_token_hash = ?)
+        AND (officer_id <> ? OR passport_number <> ? OR public_token_hash <> ?
+          OR environment <> 'demo' OR integrity_state <> 'synthetic')
+    UNION ALL
+    SELECT 'client' FROM clients WHERE id = ?
+      AND (environment <> 'demo' OR integrity_state <> 'synthetic'
+        OR organisation_name <> 'Northbridge Property Services'
+        OR contact_email <> 'nadia@northbridge.example')
+    UNION ALL
+    SELECT 'endorsement' FROM officer_endorsements
+      WHERE (id IN ('END-CORE-001', 'END-UNA-001', 'END-ARM-001', 'END-VIP-001', 'END-COM-001', 'END-CON-001', 'END-EXE-001')
+        OR (officer_id = ? AND code IN ('core_ready', 'service_unarmed', 'service_armed', 'service_vip',
+          'purpose_commercial_access', 'purpose_construction', 'purpose_executive_protection')))
+        AND (officer_id <> ? OR environment <> 'demo' OR integrity_state <> 'synthetic')
+    UNION ALL
+    SELECT 'compliance' FROM compliance_records
+      WHERE id IN ('CMP-PSIRA-001', 'CMP-FIREARM-001', 'CMP-REG21-001')
+        AND (officer_id <> ? OR environment <> 'demo' OR integrity_state <> 'synthetic')
+    UNION ALL
+    SELECT 'booking' FROM bookings
+      WHERE id IN ('BK-2081', 'BK-2080', 'BK-2084', 'BK-2078')
+        AND (client_id <> ? OR environment <> 'demo' OR integrity_state <> 'synthetic')
+    UNION ALL
+    SELECT 'offer' FROM offers offer
+      LEFT JOIN bookings booking ON booking.id = offer.booking_id
+      WHERE offer.id = 'OF-2084' AND (offer.booking_id <> 'BK-2084' OR offer.officer_id <> ?
+        OR booking.environment <> 'demo' OR booking.integrity_state <> 'synthetic')
+    UNION ALL
+    SELECT 'shift' FROM shifts
+      WHERE id IN ('SH-2081', 'SH-2080', 'SH-2077', 'SH-2078')
+        AND (officer_id <> ? OR environment <> 'demo' OR integrity_state <> 'synthetic'
+          OR (id = 'SH-2081' AND booking_id <> 'BK-2081')
+          OR (id = 'SH-2080' AND booking_id <> 'BK-2080')
+          OR (id = 'SH-2077' AND booking_id <> 'BK-2081')
+          OR (id = 'SH-2078' AND booking_id <> 'BK-2078'))
+    UNION ALL
+    SELECT 'ledger' FROM ledger_entries ledger
+      LEFT JOIN shifts shift ON shift.id = ledger.shift_id
+      LEFT JOIN bookings booking ON booking.id = shift.booking_id
+      WHERE ledger.id IN ('LE-2077', 'LE-2080', 'LE-2078')
+        AND (ledger.officer_id <> ? OR shift.environment <> 'demo' OR shift.integrity_state <> 'synthetic'
+          OR booking.environment <> 'demo' OR booking.integrity_state <> 'synthetic'
+          OR (ledger.id = 'LE-2077' AND ledger.shift_id <> 'SH-2077')
+          OR (ledger.id = 'LE-2080' AND ledger.shift_id <> 'SH-2080')
+          OR (ledger.id = 'LE-2078' AND ledger.shift_id <> 'SH-2078'))
+    UNION ALL
+    SELECT 'audit' FROM audit_events WHERE id = 'AUD-001'
+      AND (actor_type <> 'system' OR actor_id <> 'LOKD' OR event_type <> 'pilot_seeded'
+        OR entity_type <> 'officer' OR entity_id <> ?)
+  ) collisions LIMIT 1`)
+    .bind(
+      PILOT_OFFICER_ID, PILOT_PASSPORT_NUMBER, passportHash,
+      PILOT_OFFICER_ID, PILOT_PASSPORT_NUMBER, passportHash,
+      PILOT_OFFICER_ID, PILOT_PASSPORT_NUMBER, passportHash,
+      PILOT_CLIENT_ID,
+      PILOT_OFFICER_ID, PILOT_OFFICER_ID,
+      PILOT_OFFICER_ID,
+      PILOT_CLIENT_ID,
+      PILOT_OFFICER_ID,
+      PILOT_OFFICER_ID,
+      PILOT_OFFICER_ID,
+      PILOT_OFFICER_ID,
+    )
+    .first<{ entity: string }>();
+  if (collision) {
+    throw new PilotError("The synthetic demo seed is unavailable because its isolated records could not be verified.", 503);
+  }
+}
+
 async function ensurePilotData(db: D1Database) {
   const passportHash = await tokenHash(PILOT_PASSPORT_TOKEN);
+  await assertPilotSeedIsolation(db, passportHash);
   const primaryQuote = quoteBooking({ serviceType: "Unarmed", engagementModel: "fixed", term: "1", purposeCode: "commercial_access", startDate: "2026-08-01", shift: "day", rosterPattern: "monday_saturday", riskInput: defaultRiskInput });
   const depotQuote = quoteBooking({ serviceType: "Unarmed", engagementModel: "fixed", term: "1", purposeCode: "construction", startDate: "2026-08-22", shift: "day", rosterPattern: "monday_saturday", riskInput: defaultRiskInput });
   const vipQuote = quoteBooking({ serviceType: "VIP", engagementModel: "fixed", term: "6", purposeCode: "executive_protection", startDate: "2026-03-01", shift: "day", rosterPattern: "weekdays", riskInput: defaultRiskInput });
@@ -63,124 +176,233 @@ async function ensurePilotData(db: D1Database) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(PILOT_OFFICER_ID, "Lerato Khumalo", "+27 82 555 0184", "lerato@example.co.za", "Johannesburg North", "PSIRA-1842", "Grade B", "2027-05-31", "approved", "verified", "2026-08-01T08:00:00.000Z"),
     db.prepare(`INSERT OR IGNORE INTO officer_passports
-      (officer_id, passport_number, public_token_hash, status, readiness_label, issued_at, last_reviewed_at, next_review_at, updated_at)
-      VALUES (?, ?, ?, 'active', 'LOKD Ready', ?, ?, ?, ?)`)
-      .bind(PILOT_OFFICER_ID, PILOT_PASSPORT_NUMBER, passportHash, "2026-08-05T09:00:00.000Z", "2026-08-15T09:00:00.000Z", "2026-09-15", "2026-08-15T09:00:00.000Z"),
+      (officer_id, passport_number, public_token_hash, status, readiness_label, environment, integrity_state,
+       issued_at, last_reviewed_at, next_review_at, updated_at)
+      SELECT officer.id, ?, ?, 'active', 'LOKD Ready', 'demo', 'synthetic', ?, ?, ?, ?
+      FROM officers officer WHERE officer.id = ?
+        AND officer.full_name = 'Lerato Khumalo' AND officer.email = 'lerato@example.co.za'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("officer.id")})`)
+      .bind(PILOT_PASSPORT_NUMBER, passportHash, "2026-08-05T09:00:00.000Z", "2026-08-15T09:00:00.000Z", "2026-09-15", "2026-08-15T09:00:00.000Z", PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO officer_services
       (officer_id, service_type, qualified, opted_in, qualification_expiry)
-      VALUES (?, ?, ?, ?, ?)`)
-      .bind(PILOT_OFFICER_ID, "Unarmed", 1, 1, null),
+      SELECT passport.officer_id, ?, ?, ?, ? FROM officer_passports passport
+      WHERE passport.officer_id = ? AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("Unarmed", 1, 1, null, PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO officer_services
       (officer_id, service_type, qualified, opted_in, qualification_expiry)
-      VALUES (?, ?, ?, ?, ?)`)
-      .bind(PILOT_OFFICER_ID, "Armed", 1, 0, "2028-02-10"),
+      SELECT passport.officer_id, ?, ?, ?, ? FROM officer_passports passport
+      WHERE passport.officer_id = ? AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("Armed", 1, 0, "2028-02-10", PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO officer_services
       (officer_id, service_type, qualified, opted_in, qualification_expiry)
-      VALUES (?, ?, ?, ?, ?)`)
-      .bind(PILOT_OFFICER_ID, "VIP", 0, 0, null),
+      SELECT passport.officer_id, ?, ?, ?, ? FROM officer_passports passport
+      WHERE passport.officer_id = ? AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("VIP", 0, 0, null, PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO officer_endorsements
-      (id, officer_id, code, label, category, service_type, purpose_code, status, assessed_at, expires_at, next_due_at, assessor, client_visible)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?, ?, 1)`)
-      .bind("END-CORE-001", PILOT_OFFICER_ID, "core_ready", "Core LOKD Ready", "core", null, null, "2026-08-15T09:00:00.000Z", "2026-09-15", "2026-09-15", "LOKD Academy"),
+      (id, officer_id, code, label, category, service_type, purpose_code, status, environment, integrity_state,
+       assessed_at, expires_at, next_due_at, assessor, client_visible)
+      SELECT ?, passport.officer_id, ?, ?, ?, ?, ?, 'current', 'demo', 'synthetic', ?, ?, ?, ?, 1
+      FROM officer_passports passport WHERE passport.officer_id = ?
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("END-CORE-001", "core_ready", "Core LOKD Ready", "core", null, null, "2026-08-15T09:00:00.000Z", "2026-09-15", "2026-09-15", "LOKD Academy", PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO officer_endorsements
-      (id, officer_id, code, label, category, service_type, purpose_code, status, assessed_at, expires_at, next_due_at, assessor, client_visible)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?, ?, 1)`)
-      .bind("END-UNA-001", PILOT_OFFICER_ID, "service_unarmed", "Unarmed Security Professional", "service", "Unarmed", null, "2026-08-12T09:00:00.000Z", "2026-11-30", "2026-09-12", "LOKD Academy"),
+      (id, officer_id, code, label, category, service_type, purpose_code, status, environment, integrity_state,
+       assessed_at, expires_at, next_due_at, assessor, client_visible)
+      SELECT ?, passport.officer_id, ?, ?, ?, ?, ?, 'current', 'demo', 'synthetic', ?, ?, ?, ?, 1
+      FROM officer_passports passport WHERE passport.officer_id = ?
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("END-UNA-001", "service_unarmed", "Unarmed Security Professional", "service", "Unarmed", null, "2026-08-12T09:00:00.000Z", "2026-11-30", "2026-09-12", "LOKD Academy", PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO officer_endorsements
-      (id, officer_id, code, label, category, service_type, purpose_code, status, assessed_at, expires_at, next_due_at, assessor, client_visible)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?, ?, 1)`)
-      .bind("END-ARM-001", PILOT_OFFICER_ID, "service_armed", "Armed monthly readiness", "service", "Armed", null, "2026-08-05T09:00:00.000Z", "2026-09-05", "2026-09-05", "LOKD Academy"),
+      (id, officer_id, code, label, category, service_type, purpose_code, status, environment, integrity_state,
+       assessed_at, expires_at, next_due_at, assessor, client_visible)
+      SELECT ?, passport.officer_id, ?, ?, ?, ?, ?, 'current', 'demo', 'synthetic', ?, ?, ?, ?, 1
+      FROM officer_passports passport WHERE passport.officer_id = ?
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("END-ARM-001", "service_armed", "Armed monthly readiness", "service", "Armed", null, "2026-08-05T09:00:00.000Z", "2026-09-05", "2026-09-05", "LOKD Academy", PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO officer_endorsements
-      (id, officer_id, code, label, category, service_type, purpose_code, status, assessed_at, expires_at, next_due_at, assessor, client_visible)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?, ?, 1)`)
-      .bind("END-VIP-001", PILOT_OFFICER_ID, "service_vip", "Protective Operations specialist", "service", "VIP", null, "2026-08-08T09:00:00.000Z", "2026-11-30", "2026-09-08", "LOKD Academy"),
+      (id, officer_id, code, label, category, service_type, purpose_code, status, environment, integrity_state,
+       assessed_at, expires_at, next_due_at, assessor, client_visible)
+      SELECT ?, passport.officer_id, ?, ?, ?, ?, ?, 'current', 'demo', 'synthetic', ?, ?, ?, ?, 1
+      FROM officer_passports passport WHERE passport.officer_id = ?
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("END-VIP-001", "service_vip", "Protective Operations specialist", "service", "VIP", null, "2026-08-08T09:00:00.000Z", "2026-11-30", "2026-09-08", "LOKD Academy", PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO officer_endorsements
-      (id, officer_id, code, label, category, service_type, purpose_code, status, assessed_at, expires_at, next_due_at, assessor, client_visible)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?, ?, 1)`)
-      .bind("END-COM-001", PILOT_OFFICER_ID, "purpose_commercial_access", "Commercial access", "purpose", null, "commercial_access", "2026-08-10T09:00:00.000Z", "2026-12-31", "2026-12-01", "LOKD Academy"),
+      (id, officer_id, code, label, category, service_type, purpose_code, status, environment, integrity_state,
+       assessed_at, expires_at, next_due_at, assessor, client_visible)
+      SELECT ?, passport.officer_id, ?, ?, ?, ?, ?, 'current', 'demo', 'synthetic', ?, ?, ?, ?, 1
+      FROM officer_passports passport WHERE passport.officer_id = ?
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("END-COM-001", "purpose_commercial_access", "Commercial access", "purpose", null, "commercial_access", "2026-08-10T09:00:00.000Z", "2026-12-31", "2026-12-01", "LOKD Academy", PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO officer_endorsements
-      (id, officer_id, code, label, category, service_type, purpose_code, status, assessed_at, expires_at, next_due_at, assessor, client_visible)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?, ?, 1)`)
-      .bind("END-CON-001", PILOT_OFFICER_ID, "purpose_construction", "Construction sites", "purpose", null, "construction", "2026-08-10T10:00:00.000Z", "2026-12-31", "2026-12-01", "LOKD Academy"),
+      (id, officer_id, code, label, category, service_type, purpose_code, status, environment, integrity_state,
+       assessed_at, expires_at, next_due_at, assessor, client_visible)
+      SELECT ?, passport.officer_id, ?, ?, ?, ?, ?, 'current', 'demo', 'synthetic', ?, ?, ?, ?, 1
+      FROM officer_passports passport WHERE passport.officer_id = ?
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("END-CON-001", "purpose_construction", "Construction sites", "purpose", null, "construction", "2026-08-10T10:00:00.000Z", "2026-12-31", "2026-12-01", "LOKD Academy", PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO officer_endorsements
-      (id, officer_id, code, label, category, service_type, purpose_code, status, assessed_at, expires_at, next_due_at, assessor, client_visible)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?, ?, 1)`)
-      .bind("END-EXE-001", PILOT_OFFICER_ID, "purpose_executive_protection", "Executive protection", "purpose", null, "executive_protection", "2026-08-08T10:00:00.000Z", "2026-11-30", "2026-09-08", "LOKD Academy"),
+      (id, officer_id, code, label, category, service_type, purpose_code, status, environment, integrity_state,
+       assessed_at, expires_at, next_due_at, assessor, client_visible)
+      SELECT ?, passport.officer_id, ?, ?, ?, ?, ?, 'current', 'demo', 'synthetic', ?, ?, ?, ?, 1
+      FROM officer_passports passport WHERE passport.officer_id = ?
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("END-EXE-001", "purpose_executive_protection", "Executive protection", "purpose", null, "executive_protection", "2026-08-08T10:00:00.000Z", "2026-11-30", "2026-09-08", "LOKD Academy", PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO compliance_records
-      (id, officer_id, record_type, status, verified_at, expires_at, next_due_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .bind("CMP-PSIRA-001", PILOT_OFFICER_ID, "PSiRA registration", "current", "2026-08-02T09:00:00.000Z", "2027-05-31", null),
+      (id, officer_id, record_type, status, environment, integrity_state, verified_at, expires_at, next_due_at)
+      SELECT ?, passport.officer_id, ?, ?, 'demo', 'synthetic', ?, ?, ? FROM officer_passports passport
+      WHERE passport.officer_id = ? AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("CMP-PSIRA-001", "PSiRA registration", "current", "2026-08-02T09:00:00.000Z", "2027-05-31", null, PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO compliance_records
-      (id, officer_id, record_type, status, verified_at, expires_at, next_due_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .bind("CMP-FIREARM-001", PILOT_OFFICER_ID, "Firearm competency", "current", "2026-08-02T09:15:00.000Z", "2028-02-10", null),
+      (id, officer_id, record_type, status, environment, integrity_state, verified_at, expires_at, next_due_at)
+      SELECT ?, passport.officer_id, ?, ?, 'demo', 'synthetic', ?, ?, ? FROM officer_passports passport
+      WHERE passport.officer_id = ? AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("CMP-FIREARM-001", "Firearm competency", "current", "2026-08-02T09:15:00.000Z", "2028-02-10", null, PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO compliance_records
-      (id, officer_id, record_type, status, verified_at, expires_at, next_due_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .bind("CMP-REG21-001", PILOT_OFFICER_ID, "Regulation 21 record", "current", "2025-11-14T10:00:00.000Z", null, "2026-11-14"),
+      (id, officer_id, record_type, status, environment, integrity_state, verified_at, expires_at, next_due_at)
+      SELECT ?, passport.officer_id, ?, ?, 'demo', 'synthetic', ?, ?, ? FROM officer_passports passport
+      WHERE passport.officer_id = ? AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("CMP-REG21-001", "Regulation 21 record", "current", "2025-11-14T10:00:00.000Z", null, "2026-11-14", PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO clients
-      (id, organisation_name, contact_name, contact_email, approval_status)
-      VALUES (?, ?, ?, ?, ?)`)
+      (id, organisation_name, contact_name, contact_email, approval_status, environment, integrity_state)
+      VALUES (?, ?, ?, ?, ?, 'demo', 'synthetic')`)
       .bind(PILOT_CLIENT_ID, "Northbridge Property Services", "Nadia Jacobs", "nadia@northbridge.example", "approved"),
     db.prepare(`INSERT OR IGNORE INTO bookings
-      (id, client_id, site_name, site_area, post_name, service_type, minimum_grade, contract_months, start_date, end_date, shift_start, shift_end, client_price_cents, officer_rate_cents, funding_status, release_cadence, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("BK-2081", PILOT_CLIENT_ID, "Northbridge Rosebank Offices", "Rosebank", "Main access", "Unarmed", "Grade C", 1, "2026-08-01", "2026-08-31", "06:00", "18:00", primaryQuote.clientPriceCents, primaryQuote.officerRateCents, "paid_in_full", "Weekly", "active"),
+      (id, client_id, site_name, site_area, post_name, service_type, minimum_grade, contract_months, start_date, end_date,
+       shift_start, shift_end, client_price_cents, officer_rate_cents, environment, integrity_state, funding_status, release_cadence, status)
+      SELECT ?, client.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'demo', 'synthetic', ?, ?, ?
+      FROM clients client WHERE client.id = ? AND client.environment = 'demo' AND client.integrity_state = 'synthetic'`)
+      .bind("BK-2081", "Northbridge Rosebank Offices", "Rosebank", "Main access", "Unarmed", "Grade C", 1,
+        "2026-08-01", "2026-08-31", "06:00", "18:00", primaryQuote.clientPriceCents, primaryQuote.officerRateCents,
+        "paid_in_full", "Weekly", "active", PILOT_CLIENT_ID),
     db.prepare(`INSERT OR IGNORE INTO bookings
-      (id, client_id, site_name, site_area, post_name, service_type, minimum_grade, contract_months, start_date, end_date, shift_start, shift_end, client_price_cents, officer_rate_cents, funding_status, release_cadence, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("BK-2080", PILOT_CLIENT_ID, "Northbridge Rosebank Offices", "Rosebank", "Main access", "Unarmed", "Grade C", 1, "2026-08-01", "2026-08-31", "06:00", "18:00", primaryQuote.clientPriceCents, primaryQuote.officerRateCents, "paid_in_full", "Weekly", "active"),
+      (id, client_id, site_name, site_area, post_name, service_type, minimum_grade, contract_months, start_date, end_date,
+       shift_start, shift_end, client_price_cents, officer_rate_cents, environment, integrity_state, funding_status, release_cadence, status)
+      SELECT ?, client.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'demo', 'synthetic', ?, ?, ?
+      FROM clients client WHERE client.id = ? AND client.environment = 'demo' AND client.integrity_state = 'synthetic'`)
+      .bind("BK-2080", "Northbridge Rosebank Offices", "Rosebank", "Main access", "Unarmed", "Grade C", 1,
+        "2026-08-01", "2026-08-31", "06:00", "18:00", primaryQuote.clientPriceCents, primaryQuote.officerRateCents,
+        "paid_in_full", "Weekly", "active", PILOT_CLIENT_ID),
     db.prepare(`INSERT OR IGNORE INTO bookings
-      (id, client_id, site_name, site_area, post_name, service_type, minimum_grade, contract_months, start_date, end_date, shift_start, shift_end, client_price_cents, officer_rate_cents, funding_status, release_cadence, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("BK-2084", PILOT_CLIENT_ID, "Metsi Midrand Depot", "Midrand", "Contractor access", "Unarmed", "Grade C", 1, "2026-08-22", "2026-09-21", "06:00", "18:00", depotQuote.clientPriceCents, depotQuote.officerRateCents, "paid_in_full", "Weekly", "offered"),
+      (id, client_id, site_name, site_area, post_name, service_type, minimum_grade, contract_months, start_date, end_date,
+       shift_start, shift_end, client_price_cents, officer_rate_cents, environment, integrity_state, funding_status, release_cadence, status)
+      SELECT ?, client.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'demo', 'synthetic', ?, ?, ?
+      FROM clients client WHERE client.id = ? AND client.environment = 'demo' AND client.integrity_state = 'synthetic'`)
+      .bind("BK-2084", "Metsi Midrand Depot", "Midrand", "Contractor access", "Unarmed", "Grade C", 1,
+        "2026-08-22", "2026-09-21", "06:00", "18:00", depotQuote.clientPriceCents, depotQuote.officerRateCents,
+        "paid_in_full", "Weekly", "offered", PILOT_CLIENT_ID),
     db.prepare(`INSERT OR IGNORE INTO bookings
-      (id, client_id, site_name, site_area, post_name, service_type, minimum_grade, contract_months, start_date, end_date, shift_start, shift_end, client_price_cents, officer_rate_cents, funding_status, release_cadence, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("BK-2078", PILOT_CLIENT_ID, "Sandton Executive Centre", "Sandton", "Executive reception", "VIP", "Grade B", 6, "2026-03-01", "2026-08-31", "08:00", "20:00", vipQuote.clientPriceCents, vipQuote.officerRateCents, "paid_in_full", "Monthly", "active"),
+      (id, client_id, site_name, site_area, post_name, service_type, minimum_grade, contract_months, start_date, end_date,
+       shift_start, shift_end, client_price_cents, officer_rate_cents, environment, integrity_state, funding_status, release_cadence, status)
+      SELECT ?, client.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'demo', 'synthetic', ?, ?, ?
+      FROM clients client WHERE client.id = ? AND client.environment = 'demo' AND client.integrity_state = 'synthetic'`)
+      .bind("BK-2078", "Sandton Executive Centre", "Sandton", "Executive reception", "VIP", "Grade B", 6,
+        "2026-03-01", "2026-08-31", "08:00", "20:00", vipQuote.clientPriceCents, vipQuote.officerRateCents,
+        "paid_in_full", "Monthly", "active", PILOT_CLIENT_ID),
     db.prepare(`INSERT OR IGNORE INTO offers
       (id, booking_id, officer_id, amount_cents, status, expires_at, responded_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .bind("OF-2084", "BK-2084", PILOT_OFFICER_ID, depotQuote.officerRateCents, "open", "2026-08-21T18:00:00.000Z", null),
+      SELECT ?, booking.id, passport.officer_id, ?, ?, ?, ?
+      FROM bookings booking JOIN officer_passports passport ON passport.officer_id = ?
+      WHERE booking.id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("OF-2084", depotQuote.officerRateCents, "open", "2026-08-21T18:00:00.000Z", null,
+        PILOT_OFFICER_ID, "BK-2084"),
     db.prepare(`INSERT OR IGNORE INTO shifts
-      (id, booking_id, officer_id, scheduled_date, status, check_in_at, check_out_at, client_signoff_status, signed_off_at, earnings_cents)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("SH-2081", "BK-2081", PILOT_OFFICER_ID, "2026-08-21", "on_post", "2026-08-21T03:54:00.000Z", null, "not_due", null, 80000),
+      (id, booking_id, officer_id, scheduled_date, environment, integrity_state, status, check_in_at, check_out_at,
+       client_signoff_status, signed_off_at, earnings_cents)
+      SELECT ?, booking.id, passport.officer_id, ?, 'demo', 'synthetic', ?, ?, ?, ?, ?, ?
+      FROM bookings booking JOIN officer_passports passport ON passport.officer_id = ?
+      WHERE booking.id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("SH-2081", "2026-08-21", "on_post", "2026-08-21T03:54:00.000Z", null, "not_due", null, 80000,
+        PILOT_OFFICER_ID, "BK-2081"),
     db.prepare(`INSERT OR IGNORE INTO shifts
-      (id, booking_id, officer_id, scheduled_date, status, check_in_at, check_out_at, client_signoff_status, signed_off_at, earnings_cents)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("SH-2080", "BK-2080", PILOT_OFFICER_ID, "2026-08-18", "completed", "2026-08-18T03:55:00.000Z", "2026-08-18T16:03:00.000Z", "pending", null, 80000),
+      (id, booking_id, officer_id, scheduled_date, environment, integrity_state, status, check_in_at, check_out_at,
+       client_signoff_status, signed_off_at, earnings_cents)
+      SELECT ?, booking.id, passport.officer_id, ?, 'demo', 'synthetic', ?, ?, ?, ?, ?, ?
+      FROM bookings booking JOIN officer_passports passport ON passport.officer_id = ?
+      WHERE booking.id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("SH-2080", "2026-08-18", "completed", "2026-08-18T03:55:00.000Z", "2026-08-18T16:03:00.000Z", "pending", null, 80000,
+        PILOT_OFFICER_ID, "BK-2080"),
     db.prepare(`INSERT OR IGNORE INTO shifts
-      (id, booking_id, officer_id, scheduled_date, status, check_in_at, check_out_at, client_signoff_status, signed_off_at, earnings_cents)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("SH-2077", "BK-2081", PILOT_OFFICER_ID, "2026-08-14", "verified", "2026-08-14T03:53:00.000Z", "2026-08-14T16:01:00.000Z", "approved", "2026-08-14T16:15:00.000Z", 80000),
+      (id, booking_id, officer_id, scheduled_date, environment, integrity_state, status, check_in_at, check_out_at,
+       client_signoff_status, signed_off_at, earnings_cents)
+      SELECT ?, booking.id, passport.officer_id, ?, 'demo', 'synthetic', ?, ?, ?, ?, ?, ?
+      FROM bookings booking JOIN officer_passports passport ON passport.officer_id = ?
+      WHERE booking.id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("SH-2077", "2026-08-14", "verified", "2026-08-14T03:53:00.000Z", "2026-08-14T16:01:00.000Z", "approved",
+        "2026-08-14T16:15:00.000Z", 80000, PILOT_OFFICER_ID, "BK-2081"),
     db.prepare(`INSERT OR IGNORE INTO shifts
-      (id, booking_id, officer_id, scheduled_date, status, check_in_at, check_out_at, client_signoff_status, signed_off_at, earnings_cents)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("SH-2078", "BK-2078", PILOT_OFFICER_ID, "2026-07-31", "verified", "2026-07-31T05:56:00.000Z", "2026-07-31T18:04:00.000Z", "approved", "2026-07-31T18:20:00.000Z", 450000),
+      (id, booking_id, officer_id, scheduled_date, environment, integrity_state, status, check_in_at, check_out_at,
+       client_signoff_status, signed_off_at, earnings_cents)
+      SELECT ?, booking.id, passport.officer_id, ?, 'demo', 'synthetic', ?, ?, ?, ?, ?, ?
+      FROM bookings booking JOIN officer_passports passport ON passport.officer_id = ?
+      WHERE booking.id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("SH-2078", "2026-07-31", "verified", "2026-07-31T05:56:00.000Z", "2026-07-31T18:04:00.000Z", "approved",
+        "2026-07-31T18:20:00.000Z", 450000, PILOT_OFFICER_ID, "BK-2078"),
     db.prepare(`INSERT OR IGNORE INTO ledger_entries
       (id, officer_id, shift_id, amount_cents, state, release_cadence, eligible_release_at, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("LE-2077", PILOT_OFFICER_ID, "SH-2077", 80000, "available", "Weekly", "2026-08-15T08:00:00.000Z", "2026-08-14T16:15:00.000Z", "2026-08-15T08:00:00.000Z"),
+      SELECT ?, shift.officer_id, shift.id, ?, ?, ?, ?, ?, ?
+      FROM shifts shift JOIN bookings booking ON booking.id = shift.booking_id
+      WHERE shift.id = ? AND shift.officer_id = ?
+        AND shift.environment = 'demo' AND shift.integrity_state = 'synthetic'
+        AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'`)
+      .bind("LE-2077", 80000, "available", "Weekly", "2026-08-15T08:00:00.000Z", "2026-08-14T16:15:00.000Z",
+        "2026-08-15T08:00:00.000Z", "SH-2077", PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO ledger_entries
       (id, officer_id, shift_id, amount_cents, state, release_cadence, eligible_release_at, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("LE-2080", PILOT_OFFICER_ID, "SH-2080", 80000, "pending_signoff", "Weekly", null, "2026-08-18T16:03:00.000Z", "2026-08-18T16:03:00.000Z"),
+      SELECT ?, shift.officer_id, shift.id, ?, ?, ?, ?, ?, ?
+      FROM shifts shift JOIN bookings booking ON booking.id = shift.booking_id
+      WHERE shift.id = ? AND shift.officer_id = ?
+        AND shift.environment = 'demo' AND shift.integrity_state = 'synthetic'
+        AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'`)
+      .bind("LE-2080", 80000, "pending_signoff", "Weekly", null, "2026-08-18T16:03:00.000Z",
+        "2026-08-18T16:03:00.000Z", "SH-2080", PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO ledger_entries
       (id, officer_id, shift_id, amount_cents, state, release_cadence, eligible_release_at, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("LE-2078", PILOT_OFFICER_ID, "SH-2078", 450000, "pending_release", "Monthly", "2026-08-20T08:00:00.000Z", "2026-07-31T18:20:00.000Z", "2026-07-31T18:20:00.000Z"),
+      SELECT ?, shift.officer_id, shift.id, ?, ?, ?, ?, ?, ?
+      FROM shifts shift JOIN bookings booking ON booking.id = shift.booking_id
+      WHERE shift.id = ? AND shift.officer_id = ?
+        AND shift.environment = 'demo' AND shift.integrity_state = 'synthetic'
+        AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'`)
+      .bind("LE-2078", 450000, "pending_release", "Monthly", "2026-08-20T08:00:00.000Z", "2026-07-31T18:20:00.000Z",
+        "2026-07-31T18:20:00.000Z", "SH-2078", PILOT_OFFICER_ID),
     db.prepare(`INSERT OR IGNORE INTO audit_events
       (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind("AUD-001", "system", "LOKD", "pilot_seeded", "officer", PILOT_OFFICER_ID, "Verified pilot profile and funded contracts loaded.", "2026-08-21T08:00:00.000Z"),
-    db.prepare(`UPDATE officers SET flex_available = 1, external_work_acknowledged = 1, rest_window_confirmed = 1 WHERE id = ?`).bind(PILOT_OFFICER_ID),
+      SELECT ?, ?, ?, ?, ?, passport.officer_id, ?, ? FROM officer_passports passport
+      WHERE passport.officer_id = ? AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})`)
+      .bind("AUD-001", "system", "LOKD", "pilot_seeded", "officer", "Verified pilot profile and funded contracts loaded.",
+        "2026-08-21T08:00:00.000Z", PILOT_OFFICER_ID),
+    db.prepare(`UPDATE officers SET flex_available = 1, external_work_acknowledged = 1, rest_window_confirmed = 1
+      WHERE id = ?
+        AND ${PILOT_OFFICER_UPDATE_GUARD("officers.id")}`).bind(PILOT_OFFICER_ID),
     db.prepare(`UPDATE bookings SET purpose_code = 'commercial_access', purpose_label = 'Commercial access',
       engagement_model = 'fixed', notice_window = 'standard', roster_pattern = 'monday_saturday',
       calendar_category = ?, calendar_label = ?, risk_band = ?, risk_score = ?, risk_reasons = ?, required_endorsements = ?,
       manual_review = ?, shift_count = ?, client_price_cents = ?, officer_rate_cents = ?, officer_total_cents = ?,
       gross_platform_contribution_cents = ?, pricing_version = ?, pricing_breakdown = ?
-      WHERE id IN ('BK-2081', 'BK-2080')`).bind(
+      WHERE id IN ('BK-2081', 'BK-2080') AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(
         primaryQuote.firstCalendarCategory, primaryQuote.firstCalendarLabel, primaryQuote.risk.band, primaryQuote.risk.score,
         JSON.stringify(primaryQuote.risk.reasons), JSON.stringify(primaryQuote.risk.requiredEndorsements), primaryQuote.manualReview ? 1 : 0,
         primaryQuote.shiftCount, primaryQuote.clientPriceCents, primaryQuote.officerRateCents, primaryQuote.officerTotalCents,
@@ -195,7 +417,8 @@ async function ensurePilotData(db: D1Database) {
       engagement_model = 'fixed', notice_window = 'standard', roster_pattern = 'monday_saturday',
       calendar_category = ?, calendar_label = ?, risk_band = ?, risk_score = ?, risk_reasons = ?, required_endorsements = ?,
       manual_review = ?, shift_count = ?, client_price_cents = ?, officer_rate_cents = ?, officer_total_cents = ?,
-      gross_platform_contribution_cents = ?, pricing_version = ?, pricing_breakdown = ? WHERE id = 'BK-2084'`).bind(
+      gross_platform_contribution_cents = ?, pricing_version = ?, pricing_breakdown = ? WHERE id = 'BK-2084'
+        AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(
         depotQuote.firstCalendarCategory, depotQuote.firstCalendarLabel, depotQuote.risk.band, depotQuote.risk.score,
         JSON.stringify(depotQuote.risk.reasons), JSON.stringify(depotQuote.risk.requiredEndorsements), depotQuote.manualReview ? 1 : 0,
         depotQuote.shiftCount, depotQuote.clientPriceCents, depotQuote.officerRateCents, depotQuote.officerTotalCents,
@@ -206,27 +429,55 @@ async function ensurePilotData(db: D1Database) {
           riskPremiumCents: depotQuote.riskPremiumCents,
         }),
       ),
-    db.prepare(`UPDATE officer_services SET qualified = 1 WHERE officer_id = ? AND service_type = 'VIP'`).bind(PILOT_OFFICER_ID),
+    db.prepare(`UPDATE officer_services SET qualified = 1 WHERE officer_id = ? AND service_type = 'VIP'
+      AND ${PILOT_OFFICER_UPDATE_GUARD("officer_services.officer_id")}`)
+      .bind(PILOT_OFFICER_ID),
     db.prepare(`UPDATE bookings SET service_type = 'VIP', purpose_code = 'executive_protection', purpose_label = 'Executive protection',
       engagement_model = 'fixed', notice_window = 'standard', roster_pattern = 'weekdays', calendar_category = ?, calendar_label = ?,
       risk_band = ?, risk_score = ?, risk_reasons = ?, required_endorsements = ?, manual_review = 1, shift_count = ?,
       client_price_cents = ?, officer_rate_cents = ?, officer_total_cents = ?, gross_platform_contribution_cents = ?,
-      pricing_version = ?, pricing_breakdown = ?, minimum_grade = 'Grade B' WHERE id = 'BK-2078'`).bind(
+      pricing_version = ?, pricing_breakdown = ?, minimum_grade = 'Grade B' WHERE id = 'BK-2078'
+        AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(
         vipQuote.firstCalendarCategory, vipQuote.firstCalendarLabel, vipQuote.risk.band, vipQuote.risk.score,
         JSON.stringify(vipQuote.risk.reasons), JSON.stringify(vipQuote.risk.requiredEndorsements), vipQuote.shiftCount,
         vipQuote.clientPriceCents, vipQuote.officerRateCents, vipQuote.officerTotalCents, vipQuote.grossPlatformContributionCents,
         vipQuote.version, JSON.stringify({ baseClientCents: vipQuote.baseClientCents, calendarPremiumCents: vipQuote.calendarPremiumCents,
           dispatchPremiumCents: vipQuote.dispatchPremiumCents, riskPremiumCents: vipQuote.riskPremiumCents }),
       ),
-    db.prepare(`UPDATE offers SET amount_cents = ? WHERE id = 'OF-2084' AND status = 'open'`).bind(depotQuote.officerRateCents),
-    db.prepare(`UPDATE shifts SET earnings_cents = 80000 WHERE id IN ('SH-2081', 'SH-2080', 'SH-2077')`),
-    db.prepare(`UPDATE shifts SET earnings_cents = 450000 WHERE id = 'SH-2078'`),
-    db.prepare(`UPDATE ledger_entries SET amount_cents = 80000 WHERE id IN ('LE-2077', 'LE-2080')`),
-    db.prepare(`UPDATE ledger_entries SET amount_cents = 450000 WHERE id = 'LE-2078'`),
+    db.prepare(`UPDATE offers SET amount_cents = ? WHERE id = 'OF-2084' AND status = 'open'
+      AND booking_id IN (SELECT id FROM bookings WHERE id = 'BK-2084' AND client_id = ?
+        AND environment = 'demo' AND integrity_state = 'synthetic')`)
+      .bind(depotQuote.officerRateCents, PILOT_CLIENT_ID),
+    db.prepare(`UPDATE bookings SET status = 'offered' WHERE id = 'BK-2084'
+      AND environment = 'demo' AND integrity_state = 'synthetic'
+      AND EXISTS (SELECT 1 FROM offers WHERE id = 'OF-2084' AND booking_id = 'BK-2084' AND status = 'open')
+      AND NOT EXISTS (SELECT 1 FROM offers WHERE booking_id = 'BK-2084' AND status = 'accepted')`),
+    db.prepare(`UPDATE shifts SET earnings_cents = 80000 WHERE id IN ('SH-2081', 'SH-2080', 'SH-2077')
+      AND environment = 'demo' AND integrity_state = 'synthetic'
+      AND booking_id IN (SELECT id FROM bookings WHERE client_id = ?
+        AND environment = 'demo' AND integrity_state = 'synthetic')`).bind(PILOT_CLIENT_ID),
+    db.prepare(`UPDATE shifts SET earnings_cents = 450000 WHERE id = 'SH-2078'
+      AND environment = 'demo' AND integrity_state = 'synthetic'
+      AND booking_id IN (SELECT id FROM bookings WHERE client_id = ?
+        AND environment = 'demo' AND integrity_state = 'synthetic')`).bind(PILOT_CLIENT_ID),
+    db.prepare(`UPDATE ledger_entries SET amount_cents = 80000 WHERE id IN ('LE-2077', 'LE-2080')
+      AND shift_id IN (SELECT shift.id FROM shifts shift JOIN bookings booking ON booking.id = shift.booking_id
+        WHERE shift.environment = 'demo' AND shift.integrity_state = 'synthetic'
+          AND booking.client_id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic')`).bind(PILOT_CLIENT_ID),
+    db.prepare(`UPDATE ledger_entries SET amount_cents = 450000 WHERE id = 'LE-2078'
+      AND shift_id IN (SELECT shift.id FROM shifts shift JOIN bookings booking ON booking.id = shift.booking_id
+        WHERE shift.environment = 'demo' AND shift.integrity_state = 'synthetic'
+          AND booking.client_id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic')`).bind(PILOT_CLIENT_ID),
     db.prepare(`UPDATE offers SET expires_at = '2026-09-05T16:00:00.000Z'
-      WHERE id = 'OF-2084' AND status = 'open' AND expires_at = '2026-08-21T18:00:00.000Z'`),
+      WHERE id = 'OF-2084' AND status = 'open' AND expires_at = '2026-08-21T18:00:00.000Z'
+        AND booking_id IN (SELECT id FROM bookings WHERE id = 'BK-2084' AND client_id = ?
+          AND environment = 'demo' AND integrity_state = 'synthetic')`).bind(PILOT_CLIENT_ID),
     db.prepare(`UPDATE shifts SET passport_verification_status = 'green', passport_verified_at = COALESCE(passport_verified_at, ?)
-      WHERE id = 'SH-2081' AND passport_verification_status = 'not_checked'`).bind("2026-08-21T03:54:00.000Z"),
+      WHERE id = 'SH-2081' AND passport_verification_status = 'not_checked'
+        AND environment = 'demo' AND integrity_state = 'synthetic'
+        AND booking_id IN (SELECT id FROM bookings WHERE client_id = ?
+          AND environment = 'demo' AND integrity_state = 'synthetic')`)
+      .bind("2026-08-21T03:54:00.000Z", PILOT_CLIENT_ID),
   ]);
 }
 
@@ -263,7 +514,7 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
     psira_grade AS psiraGrade, psira_expiry AS psiraExpiry, approval_status AS approvalStatus,
     banking_status AS bankingStatus, flex_available AS flexAvailable,
     external_work_acknowledged AS externalWorkAcknowledged, rest_window_confirmed AS restWindowConfirmed
-    FROM officers WHERE id = ?`).bind(PILOT_OFFICER_ID).first<{
+    FROM officers WHERE id = ? AND ${PILOT_OFFICER_UPDATE_GUARD("officers.id")}`).bind(PILOT_OFFICER_ID).first<{
       id: string; fullName: string; city: string; psiraNumber: string; psiraGrade: string;
       psiraExpiry: string; approvalStatus: string; bankingStatus: string; flexAvailable: number;
       externalWorkAcknowledged: number; restWindowConfirmed: number;
@@ -271,14 +522,16 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
   if (!officer) throw new PilotError("The pilot officer profile is unavailable.", 500);
 
   const client = await db.prepare(`SELECT id, organisation_name AS organisationName, contact_name AS contactName,
-    approval_status AS approvalStatus FROM clients WHERE id = ?`).bind(PILOT_CLIENT_ID).first<{
+    approval_status AS approvalStatus FROM clients WHERE id = ?
+      AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(PILOT_CLIENT_ID).first<{
       id: string; organisationName: string; contactName: string; approvalStatus: string;
     }>();
   if (!client) throw new PilotError("The pilot client profile is unavailable.", 500);
 
   const passportRow = await db.prepare(`SELECT passport_number AS passportNumber, status, readiness_label AS readinessLabel,
     issued_at AS issuedAt, last_reviewed_at AS lastReviewedAt, next_review_at AS nextReviewAt
-    FROM officer_passports WHERE officer_id = ?`).bind(PILOT_OFFICER_ID).first<{
+    FROM officer_passports WHERE officer_id = ? AND environment = 'demo' AND integrity_state = 'synthetic'`)
+    .bind(PILOT_OFFICER_ID).first<{
       passportNumber: string; status: PilotState["officer"]["passport"]["status"]; readinessLabel: string;
       issuedAt: string | null; lastReviewedAt: string | null; nextReviewAt: string | null;
     }>();
@@ -299,11 +552,13 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
   const services = await all<{ serviceType: ServiceType; qualified: number; optedIn: number; qualificationExpiry: string | null }>(
     db.prepare(`SELECT service_type AS serviceType, qualified, opted_in AS optedIn,
       qualification_expiry AS qualificationExpiry FROM officer_services WHERE officer_id = ?
+        AND ${PILOT_OFFICER_UPDATE_GUARD("officer_services.officer_id")}
       ORDER BY CASE service_type WHEN 'Unarmed' THEN 1 WHEN 'Armed' THEN 2 ELSE 3 END`).bind(PILOT_OFFICER_ID),
   );
   const compliance = await all<{ id: string; recordType: string; status: string; expiresAt: string | null; nextDueAt: string | null }>(
     db.prepare(`SELECT id, record_type AS recordType, status, expires_at AS expiresAt, next_due_at AS nextDueAt
-      FROM compliance_records WHERE officer_id = ? ORDER BY record_type`).bind(PILOT_OFFICER_ID),
+      FROM compliance_records WHERE officer_id = ? AND environment = 'demo' AND integrity_state = 'synthetic'
+      ORDER BY record_type`).bind(PILOT_OFFICER_ID),
   );
   const offers = await all<{
     id: string; bookingId: string; siteName: string; siteArea: string; postName: string; serviceType: ServiceType;
@@ -320,7 +575,8 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
     b.contract_months AS contractMonths, b.start_date AS startDate, b.shift_start AS shiftStart, b.shift_end AS shiftEnd,
     o.amount_cents AS amountCents, b.release_cadence AS releaseCadence, b.funding_status AS fundingStatus,
     o.status, o.expires_at AS expiresAt FROM offers o JOIN bookings b ON b.id = o.booking_id
-    WHERE o.officer_id = ? ORDER BY o.expires_at DESC`).bind(PILOT_OFFICER_ID));
+    WHERE o.officer_id = ? AND b.client_id = ? AND b.environment = 'demo' AND b.integrity_state = 'synthetic'
+    ORDER BY o.expires_at DESC`).bind(PILOT_OFFICER_ID, PILOT_CLIENT_ID));
   const parsedOffers = offers.map(({ requiredEndorsementsJson, ...offer }) => ({
     ...offer,
     requiredEndorsements: parseStringArray(requiredEndorsementsJson),
@@ -351,8 +607,10 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
     b.funding_status AS fundingStatus, b.release_cadence AS releaseCadence, b.status,
     (SELECT status FROM offers WHERE booking_id = b.id ORDER BY rowid DESC LIMIT 1) AS offerStatus,
     (SELECT o.full_name FROM shifts s JOIN officers o ON o.id = s.officer_id
-      WHERE s.booking_id = b.id ORDER BY s.rowid DESC LIMIT 1) AS assignedOfficer
-    FROM bookings b WHERE b.client_id = ? ORDER BY b.rowid DESC LIMIT 24`).bind(PILOT_CLIENT_ID));
+      WHERE s.booking_id = b.id AND s.environment = 'demo' AND s.integrity_state = 'synthetic'
+      ORDER BY s.rowid DESC LIMIT 1) AS assignedOfficer
+    FROM bookings b WHERE b.client_id = ? AND b.environment = 'demo' AND b.integrity_state = 'synthetic'
+    ORDER BY b.rowid DESC LIMIT 24`).bind(PILOT_CLIENT_ID));
   const bookings = await Promise.all(bookingRows.map(async (booking) => {
     const readiness = await evaluateBookingReadiness(db, PILOT_OFFICER_ID, booking.id, {
       assignmentDate: booking.startDate,
@@ -391,7 +649,10 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
     s.passport_verification_status AS passportVerificationStatus, s.passport_verified_at AS passportVerifiedAt,
     s.earnings_cents AS earningsCents,
     b.release_cadence AS releaseCadence FROM shifts s JOIN bookings b ON b.id = s.booking_id
-    WHERE s.officer_id = ? ORDER BY s.scheduled_date DESC, s.id DESC`).bind(PILOT_OFFICER_ID));
+    WHERE s.officer_id = ? AND b.client_id = ?
+      AND s.environment = 'demo' AND s.integrity_state = 'synthetic'
+      AND b.environment = 'demo' AND b.integrity_state = 'synthetic'
+    ORDER BY s.scheduled_date DESC, s.id DESC`).bind(PILOT_OFFICER_ID, PILOT_CLIENT_ID));
   const ledger = await all<{
     id: string; shiftId: string; bookingId: string; siteName: string; amountCents: number;
     state: "pending_signoff" | "pending_release" | "available" | "withdrawal_queued" | "paid" | "held";
@@ -400,7 +661,10 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
     l.amount_cents AS amountCents, l.state, l.release_cadence AS releaseCadence,
     l.eligible_release_at AS eligibleReleaseAt, l.updated_at AS updatedAt
     FROM ledger_entries l JOIN shifts s ON s.id = l.shift_id JOIN bookings b ON b.id = s.booking_id
-    WHERE l.officer_id = ? ORDER BY l.updated_at DESC`).bind(PILOT_OFFICER_ID));
+    WHERE l.officer_id = ? AND b.client_id = ?
+      AND s.environment = 'demo' AND s.integrity_state = 'synthetic'
+      AND b.environment = 'demo' AND b.integrity_state = 'synthetic'
+    ORDER BY l.updated_at DESC`).bind(PILOT_OFFICER_ID, PILOT_CLIENT_ID));
   const audit = await all<{
     id: string; actorType: string; eventType: string; entityType: string; entityId: string; detail: string; createdAt: string;
   }>(db.prepare(`SELECT id, actor_type AS actorType, event_type AS eventType, entity_type AS entityType,
@@ -461,7 +725,8 @@ function requireShortText(value: unknown, label: string, maximum: number) {
 
 async function releaseOfferWave(db: D1Database, bookingId: string, actorId: string) {
   const booking = await db.prepare(`SELECT id, start_date AS startDate, funding_status AS fundingStatus,
-    officer_rate_cents AS officerRateCents, engagement_model AS engagementModel, status FROM bookings WHERE id = ? AND client_id = ?`)
+    officer_rate_cents AS officerRateCents, engagement_model AS engagementModel, status FROM bookings
+    WHERE id = ? AND client_id = ? AND environment = 'demo' AND integrity_state = 'synthetic'`)
     .bind(bookingId, PILOT_CLIENT_ID).first<{
       id: string; startDate: string; fundingStatus: string; officerRateCents: number; engagementModel: "fixed" | "flex"; status: string;
     }>();
@@ -469,11 +734,19 @@ async function releaseOfferWave(db: D1Database, bookingId: string, actorId: stri
   if (booking.fundingStatus !== "paid_in_full") throw new PilotError("The full contract payment must be confirmed before matching.", 409);
   if (booking.status === "staffed" || booking.status === "active") throw new PilotError("This booking is already staffed.", 409);
 
-  const existing = await db.prepare(`SELECT id, status FROM offers WHERE booking_id = ? AND officer_id = ?
-    AND status IN ('open', 'accepted') ORDER BY rowid DESC LIMIT 1`).bind(bookingId, PILOT_OFFICER_ID)
+  const existing = await db.prepare(`SELECT offer.id, offer.status FROM offers offer
+    JOIN bookings booking ON booking.id = offer.booking_id
+    WHERE offer.booking_id = ? AND offer.officer_id = ? AND offer.status IN ('open', 'accepted')
+      AND booking.client_id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'
+    ORDER BY offer.rowid DESC LIMIT 1`).bind(bookingId, PILOT_OFFICER_ID, PILOT_CLIENT_ID)
     .first<{ id: string; status: string }>();
   if (existing) {
-    if (existing.status === "open") await db.prepare(`UPDATE bookings SET status = 'offered' WHERE id = ?`).bind(bookingId).run();
+    if (existing.status === "open") {
+      await db.prepare(`UPDATE bookings SET status = 'offered' WHERE id = ? AND client_id = ?
+        AND environment = 'demo' AND integrity_state = 'synthetic'
+        AND EXISTS (SELECT 1 FROM offers WHERE id = ? AND booking_id = bookings.id AND status = 'open')`)
+        .bind(bookingId, PILOT_CLIENT_ID, existing.id).run();
+    }
     return { released: existing.status === "open", blockers: [] as string[] };
   }
 
@@ -483,7 +756,8 @@ async function releaseOfferWave(db: D1Database, bookingId: string, actorId: stri
   });
   const availability = booking.engagementModel === "flex"
     ? await db.prepare(`SELECT flex_available AS flexAvailable, external_work_acknowledged AS externalWorkAcknowledged,
-        rest_window_confirmed AS restWindowConfirmed FROM officers WHERE id = ?`).bind(PILOT_OFFICER_ID)
+        rest_window_confirmed AS restWindowConfirmed FROM officers WHERE id = ?
+        AND ${PILOT_OFFICER_UPDATE_GUARD("officers.id")}`).bind(PILOT_OFFICER_ID)
       .first<{ flexAvailable: number; externalWorkAcknowledged: number; restWindowConfirmed: number }>()
     : null;
   const availabilityBlockers = booking.engagementModel === "flex" ? [
@@ -493,7 +767,9 @@ async function releaseOfferWave(db: D1Database, bookingId: string, actorId: stri
   ].filter(Boolean) : [];
   const blockers = [...readiness.blockers, ...availabilityBlockers];
   if (!readiness.eligible || blockers.length) {
-    await db.prepare(`UPDATE bookings SET status = 'matching' WHERE id = ?`).bind(bookingId).run();
+    await db.prepare(`UPDATE bookings SET status = 'matching' WHERE id = ? AND client_id = ?
+      AND environment = 'demo' AND integrity_state = 'synthetic'`)
+      .bind(bookingId, PILOT_CLIENT_ID).run();
     await recordAudit(db, "operations", actorId, "offer_wave_blocked", "booking", bookingId, `No pilot officer matched: ${blockers.join(" ")}`);
     return { released: false, blockers };
   }
@@ -502,9 +778,26 @@ async function releaseOfferWave(db: D1Database, bookingId: string, actorId: stri
   const offerId = `OF-DEMO-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
   await db.batch([
     db.prepare(`INSERT INTO offers (id, booking_id, officer_id, amount_cents, status, expires_at, responded_at)
-      VALUES (?, ?, ?, ?, 'open', ?, NULL)`).bind(offerId, bookingId, PILOT_OFFICER_ID, booking.officerRateCents, expiresAt),
-    db.prepare(`UPDATE bookings SET status = 'offered' WHERE id = ? AND funding_status = 'paid_in_full'`).bind(bookingId),
+      SELECT ?, booking.id, passport.officer_id, booking.officer_rate_cents, 'open', ?, NULL
+      FROM bookings booking JOIN officer_passports passport ON passport.officer_id = ?
+      WHERE booking.id = ? AND booking.client_id = ?
+        AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'
+        AND booking.funding_status = 'paid_in_full' AND booking.status NOT IN ('staffed', 'active')
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+        AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})
+        AND NOT EXISTS (SELECT 1 FROM offers current_offer WHERE current_offer.booking_id = booking.id
+          AND current_offer.officer_id = passport.officer_id AND current_offer.status IN ('open', 'accepted'))`)
+      .bind(offerId, expiresAt, PILOT_OFFICER_ID, bookingId, PILOT_CLIENT_ID),
+    db.prepare(`UPDATE bookings SET status = 'offered' WHERE id = ? AND client_id = ?
+      AND environment = 'demo' AND integrity_state = 'synthetic' AND funding_status = 'paid_in_full'
+      AND EXISTS (SELECT 1 FROM offers WHERE id = ? AND booking_id = bookings.id AND status = 'open')`)
+      .bind(bookingId, PILOT_CLIENT_ID, offerId),
   ]);
+  const released = await db.prepare(`SELECT 1 AS present FROM offers offer JOIN bookings booking ON booking.id = offer.booking_id
+    WHERE offer.id = ? AND offer.booking_id = ? AND offer.officer_id = ? AND offer.status = 'open'
+      AND booking.client_id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'`)
+    .bind(offerId, bookingId, PILOT_OFFICER_ID, PILOT_CLIENT_ID).first<{ present: number }>();
+  if (!released) throw new PilotError("The synthetic offer could not be released from the verified demo booking.", 409);
   await recordAudit(db, "operations", actorId, "offer_wave_released", "booking", bookingId, "Funded booking passed Passport, grade, service, purpose and opt-in controls; fixed offer released.");
   return { released: true, blockers: [] as string[] };
 }
@@ -513,35 +806,72 @@ async function resetDemo(db: D1Database, actorId: string) {
   const now = new Date();
   const offerExpiry = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
   await db.batch([
-    db.prepare(`DELETE FROM relief_dispatch_events`),
-    db.prepare(`DELETE FROM relief_dispatches`),
-    db.prepare(`DELETE FROM operational_exceptions WHERE id LIKE 'EXC-REL-%'`),
+    db.prepare(`UPDATE relief_dispatches SET status = 'cancelled', active_key = NULL, closed_at = ?,
+      version = version + 1 WHERE environment = 'demo' AND integrity_state = 'synthetic'
+      AND status NOT IN ('cancelled', 'closed', 'replaced')`).bind(now.toISOString()),
+    db.prepare(`DELETE FROM operational_exceptions WHERE id LIKE 'EXC-REL-%'
+      AND site_id IN (SELECT id FROM operational_sites WHERE environment = 'demo' AND integrity_state = 'synthetic')`),
     db.prepare(`UPDATE roster_slots SET status = CASE WHEN EXISTS (
         SELECT 1 FROM roster_assignments ra WHERE ra.roster_slot_id = roster_slots.id AND ra.active_key = roster_slots.id
       ) THEN 'scheduled' ELSE 'uncovered' END, absence_reason = CASE WHEN id = 'SLOT-LIN-02'
-      THEN 'Additional coverage requirement' ELSE NULL END, version = 1, updated_at = ?`).bind(now.toISOString()),
-    db.prepare(`DELETE FROM audit_events WHERE entity_type = 'relief_dispatch'`),
-    db.prepare(`DELETE FROM incident_events WHERE incident_id IN (SELECT id FROM site_incidents WHERE id LIKE 'INC-RPT-%' OR id LIKE 'INC-OPS-%')`),
-    db.prepare(`DELETE FROM site_incidents WHERE id LIKE 'INC-RPT-%' OR id LIKE 'INC-OPS-%'`),
-    db.prepare(`DELETE FROM incident_events WHERE incident_id = 'INC-DEMO-001' AND id <> 'IE-DEMO-001'`),
+      THEN 'Additional coverage requirement' ELSE NULL END, version = 1, updated_at = ?
+      WHERE environment = 'demo' AND integrity_state = 'synthetic'`).bind(now.toISOString()),
+    db.prepare(`DELETE FROM audit_events WHERE entity_type = 'relief_dispatch'
+      AND entity_id IN (SELECT id FROM relief_dispatches WHERE environment = 'demo' AND integrity_state = 'synthetic')`),
+    db.prepare(`DELETE FROM incident_events WHERE incident_id IN (SELECT incident.id FROM site_incidents incident
+      JOIN operational_sites site ON site.id = incident.site_id
+      WHERE (incident.id LIKE 'INC-RPT-%' OR incident.id LIKE 'INC-OPS-%')
+        AND site.environment = 'demo' AND site.integrity_state = 'synthetic')`),
+    db.prepare(`DELETE FROM site_incidents WHERE (id LIKE 'INC-RPT-%' OR id LIKE 'INC-OPS-%')
+      AND site_id IN (SELECT id FROM operational_sites WHERE environment = 'demo' AND integrity_state = 'synthetic')`),
+    db.prepare(`DELETE FROM incident_events WHERE incident_id = 'INC-DEMO-001' AND id <> 'IE-DEMO-001'
+      AND EXISTS (SELECT 1 FROM site_incidents incident JOIN operational_sites site ON site.id = incident.site_id
+        WHERE incident.id = incident_events.incident_id AND site.environment = 'demo' AND site.integrity_state = 'synthetic')`),
     db.prepare(`UPDATE site_incidents SET status = 'open', owner_id = NULL, acknowledged_at = NULL,
       acknowledged_by = NULL, resolved_at = NULL, resolved_by = NULL, resolution_note = NULL, version = 1
-      WHERE id = 'INC-DEMO-001'`),
+      WHERE id = 'INC-DEMO-001' AND site_id IN (
+        SELECT id FROM operational_sites WHERE environment = 'demo' AND integrity_state = 'synthetic')`),
     db.prepare(`UPDATE operational_exceptions SET status = 'new', owner_id = NULL, acknowledged_at = NULL,
       resolved_at = NULL, resolution_code = NULL, resolution_note = NULL, version = 1
-      WHERE id = 'EXC-DEMO-001'`),
-    db.prepare(`DELETE FROM ledger_entries WHERE shift_id IN (SELECT id FROM shifts WHERE booking_id LIKE 'BK-DEMO-%')`),
-    db.prepare(`DELETE FROM shifts WHERE booking_id LIKE 'BK-DEMO-%' OR id = 'SH-2084'`),
-    db.prepare(`DELETE FROM offers WHERE booking_id LIKE 'BK-DEMO-%'`),
-    db.prepare(`DELETE FROM bookings WHERE id LIKE 'BK-DEMO-%'`),
+      WHERE id = 'EXC-DEMO-001' AND site_id IN (
+        SELECT id FROM operational_sites WHERE environment = 'demo' AND integrity_state = 'synthetic')`),
+    db.prepare(`DELETE FROM ledger_entries WHERE shift_id IN (SELECT shift.id FROM shifts shift
+      JOIN bookings booking ON booking.id = shift.booking_id
+      WHERE booking.id LIKE 'BK-DEMO-%' AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'
+        AND shift.environment = 'demo' AND shift.integrity_state = 'synthetic')`),
+    db.prepare(`DELETE FROM shifts WHERE environment = 'demo' AND integrity_state = 'synthetic'
+      AND booking_id IN (SELECT id FROM bookings WHERE client_id = ?
+        AND environment = 'demo' AND integrity_state = 'synthetic'
+        AND (id LIKE 'BK-DEMO-%' OR id = 'BK-2084'))`).bind(PILOT_CLIENT_ID),
+    db.prepare(`DELETE FROM offers WHERE booking_id IN (SELECT id FROM bookings WHERE id LIKE 'BK-DEMO-%'
+      AND environment = 'demo' AND integrity_state = 'synthetic')`),
+    db.prepare(`DELETE FROM bookings WHERE id LIKE 'BK-DEMO-%' AND client_id = ?
+      AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(PILOT_CLIENT_ID),
     db.prepare(`UPDATE officer_services SET opted_in = CASE service_type WHEN 'Unarmed' THEN 1 ELSE 0 END
-      WHERE officer_id = ?`).bind(PILOT_OFFICER_ID),
-    db.prepare(`UPDATE offers SET status = 'open', responded_at = NULL, amount_cents = 80000, expires_at = ? WHERE id = 'OF-2084'`).bind(offerExpiry),
-    db.prepare(`UPDATE bookings SET status = 'offered', funding_status = 'paid_in_full' WHERE id = 'BK-2084'`),
-    db.prepare(`UPDATE shifts SET status = 'completed', client_signoff_status = 'pending', signed_off_at = NULL WHERE id = 'SH-2080'`),
-    db.prepare(`UPDATE ledger_entries SET state = 'pending_signoff', eligible_release_at = NULL, updated_at = ? WHERE id = 'LE-2080'`).bind(now.toISOString()),
-    db.prepare(`UPDATE ledger_entries SET state = 'available', updated_at = ? WHERE id = 'LE-2077'`).bind(now.toISOString()),
-    db.prepare(`DELETE FROM payout_requests WHERE officer_id = ? AND status = 'queued_for_thursday'`).bind(PILOT_OFFICER_ID),
+      WHERE officer_id = ?
+        AND ${PILOT_OFFICER_UPDATE_GUARD("officer_services.officer_id")}`)
+      .bind(PILOT_OFFICER_ID),
+    db.prepare(`UPDATE offers SET status = 'open', responded_at = NULL, amount_cents = 80000, expires_at = ?
+      WHERE id = 'OF-2084' AND booking_id IN (SELECT id FROM bookings WHERE id = 'BK-2084' AND client_id = ?
+        AND environment = 'demo' AND integrity_state = 'synthetic')`).bind(offerExpiry, PILOT_CLIENT_ID),
+    db.prepare(`UPDATE bookings SET status = 'offered', funding_status = 'paid_in_full'
+      WHERE id = 'BK-2084' AND client_id = ? AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(PILOT_CLIENT_ID),
+    db.prepare(`UPDATE shifts SET status = 'completed', client_signoff_status = 'pending', signed_off_at = NULL
+      WHERE id = 'SH-2080' AND environment = 'demo' AND integrity_state = 'synthetic'
+        AND booking_id IN (SELECT id FROM bookings WHERE id = 'BK-2080' AND client_id = ?
+          AND environment = 'demo' AND integrity_state = 'synthetic')`).bind(PILOT_CLIENT_ID),
+    db.prepare(`UPDATE ledger_entries SET state = 'pending_signoff', eligible_release_at = NULL, updated_at = ?
+      WHERE id = 'LE-2080' AND shift_id IN (SELECT shift.id FROM shifts shift JOIN bookings booking ON booking.id = shift.booking_id
+        WHERE shift.id = 'SH-2080' AND shift.environment = 'demo' AND shift.integrity_state = 'synthetic'
+          AND booking.client_id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic')`)
+      .bind(now.toISOString(), PILOT_CLIENT_ID),
+    db.prepare(`UPDATE ledger_entries SET state = 'available', updated_at = ?
+      WHERE id = 'LE-2077' AND shift_id IN (SELECT shift.id FROM shifts shift JOIN bookings booking ON booking.id = shift.booking_id
+        WHERE shift.id = 'SH-2077' AND shift.environment = 'demo' AND shift.integrity_state = 'synthetic'
+          AND booking.client_id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic')`)
+      .bind(now.toISOString(), PILOT_CLIENT_ID),
+    db.prepare(`DELETE FROM payout_requests WHERE id LIKE 'PAY-DEMO-%' AND officer_id = ?
+      AND status = 'queued_for_thursday'`).bind(PILOT_OFFICER_ID),
   ]);
   await recordAudit(db, "operations", actorId, "demo_reset", "pilot", "LOKD-PHASE-1", "Shared transactional demo returned to its opening state. Applications and team feedback were preserved.");
 }
@@ -586,15 +916,18 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
       throw new PilotError(cause instanceof Error ? cause.message : "The booking could not be priced.");
     }
     const bookingId = `BK-DEMO-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
-    await db.prepare(`INSERT INTO bookings
+    const created = await db.prepare(`INSERT INTO bookings
       (id, client_id, site_name, site_area, post_name, service_type, purpose_code, purpose_label,
        engagement_model, notice_window, roster_pattern, calendar_category, calendar_label,
        risk_band, risk_score, risk_reasons, required_endorsements, manual_review, shift_count,
        minimum_grade, contract_months, start_date, end_date, shift_start, shift_end,
        client_price_cents, officer_rate_cents, officer_total_cents, gross_platform_contribution_cents,
-       pricing_version, pricing_breakdown, funding_status, release_cadence, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(bookingId, PILOT_CLIENT_ID, "Northbridge Rosebank Offices", "Rosebank", postName,
+       pricing_version, pricing_breakdown, environment, integrity_state, funding_status, release_cadence, status)
+      SELECT ?, client.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        'demo', 'synthetic', ?, ?, ?
+      FROM clients client
+      WHERE client.id = ? AND client.environment = 'demo' AND client.integrity_state = 'synthetic'`)
+      .bind(bookingId, "Northbridge Rosebank Offices", "Rosebank", postName,
         payload.serviceType, purpose.code, purpose.label, quote.engagementModel, quote.noticeWindow, payload.rosterPattern,
         quote.firstCalendarCategory, quote.firstCalendarLabel, quote.risk.band, quote.risk.score,
         JSON.stringify(quote.risk.reasons), JSON.stringify(quote.risk.requiredEndorsements), quote.manualReview ? 1 : 0,
@@ -603,7 +936,8 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
         quote.version, JSON.stringify({ baseClientCents: quote.baseClientCents, calendarPremiumCents: quote.calendarPremiumCents,
           dispatchPremiumCents: quote.dispatchPremiumCents, riskPremiumCents: quote.riskPremiumCents }),
         quote.manualReview ? "review_required" : "awaiting_payment", quote.releaseCadence,
-        quote.manualReview ? "risk_review" : "awaiting_payment").run();
+        quote.manualReview ? "risk_review" : "awaiting_payment", PILOT_CLIENT_ID).run();
+    if (!created.meta.changes) throw new PilotError("The verified synthetic demo client is unavailable.", 503);
     await recordAudit(db, "client", actor.email, "booking_created", "booking", bookingId,
       `${PRICE_BOOK_VERSION}; ${quote.engagementModel}; ${quote.noticeLabel}; ${quote.risk.band} ${quote.risk.score}; ${quote.shiftCount} shift${quote.shiftCount === 1 ? "" : "s"}; ${instructions}`);
     return;
@@ -611,7 +945,8 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
 
   if (payload.action === "approve_risk_plan") {
     const result = await db.prepare(`UPDATE bookings SET funding_status = 'awaiting_payment', status = 'awaiting_payment'
-      WHERE id = ? AND client_id = ? AND status = 'risk_review'`)
+      WHERE id = ? AND client_id = ? AND status = 'risk_review'
+        AND environment = 'demo' AND integrity_state = 'synthetic'`)
       .bind(payload.bookingId, PILOT_CLIENT_ID).run();
     if (!result.meta.changes) throw new PilotError("This booking is not awaiting an operations risk review.", 409);
     await recordAudit(db, "operations", actor.email, "risk_plan_approved", "booking", payload.bookingId,
@@ -621,7 +956,8 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
 
   if (payload.action === "confirm_booking_payment") {
     const result = await db.prepare(`UPDATE bookings SET funding_status = 'paid_in_full', status = 'matching'
-      WHERE id = ? AND client_id = ? AND funding_status = 'awaiting_payment'`)
+      WHERE id = ? AND client_id = ? AND funding_status = 'awaiting_payment'
+        AND environment = 'demo' AND integrity_state = 'synthetic'`)
       .bind(payload.bookingId, PILOT_CLIENT_ID).run();
     if (!result.meta.changes) throw new PilotError("This demo booking is not awaiting payment confirmation.", 409);
     await recordAudit(db, "operations", actor.email, "demo_payment_confirmed", "booking", payload.bookingId,
@@ -644,7 +980,9 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
   if (payload.action === "accept_offer") {
     const offer = await db.prepare(`SELECT o.id, o.booking_id AS bookingId, o.status, o.amount_cents AS amountCents,
       o.expires_at AS expiresAt, b.start_date AS startDate, b.engagement_model AS engagementModel FROM offers o JOIN bookings b ON b.id = o.booking_id
-      WHERE o.id = ? AND o.officer_id = ?`).bind(payload.offerId, PILOT_OFFICER_ID).first<{
+      WHERE o.id = ? AND o.officer_id = ? AND b.client_id = ?
+        AND b.environment = 'demo' AND b.integrity_state = 'synthetic'`)
+      .bind(payload.offerId, PILOT_OFFICER_ID, PILOT_CLIENT_ID).first<{
         id: string; bookingId: string; status: string; amountCents: number; startDate: string; expiresAt: string; engagementModel: "fixed" | "flex";
       }>();
     if (!offer) throw new PilotError("This offer is not available to the pilot officer.", 404);
@@ -658,36 +996,61 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
     if (offer.engagementModel === "flex") {
       const availability = await db.prepare(`SELECT flex_available AS flexAvailable,
         external_work_acknowledged AS externalWorkAcknowledged, rest_window_confirmed AS restWindowConfirmed
-        FROM officers WHERE id = ?`).bind(PILOT_OFFICER_ID)
+        FROM officers WHERE id = ? AND ${PILOT_OFFICER_UPDATE_GUARD("officers.id")}`).bind(PILOT_OFFICER_ID)
         .first<{ flexAvailable: number; externalWorkAcknowledged: number; restWindowConfirmed: number }>();
       if (!availability?.flexAvailable || !availability.externalWorkAcknowledged || !availability.restWindowConfirmed) {
         throw new PilotError("Flex availability, external-work declaration and rest confirmation must still be current.", 409);
       }
     }
     const now = new Date().toISOString();
-    const claimed = await db.prepare(`UPDATE bookings SET status = 'staffed' WHERE id = ?
-      AND funding_status = 'paid_in_full' AND status IN ('offered', 'matching')
-      AND NOT EXISTS (SELECT 1 FROM offers WHERE booking_id = ? AND status = 'accepted')`)
-      .bind(offer.bookingId, offer.bookingId).run();
-    if (!claimed.meta.changes) throw new PilotError("Another officer secured this booking first.", 409);
-    await db.batch([
-      db.prepare(`UPDATE offers SET status = 'accepted', responded_at = ?
-        WHERE id = ? AND officer_id = ? AND status = 'open'`).bind(now, payload.offerId, PILOT_OFFICER_ID),
-      db.prepare(`UPDATE offers SET status = 'expired', responded_at = ? WHERE booking_id = ? AND id <> ? AND status = 'open'`)
-        .bind(now, offer.bookingId, payload.offerId),
-      db.prepare(`INSERT OR IGNORE INTO shifts
-        (id, booking_id, officer_id, scheduled_date, status, check_in_at, check_out_at, client_signoff_status, signed_off_at, earnings_cents)
-        VALUES (?, ?, ?, ?, 'confirmed', NULL, NULL, 'not_due', NULL, ?)`)
-        .bind(`SH-${offer.bookingId.slice(3)}`, offer.bookingId, PILOT_OFFICER_ID, offer.startDate, offer.amountCents),
-    ]);
-    await recordAudit(db, "officer", actor.email, "offer_accepted", "offer", payload.offerId, "Officer accepted the fixed offer; competing offers expired.");
+    try {
+      await db.batch([
+        db.prepare(`UPDATE bookings SET status = 'staffed' WHERE id = ?
+          AND environment = 'demo' AND integrity_state = 'synthetic'
+          AND funding_status = 'paid_in_full' AND status IN ('offered', 'matching')
+          AND NOT EXISTS (SELECT 1 FROM offers WHERE booking_id = ? AND status = 'accepted')`)
+          .bind(offer.bookingId, offer.bookingId),
+        db.prepare(`UPDATE offers SET status = 'accepted', responded_at = ?
+          WHERE id = ? AND officer_id = ? AND status = 'open'
+          AND EXISTS (SELECT 1 FROM bookings WHERE id = ? AND status = 'staffed'
+            AND client_id = ? AND environment = 'demo' AND integrity_state = 'synthetic')`)
+          .bind(now, payload.offerId, PILOT_OFFICER_ID, offer.bookingId, PILOT_CLIENT_ID),
+        db.prepare(`UPDATE offers SET status = 'expired', responded_at = ? WHERE booking_id = ? AND id <> ?
+          AND status = 'open'
+          AND booking_id IN (SELECT id FROM bookings WHERE client_id = ?
+            AND environment = 'demo' AND integrity_state = 'synthetic')
+          AND EXISTS (SELECT 1 FROM offers winner WHERE winner.id = ? AND winner.booking_id = offers.booking_id
+            AND winner.status = 'accepted')`)
+          .bind(now, offer.bookingId, payload.offerId, PILOT_CLIENT_ID, payload.offerId),
+        db.prepare(`INSERT INTO shifts
+          (id, booking_id, officer_id, scheduled_date, environment, integrity_state, status, check_in_at, check_out_at,
+           client_signoff_status, signed_off_at, earnings_cents)
+          VALUES (?,
+            (SELECT booking.id FROM bookings booking JOIN offers accepted_offer ON accepted_offer.booking_id = booking.id
+              WHERE booking.id = ? AND booking.client_id = ? AND booking.environment = 'demo'
+                AND booking.integrity_state = 'synthetic' AND accepted_offer.id = ?
+                AND accepted_offer.officer_id = ? AND accepted_offer.status = 'accepted'),
+            (SELECT passport.officer_id FROM officer_passports passport WHERE passport.officer_id = ?
+              AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+              AND NOT (${PILOT_OFFICER_PRODUCTION_HISTORY("passport.officer_id")})),
+            ?, 'demo', 'synthetic', 'confirmed', NULL, NULL, 'not_due', NULL, ?)`)
+          .bind(`SH-${offer.bookingId.slice(3)}`, offer.bookingId, PILOT_CLIENT_ID, payload.offerId, PILOT_OFFICER_ID,
+            PILOT_OFFICER_ID, offer.startDate, offer.amountCents),
+      ]);
+    } catch {
+      throw new PilotError("Another officer secured this synthetic demo booking first.", 409);
+    }
+    await recordAudit(db, "officer", actor.email, "synthetic_offer_accepted", "offer", payload.offerId,
+      "DEMO ONLY: officer accepted the synthetic offer. No production assignment activation or payroll liability was created.");
     return;
   }
 
   if (payload.action === "decline_offer") {
     const result = await db.prepare(`UPDATE offers SET status = 'declined', responded_at = ?
-      WHERE id = ? AND officer_id = ? AND status = 'open'`)
-      .bind(new Date().toISOString(), payload.offerId, PILOT_OFFICER_ID).run();
+      WHERE id = ? AND officer_id = ? AND status = 'open'
+        AND booking_id IN (SELECT id FROM bookings WHERE client_id = ?
+          AND environment = 'demo' AND integrity_state = 'synthetic')`)
+      .bind(new Date().toISOString(), payload.offerId, PILOT_OFFICER_ID, PILOT_CLIENT_ID).run();
     if (!result.meta.changes) throw new PilotError("This offer is no longer open.", 409);
     await recordAudit(db, "officer", actor.email, "offer_declined", "offer", payload.offerId, "Officer declined the offer; no penalty was applied.");
     return;
@@ -698,8 +1061,11 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
       .bind(PILOT_OFFICER_ID, payload.serviceType).first<{ qualified: number }>();
     if (!service) throw new PilotError("That service preference is unavailable.", 404);
     if (payload.optedIn && !service.qualified) throw new PilotError("Qualification must be verified before this offer type can be enabled.", 409);
-    await db.prepare(`UPDATE officer_services SET opted_in = ? WHERE officer_id = ? AND service_type = ?`)
+    const result = await db.prepare(`UPDATE officer_services SET opted_in = ?
+      WHERE officer_id = ? AND service_type = ?
+        AND ${PILOT_OFFICER_UPDATE_GUARD("officer_services.officer_id")}`)
       .bind(payload.optedIn ? 1 : 0, PILOT_OFFICER_ID, payload.serviceType).run();
+    if (!result.meta.changes) throw new PilotError("Demo preferences are locked once an officer has production workforce history.", 423);
     await recordAudit(db, "officer", actor.email, "offer_preference_changed", "officer", PILOT_OFFICER_ID, `${payload.serviceType} offer notifications switched ${payload.optedIn ? "on" : "off"}.`);
     return;
   }
@@ -708,17 +1074,26 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
     if (payload.available && (!payload.externalWorkAcknowledged || !payload.restWindowConfirmed)) {
       throw new PilotError("Confirm both the external-work declaration and rest window before going available for Flex.", 409);
     }
-    await db.prepare(`UPDATE officers SET flex_available = ?, external_work_acknowledged = ?, rest_window_confirmed = ? WHERE id = ?`)
-      .bind(payload.available ? 1 : 0, payload.externalWorkAcknowledged ? 1 : 0, payload.restWindowConfirmed ? 1 : 0, PILOT_OFFICER_ID).run();
+    const result = await db.prepare(`UPDATE officers SET flex_available = ?, external_work_acknowledged = ?, rest_window_confirmed = ?
+      WHERE id = ?
+        AND ${PILOT_OFFICER_UPDATE_GUARD("officers.id")}`)
+      .bind(payload.available ? 1 : 0, payload.externalWorkAcknowledged ? 1 : 0,
+        payload.restWindowConfirmed ? 1 : 0, PILOT_OFFICER_ID).run();
+    if (!result.meta.changes) throw new PilotError("Demo availability is locked once an officer has production workforce history.", 423);
     await recordAudit(db, "officer", actor.email, "flex_availability_changed", "officer", PILOT_OFFICER_ID,
       `Flex availability switched ${payload.available ? "on" : "off"}; external-work and rest declarations recorded.`);
     return;
   }
 
   if (payload.action === "check_in") {
-    const shift = await db.prepare(`SELECT booking_id AS bookingId, scheduled_date AS scheduledDate,
-      passport_verification_status AS passportVerificationStatus FROM shifts WHERE id = ? AND officer_id = ?`)
-      .bind(payload.shiftId, PILOT_OFFICER_ID).first<{ bookingId: string; scheduledDate: string; passportVerificationStatus: string }>();
+    const shift = await db.prepare(`SELECT shift.booking_id AS bookingId, shift.scheduled_date AS scheduledDate,
+      shift.passport_verification_status AS passportVerificationStatus FROM shifts shift
+      JOIN bookings booking ON booking.id = shift.booking_id
+      WHERE shift.id = ? AND shift.officer_id = ?
+        AND shift.environment = 'demo' AND shift.integrity_state = 'synthetic'
+        AND booking.client_id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'`)
+      .bind(payload.shiftId, PILOT_OFFICER_ID, PILOT_CLIENT_ID)
+      .first<{ bookingId: string; scheduledDate: string; passportVerificationStatus: string }>();
     if (!shift) throw new PilotError("This shift is not assigned to the pilot officer.", 404);
     const readiness = await evaluateBookingReadiness(db, PILOT_OFFICER_ID, shift.bookingId, {
       assignmentDate: shift.scheduledDate,
@@ -726,8 +1101,11 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
     if (!readiness.eligible) throw new PilotError(`LOKD Passport gate: ${readiness.blockers.join(" ")}`, 409);
     if (shift.passportVerificationStatus !== "green") throw new PilotError("Ask the client to scan your booking QR before check-in.", 409);
     const result = await db.prepare(`UPDATE shifts SET status = 'on_post', check_in_at = ?
-      WHERE id = ? AND officer_id = ? AND status = 'confirmed'`)
-      .bind(new Date().toISOString(), payload.shiftId, PILOT_OFFICER_ID).run();
+      WHERE id = ? AND officer_id = ? AND status = 'confirmed'
+        AND environment = 'demo' AND integrity_state = 'synthetic'
+        AND booking_id IN (SELECT id FROM bookings WHERE client_id = ?
+          AND environment = 'demo' AND integrity_state = 'synthetic')`)
+      .bind(new Date().toISOString(), payload.shiftId, PILOT_OFFICER_ID, PILOT_CLIENT_ID).run();
     if (!result.meta.changes) throw new PilotError("This shift cannot be checked in from its current state.", 409);
     await recordAudit(db, "officer", actor.email, "shift_checked_in", "shift", payload.shiftId, "Officer check-in recorded using server time. Location verification remains a production integration.");
     return;
@@ -736,17 +1114,27 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
   if (payload.action === "complete_shift") {
     const shift = await db.prepare(`SELECT s.id, s.earnings_cents AS earningsCents, b.release_cadence AS releaseCadence
       FROM shifts s JOIN bookings b ON b.id = s.booking_id
-      WHERE s.id = ? AND s.officer_id = ? AND s.status = 'on_post'`)
-      .bind(payload.shiftId, PILOT_OFFICER_ID).first<{ id: string; earningsCents: number; releaseCadence: "Weekly" | "Monthly" }>();
+      WHERE s.id = ? AND s.officer_id = ? AND s.status = 'on_post'
+        AND s.environment = 'demo' AND s.integrity_state = 'synthetic'
+        AND b.client_id = ? AND b.environment = 'demo' AND b.integrity_state = 'synthetic'`)
+      .bind(payload.shiftId, PILOT_OFFICER_ID, PILOT_CLIENT_ID)
+      .first<{ id: string; earningsCents: number; releaseCadence: "Weekly" | "Monthly" }>();
     if (!shift) throw new PilotError("This shift cannot be completed from its current state.", 409);
     const now = new Date().toISOString();
     await db.batch([
-      db.prepare(`UPDATE shifts SET status = 'completed', check_out_at = ?, client_signoff_status = 'pending' WHERE id = ?`)
-        .bind(now, payload.shiftId),
+      db.prepare(`UPDATE shifts SET status = 'completed', check_out_at = ?, client_signoff_status = 'pending'
+        WHERE id = ? AND environment = 'demo' AND integrity_state = 'synthetic'
+          AND booking_id IN (SELECT id FROM bookings WHERE client_id = ?
+            AND environment = 'demo' AND integrity_state = 'synthetic')`)
+        .bind(now, payload.shiftId, PILOT_CLIENT_ID),
       db.prepare(`INSERT OR IGNORE INTO ledger_entries
         (id, officer_id, shift_id, amount_cents, state, release_cadence, eligible_release_at, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 'pending_signoff', ?, NULL, ?, ?)`)
-        .bind(`LE-${payload.shiftId.slice(3)}`, PILOT_OFFICER_ID, payload.shiftId, shift.earningsCents, shift.releaseCadence, now, now),
+        SELECT ?, demo_shift.officer_id, demo_shift.id, demo_shift.earnings_cents, 'pending_signoff', booking.release_cadence,
+          NULL, ?, ? FROM shifts demo_shift JOIN bookings booking ON booking.id = demo_shift.booking_id
+        WHERE demo_shift.id = ? AND demo_shift.officer_id = ? AND demo_shift.status = 'completed'
+          AND demo_shift.environment = 'demo' AND demo_shift.integrity_state = 'synthetic'
+          AND booking.client_id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'`)
+        .bind(`LE-${payload.shiftId.slice(3)}`, now, now, payload.shiftId, PILOT_OFFICER_ID, PILOT_CLIENT_ID),
     ]);
     await recordAudit(db, "officer", actor.email, "shift_completed", "shift", payload.shiftId, "Officer completed the shift; earnings are awaiting service verification.");
     return;
@@ -754,9 +1142,12 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
 
   if (payload.action === "report_issue") {
     const shift = await db.prepare(`SELECT s.id, os.id AS siteId FROM shifts s
+      JOIN bookings booking ON booking.id = s.booking_id
       LEFT JOIN operational_sites os ON os.booking_id = s.booking_id
-      WHERE s.id = ? AND s.officer_id = ?`)
-      .bind(payload.shiftId, PILOT_OFFICER_ID).first<{ id: string; siteId: string | null }>();
+        AND os.environment = 'demo' AND os.integrity_state = 'synthetic'
+      WHERE s.id = ? AND s.officer_id = ? AND s.environment = 'demo' AND s.integrity_state = 'synthetic'
+        AND booking.client_id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'`)
+      .bind(payload.shiftId, PILOT_OFFICER_ID, PILOT_CLIENT_ID).first<{ id: string; siteId: string | null }>();
     if (!shift) throw new PilotError("This issue is not linked to one of your shifts.", 404);
     const category = payload.category.trim().slice(0, 80);
     if (!category) throw new PilotError("Choose an issue category.", 400);
@@ -790,7 +1181,10 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
   if (payload.action === "client_signoff") {
     const shift = await db.prepare(`SELECT s.id, s.client_signoff_status AS signoffStatus,
       b.release_cadence AS releaseCadence FROM shifts s JOIN bookings b ON b.id = s.booking_id
-      WHERE s.id = ? AND b.client_id = ?`).bind(payload.shiftId, PILOT_CLIENT_ID).first<{
+      WHERE s.id = ? AND b.client_id = ?
+        AND s.environment = 'demo' AND s.integrity_state = 'synthetic'
+        AND b.environment = 'demo' AND b.integrity_state = 'synthetic'`)
+      .bind(payload.shiftId, PILOT_CLIENT_ID).first<{
         id: string; signoffStatus: string; releaseCadence: "Weekly" | "Monthly";
       }>();
     if (!shift) throw new PilotError("This shift is not available to this client.", 404);
@@ -798,10 +1192,17 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
     const now = new Date().toISOString();
     const releaseAt = nextReleaseAt(shift.releaseCadence);
     await db.batch([
-      db.prepare(`UPDATE shifts SET status = 'verified', client_signoff_status = 'approved', signed_off_at = ? WHERE id = ?`)
-        .bind(now, payload.shiftId),
+      db.prepare(`UPDATE shifts SET status = 'verified', client_signoff_status = 'approved', signed_off_at = ?
+        WHERE id = ? AND environment = 'demo' AND integrity_state = 'synthetic'
+          AND booking_id IN (SELECT id FROM bookings WHERE client_id = ?
+            AND environment = 'demo' AND integrity_state = 'synthetic')`)
+        .bind(now, payload.shiftId, PILOT_CLIENT_ID),
       db.prepare(`UPDATE ledger_entries SET state = 'pending_release', eligible_release_at = ?, updated_at = ?
-        WHERE shift_id = ? AND state = 'pending_signoff'`).bind(releaseAt, now, payload.shiftId),
+        WHERE shift_id = ? AND state = 'pending_signoff'
+          AND shift_id IN (SELECT demo_shift.id FROM shifts demo_shift JOIN bookings booking ON booking.id = demo_shift.booking_id
+            WHERE demo_shift.environment = 'demo' AND demo_shift.integrity_state = 'synthetic'
+              AND booking.client_id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic')`)
+        .bind(releaseAt, now, payload.shiftId, PILOT_CLIENT_ID),
     ]);
     await recordAudit(db, "client", actor.email, "shift_signed_off", "shift", payload.shiftId, `Client verified the completed shift; earnings scheduled for the ${shift.releaseCadence.toLowerCase()} release.`);
     return;
@@ -810,8 +1211,11 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
   if (payload.action === "release_earnings") {
     const now = new Date().toISOString();
     const result = await db.prepare(`UPDATE ledger_entries SET state = 'available', updated_at = ?
-      WHERE state = 'pending_release' AND eligible_release_at IS NOT NULL AND eligible_release_at <= ?`)
-      .bind(now, now).run();
+      WHERE state = 'pending_release' AND eligible_release_at IS NOT NULL AND eligible_release_at <= ?
+        AND shift_id IN (SELECT shift.id FROM shifts shift JOIN bookings booking ON booking.id = shift.booking_id
+          WHERE shift.environment = 'demo' AND shift.integrity_state = 'synthetic'
+            AND booking.client_id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic')`)
+      .bind(now, now, PILOT_CLIENT_ID).run();
     if (!result.meta.changes) throw new PilotError("No verified earnings are due for release yet.", 409);
     await recordAudit(db, "operations", actor.email, "earnings_released", "ledger", "release-batch", `${result.meta.changes} verified earning entr${result.meta.changes === 1 ? "y" : "ies"} moved to Available.`);
     return;
@@ -819,15 +1223,22 @@ async function applyAction(db: D1Database, payload: PilotAction, actor: PilotPri
 
   if (payload.action === "request_payout") {
     const available = await db.prepare(`SELECT COALESCE(SUM(amount_cents), 0) AS amountCents
-      FROM ledger_entries WHERE officer_id = ? AND state = 'available'`)
-      .bind(PILOT_OFFICER_ID).first<{ amountCents: number }>();
+      FROM ledger_entries WHERE officer_id = ? AND state = 'available'
+        AND shift_id IN (SELECT shift.id FROM shifts shift JOIN bookings booking ON booking.id = shift.booking_id
+          WHERE shift.environment = 'demo' AND shift.integrity_state = 'synthetic'
+            AND booking.client_id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic')`)
+      .bind(PILOT_OFFICER_ID, PILOT_CLIENT_ID).first<{ amountCents: number }>();
     const amountCents = Number(available?.amountCents ?? 0);
     if (!amountCents) throw new PilotError("There are no Available earnings ready for payout.", 409);
     const schedule = nextThursdayAndFriday();
-    const requestId = eventId("PAY");
+    const requestId = eventId("PAY-DEMO");
     await db.batch([
       db.prepare(`UPDATE ledger_entries SET state = 'withdrawal_queued', updated_at = ?
-        WHERE officer_id = ? AND state = 'available'`).bind(new Date().toISOString(), PILOT_OFFICER_ID),
+        WHERE officer_id = ? AND state = 'available'
+          AND shift_id IN (SELECT shift.id FROM shifts shift JOIN bookings booking ON booking.id = shift.booking_id
+            WHERE shift.environment = 'demo' AND shift.integrity_state = 'synthetic'
+              AND booking.client_id = ? AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic')`)
+        .bind(new Date().toISOString(), PILOT_OFFICER_ID, PILOT_CLIENT_ID),
       db.prepare(`INSERT INTO payout_requests
         (id, officer_id, amount_cents, status, requested_at, expected_settlement_date)
         VALUES (?, ?, ?, 'queued_for_thursday', ?, ?)`)

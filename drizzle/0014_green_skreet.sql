@@ -1,0 +1,2 @@
+DROP INDEX `officer_schedule_declarations_version_idx`;--> statement-breakpoint
+CREATE UNIQUE INDEX `officer_schedule_declarations_version_idx` ON `officer_schedule_declarations` (`officer_id`,`environment`,`version`);
