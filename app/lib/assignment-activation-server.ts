@@ -167,8 +167,8 @@ async function readCandidate(db: D1Database, rosterSlotId: string, environment: 
   return db.prepare(`SELECT rs.id AS rosterSlotId, rs.version AS slotVersion, rs.status AS slotStatus, rs.booking_id AS bookingId,
     rs.starts_at AS startsAt, rs.ends_at AS endsAt, rs.check_in_due_at AS checkInDueAt, rs.service_date AS serviceDate,
     b.client_id AS clientId, c.approval_status AS clientApprovalStatus, b.client_price_cents AS clientPriceCents,
-    b.officer_rate_cents AS officerRateCents, b.pricing_version AS pricingVersion,
-    b.calendar_category AS calendarCategory, b.engagement_model AS engagementModel, b.risk_band AS riskBand,
+    rs.officer_offer_cents AS officerRateCents, b.pricing_version AS pricingVersion,
+    rs.calendar_category AS calendarCategory, b.engagement_model AS engagementModel, b.risk_band AS riskBand,
     os.id AS siteId, os.status AS siteStatus, os.version AS siteVersion,
     sp.id AS postId, sp.status AS postStatus, sp.post_orders_version AS postOrdersVersion,
     sp.service_type AS serviceType, sp.purpose_code AS purposeCode, sp.minimum_grade AS minimumGrade

@@ -15,13 +15,21 @@ export async function tokenHash(token: string) {
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function readEndorsements(db: D1Database, officerId: string, clientVisibleOnly = false) {
-  return all<PassportEndorsement>(db.prepare(`SELECT id, code, label, category, service_type AS serviceType,
+export async function readEndorsements(
+  db: D1Database,
+  officerId: string,
+  clientVisibleOnly = false,
+  provenance?: { environment: string; integrityState: string },
+) {
+  const statement = db.prepare(`SELECT id, code, label, category, service_type AS serviceType,
     purpose_code AS purposeCode, status, assessed_at AS assessedAt, expires_at AS expiresAt,
     next_due_at AS nextDueAt FROM officer_endorsements WHERE officer_id = ?
     ${clientVisibleOnly ? "AND client_visible = 1" : ""}
-    ORDER BY CASE category WHEN 'core' THEN 1 WHEN 'service' THEN 2 WHEN 'purpose' THEN 3 ELSE 4 END, label`)
-    .bind(officerId));
+    ${provenance ? "AND environment = ? AND integrity_state = ?" : ""}
+    ORDER BY CASE category WHEN 'core' THEN 1 WHEN 'service' THEN 2 WHEN 'purpose' THEN 3 ELSE 4 END, label`);
+  return all<PassportEndorsement>(provenance
+    ? statement.bind(officerId, provenance.environment, provenance.integrityState)
+    : statement.bind(officerId));
 }
 
 type BookingReadinessOptions = {
@@ -90,6 +98,10 @@ export type PublicPassport = {
   psiraCurrent: boolean;
   readinessLabel: string;
   status: PassportStatus;
+  environment: string;
+  integrityState: string;
+  synthetic: boolean;
+  productionAuthorized: boolean;
   result: "green" | "amber" | "red" | "grey";
   message: string;
   lastReviewedAt: string | null;
@@ -113,7 +125,8 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
   const hash = await tokenHash(rawToken);
   const passport = await db.prepare(`SELECT p.officer_id AS officerId, p.passport_number AS passportNumber,
     p.status, p.readiness_label AS readinessLabel, p.last_reviewed_at AS lastReviewedAt,
-    p.next_review_at AS nextReviewAt, o.full_name AS officerName, o.psira_grade AS psiraGrade,
+    p.next_review_at AS nextReviewAt, p.environment, p.integrity_state AS integrityState,
+    o.full_name AS officerName, o.psira_grade AS psiraGrade,
     o.psira_expiry AS psiraExpiry FROM officer_passports p JOIN officers o ON o.id = p.officer_id
     WHERE p.public_token_hash = ?`).bind(hash).first<{
       officerId: string;
@@ -122,6 +135,8 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
       readinessLabel: string;
       lastReviewedAt: string | null;
       nextReviewAt: string | null;
+      environment: string;
+      integrityState: string;
       officerName: string;
       psiraGrade: string;
       psiraExpiry: string;
@@ -132,7 +147,10 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
   const psiraCurrent = passport.psiraExpiry.slice(0, 10) >= today;
   const coreStatusCurrent = passport.status === "active" || passport.status === "expiring";
   const reviewCurrent = !passport.nextReviewAt || passport.nextReviewAt.slice(0, 10) >= today;
-  const endorsements = (await readEndorsements(db, passport.officerId, true)).filter((item) => (
+  const endorsements = (await readEndorsements(db, passport.officerId, true, {
+    environment: passport.environment,
+    integrityState: passport.integrityState,
+  })).filter((item) => (
     item.status === "current"
     && (!item.expiresAt || item.expiresAt.slice(0, 10) >= today)
     && (!item.nextDueAt || item.nextDueAt.slice(0, 10) >= today)
@@ -153,8 +171,11 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
       b.purpose_label AS purposeLabel, s.scheduled_date AS scheduledDate, b.shift_start AS shiftStart,
       b.shift_end AS shiftEnd, s.passport_verification_status AS verificationStatus,
       s.passport_verified_at AS verifiedAt FROM shifts s JOIN bookings b ON b.id = s.booking_id
-      WHERE s.id = ? AND b.id = ? AND s.officer_id = ?`)
-      .bind(shiftId, bookingId, passport.officerId).first<{
+      WHERE s.id = ? AND b.id = ? AND s.officer_id = ?
+        AND s.environment = ? AND s.integrity_state = ?
+        AND b.environment = ? AND b.integrity_state = ?`)
+      .bind(shiftId, bookingId, passport.officerId, passport.environment, passport.integrityState,
+        passport.environment, passport.integrityState).first<{
         bookingId: string; serviceType: ServiceType; purposeLabel: string; scheduledDate: string;
         shiftStart: string; shiftEnd: string; verificationStatus: string; verifiedAt: string | null;
       }>() : null;
@@ -188,6 +209,14 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
     message = "Passport is current for this assignment. A readiness review is due soon.";
   }
 
+  const synthetic = passport.environment !== "production" || passport.integrityState !== "production_verified";
+  if (synthetic) {
+    result = "grey";
+    message = assignmentMatch
+      ? "Synthetic Passport rehearsal. This readiness result is illustrative and cannot authorise deployment."
+      : "Synthetic Passport rehearsal. No matching synthetic assignment was found.";
+  }
+
   const initials = passport.officerName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
   return {
     passportNumber: passport.passportNumber,
@@ -197,6 +226,10 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
     psiraCurrent,
     readinessLabel: passport.readinessLabel,
     status: passport.status,
+    environment: passport.environment,
+    integrityState: passport.integrityState,
+    synthetic,
+    productionAuthorized: false,
     result,
     message,
     lastReviewedAt: passport.lastReviewedAt,

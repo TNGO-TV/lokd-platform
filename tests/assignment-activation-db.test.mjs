@@ -236,9 +236,9 @@ function seedValid(database, secondOfficer = false) {
      'production','production_verified','active',?,?)`, now, now);
   run(database, `INSERT INTO roster_slots
     (id,site_id,post_id,booking_id,service_date,starts_at,ends_at,arrival_due_at,check_in_due_at,environment,integrity_state,
-     status,version,created_at,updated_at)
+     position_index,calendar_category,officer_offer_cents,status,version,created_at,updated_at)
     VALUES ('SLOT-1','SITE-1','POST-1','BK-1','2039-12-25',?,?, '2039-12-25T17:45:00.000Z',
-     '2039-12-25T18:10:00.000Z','production','production_verified','uncovered',1,?,?)`, startsAt, endsAt, now, now);
+     '2039-12-25T18:10:00.000Z','production','production_verified',1,'christmas',200000,'uncovered',1,?,?)`, startsAt, endsAt, now, now);
   run(database, `INSERT INTO booking_funding_reconciliations
     (id,booking_id,environment,integrity_state,provider,provider_reference,currency,expected_amount_cents,cleared_amount_cents,status,
      cleared_at,reconciled_at,evidence_reference,evidence_verified_at,evidence_expires_at,version,active_key,created_at)
@@ -301,8 +301,9 @@ function moveCandidateToCheckInWindow(database) {
   assert.ok(economics);
   run(database, `UPDATE bookings SET calendar_category=?,calendar_label=?,officer_rate_cents=? WHERE id='BK-1'`,
     economics.calendarCategory, economics.calendarLabel, economics.officerOfferCents);
-  run(database, `UPDATE roster_slots SET service_date=?,starts_at=?,ends_at=?,arrival_due_at=?,check_in_due_at=? WHERE id='SLOT-1'`,
-    economics.serviceDate, starts, ends, starts, starts);
+  run(database, `UPDATE roster_slots SET service_date=?,starts_at=?,ends_at=?,arrival_due_at=?,check_in_due_at=?,
+    calendar_category=?,officer_offer_cents=? WHERE id='SLOT-1'`,
+    economics.serviceDate, starts, ends, starts, starts, economics.calendarCategory, economics.officerOfferCents);
   run(database, `UPDATE officer_availability_windows SET starts_at=?,ends_at=? WHERE officer_id='OFF-1'`,
     new Date(base - 24 * 60 * 60_000).toISOString(), new Date(base + 48 * 60 * 60_000).toISOString());
   return { starts, ends };
@@ -454,8 +455,7 @@ test("successful activation creates every final record exactly once and is idemp
 test("Christmas work stored as ordinary is blocked and server-prices the Christmas wage", async () => {
   const database = migratedDatabase();
   seedValid(database);
-  run(database, `UPDATE bookings SET calendar_category='ordinary',calendar_label='Ordinary Monday-Saturday',
-    officer_rate_cents=80000 WHERE id='BK-1'`);
+  run(database, `UPDATE roster_slots SET calendar_category='ordinary',officer_offer_cents=80000 WHERE id='SLOT-1'`);
   const db = new D1Adapter(database);
   const evaluation = await evaluateAssignmentActivation(db, request("activation:calendar-christmas-as-ordinary"));
   assert.equal(evaluation.facts.compensation.storedCalendarCategory, "ordinary");
@@ -586,9 +586,9 @@ test("simultaneous different-slot claims cannot violate one officer's rest windo
   seedValid(database);
   run(database, `INSERT INTO roster_slots
     (id,site_id,post_id,booking_id,service_date,starts_at,ends_at,arrival_due_at,check_in_due_at,
-     environment,integrity_state,status,version,created_at,updated_at)
+     position_index,calendar_category,officer_offer_cents,environment,integrity_state,status,version,created_at,updated_at)
     SELECT 'SLOT-2',site_id,post_id,booking_id,service_date,starts_at,ends_at,arrival_due_at,check_in_due_at,
-      environment,integrity_state,'uncovered',1,created_at,updated_at
+      2,calendar_category,officer_offer_cents,environment,integrity_state,'uncovered',1,created_at,updated_at
     FROM roster_slots WHERE id='SLOT-1'`);
   const db = new D1Adapter(database);
   const results = await Promise.allSettled([
@@ -610,16 +610,17 @@ test("stale concurrent Direct Flex activations cannot exceed the same-week ceili
     officer_rate_cents=80000 WHERE id='BK-1'`);
   run(database, `UPDATE roster_slots SET service_date='2040-01-03',
     starts_at='2040-01-03T06:00:00.000Z',ends_at='2040-01-03T12:00:00.000Z',
-    arrival_due_at='2040-01-03T05:45:00.000Z',check_in_due_at='2040-01-03T06:10:00.000Z'
+    arrival_due_at='2040-01-03T05:45:00.000Z',check_in_due_at='2040-01-03T06:10:00.000Z',
+    calendar_category='ordinary',officer_offer_cents=80000
     WHERE id='SLOT-1'`);
   run(database, `UPDATE officer_availability_windows SET ends_at='2040-01-10T00:00:00.000Z'
     WHERE officer_id='OFF-1'`);
   run(database, `INSERT INTO roster_slots
     (id,site_id,post_id,booking_id,service_date,starts_at,ends_at,arrival_due_at,check_in_due_at,
-     environment,integrity_state,status,version,created_at,updated_at)
+     position_index,calendar_category,officer_offer_cents,environment,integrity_state,status,version,created_at,updated_at)
     VALUES ('SLOT-2','SITE-1','POST-1','BK-1','2040-01-05','2040-01-05T06:00:00.000Z',
      '2040-01-05T12:00:00.000Z','2040-01-05T05:45:00.000Z','2040-01-05T06:10:00.000Z',
-     'production','production_verified','uncovered',1,?,?)`, now, now);
+     1,'ordinary',80000,'production','production_verified','uncovered',1,?,?)`, now, now);
 
   const db = new TwoActivationBarrierAdapter(database);
   const results = await Promise.allSettled([
@@ -1142,9 +1143,9 @@ test("a revalidation cannot borrow a passed decision from another activation com
     ends_at=(SELECT ends_at FROM officer_availability_windows WHERE officer_id='OFF-1') WHERE officer_id='OFF-2'`);
   run(database, `INSERT INTO roster_slots
     (id,site_id,post_id,booking_id,service_date,starts_at,ends_at,arrival_due_at,check_in_due_at,
-     environment,integrity_state,status,version,created_at,updated_at)
+     position_index,calendar_category,officer_offer_cents,environment,integrity_state,status,version,created_at,updated_at)
     SELECT 'SLOT-2',site_id,post_id,booking_id,service_date,starts_at,ends_at,arrival_due_at,check_in_due_at,
-      environment,integrity_state,'uncovered',1,created_at,updated_at FROM roster_slots WHERE id='SLOT-1'`);
+      2,calendar_category,officer_offer_cents,environment,integrity_state,'uncovered',1,created_at,updated_at FROM roster_slots WHERE id='SLOT-1'`);
   const db = new D1Adapter(database);
   const first = await activateAssignment(db, request("activation:decision-owner", "OFF-1"), "ops@example.test");
   const second = await activateAssignment(db, {

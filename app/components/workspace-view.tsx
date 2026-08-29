@@ -2,22 +2,16 @@
 
 import { useEffect, useState } from "react";
 import type { PilotState } from "../lib/pilot-types";
+import type { OperationsCommandState } from "../lib/operations-types";
 import { usePilot } from "../lib/use-pilot";
-
-const officers = [
-  { name: "Thabo Mokoena", ref: "LKD-001", grade: "Grade A", status: "Approved", services: "Unarmed · Armed · VIP", preference: "All offer alerts on", sites: "All pilot sites", passport: "Ready", purpose: "Executive protection · Commercial access", nextDue: "Fitness assessment · 04 Sep", tone: "green" },
-  { name: "Lerato Khumalo", ref: "LKD-002", grade: "Grade B", status: "On booking", services: "Unarmed · Armed", preference: "Unarmed on · Armed off", sites: "Rosebank · Midrand", passport: "Ready", purpose: "Commercial access · Construction", nextDue: "Passport review · 15 Sep", tone: "blue" },
-  { name: "Sibusiso Dlamini", ref: "LKD-003", grade: "Grade B", status: "Offer accepted", services: "Unarmed · Armed", preference: "Armed offers on", sites: "Linbro", passport: "Ready", purpose: "Secure logistics · Commercial access", nextDue: "Armed assessment · 29 Aug", tone: "green" },
-  { name: "Ayanda Ncube", ref: "LKD-004", grade: "Grade C", status: "Approved", services: "Unarmed", preference: "Unarmed offers on", sites: "Rosebank · Midrand", passport: "Ready", purpose: "School safety · Commercial access", nextDue: "Skills review · 12 Sep", tone: "green" },
-  { name: "Kabelo Maseko", ref: "LKD-005", grade: "Grade C", status: "Approval hold", services: "Unarmed", preference: "Offers blocked", sites: "Offers blocked", passport: "Restricted", purpose: "No current endorsement", nextDue: "PSiRA reverification required", tone: "red" },
-];
+import { useOperations } from "../lib/use-operations";
 
 const workspaceCopy: Record<string, { eyebrow: string; title: string; subtitle: string; action: string }> = {
   Bookings: { eyebrow: "Pre-funded client demand", title: "Booking control", subtitle: "The full contract payment must be received and confirmed before a booking can release officer offers.", action: "Create booking" },
   Offers: { eyebrow: "Purpose-matched allocation", title: "Offer engine", subtitle: "An active LOKD Passport, purpose endorsement, grade, service qualification, preference, area and availability must all match.", action: "Release offer wave" },
   Applications: { eyebrow: "Officer intake", title: "Applications and verification", subtitle: "Review qualified and training-pathway applicants without presenting demo checks as real identity or PSiRA verification.", action: "Refresh applications" },
   Officers: { eyebrow: "Purpose-trained officer network", title: "Officer readiness", subtitle: "Every active officer carries a live LOKD Passport backed by current training, assessment and purpose endorsements.", action: "Invite officer" },
-  Clients: { eyebrow: "Contracted service", title: "Clients and sites", subtitle: "Clients choose Armed, Unarmed or VIP, pay the term in full, then follow delivery.", action: "Add client" },
+  Clients: { eyebrow: "Contracted service", title: "Clients and sites", subtitle: "Clients choose Armed, Unarmed or VIP, complete site approval and funding, then follow delivery.", action: "Open client workspace" },
   Earnings: { eyebrow: "Officer payable ledger", title: "Earnings and payouts", subtitle: "Contracts up to 3 months release weekly; longer contracts release monthly before an officer can request payout.", action: "Release eligible earnings" },
   Feedback: { eyebrow: "Team testing loop", title: "Pilot feedback", subtitle: "Review bugs, confusing moments, missing capabilities and ideas submitted from every pilot screen.", action: "Refresh feedback" },
   "Launch readiness": { eyebrow: "Private demo controls", title: "Launch readiness", subtitle: "Regulatory, billing, identity and access gates remain explicitly separated from the connected product demo.", action: "Reset shared demo" },
@@ -35,6 +29,7 @@ function Top({ name, onAction, busy }: { name: string; onAction: () => void; bus
 
 export default function WorkspaceView({ name }: { name: string }) {
   const pilot = usePilot("operations");
+  const operations = useOperations();
   const [message, setMessage] = useState("");
   const [feedbackReload, setFeedbackReload] = useState(0);
   const action = async () => {
@@ -54,8 +49,10 @@ export default function WorkspaceView({ name }: { name: string }) {
       window.location.href = "/client";
     } else if (name === "Officers") {
       window.location.href = "/join";
+    } else if (name === "Clients") {
+      window.location.href = "/client";
     } else if (name === "Offers") {
-      const booking = pilot.state?.bookings.find((item) => item.fundingStatus === "paid_in_full" && item.status === "matching");
+      const booking = pilot.state?.bookings.find((item) => item.fundingStatus === "paid_in_full" && ["matching", "partially_staffed"].includes(item.status));
       if (!booking) setMessage("No funded booking is waiting for another offer wave.");
       else {
         const result = await pilot.runAction({ action: "release_offer_wave", bookingId: booking.id });
@@ -73,8 +70,8 @@ export default function WorkspaceView({ name }: { name: string }) {
       {name === "Bookings" && <Bookings state={pilot.state} busy={pilot.busy} error={pilot.error} onAction={(bookingId, actionName) => void pilot.runAction({ action: actionName, bookingId })} />}
       {name === "Offers" && <Offers state={pilot.state} />}
       {name === "Applications" && <Applications reloadKey={feedbackReload} />}
-      {name === "Officers" && <Officers state={pilot.state} />}
-      {name === "Clients" && <Clients />}
+      {name === "Officers" && <Officers state={pilot.state} operations={operations.state} />}
+      {name === "Clients" && <Clients state={pilot.state} operations={operations.state} />}
       {name === "Earnings" && <Wallets state={pilot.state} loading={pilot.loading} busy={pilot.busy} onRelease={() => void action()} error={pilot.error} />}
       {name === "Feedback" && <FeedbackQueue reloadKey={feedbackReload} />}
       {name === "Launch readiness" && <Compliance />}
@@ -96,10 +93,10 @@ function Bookings({ state, busy, error, onAction }: {
   const serviceCount = new Set(state.bookings.map((item) => item.serviceType)).size;
   return <section className="workspace-card booking-board"><div className="booking-summary"><div><span>Pre-funded terms</span><strong>{money(securedCents)}</strong><small>Full client-term value marked received</small></div><div><span>Service classes</span><strong>{serviceCount}</strong><small>Unarmed · Armed · VIP price book</small></div><div><span>Staffing</span><strong>{staffed.length} / {state.bookings.length}</strong><small>Connected booking records</small></div><div><span>Risk reviews</span><strong>{state.bookings.filter((item) => item.status === "risk_review").length}</strong><small>High-risk or specialist plans</small></div></div><div className="data-head booking-head"><span>Booking</span><span>Client economics</span><span>Officer allocation</span><span>Status</span><span /></div>{state.bookings.map((item) => {
     const requiresPayment = item.fundingStatus === "awaiting_payment";
-    const requiresRiskReview = item.status === "risk_review";
-    const canRetry = item.fundingStatus === "paid_in_full" && item.status === "matching";
+    const requiresRiskReview = item.status === "risk_review" || item.status === "site_review";
+    const canRetry = item.fundingStatus === "paid_in_full" && ["matching", "partially_staffed"].includes(item.status);
     const statusTone = item.status === "active" || item.status === "staffed" ? "green" : item.status === "awaiting_payment" || requiresRiskReview ? "amber" : "blue";
-    return <div className="booking-row booking-row--action" key={item.id}><span><strong>{item.id} · {item.siteName}</strong><small>{item.engagementModel === "flex" ? "LOKD Flex" : "LOKD Fixed"} · {item.serviceType} · {item.purposeLabel} · {item.riskBand} risk ({item.riskScore}) · {item.shiftCount} shift{item.shiftCount === 1 ? "" : "s"}</small></span><span><strong>{money(item.clientPriceCents)}</strong><small>{money(item.grossPlatformContributionCents)} gross contribution before direct/statutory costs</small></span><span><strong>{money(item.officerTotalCents)} planned</strong><small>{item.assignedOfficer ?? (item.offerStatus === "open" ? "Offer with eligible officer" : item.matchEligible ? "Pilot officer passes controls" : item.matchBlockers[0] ?? "Matching not run")}</small></span><span><em className={`pill tone-${statusTone}`}>{item.status.replaceAll("_", " ")}</em>{requiresRiskReview ? <button disabled={busy} onClick={() => onAction(item.id, "approve_risk_plan")}>Approve demo plan</button> : requiresPayment ? <button disabled={busy} onClick={() => onAction(item.id, "confirm_booking_payment")}>Record demo payment</button> : canRetry ? <button disabled={busy} onClick={() => onAction(item.id, "release_offer_wave")}>Retry matching</button> : null}</span><b>›</b></div>;
+    return <div className="booking-row booking-row--action" key={item.id}><span><strong>{item.id} · {item.siteName}</strong><small>{item.engagementModel === "flex" ? "LOKD Flex" : "LOKD Fixed"} · {item.serviceType} · {item.purposeLabel} · {item.riskBand} risk ({item.riskScore}) · {item.serviceDayCount} service day{item.serviceDayCount === 1 ? "" : "s"} × {item.headcount} position{item.headcount === 1 ? "" : "s"}</small></span><span><strong>{money(item.clientPriceCents)}</strong><small>{money(item.grossPlatformContributionCents)} gross contribution before direct/statutory costs</small></span><span><strong>{money(item.officerTotalCents)} planned</strong><small>{item.assignedOfficer ?? (item.offerStatus === "open" ? "Offer with eligible officer" : item.matchEligible ? "Pilot officer passes controls" : item.matchBlockers[0] ?? "Matching not run")}</small></span><span><em className={`pill tone-${statusTone}`}>{item.status.replaceAll("_", " ")}</em>{requiresRiskReview ? <button disabled={busy} onClick={() => onAction(item.id, "approve_risk_plan")}>Approve site plan</button> : requiresPayment ? <button disabled={busy} onClick={() => onAction(item.id, "confirm_booking_payment")}>Record demo payment</button> : canRetry ? <button disabled={busy} onClick={() => onAction(item.id, "release_offer_wave")}>Retry matching</button> : null}</span><b>›</b></div>;
   })}{error && <p className="pilot-error" role="alert">{error}</p>}<div className="demo-control-disclosure"><strong>Private demo control</strong><p>“Record demo payment” changes workflow state only. It does not charge a card, issue an invoice or confirm a real bank receipt.</p></div></section>;
 }
 
@@ -110,7 +107,7 @@ function Offers({ state }: { state: PilotState | null }) {
   const purpose = offer?.purposeLabel ?? "Commercial access";
   const passport = state?.officer.passport;
   if (!offer) return <section className="workspace-card"><div className="clean-state"><span>✓</span><div><strong>No offers have been released</strong><p>Create and fund a booking, then release a matching wave.</p></div></div></section>;
-  return <div className="offer-engine-layout"><section className="workspace-card offer-wave-card"><div className="card-title"><div><span>{accepted ? `Assigned ${offer.serviceType} offer` : declined ? `Closed ${offer.serviceType} offer` : `Live ${offer.serviceType} offer`}</span><strong>{offer.siteArea} · {purpose} · {offer.engagementModel === "flex" ? "LOKD Flex" : offer.contractMonths ? `${offer.contractMonths}-month LOKD Fixed` : "single shift"}</strong></div><em>{offer.status}</em></div><div className="wave-path"><div className="wave-step done"><i>✓</i><span><strong>Payment gate passed</strong><small>Full client payment recorded before matching</small></span></div><div className="wave-step done"><i>✓</i><span><strong>Passport pool built</strong><small>Passport + purpose + grade + service + opt-in + availability</small></span></div><div className={`wave-step ${accepted || declined ? "done" : "live"}`}><i>{accepted || declined ? "✓" : "2"}</i><span><strong>Fixed officer offer delivered</strong><small>{money(offer.amountCents)} · urgency does not change the offer</small></span></div><div className={`wave-step ${accepted ? "done" : ""}`}><i>{accepted ? "✓" : "•"}</i><span><strong>Single-winner assignment</strong><small>{accepted ? `${state?.officer.fullName} secured the booking` : "First still-eligible acceptance secures the booking"}</small></span></div></div><div className="wave-candidates"><div><span>{state?.officer.initials ?? "LK"}</span><strong>{state?.officer.fullName ?? "Pilot officer"}</strong><small>{passport ? `Passport ${passport.readinessLabel} · ${purpose} checked` : "Checking Passport readiness…"}</small><em className={`pill ${accepted ? "tone-green" : declined ? "tone-red" : passport?.offersEnabled ? "tone-amber" : "tone-red"}`}>{accepted ? "Offer accepted" : declined ? "Offer declined" : passport?.offersEnabled ? "Decision pending" : "Passport blocked"}</em></div></div></section><aside className="workspace-card offer-rules-card"><div className="card-title"><div><span>Offer snapshot</span><strong>Officer terms</strong></div></div><dl><div><dt>Offer</dt><dd>{offer.id}</dd></div><div><dt>Product</dt><dd>{offer.engagementModel === "flex" ? "LOKD Flex" : "LOKD Fixed"}</dd></div><div><dt>Service</dt><dd>{offer.serviceType}</dd></div><div><dt>Risk</dt><dd>{offer.riskBand} · {offer.riskScore}</dd></div><div><dt>Calendar</dt><dd>{offer.calendarLabel}</dd></div><div><dt>Minimum grade</dt><dd>{offer.minimumGrade}</dd></div><div><dt>Officer amount</dt><dd>{money(offer.amountCents)} fixed / shift</dd></div><div><dt>Required readiness</dt><dd>{offer.requiredEndorsements.join(" · ") || purpose}</dd></div><div><dt>Release cadence</dt><dd>{offer.releaseCadence}</dd></div><div><dt>Client payment</dt><dd>{offer.fundingStatus === "paid_in_full" ? "Recorded in full" : "Blocked"}</dd></div></dl><p>Client price and officer offer remain separate. Short-notice dispatch benefits LOKD; officer increases are reserved for real burden such as calendar, risk, specialist skill or travel.</p></aside></div>;
+  return <div className="offer-engine-layout"><section className="workspace-card offer-wave-card"><div className="card-title"><div><span>{accepted ? `Assigned ${offer.serviceType} contract` : declined ? `Closed ${offer.serviceType} offer` : `Open ${offer.serviceType} contract offer`}</span><strong>{offer.siteArea} · position {offer.positionIndex} · {purpose} · {offer.engagementModel === "flex" ? "LOKD Flex" : offer.contractMonths ? `${offer.contractMonths}-month LOKD Fixed` : "single shift"}</strong></div><em>{offer.status}</em></div><div className="wave-path"><div className="wave-step done"><i>✓</i><span><strong>Payment rehearsal passed</strong><small>Full synthetic client term recorded before matching</small></span></div><div className="wave-step done"><i>✓</i><span><strong>Passport pool built</strong><small>Synthetic Passport + purpose + grade + service + opt-in</small></span></div><div className={`wave-step ${accepted || declined ? "done" : "live"}`}><i>{accepted || declined ? "✓" : "2"}</i><span><strong>Position contract delivered</strong><small>{money(offer.plannedEarningsCents)} planned across {offer.shiftCount} dated shifts</small></span></div><div className={`wave-step ${accepted ? "done" : ""}`}><i>{accepted ? "✓" : "•"}</i><span><strong>Dated roster materialisation</strong><small>{accepted ? `${state?.officer.fullName} holds position ${offer.positionIndex}` : "Acceptance creates every dated slot in this position together"}</small></span></div></div><div className="wave-candidates"><div><span>{state?.officer.initials ?? "LK"}</span><strong>{state?.officer.fullName ?? "Pilot officer"}</strong><small>{passport ? `Synthetic Passport ${passport.readinessLabel} · ${purpose} checked` : "Checking Passport rehearsal…"}</small><em className={`pill ${accepted ? "tone-green" : declined ? "tone-red" : passport?.offersEnabled ? "tone-amber" : "tone-red"}`}>{accepted ? "Offer accepted" : declined ? "Offer declined" : passport?.offersEnabled ? "Decision pending" : "Passport blocked"}</em></div></div></section><aside className="workspace-card offer-rules-card"><div className="card-title"><div><span>Offer snapshot</span><strong>Officer terms</strong></div></div><dl><div><dt>Offer</dt><dd>{offer.id}</dd></div><div><dt>Product</dt><dd>{offer.engagementModel === "flex" ? "LOKD Flex" : "LOKD Fixed"}</dd></div><div><dt>Position</dt><dd>{offer.positionIndex}</dd></div><div><dt>Service</dt><dd>{offer.serviceType}</dd></div><div><dt>Risk</dt><dd>{offer.riskBand} · {offer.riskScore}</dd></div><div><dt>First shift amount</dt><dd>{money(offer.amountCents)}</dd></div><div><dt>Planned gross</dt><dd>{money(offer.plannedEarningsCents)}</dd></div><div><dt>Required readiness</dt><dd>{offer.requiredEndorsements.join(" · ") || purpose}</dd></div><div><dt>Release cadence</dt><dd>{offer.releaseCadence}</dd></div><div><dt>Client payment</dt><dd>{offer.fundingStatus === "paid_in_full" ? "Synthetic term recorded" : "Blocked"}</dd></div></dl><p>Each roster date keeps its frozen calendar amount, so Sunday and public-holiday shifts can differ. No production work or payroll is authorised by this rehearsal.</p></aside></div>;
 }
 
 function money(cents: number) {
@@ -124,30 +121,37 @@ function Wallets({ state, loading, busy, onRelease, error }: { state: PilotState
   return <div className="wallet-layout"><section className="workspace-card wallet-ops"><div className="booking-summary wallet-summary"><div><span>Pending</span><strong>{money(state.wallet.pendingCents)}</strong><small>Awaiting verification or scheduled release</small></div><div><span>Available</span><strong>{money(state.wallet.availableCents)}</strong><small>Officer can request payout</small></div><div><span>Held</span><strong>{money(heldCents)}</strong><small>{heldCents ? "Affected earnings only" : "No active exceptions"}</small></div></div><div className="data-head wallet-head"><span>Officer</span><span>Source</span><span>Pending</span><span>Available</span><span>Status</span></div>{state.ledger.map((item) => { const pending = item.state === "pending_signoff" || item.state === "pending_release"; return <div className="wallet-ledger-row" key={item.id}><span><strong>{state.officer.fullName}</strong><small>{state.officer.id} · Approved</small></span><span><strong>{item.bookingId} · {item.siteName}</strong><small>{item.releaseCadence} earning record</small></span><span>{pending ? money(item.amountCents) : "—"}</span><span>{item.state === "available" ? money(item.amountCents) : "—"}</span><em>{stateLabels[item.state]}</em></div>; })}</section><aside className="workspace-card thursday-card"><span>LOKD earnings controls</span><h2>{money(state.wallet.availableCents)} available</h2><p>Only verified earnings that have reached their weekly or monthly release date can move to Available.</p><div className="cutoff"><span>Short contracts</span><strong>0–3 months · Weekly</strong></div><div className="cutoff"><span>Long contracts</span><strong>Over 3 months · Monthly</strong></div><div className="cutoff"><span>Payout processing</span><strong>Thursday · expected Friday clearance</strong></div><button disabled={busy} onClick={onRelease}>{busy ? "Releasing…" : "Release eligible earnings"}</button><small>Operations release and payout submission are separate, auditable actions.</small>{error && <p className="pilot-error" role="alert">{error}</p>}<div className="future-card-note"><strong>LOKD Card · interest register</strong><p>Card concept only—not yet available. Ordinary EFT payout access will not depend on a future card.</p></div></aside></div>;
 }
 
-function Officers({ state }: { state: PilotState | null }) {
-  const roster = officers.map((officer) => {
-    if (officer.ref !== "LKD-002" || !state) return officer;
-    const enabledServices = state.officer.services.filter((service) => service.qualified && service.optedIn).map((service) => service.serviceType);
-    const purposeLabels = state.officer.passport.endorsements.filter((endorsement) => endorsement.category === "purpose" && endorsement.status === "current").map((endorsement) => endorsement.label);
-    const nextReview = state.officer.passport.nextReviewAt
-      ? new Intl.DateTimeFormat("en-ZA", { day: "2-digit", month: "short" }).format(new Date(state.officer.passport.nextReviewAt))
-      : "Not scheduled";
+function Officers({ state, operations }: { state: PilotState | null; operations: OperationsCommandState | null }) {
+  const [filter, setFilter] = useState<"all" | "employed" | "network">("all");
+  const [query, setQuery] = useState("");
+  if (!operations) return <section className="workspace-card"><div className="officer-loading"><span className="pulse-dot" /><strong>Loading connected workforce records…</strong></div></section>;
+  const roster = operations.workforce.officers.map((officer) => {
+    const isPilotOfficer = officer.officerId === state?.officer.id;
+    const enabledServices = isPilotOfficer ? state.officer.services.filter((service) => service.qualified && service.optedIn).map((service) => service.serviceType) : [];
     return {
-      ...officer,
-      name: state.officer.fullName,
-      grade: state.officer.psiraGrade,
-      services: enabledServices.length ? enabledServices.join(" · ") : "No offer classes enabled",
-      passport: state.officer.passport.readinessLabel,
-      purpose: purposeLabels.length ? purposeLabels.join(" · ") : "No current purpose endorsement",
-      nextDue: `Passport review · ${nextReview}`,
-      tone: state.officer.passport.offersEnabled ? officer.tone : "red",
+      name: officer.officerName,
+      ref: officer.officerId,
+      grade: isPilotOfficer ? state.officer.psiraGrade : "Verified profile",
+      status: officer.employmentStatus === "not_employed" ? "Network only" : officer.employmentStatus.replaceAll("_", " "),
+      services: enabledServices.length ? enabledServices.join(" · ") : officer.nextControl,
+      passport: officer.passportStatus ?? "Not issued",
+      purpose: officer.workforceModel ? `${officer.workforceModel.replaceAll("_", " ")} · ${officer.employerName}` : "No workforce route",
+      nextDue: officer.termsVersion ? `Terms ${officer.termsVersion}` : "Engagement required",
+      tone: officer.passportStatus === "active" && officer.employmentStatus === "active" ? "green" : officer.employmentStatus === "not_employed" ? "amber" : "red",
     };
+  });
+  const visibleRoster = roster.filter((officer) => {
+    if (filter === "employed" && officer.status !== "active") return false;
+    if (filter === "network" && officer.status !== "Network only") return false;
+    const needle = query.trim().toLowerCase();
+    return !needle || `${officer.name} ${officer.ref} ${officer.passport}`.toLowerCase().includes(needle);
   });
   return (
     <section className="workspace-card data-card">
-      <div className="filter-row"><button className="filter-active">All officers <b>5</b></button><button>Passport ready <b>4</b></button><button>Restricted <b>1</b></button><span /><input aria-label="Search officers" placeholder="Search officer or Passport" /></div>
+      <div className="filter-row"><button className={filter === "all" ? "filter-active" : ""} onClick={() => setFilter("all")}>All officers <b>{roster.length}</b></button><button className={filter === "employed" ? "filter-active" : ""} onClick={() => setFilter("employed")}>Employed <b>{operations.workforce.officers.filter((item) => item.employmentStatus === "active").length}</b></button><button className={filter === "network" ? "filter-active" : ""} onClick={() => setFilter("network")}>Network only <b>{operations.workforce.profilesWithoutEmployment}</b></button><span /><input aria-label="Search officers" placeholder="Search officer or Passport" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
       <div className="data-head"><span>Officer</span><span>Grade & Passport</span><span>Purpose fit & services</span><span>Status</span><span /></div>
-      {roster.map((officer) => <button className="data-row" key={officer.ref}><span className="person-cell"><i>{officer.name.split(" ").map((part) => part[0]).join("")}</i><span><strong>{officer.name}</strong><small>{officer.ref} · {officer.sites}</small></span></span><span><strong>{officer.grade} · Passport {officer.passport}</strong><small>{officer.nextDue}</small></span><span><strong>{officer.purpose}</strong><small>{officer.services} · {officer.preference}</small></span><span><em className={`pill tone-${officer.tone}`}>{officer.status}</em></span><span>›</span></button>)}
+      {visibleRoster.map((officer) => <div className="data-row" key={officer.ref}><span className="person-cell"><i>{officer.name.split(" ").map((part) => part[0]).join("")}</i><span><strong>{officer.name}</strong><small>{officer.ref}</small></span></span><span><strong>{officer.grade} · Passport {officer.passport}</strong><small>{officer.nextDue}</small></span><span><strong>{officer.purpose}</strong><small>{officer.services}</small></span><span><em className={`pill tone-${officer.tone}`}>{officer.status}</em></span><span /></div>)}
+      {!visibleRoster.length && <div className="clean-state"><span>⌕</span><div><strong>No officers match this view</strong><p>Change the employment filter or search term.</p></div></div>}
     </section>
   );
 }
@@ -199,7 +203,7 @@ function Applications({ reloadKey }: { reloadKey: number }) {
     return () => controller.abort();
   }, [reloadKey, refreshKey]);
 
-  async function review(id: string, action: "start_demo_identity" | "complete_demo_identity" | "route_training" | "approve_assessment") {
+  async function review(id: string, action: "start_demo_identity" | "complete_demo_identity" | "route_training" | "approve_assessment" | "issue_demo_network_profile") {
     setBusyId(id);
     setError("");
     try {
@@ -224,7 +228,7 @@ function Applications({ reloadKey }: { reloadKey: number }) {
     <div><strong>{item.psiraGrade ?? "No verified grade"}</strong><small>{item.psiraNumber ?? item.psiraStatus.replaceAll("_", " ")} · {item.services.join(" · ")}</small></div>
     <div><strong>{item.pathway === "training" ? "Academy pathway" : "Qualified officer pathway"}</strong><small>{item.pathway === "training" ? item.training.join(" · ") : item.purposes.join(" · ")}</small></div>
     <div className="application-state"><em className={`pill ${item.identityStatus === "demo_verified" ? "tone-green" : item.identityStatus === "checking" ? "tone-blue" : "tone-amber"}`}>{item.identityStatus.replaceAll("_", " ")}</em><small>{item.status.replaceAll("_", " ")}</small></div>
-    <div className="application-actions">{item.pathway === "training" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "route_training")}>Route to Academy</button> : item.identityStatus === "not_started" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "start_demo_identity")}>Start demo check</button> : item.identityStatus === "checking" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "complete_demo_identity")}>Complete demo check</button> : <button disabled={busyId === item.id} onClick={() => void review(item.id, "approve_assessment")}>Approve assessment</button>}</div>
+    <div className="application-actions">{item.pathway === "training" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "route_training")}>Route to Academy</button> : item.status === "network_profile_created" ? <span className="pill tone-green">Network profile created</span> : item.status === "assessment_ready" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "issue_demo_network_profile")}>Create restricted Network profile</button> : item.identityStatus === "not_started" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "start_demo_identity")}>Start demo check</button> : item.identityStatus === "checking" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "complete_demo_identity")}>Complete demo check</button> : <button disabled={busyId === item.id} onClick={() => void review(item.id, "approve_assessment")}>Approve assessment</button>}</div>
   </article>)}{error && <p className="pilot-error" role="alert">{error}</p>}</section>;
 }
 
@@ -289,22 +293,12 @@ function FeedbackQueue({ reloadKey }: { reloadKey: number }) {
   );
 }
 
-function Clients() {
-  const clients = [
-    { client: "Northbridge Property Services", site: "Rosebank Offices", window: "1 month · LOKD Fixed", state: "On post", meta: "Visitor verification · Badge register", service: "Unarmed", price: "Risk-priced · Paid in full" },
-    { client: "Eastline Freight Solutions", site: "Linbro Yard", window: "3 months · Weekly officer release", state: "Starts 18:00", meta: "Vehicle gate · Perimeter checks", service: "Armed", price: "R134,400 · Paid in full" },
-    { client: "Metsi Industrial Supplies", site: "Midrand Depot", window: "6 months · LOKD Managed", state: "Sat 06:00", meta: "Executive movement · Arrival control", service: "VIP", price: "Specialist plan · Paid in full" },
-  ];
-  return <div className="client-grid">{clients.map((item, index) => <article className="workspace-card client-card" key={item.site}><div className="client-card-top"><span>0{index+1}</span><em>{item.state}</em></div><h2>{item.site}</h2><p>{item.client}</p><dl><div><dt>Contract and release</dt><dd>{item.window}</dd></div><div><dt>Post scope</dt><dd>{item.meta}</dd></div><div><dt>Service</dt><dd><span className={`service-badge service-${item.service.toLowerCase()}`}>{item.service}</span></dd></div><div><dt>Client funding</dt><dd>{item.price}</dd></div></dl><button>Open service record →</button></article>)}</div>;
-}
-
-function Incidents() {
-  const items = [
-    { ref: "INC-0026", event: "Vehicle-gate latch did not secure", site: "Eastline Linbro Yard", severity: "Medium", status: "Client action", outcome: "Officer remained at gate; maintenance requested; no loss or injury." },
-    { ref: "INC-0027", event: "Visitor arrived without approved booking", site: "Northbridge Rosebank Offices", severity: "Low", status: "Resolved", outcome: "Entry declined; host confirmed no appointment; no confrontation." },
-    { ref: "INC-0025", event: "Delivery outside authorised window", site: "Metsi Midrand Depot", severity: "Low", status: "Resolved", outcome: "Vehicle remained outside the controlled area; delivery rescheduled." },
-  ];
-  return <section className="workspace-card incident-list"><div className="card-title"><div><span>Case register</span><strong>Open and recent incidents</strong></div><em>1 action · 2 resolved</em></div>{items.map((item) => <button key={item.ref}><span className="incident-ref">{item.ref}</span><span className="incident-main"><strong>{item.event}</strong><small>{item.site}</small><p>{item.outcome}</p></span><span><em className={item.severity === "Medium" ? "pill tone-amber" : "pill tone-blue"}>{item.severity}</em></span><span><em className={item.status === "Resolved" ? "pill tone-green" : "pill tone-amber"}>{item.status}</em></span><b>›</b></button>)}</section>;
+function Clients({ state, operations }: { state: PilotState | null; operations: OperationsCommandState | null }) {
+  if (!state || !operations) return <section className="workspace-card"><div className="officer-loading"><span className="pulse-dot" /><strong>Loading connected client and site records…</strong></div></section>;
+  return <div className="client-grid">{operations.sites.map((site, index) => {
+    const booking = state.bookings.find((item) => item.id === site.deployment.bookingId);
+    return <article className="workspace-card client-card" key={site.id}><div className="client-card-top"><span>{String(index + 1).padStart(2, "0")}</span><em>{site.stateLabel}</em></div><h2>{site.name}</h2><p>{site.clientName}</p><dl><div><dt>Booking</dt><dd>{site.deployment.bookingId ?? "Site onboarding"}</dd></div><div><dt>Post scope</dt><dd>{site.posts.map((post) => post.name).join(" · ") || "Post pending"}</dd></div><div><dt>Service</dt><dd><span className={`service-badge service-${site.serviceType.toLowerCase()}`}>{site.serviceType}</span></dd></div><div><dt>Client funding</dt><dd>{booking ? `${money(booking.clientPriceCents)} · ${booking.fundingStatus.replaceAll("_", " ")}` : "Operations site seed"}</dd></div></dl><span className="client-record-note">Service records are available inside the assigned Client workspace.</span></article>;
+  })}</div>;
 }
 
 function Compliance() {

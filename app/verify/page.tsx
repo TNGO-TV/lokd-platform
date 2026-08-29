@@ -13,6 +13,10 @@ type PassportResult = {
   psiraCurrent: boolean;
   readinessLabel: string;
   status: PassportStatus;
+  environment: string;
+  integrityState: string;
+  synthetic: boolean;
+  productionAuthorized: boolean;
   result: "green" | "amber" | "red" | "grey";
   message: string;
   lastReviewedAt: string | null;
@@ -94,13 +98,13 @@ export default function VerifyPassport() {
   }
 
   return <main className="passport-verify-shell">
-    <header><Link href="/"><img src="/lokd-logo.svg" alt="LOKD" /></Link><span>LIVE PASSPORT VERIFICATION</span></header>
+    <header><Link href="/"><img src="/lokd-logo.svg" alt="LOKD" /></Link><span>{passport?.synthetic ? "PASSPORT REHEARSAL" : "PASSPORT RECORD"}</span></header>
     {loading ? <section className="passport-loading"><i /><h1>Checking LOKD Passport…</h1><p>Reading the current readiness record.</p></section>
       : error && !passport ? <section className="passport-error"><strong>!</strong><h1>Verification unavailable</h1><p>{error}</p><button onClick={() => setRetryKey((current) => current + 1)}>Try again</button></section>
       : passport && <>
         <section className={`passport-result passport-result--${passport.result}`}>
-          <div className="passport-result-mark">{passport.result === "green" ? "✓" : passport.result === "amber" ? "!" : "×"}</div>
-          <div><span>{passport.result === "green" ? "CURRENT AND READY" : passport.result === "amber" ? "CHECK ASSIGNMENT" : "DO NOT DEPLOY"}</span><h1>{passport.message}</h1><p>Live result · {dateTime(passport.verifiedAt)}</p></div>
+          <div className="passport-result-mark">{passport.synthetic ? "D" : passport.result === "green" ? "✓" : passport.result === "amber" ? "!" : "×"}</div>
+          <div><span>{passport.synthetic ? "DEMO READINESS RECORD" : passport.productionAuthorized ? "PRODUCTION EVIDENCE CURRENT" : passport.result === "amber" ? "CHECK ASSIGNMENT" : "DO NOT DEPLOY"}</span><h1>{passport.message}</h1><p>{passport.synthetic ? "Synthetic result" : "Evidence read"} · {dateTime(passport.verifiedAt)}</p></div>
         </section>
         <section className="passport-profile-card">
           <div className="passport-person"><span>{passport.initials}</span><div><small>{passport.readinessLabel}</small><h2>{passport.officerName}</h2><p>{passport.passportNumber}</p></div></div>
@@ -108,9 +112,9 @@ export default function VerifyPassport() {
         </section>
         {passport.assignment && <section className={`passport-assignment ${passport.assignment.matched ? "matched" : "mismatch"}`}><span>{passport.assignment.matched ? "✓" : "!"}</span><div><small>ASSIGNMENT CHECK</small><h2>{passport.assignment.matched ? "Assigned to this LOKD shift" : "No matching assignment"}</h2>{passport.assignment.matched && <p>{passport.assignment.serviceType} · {passport.assignment.purposeLabel} · {passport.assignment.scheduledDate} · {passport.assignment.shiftStart}–{passport.assignment.shiftEnd}</p>}</div></section>}
         <section className="passport-endorsements"><div><small>CURRENT LOKD ENDORSEMENTS</small><h2>Purpose-trained readiness</h2></div>{passport.endorsements.filter((item) => item.status === "current").map((item) => <article key={item.id}><span>✓</span><p><strong>{item.label}</strong><small>{item.category === "purpose" ? "Purpose endorsement" : item.category === "service" ? "Service readiness" : "Core standard"}</small></p><em>{item.expiresAt ? `to ${item.expiresAt.slice(0,10)}` : "current"}</em></article>)}</section>
-        {passport.assignment?.matched && <button className="passport-confirm" disabled={busy || passport.assignment.verificationStatus === "green" || passport.result === "red"} onClick={() => void confirmShift()}>{passport.assignment.verificationStatus === "green" ? "✓ Arrival already verified" : busy ? "Recording…" : "Confirm officer at this shift"}</button>}
+        {passport.assignment?.matched && !passport.synthetic && <button className="passport-confirm" disabled={busy || passport.assignment.verificationStatus === "green" || passport.result === "red" || !passport.productionAuthorized} onClick={() => void confirmShift()}>{passport.assignment.verificationStatus === "green" ? "✓ Arrival already verified" : busy ? "Recording…" : "Confirm officer at this shift"}</button>}
         {error && <p className="passport-inline-error" role="alert">{error}</p>}
-        <p className="passport-privacy-note">This page confirms current operational readiness only. It does not expose identity documents, background reports, medical information, assessment scores or private contact details.</p>
+        <p className="passport-privacy-note">{passport.synthetic ? "This is a synthetic rehearsal record. It does not prove identity, confirm PSiRA data or authorise deployment." : "This page exposes limited readiness evidence only; production deployment still requires the assignment activation and control-room gates."}</p>
       </>}
     <footer><strong>Compare the officer with their physical LOKD identification.</strong><span>When in doubt, contact LOKD Operations before deployment.</span></footer>
   </main>;

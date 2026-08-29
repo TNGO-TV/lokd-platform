@@ -32,6 +32,8 @@ test("pilot action roles prevent cross-role mutations", () => {
   assert.equal(access.roleForPilotAction("create_booking"), "client");
   assert.equal(access.roleForPilotAction("accept_offer"), "officer");
   assert.equal(access.roleForPilotAction("confirm_booking_payment"), "operations");
+  assert.equal(access.roleForPilotAction("create_client_service_request"), "client");
+  assert.equal(access.roleForPilotAction("create_officer_service_request"), "officer");
   assert.equal(access.roleForPilotAction("reset_demo"), "operations");
 });
 

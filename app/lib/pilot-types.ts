@@ -1,11 +1,26 @@
 export type ServiceType = "Unarmed" | "Armed" | "VIP";
 export type EngagementModel = "fixed" | "flex";
 export type RosterPattern = "weekdays" | "monday_saturday" | "daily";
-export type CalendarCategory = "ordinary" | "sunday" | "public_holiday" | "easter" | "christmas";
-export type RiskBand = "Standard" | "Enhanced" | "Elevated" | "High" | "Critical";
+export type CalendarCategory =
+  "ordinary" | "sunday" | "public_holiday" | "easter" | "christmas";
+export type RiskBand =
+  "Standard" | "Enhanced" | "Elevated" | "High" | "Critical";
 export type OfferStatus = "open" | "accepted" | "declined" | "expired";
-export type LedgerState = "pending_signoff" | "pending_release" | "available" | "withdrawal_queued" | "paid" | "held";
-export type PassportStatus = "active" | "expiring" | "restricted" | "training" | "remediation" | "suspended" | "revoked";
+export type LedgerState =
+  | "pending_signoff"
+  | "pending_release"
+  | "available"
+  | "withdrawal_queued"
+  | "paid"
+  | "held";
+export type PassportStatus =
+  | "active"
+  | "expiring"
+  | "restricted"
+  | "training"
+  | "remediation"
+  | "suspended"
+  | "revoked";
 export type PilotScope = "operations" | "client" | "officer";
 
 export type PassportEndorsement = {
@@ -51,6 +66,8 @@ export type PilotOffer = {
   riskScore: number;
   requiredEndorsements: string[];
   shiftCount: number;
+  plannedEarningsCents: number;
+  positionIndex: number;
   minimumGrade: string;
   contractMonths: number;
   startDate: string;
@@ -114,6 +131,8 @@ export type PilotBooking = {
   riskReasons: string[];
   requiredEndorsements: string[];
   manualReview: boolean;
+  headcount: number;
+  serviceDayCount: number;
   shiftCount: number;
   officerTotalCents: number;
   grossPlatformContributionCents: number;
@@ -200,6 +219,10 @@ export type PilotState = {
 export type PilotAction =
   | {
       action: "create_booking";
+      commandId: string;
+      siteName: string;
+      siteArea: string;
+      addressLabel: string;
       serviceType: ServiceType;
       engagementModel: EngagementModel;
       term: "single" | "1" | "3" | "6" | "12";
@@ -219,13 +242,38 @@ export type PilotAction =
       instructions: string;
     }
   | { action: "confirm_booking_payment"; bookingId: string }
+  | {
+      action: "create_client_service_request";
+      category: string;
+      summary: string;
+      detail: string;
+      bookingId?: string;
+      shiftId?: string;
+    }
+  | {
+      action: "create_officer_service_request";
+      category: string;
+      summary: string;
+      detail: string;
+      shiftId?: string;
+    }
   | { action: "approve_risk_plan"; bookingId: string }
   | { action: "release_offer_wave"; bookingId: string }
   | { action: "reset_demo" }
   | { action: "accept_offer"; offerId: string }
   | { action: "decline_offer"; offerId: string }
-  | { action: "update_service_preference"; serviceType: ServiceType; optedIn: boolean }
-  | { action: "update_flex_availability"; available: boolean; externalWorkAcknowledged: boolean; restWindowConfirmed: boolean }
+  | {
+      action: "update_service_preference";
+      serviceType: ServiceType;
+      optedIn: boolean;
+    }
+  | {
+      action: "update_flex_availability";
+      available: boolean;
+      externalWorkAcknowledged: boolean;
+      restWindowConfirmed: boolean;
+    }
+  | { action: "record_demo_arrival_check"; shiftId: string }
   | { action: "check_in"; shiftId: string }
   | { action: "complete_shift"; shiftId: string }
   | { action: "report_issue"; shiftId: string; category: string }

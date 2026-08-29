@@ -348,7 +348,7 @@ export function addMonths(dateValue: string, months: number) {
   return date.toISOString().slice(0, 10);
 }
 
-function scheduledDates(startDate: string, term: ContractTerm, engagementModel: EngagementModel, rosterPattern: RosterPattern) {
+export function scheduledServiceDates(startDate: string, term: ContractTerm, engagementModel: EngagementModel, rosterPattern: RosterPattern) {
   if (engagementModel === "flex") return [startDate];
   const months = Number(term);
   const endDate = addMonths(startDate, months);
@@ -373,7 +373,7 @@ export function quoteBooking(request: BookingQuoteRequest) {
   const service = servicePriceBook[serviceType];
   const noticeWindow = engagementModel === "flex" ? deriveNoticeWindow(startDate, shift, request.now) : "standard";
   const notice = noticePriceBook[noticeWindow];
-  const dates = scheduledDates(startDate, term, engagementModel, rosterPattern);
+  const dates = scheduledServiceDates(startDate, term, engagementModel, rosterPattern);
   const categories: Record<CalendarCategory, number> = { ordinary: 0, sunday: 0, public_holiday: 0, easter: 0, christmas: 0 };
   let baseClientCents = 0;
   let calendarPremiumCents = 0;
@@ -386,7 +386,7 @@ export function quoteBooking(request: BookingQuoteRequest) {
 
   dates.forEach((dateValue, index) => {
     const category = calendarCategoryForDate(dateValue);
-    categories[category] += 1;
+    categories[category] += risk.headcount;
     const calendar = calendarPriceBook[category];
     const clientCalendarMultiplier = engagementModel === "fixed" ? calendar.fixedClientMultiplier : calendar.flexClientMultiplier;
     const officerCalendarMultiplier = engagementModel === "fixed" ? calendar.fixedOfficerMultiplier : calendar.flexOfficerMultiplier;
@@ -396,12 +396,12 @@ export function quoteBooking(request: BookingQuoteRequest) {
     const finalClient = Math.round(afterDispatch * risk.clientMultiplier);
     const officerBase = service.officerShiftCents;
     const finalOfficer = Math.round(officerBase * officerCalendarMultiplier * risk.officerMultiplier);
-    baseClientCents += baseClient;
-    calendarPremiumCents += afterCalendar - baseClient;
-    dispatchPremiumCents += afterDispatch - afterCalendar;
-    riskPremiumCents += finalClient - afterDispatch;
-    officerBaseTotalCents += officerBase;
-    officerTotalCents += finalOfficer;
+    baseClientCents += baseClient * risk.headcount;
+    calendarPremiumCents += (afterCalendar - baseClient) * risk.headcount;
+    dispatchPremiumCents += (afterDispatch - afterCalendar) * risk.headcount;
+    riskPremiumCents += (finalClient - afterDispatch) * risk.headcount;
+    officerBaseTotalCents += officerBase * risk.headcount;
+    officerTotalCents += finalOfficer * risk.headcount;
     if (index === 0) {
       firstClientShiftCents = finalClient;
       firstOfficerShiftCents = finalOfficer;
@@ -409,15 +409,20 @@ export function quoteBooking(request: BookingQuoteRequest) {
   });
 
   const clientPriceCents = baseClientCents + calendarPremiumCents + dispatchPremiumCents + riskPremiumCents;
-  const firstCalendarCategory = calendarCategoryForDate(startDate);
+  const firstServiceDate = dates[0] ?? startDate;
+  const firstCalendarCategory = calendarCategoryForDate(firstServiceDate);
   const manualReview = risk.manualReview || (engagementModel === "flex" && serviceType !== "Unarmed") || (engagementModel === "fixed" && Number(term) > 3);
 
   return {
     version: PRICE_BOOK_VERSION,
     engagementModel,
-    shiftCount: dates.length,
+    shiftCount: dates.length * risk.headcount,
+    serviceDayCount: dates.length,
+    serviceDates: dates,
+    headcount: risk.headcount,
     contractMonths: engagementModel === "flex" ? 0 : Number(term),
-    startDate,
+    requestedStartDate: startDate,
+    startDate: firstServiceDate,
     endDate: engagementModel === "flex" ? startDate : addMonths(startDate, Number(term)),
     clientPriceCents,
     clientShiftCents: firstClientShiftCents,

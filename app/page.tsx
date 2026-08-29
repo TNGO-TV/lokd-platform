@@ -49,7 +49,7 @@ export default function PublicHome() {
             <small>Contractor access · 18 km away</small>
             <dl><div><dt>Your offer</dt><dd>R800</dd></div><div><dt>Release</dt><dd>Weekly</dd></div></dl>
             <div className="offer-match-row"><span>✓ Passport current</span><span>✓ Construction endorsed</span></div>
-            <button type="button">Preview offer <b>→</b></button>
+            <Link href="/officer">Preview offer <b>→</b></Link>
           </article>
           <aside className="public-verified-card"><span>LK</span><div><strong>Passport preview ready</strong><small>Illustrative Grade B · Purpose trained</small></div><i>✓</i></aside>
           <aside className="public-earnings-chip"><small>Illustrative payroll item</small><strong>R800</strong><span>No payment generated</span></aside>

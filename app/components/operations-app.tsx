@@ -16,8 +16,9 @@ import type {
 import { useOperations } from "../lib/use-operations";
 import { usePilot } from "../lib/use-pilot";
 import WorkspaceView from "./workspace-view";
+import { PlatformReadiness } from "./platform-readiness";
 
-const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officers", "Clients", "Earnings", "Feedback", "Launch readiness"];
+const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officers", "Clients", "Service requests", "Timesheets", "Billing", "Integrations", "Feedback", "Launch readiness"];
 
 function Icon({ name }: { name: "search" | "bell" | "refresh" | "incident" | "close" | "chevron" | "map" }) {
   const paths: Record<typeof name, React.ReactNode> = {
@@ -87,13 +88,27 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
   const [activeNav, setActiveNav] = useState("Control");
   const [notice, setNotice] = useState<string | null>(null);
   const [createIncidentOpen, setCreateIncidentOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const isCommand = activeNav === "Control" || activeNav === "Incidents";
   const isCoverage = activeNav === "Coverage";
   const isActivation = activeNav === "Assignment activation";
   const isWorkforce = activeNav === "Workforce";
   const isLaunchReadiness = activeNav === "Launch readiness";
-  const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isLaunchReadiness;
+  const isPlatform = activeNav === "Integrations" || activeNav === "Service requests"
+    || activeNav === "Timesheets" || activeNav === "Billing";
+  const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isLaunchReadiness || isPlatform;
   const pendingPayments = pilot.state?.bookings.filter((booking) => booking.fundingStatus !== "paid_in_full").length ?? 0;
+  const searchResults = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+    const sites = (operations.state?.sites ?? []).filter((item) => `${item.id} ${item.name} ${item.clientName} ${item.area}`.toLowerCase().includes(query)).map((item) => ({ type: "Site", id: item.id, label: item.name, detail: `${item.clientName} · ${item.stateLabel}`, destination: "Control" }));
+    const officers = (operations.state?.workforce.officers ?? []).filter((item) => `${item.officerId} ${item.officerName} ${item.employerName ?? ""}`.toLowerCase().includes(query)).map((item) => ({ type: "Officer", id: item.officerId, label: item.officerName, detail: `${item.workforceModel ?? "network"} · ${item.employmentStatus}`, destination: "Officers" }));
+    const bookings = (pilot.state?.bookings ?? []).filter((item) => `${item.id} ${item.siteName} ${item.postName}`.toLowerCase().includes(query)).map((item) => ({ type: "Booking", id: item.id, label: item.siteName, detail: `${item.serviceType} · ${item.status}`, destination: "Bookings" }));
+    return [...sites, ...officers, ...bookings].slice(0, 12);
+  }, [operations.state, pilot.state, searchQuery]);
 
   function flash(message: string) {
     setNotice(message);
@@ -125,7 +140,8 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
             {item === "Feedback" && <em>Team</em>}
           </button>)}
         </nav>
-        <div className="rail-footer"><div className="avatar avatar--dark">Z</div><span><strong>Operations</strong>{actorEmail}</span><button aria-label="Account options">•••</button></div>
+        <div className="rail-footer"><div className="avatar avatar--dark">Z</div><span><strong>Operations</strong>{actorEmail}</span><button aria-label="Account and access status" aria-expanded={accountOpen} onClick={() => setAccountOpen((value) => !value)}>•••</button></div>
+        {accountOpen && <aside className="ops-account-popover"><header><strong>Operations access</strong><button aria-label="Close account details" onClick={() => setAccountOpen(false)}>×</button></header><dl><div><dt>Signed in as</dt><dd>{actorEmail}</dd></div><div><dt>Current role</dt><dd>Operations owner</dd></div><div><dt>Environment</dt><dd>{stage} · synthetic</dd></div></dl><p>Production tenant roles and Operations MFA remain part of the production-backend connection.</p><nav aria-label="Switch pilot workspace"><Link href="/client">Client workspace</Link><Link href="/officer">Officer workspace</Link></nav></aside>}
       </aside>
 
       <section className="main-stage">
@@ -133,12 +149,14 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
           <Link className="mobile-brand" href="/" aria-label="LOKD home"><img src="/lokd-logo.svg" alt="LOKD" /></Link>
           <div className="breadcrumb"><span>Operations</span><b>/</b><strong>{activeNav}</strong></div>
           <div className="top-actions">
-            <button className="icon-button" aria-label="Search"><Icon name="search" /></button>
-            <button className="icon-button notification-button" aria-label="Notifications"><span className="notification-dot" /><Icon name="bell" /></button>
+            <button className="icon-button" aria-label="Search" aria-expanded={searchOpen} onClick={() => { setSearchOpen((value) => !value); setNotificationsOpen(false); }}><Icon name="search" /></button>
+            <button className="icon-button notification-button" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => { setNotificationsOpen((value) => !value); setSearchOpen(false); }}><span className="notification-dot" /><Icon name="bell" /></button>
             {isOperationalSurface ? <button className="primary-button ops-incident-button" onClick={() => setCreateIncidentOpen(true)}><Icon name="incident" /> Create incident</button>
-              : <button className="primary-button" onClick={() => flash("Booking creation opens in the Client workspace.")}><span>＋</span> Create booking</button>}
+              : <Link className="primary-button" href="/client"><span>＋</span> Create booking</Link>}
           </div>
         </header>
+        {searchOpen && <aside className="ops-top-popover ops-search-popover"><label><Icon name="search" /><input autoFocus value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search sites, officers or bookings" /></label><div>{searchQuery.trim() ? searchResults.length ? searchResults.map((item) => <button key={`${item.type}-${item.id}`} onClick={() => { setActiveNav(item.destination); setSearchOpen(false); }}><span>{item.type}</span><strong>{item.label}</strong><small>{item.id} · {item.detail}</small></button>) : <p>No matching connected records.</p> : <p>Search the current server-backed Operations picture.</p>}</div></aside>}
+        {notificationsOpen && <aside className="ops-top-popover ops-notification-popover"><header><strong>Operations notifications</strong><button onClick={() => setNotificationsOpen(false)}>×</button></header><div><button onClick={() => { setActiveNav("Coverage"); setNotificationsOpen(false); }}><span className="tone-amber">Coverage</span><strong>{operations.state?.summary.arrivalWatch ?? 0} arrival or coverage item(s)</strong><small>Open the live synthetic roster queue</small></button><button onClick={() => { setActiveNav("Incidents"); setNotificationsOpen(false); }}><span className="tone-red">Incidents</span><strong>{operations.state?.summary.openIncidents ?? 0} open incident(s)</strong><small>Review ownership and SLA state</small></button><button onClick={() => { setActiveNav("Bookings"); setNotificationsOpen(false); }}><span className="tone-blue">Funding</span><strong>{pendingPayments} booking(s) before matching</strong><small>Risk or payment evidence still required</small></button></div></aside>}
 
         <div className="mobile-ops-controls">
           <div className="mobile-experience-switcher" aria-label="Preview experience"><a className="active" href="/ops">Ops</a><a href="/officer">Officer</a><a href="/client">Client</a></div>
@@ -156,6 +174,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
             : isActivation ? <AssignmentActivationControl operations={operations} flash={flash} />
             : isWorkforce ? <WorkforceControl operations={operations} />
               : isLaunchReadiness ? <LaunchReadinessControl operations={operations} />
+                : isPlatform ? <PlatformReadiness view={activeNav as "Integrations" | "Service requests" | "Timesheets" | "Billing"} flash={flash} />
                 : <WorkspaceView name={activeNav} />}
         </div>
       </section>

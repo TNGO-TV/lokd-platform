@@ -124,3 +124,27 @@ test("Long Fixed terms use monthly release and require managed review", () => {
   assert.equal(quote.releaseCadence, "Monthly");
   assert.equal(quote.manualReview, true);
 });
+
+test("Critical risk multiplies every dated service day into two funded roster positions", () => {
+  const riskInput = {
+    assetExposure: "high_value",
+    publicAccess: "open",
+    incidentHistory: "repeated",
+    existingControls: "limited",
+    nightOperation: true,
+    vulnerablePeople: true,
+  };
+  const quote = quoteBooking({
+    ...base,
+    serviceType: "Armed",
+    engagementModel: "fixed",
+    term: "1",
+    shift: "night",
+    riskInput,
+  });
+  assert.equal(quote.risk.band, "Critical");
+  assert.equal(quote.headcount, 2);
+  assert.equal(quote.shiftCount, quote.serviceDayCount * 2);
+  assert.equal(Object.values(quote.calendarBreakdown).reduce((sum, count) => sum + count, 0), quote.shiftCount);
+  assert.ok(quote.officerTotalCents > quote.officerRateCents * quote.serviceDayCount);
+});

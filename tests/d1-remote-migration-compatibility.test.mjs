@@ -7,7 +7,7 @@ const migrationsDirectory = new URL("../drizzle/", import.meta.url);
 const migrationFiles = fs.readdirSync(migrationsDirectory)
   .filter((name) => /^\d{4}_.*\.sql$/.test(name))
   .sort();
-const targetSequences = Array.from({ length: 12 }, (_, index) => String(index + 7).padStart(4, "0"));
+const targetSequences = Array.from({ length: 14 }, (_, index) => String(index + 7).padStart(4, "0"));
 const targetFiles = migrationFiles.filter((name) => targetSequences.includes(name.slice(0, 4)));
 const statementBreakpoint = "--> statement-breakpoint";
 
@@ -22,9 +22,9 @@ function migrationChunks(file) {
     .filter(Boolean);
 }
 
-test("V19 migrations preserve the D1 remote SQL formatting contract", () => {
+test("activation and integration migrations preserve the D1 remote SQL formatting contract", () => {
   assert.deepEqual(targetFiles.map((name) => name.slice(0, 4)), targetSequences,
-    "migrations 0007 through 0018 must each be present exactly once");
+    "migrations 0007 through 0020 must each be present exactly once");
 
   for (const file of targetFiles) {
     const source = readMigration(file);
@@ -45,7 +45,7 @@ test("V19 migrations preserve the D1 remote SQL formatting contract", () => {
   }
 });
 
-test("every V19 statement-breakpoint chunk applies after the existing schema", () => {
+test("every guarded statement-breakpoint chunk applies after the existing schema", () => {
   const database = new DatabaseSync(":memory:");
   database.exec("PRAGMA foreign_keys=ON");
 

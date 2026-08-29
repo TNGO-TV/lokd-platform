@@ -37,16 +37,20 @@ function normaliseEmail(value: string) {
 function emailSet(values: unknown) {
   return new Set(
     Array.isArray(values)
-      ? values.filter((value): value is string => typeof value === "string").map(normaliseEmail)
+      ? values
+          .filter((value): value is string => typeof value === "string")
+          .map(normaliseEmail)
       : [],
   );
 }
 
 function entityMap(values: unknown) {
   const result = new Map<string, string>();
-  if (!values || typeof values !== "object" || Array.isArray(values)) return result;
+  if (!values || typeof values !== "object" || Array.isArray(values))
+    return result;
   for (const [email, entityId] of Object.entries(values)) {
-    if (typeof entityId === "string" && entityId.trim()) result.set(normaliseEmail(email), entityId.trim());
+    if (typeof entityId === "string" && entityId.trim())
+      result.set(normaliseEmail(email), entityId.trim());
   }
   return result;
 }
@@ -55,13 +59,19 @@ function parseConfig(raw: string): PilotAccessConfig {
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw) as unknown;
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as PilotAccessConfig : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as PilotAccessConfig)
+      : {};
   } catch {
     return {};
   }
 }
 
-export function principalForEmailFromConfig(emailValue: string, displayName: string, rawConfig: string): PilotPrincipal {
+export function principalForEmailFromConfig(
+  emailValue: string,
+  displayName: string,
+  rawConfig: string,
+): PilotPrincipal {
   const email = normaliseEmail(emailValue);
   const config = parseConfig(rawConfig);
   const owners = emailSet(config.owners);
@@ -88,10 +98,16 @@ export function principalHasRole(principal: PilotPrincipal, role: PilotRole) {
 }
 
 export function requireSameOriginJson(request: Request) {
-  const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
-  if (contentType !== "application/json") throw new PilotAccessError("Use application/json for this request.", 415);
+  const contentType = request.headers
+    .get("content-type")
+    ?.split(";", 1)[0]
+    ?.trim()
+    .toLowerCase();
+  if (contentType !== "application/json")
+    throw new PilotAccessError("Use application/json for this request.", 415);
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) throw new PilotAccessError("Cross-site requests are not accepted.", 403);
+  if (origin && origin !== new URL(request.url).origin)
+    throw new PilotAccessError("Cross-site requests are not accepted.", 403);
   const fetchSite = request.headers.get("sec-fetch-site");
   if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") {
     throw new PilotAccessError("Cross-site requests are not accepted.", 403);
@@ -99,16 +115,28 @@ export function requireSameOriginJson(request: Request) {
 }
 
 export function roleForPilotAction(action: PilotAction["action"]): PilotRole {
-  if (["create_booking", "client_signoff"].includes(action)) return "client";
-  if ([
-    "accept_offer",
-    "decline_offer",
-    "update_service_preference",
-    "update_flex_availability",
-    "check_in",
-    "complete_shift",
-    "report_issue",
-    "request_payout",
-  ].includes(action)) return "officer";
+  if (
+    [
+      "create_booking",
+      "client_signoff",
+      "create_client_service_request",
+      "record_demo_arrival_check",
+    ].includes(action)
+  )
+    return "client";
+  if (
+    [
+      "accept_offer",
+      "decline_offer",
+      "update_service_preference",
+      "update_flex_availability",
+      "check_in",
+      "complete_shift",
+      "report_issue",
+      "create_officer_service_request",
+      "request_payout",
+    ].includes(action)
+  )
+    return "officer";
   return "operations";
 }
