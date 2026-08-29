@@ -72,7 +72,7 @@ export default function OfficerApp() {
     <main className="portal-shell officer-shell officer-v2">
       <header className="portal-header officer-header-v2">
         <Link href="/" className="portal-logo">
-          <img src="/lokd-logo.svg" alt="LOKD" />
+          <img src="/lokd-logo.png" alt="LOKD" />
         </Link>
         <div
           className="portal-role-switch pilot-role-switch"
@@ -1492,7 +1492,7 @@ function OfficerEarnings({ state }: { state: PilotState }) {
       </section>
       <section className="lokd-card-preview card-preview-v2">
         <div className="mini-payment-card">
-          <img src="/lokd-logo-reverse.svg" alt="" />
+          <img src="/lokd-logo-reverse.png" alt="" />
           <span>CONCEPT</span>
           <b>•••• 2081</b>
         </div>

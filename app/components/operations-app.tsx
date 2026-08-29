@@ -124,7 +124,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
   return (
     <main className="app-shell ops-premium-shell">
       <aside className="side-rail">
-        <Link className="brand-lockup" href="/" aria-label="LOKD home"><img src="/lokd-logo-reverse.svg" alt="LOKD" /></Link>
+        <Link className="brand-lockup" href="/" aria-label="LOKD home"><img src="/lokd-logo-reverse.png" alt="LOKD" /></Link>
         <div className="pilot-chip"><span className="pulse-dot" /><span><strong>Johannesburg pilot</strong>Operations command · Synthetic</span></div>
         <div className="experience-switcher" aria-label="Preview experience">
           <a className="experience-active" href="/ops">Ops</a><a href="/officer">Officer</a><a href="/client">Client</a>
@@ -146,7 +146,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
 
       <section className="main-stage">
         <header className="top-bar ops-command-topbar">
-          <Link className="mobile-brand" href="/" aria-label="LOKD home"><img src="/lokd-logo.svg" alt="LOKD" /></Link>
+          <Link className="mobile-brand" href="/" aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></Link>
           <div className="breadcrumb"><span>Operations</span><b>/</b><strong>{activeNav}</strong></div>
           <div className="top-actions">
             <button className="icon-button" aria-label="Search" aria-expanded={searchOpen} onClick={() => { setSearchOpen((value) => !value); setNotificationsOpen(false); }}><Icon name="search" /></button>

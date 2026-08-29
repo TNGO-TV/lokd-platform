@@ -12,7 +12,7 @@ const labels: Record<PilotRole, string> = {
 export default function PilotAccessDenied({ email, role }: { email: string; role: PilotRole }) {
   return <main className="pilot-access-shell">
     <section className="pilot-access-card">
-      <Link href="/" aria-label="LOKD home"><img src="/lokd-logo.svg" alt="LOKD" /></Link>
+      <Link href="/" aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></Link>
       <p className="public-kicker">Controlled pre-launch access</p>
       <h1>{labels[role]} access is not assigned.</h1>
       <p>You are signed in as <strong>{email}</strong>. LOKD has not linked this account to the requested pilot role.</p>

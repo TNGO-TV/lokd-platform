@@ -72,7 +72,7 @@ export default function ClientGuidePage() {
       </aside>
 
       <header className="public-header">
-        <Link className="public-logo" href="/" aria-label="LOKD home"><img src="/lokd-logo.svg" alt="LOKD" /></Link>
+        <Link className="public-logo" href="/" aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></Link>
         <nav aria-label="Main navigation">
           <Link aria-current="page" href="/clients">For clients</Link>
           <Link href="/#passport">LOKD Passport</Link>
@@ -212,7 +212,7 @@ export default function ClientGuidePage() {
       </section>
 
       <footer className="public-footer">
-        <img src="/lokd-logo.svg" alt="LOKD" />
+        <img src="/lokd-logo.png" alt="LOKD" />
         <p>Verified people. Controlled operations. Complete proof.</p>
         <div><Link href="/clients">Client guide</Link><Link href="/join">Officer interest</Link><Link href="/officer">Authorised officer access</Link><Link href="/client">Authorised client access</Link></div>
         <small>© 2026 LOKD · Controlled pre-launch platform · No paid security deployment is active</small>

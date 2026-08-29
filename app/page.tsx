@@ -14,7 +14,7 @@ export default function PublicHome() {
         <nav><a href="/join">Officer interest</a><a href="/client">Open public demo</a></nav>
       </aside>
       <header className="public-header">
-        <Link className="public-logo" href="/" aria-label="LOKD home"><img src="/lokd-logo.svg" alt="LOKD" /></Link>
+        <Link className="public-logo" href="/" aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></Link>
         <nav aria-label="Main navigation">
           <Link href="/clients">For clients</Link>
           <a href="#passport">LOKD Passport</a>
@@ -132,7 +132,7 @@ export default function PublicHome() {
       </section>
 
       <footer className="public-footer">
-        <img src="/lokd-logo.svg" alt="LOKD" />
+        <img src="/lokd-logo.png" alt="LOKD" />
         <p>Verified people. Controlled operations. Complete proof.</p>
         <div><Link href="/clients">Client guide</Link><a href="/join">Officer interest</a><a href="/officer">Authorised officer access</a><a href="/client">Authorised client access</a></div>
         <small>© 2026 LOKD · Controlled pre-launch platform · No paid security deployment is active</small>

@@ -254,7 +254,7 @@ export default function ClientApp() {
       <main className="portal-shell client-shell">
         <header className="portal-header client-header">
           <Link href="/" className="portal-logo">
-            <img src="/lokd-logo.svg" alt="LOKD" />
+            <img src="/lokd-logo.png" alt="LOKD" />
           </Link>
         </header>
         <section className="portal-page client-page">
@@ -273,7 +273,7 @@ export default function ClientApp() {
     <main className="portal-shell client-shell">
       <header className="portal-header client-header">
         <Link href="/" className="portal-logo">
-          <img src="/lokd-logo.svg" alt="LOKD" />
+          <img src="/lokd-logo.png" alt="LOKD" />
         </Link>
         <div className="portal-role-switch">
           <Link href="/ops">Ops</Link>

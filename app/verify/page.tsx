@@ -98,7 +98,7 @@ export default function VerifyPassport() {
   }
 
   return <main className="passport-verify-shell">
-    <header><Link href="/"><img src="/lokd-logo.svg" alt="LOKD" /></Link><span>{passport?.synthetic ? "PASSPORT REHEARSAL" : "PASSPORT RECORD"}</span></header>
+    <header><Link href="/"><img src="/lokd-logo.png" alt="LOKD" /></Link><span>{passport?.synthetic ? "PASSPORT REHEARSAL" : "PASSPORT RECORD"}</span></header>
     {loading ? <section className="passport-loading"><i /><h1>Checking LOKD Passport…</h1><p>Reading the current readiness record.</p></section>
       : error && !passport ? <section className="passport-error"><strong>!</strong><h1>Verification unavailable</h1><p>{error}</p><button onClick={() => setRetryKey((current) => current + 1)}>Try again</button></section>
       : passport && <>
