@@ -3,6 +3,7 @@ import {
   PilotAccessError,
   principalForEmailFromConfig,
   principalHasRole,
+  publicDemoPrincipal,
   requireSameOriginJson,
   roleForPilotAction,
   type PilotPrincipal,
@@ -12,6 +13,7 @@ import {
 export {
   PilotAccessError,
   principalHasRole,
+  publicDemoPrincipal,
   requireSameOriginJson,
   roleForPilotAction,
   type PilotPrincipal,
@@ -29,10 +31,14 @@ export function principalForEmail(email: string, displayName = email): PilotPrin
 
 export function requirePilotApiRole(request: Request, allowed: PilotRole | PilotRole[]) {
   const email = request.headers.get("oai-authenticated-user-email");
-  if (!email) throw new PilotAccessError("Sign in to continue.", 401);
-  const principal = principalForEmail(email, email);
   const roles = Array.isArray(allowed) ? allowed : [allowed];
+  if (!email) {
+    if (pilotStage() === "demo") return publicDemoPrincipal();
+    throw new PilotAccessError("Sign in to continue.", 401);
+  }
+  const principal = principalForEmail(email, email);
   if (!roles.some((role) => principalHasRole(principal, role))) {
+    if (pilotStage() === "demo") return publicDemoPrincipal();
     throw new PilotAccessError("This account does not have access to that LOKD workspace.", 403);
   }
   return principal;

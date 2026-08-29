@@ -28,6 +28,17 @@ test("configured pilot users receive only their assigned role and entity", () =>
   assert.equal(officer.officerId, "OFF-001");
 });
 
+test("public demo principal is isolated to the synthetic pilot entities", () => {
+  const principal = access.publicDemoPrincipal();
+  assert.equal(principal.owner, false);
+  assert.equal(principal.email, "public-demo@lokd.invalid");
+  assert.equal(principal.clientId, "CL-001");
+  assert.equal(principal.officerId, "OFF-001");
+  for (const role of ["operations", "client", "officer", "reviewer"]) {
+    assert.equal(access.principalHasRole(principal, role), true);
+  }
+});
+
 test("pilot action roles prevent cross-role mutations", () => {
   assert.equal(access.roleForPilotAction("create_booking"), "client");
   assert.equal(access.roleForPilotAction("accept_offer"), "officer");

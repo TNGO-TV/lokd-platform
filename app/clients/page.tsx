@@ -68,7 +68,7 @@ export default function ClientGuidePage() {
     <main className="public-home client-guide-page">
       <aside className="team-review-bar" aria-label="Launch status">
         <div><strong>Controlled pre-launch</strong><span>PSiRA paperwork is reported complete; no paid deployment is active while the control-room inspection and production activation checks remain open.</span></div>
-        <nav><Link href="/join">Officer interest</Link><Link href="/client">Authorised pilot access</Link></nav>
+        <nav><Link href="/join">Officer interest</Link><Link href="/client">Open public demo</Link></nav>
       </aside>
 
       <header className="public-header">

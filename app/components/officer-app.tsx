@@ -95,7 +95,7 @@ export default function OfficerApp() {
 
       <section className="portal-page officer-page officer-page-v2">
         <div className="demo-switch officer-demo-switch">
-          <span>Private pilot</span>
+          <span>Public synthetic demo</span>
           <button
             className={mode === "approved" ? "active" : ""}
             onClick={() => setMode("approved")}
@@ -744,7 +744,7 @@ function ApprovedOfficer({
               <p>
                 Use your site emergency procedure and call the configured
                 emergency contact. The live control-room call path is not
-                activated in this private pilot.
+                activated in this public synthetic demo.
               </p>
             </div>
             <fieldset className="issue-options">

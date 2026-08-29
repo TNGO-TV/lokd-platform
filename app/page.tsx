@@ -11,7 +11,7 @@ export default function PublicHome() {
     <main className="public-home">
       <aside className="team-review-bar" aria-label="Launch status">
         <div><strong>Controlled pre-launch</strong><span>PSiRA paperwork is reported complete; paid deployment remains locked pending the control-room inspection and production activation checks.</span></div>
-        <nav><a href="/join">Officer interest</a><a href="/client">Authorised pilot access</a></nav>
+        <nav><a href="/join">Officer interest</a><a href="/client">Open public demo</a></nav>
       </aside>
       <header className="public-header">
         <Link className="public-logo" href="/" aria-label="LOKD home"><img src="/lokd-logo.svg" alt="LOKD" /></Link>
