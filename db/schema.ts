@@ -1793,3 +1793,93 @@ export const serviceHeartbeats = sqliteTable(
   },
   (table) => [index("service_heartbeats_status_idx").on(table.environment, table.status)],
 );
+
+export const platformReadinessControls = sqliteTable(
+  "platform_readiness_controls",
+  {
+    code: text("code").primaryKey(),
+    category: text("category").notNull(),
+    label: text("label").notNull(),
+    status: text("status").notNull().default("pending"),
+    requiredForIntegrationReady: integer("required_for_integration_ready").notNull().default(1),
+    evidenceReference: text("evidence_reference"),
+    detail: text("detail").notNull().default(""),
+    environment: text("environment").notNull(),
+    integrityState: text("integrity_state").notNull(),
+    checkedAt: text("checked_at").notNull(),
+    checkedBy: text("checked_by").notNull(),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    index("platform_readiness_status_idx").on(table.environment, table.status, table.category),
+  ],
+);
+
+export const scheduledJobRuns = sqliteTable(
+  "scheduled_job_runs",
+  {
+    id: text("id").primaryKey(),
+    jobKey: text("job_key").notNull(),
+    trigger: text("trigger").notNull(),
+    status: text("status").notNull().default("running"),
+    processedCount: integer("processed_count").notNull().default(0),
+    failureCount: integer("failure_count").notNull().default(0),
+    detail: text("detail").notNull().default(""),
+    environment: text("environment").notNull(),
+    integrityState: text("integrity_state").notNull(),
+    startedAt: text("started_at").notNull(),
+    completedAt: text("completed_at"),
+  },
+  (table) => [
+    index("scheduled_job_runs_status_idx").on(table.environment, table.jobKey, table.status, table.startedAt),
+  ],
+);
+
+export const operatorNotifications = sqliteTable(
+  "operator_notifications",
+  {
+    id: text("id").primaryKey(),
+    sourceEventId: text("source_event_id").notNull().references(() => domainOutboxEvents.id),
+    audienceRole: text("audience_role").notNull().default("operations"),
+    subject: text("subject").notNull(),
+    message: text("message").notNull(),
+    status: text("status").notNull().default("unread"),
+    environment: text("environment").notNull(),
+    integrityState: text("integrity_state").notNull(),
+    createdAt: text("created_at").notNull(),
+    readAt: text("read_at"),
+  },
+  (table) => [
+    uniqueIndex("operator_notifications_source_idx").on(table.sourceEventId),
+    index("operator_notifications_queue_idx").on(table.environment, table.status, table.createdAt),
+  ],
+);
+
+export const payrollPolicyVersions = sqliteTable(
+  "payroll_policy_versions",
+  {
+    id: text("id").primaryKey(),
+    jurisdiction: text("jurisdiction").notNull().default("ZA"),
+    currency: text("currency").notNull().default("ZAR"),
+    effectiveFrom: text("effective_from").notNull(),
+    effectiveTo: text("effective_to"),
+    status: text("status").notNull().default("draft"),
+    rulesJson: text("rules_json").notNull(),
+    policyHash: text("policy_hash").notNull(),
+    sourceReference: text("source_reference").notNull(),
+    activeKey: text("active_key"),
+    environment: text("environment").notNull(),
+    integrityState: text("integrity_state").notNull(),
+    createdBy: text("created_by").notNull(),
+    reviewedBy: text("reviewed_by"),
+    approvedBy: text("approved_by"),
+    createdAt: text("created_at").notNull(),
+    reviewedAt: text("reviewed_at"),
+    activatedAt: text("activated_at"),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    uniqueIndex("payroll_policy_active_idx").on(table.activeKey),
+    index("payroll_policy_effective_idx").on(table.environment, table.jurisdiction, table.status, table.effectiveFrom),
+  ],
+);

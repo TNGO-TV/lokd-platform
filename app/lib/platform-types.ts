@@ -80,6 +80,10 @@ export type PlatformTimesheet = {
   employerName: string | null;
   payrollRunId: string | null;
   backendHandoffStatus: string | null;
+  employeeDeductionCents: number | null;
+  netPayCents: number | null;
+  policyVersion: string | null;
+  calculationVersion: string | null;
   submittedAt: string;
   approvedBy: string | null;
   approvedAt: string | null;
@@ -116,6 +120,38 @@ export type PlatformWorkflowSection = {
   remaining: string;
 };
 
+export type PlatformReadinessControl = {
+  code: string;
+  category: string;
+  label: string;
+  status: "ready" | "blocked" | "pending";
+  requiredForIntegrationReady: boolean;
+  evidenceReference: string | null;
+  detail: string;
+  checkedAt: string;
+  checkedBy: string;
+};
+
+export type PlatformJobRun = {
+  id: string;
+  jobKey: string;
+  trigger: string;
+  status: string;
+  processedCount: number;
+  failureCount: number;
+  detail: string;
+  startedAt: string;
+  completedAt: string | null;
+};
+
+export type PlatformNotification = {
+  id: string;
+  subject: string;
+  message: string;
+  status: string;
+  createdAt: string;
+};
+
 export type PlatformState = {
   environment: "demo";
   generatedAt: string;
@@ -130,6 +166,10 @@ export type PlatformState = {
     timesheetsAwaitingReview: number;
     invoicesAwaitingHandoff: number;
     payrollHandoffs: number;
+    externalIntegrationsRemaining: number;
+    readyControls: number;
+    requiredControls: number;
+    unreadOperatorNotifications: number;
   };
   sections: PlatformWorkflowSection[];
   integrations: PlatformIntegration[];
@@ -138,6 +178,9 @@ export type PlatformState = {
   serviceRequests: PlatformServiceRequest[];
   timesheets: PlatformTimesheet[];
   invoices: PlatformInvoice[];
+  readinessControls: PlatformReadinessControl[];
+  jobRuns: PlatformJobRun[];
+  notifications: PlatformNotification[];
 };
 
 export type PlatformAction =
@@ -145,4 +188,6 @@ export type PlatformAction =
   | { action: "triage_service_request"; requestId: string; version: number }
   | { action: "resolve_service_request"; requestId: string; version: number; resolution: string }
   | { action: "approve_timesheet"; timesheetId: string; version: number }
-  | { action: "review_invoice"; invoiceId: string; version: number };
+  | { action: "review_invoice"; invoiceId: string; version: number }
+  | { action: "calculate_payroll_run"; payrollRunId: string }
+  | { action: "run_platform_maintenance" };

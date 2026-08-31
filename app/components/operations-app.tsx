@@ -82,7 +82,7 @@ function MiniMark() {
   return <div className="mini-mark" aria-hidden="true"><span /><span /><span /></div>;
 }
 
-export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "prelaunch" | "pilot"; actorEmail: string }) {
+export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "prelaunch" | "pilot" | "production"; actorEmail: string }) {
   const pilot = usePilot("operations");
   const operations = useOperations();
   const [activeNav, setActiveNav] = useState("Control");

@@ -8,7 +8,7 @@ const headers = {
   "x-robots-tag": "noindex, nofollow",
 };
 
-type ReadinessChecks = { requiredTables: number; requiredTriggers: number };
+type ReadinessChecks = { requiredTables: number; requiredTriggers: number; evidenceStoreBound: boolean };
 
 function reply(status: "ready" | "unavailable", code: number, checks?: ReadinessChecks) {
   return Response.json(
@@ -17,6 +17,8 @@ function reply(status: "ready" | "unavailable", code: number, checks?: Readiness
       service: "lokd-security",
       checkedAt: new Date().toISOString(),
       productionActivationAuthorized: false,
+      softwareIntegrationReady: status === "ready",
+      remainingExternalProviders: ["iiDENTIFii", "payment processor"],
       checks: checks ?? null,
     },
     { status: code, headers },
@@ -30,7 +32,8 @@ export async function GET() {
       SUM(CASE WHEN type = 'table' AND name IN (
         'integration_provider_configs','api_idempotency_keys','integration_operations',
         'provider_webhook_inbox','domain_outbox_events','identity_verification_cases',
-        'payment_orders','service_requests') THEN 1 ELSE 0 END) AS required_tables,
+        'payment_orders','service_requests','document_artifacts','platform_readiness_controls',
+        'scheduled_job_runs','operator_notifications','payroll_policy_versions') THEN 1 ELSE 0 END) AS required_tables,
       SUM(CASE WHEN type = 'trigger' AND name IN (
         'officer_application_provenance_insert_v21','identity_case_transition_guard_v21',
         'payment_order_evidence_guard_v21','integration_operation_transition_guard_v21',
@@ -39,8 +42,11 @@ export async function GET() {
     const checks = {
       requiredTables: Number(schema?.required_tables ?? 0),
       requiredTriggers: Number(schema?.required_triggers ?? 0),
+      evidenceStoreBound: Boolean(env.BUCKET),
     };
-    if (checks.requiredTables !== 8 || checks.requiredTriggers !== 6) return reply("unavailable", 503, checks);
+    if (checks.requiredTables !== 13 || checks.requiredTriggers !== 6 || !checks.evidenceStoreBound) {
+      return reply("unavailable", 503, checks);
+    }
     return reply("ready", 200, checks);
   } catch {
     return reply("unavailable", 503);

@@ -2,10 +2,13 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { runDueAssignmentRevalidations } from "../app/lib/assignment-activation-server";
+import { runPlatformMaintenance } from "../app/lib/platform-jobs";
 
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
+  BUCKET: R2Bucket;
+  LOKD_APP_STAGE?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -50,6 +53,16 @@ const worker = {
     return handler.fetch(request, env, ctx);
   },
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    const configuredStage = env.LOKD_APP_STAGE?.trim().toLowerCase();
+    const environment = configuredStage === "demo" ? "demo" : configuredStage === "production" ? "production" : "prelaunch";
+    const integrityState = environment === "demo" ? "synthetic" : environment === "production" ? "production_verified" : "user_submitted";
+    ctx.waitUntil(runPlatformMaintenance(env.DB, {
+      actorId: "system:scheduled-maintenance",
+      trigger: "scheduled",
+      evidenceStoreBound: Boolean(env.BUCKET),
+      environment,
+      integrityState,
+    }).then(() => undefined));
     ctx.waitUntil(runDueAssignmentRevalidations(env.DB, "system:scheduled-revalidation").then(() => undefined));
   },
 };

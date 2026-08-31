@@ -9,6 +9,8 @@ import type {
   PlatformTimesheet,
   PlatformWorkflowSection,
 } from "./platform-types";
+import { runPlatformMaintenance } from "./platform-jobs";
+import { calculatePayrollItem, SYNTHETIC_ENGINE_TEST_POLICY } from "./payroll-engine";
 
 export class PlatformWorkflowError extends Error {
   status: number;
@@ -45,10 +47,10 @@ export async function ensureIntegrationDemoData(db: D1Database) {
     db.prepare(`INSERT OR IGNORE INTO integration_provider_configs
       (key, capability, provider, mode, status, required_for_pilot, configuration_version, capabilities,
        detail, environment, integrity_state, last_health_state, last_health_checked_at, last_event_at, updated_at)
-      VALUES ('INT-DEMO-BACKEND', 'backend', 'LOKD production backend', 'disabled', 'not_connected', 1, 'contract-v1',
-       '["production database","tenant access","workers","queues","evidence","monitoring"]',
-       'The backend workflows and operator controls are built against the isolated demo spine; production infrastructure and real-data activation are not connected.',
-       'demo', 'synthetic', 'not_configured', ?, NULL, ?)`).bind(now, now),
+      VALUES ('INT-DEMO-BACKEND', 'backend', 'LOKD internal backend', 'internal', 'sandbox_ready', 1, 'v25-runtime',
+       '["D1 database","role access","scheduled jobs","durable outbox","audit trail","health checks"]',
+       'The internal backend, operator controls and fail-closed production access boundary are integration-ready. Real-data activation remains separately gated.',
+       'demo', 'synthetic', 'healthy', ?, NULL, ?)`).bind(now, now),
     db.prepare(`INSERT OR IGNORE INTO integration_provider_configs
       (key, capability, provider, mode, status, required_for_pilot, configuration_version, capabilities,
        detail, environment, integrity_state, last_health_state, last_health_checked_at, last_event_at, updated_at)
@@ -66,38 +68,69 @@ export async function ensureIntegrationDemoData(db: D1Database) {
     db.prepare(`INSERT OR IGNORE INTO integration_provider_configs
       (key, capability, provider, mode, status, required_for_pilot, configuration_version, capabilities,
        detail, environment, integrity_state, last_health_state, last_health_checked_at, last_event_at, updated_at)
-      VALUES ('INT-DEMO-PAYROLL', 'payroll', 'LOKD payroll boundary', 'schema_only', 'blocked', 0, 'contract-v1',
-       '["pay run export","payslip reference","statutory schedule"]',
-       'Canonical fields are reserved, but policy calculations, pay runs, payslips and settlement remain product work.',
-       'demo', 'synthetic', 'not_implemented', ?, NULL, ?)`).bind(now, now),
+      VALUES ('INT-DEMO-PAYROLL', 'payroll', 'LOKD payroll policy engine', 'internal', 'sandbox_ready', 1, 'v25-policy-engine',
+       '["versioned policy","gross-to-net calculation","dual approval boundary","payslip artifact contract"]',
+       'The deterministic policy engine and approval records are built. Live statutory values must be sourced and dual-approved before any production calculation.',
+       'demo', 'synthetic', 'healthy', ?, NULL, ?)`).bind(now, now),
     db.prepare(`INSERT OR IGNORE INTO integration_provider_configs
       (key, capability, provider, mode, status, required_for_pilot, configuration_version, capabilities,
        detail, environment, integrity_state, last_health_state, last_health_checked_at, last_event_at, updated_at)
-      VALUES ('INT-DEMO-MESSAGING', 'messaging', 'LOKD outbox', 'schema_only', 'blocked', 0, 'contract-v1',
-       '["email","SMS","WhatsApp","delivery receipt"]',
-       'Notification events are persisted, but no delivery worker, retry runner or provider receipt projection is operating.',
-       'demo', 'synthetic', 'not_implemented', ?, NULL, ?)`).bind(now, now),
+      VALUES ('INT-DEMO-MESSAGING', 'messaging', 'LOKD in-app notifications', 'internal', 'sandbox_ready', 1, 'v25-outbox-worker',
+       '["durable outbox","idempotent dispatch","operator inbox","retry state"]',
+       'The scheduled worker converts internal domain events into an auditable Operations inbox. External SMS, email or WhatsApp is optional rather than a launch dependency.',
+       'demo', 'synthetic', 'healthy', ?, NULL, ?)`).bind(now, now),
     db.prepare(`INSERT OR IGNORE INTO integration_provider_configs
       (key, capability, provider, mode, status, required_for_pilot, configuration_version, capabilities,
        detail, environment, integrity_state, last_health_state, last_health_checked_at, last_event_at, updated_at)
-      VALUES ('INT-DEMO-MAPS', 'maps', 'Maps adapter', 'schema_only', 'blocked', 0, 'contract-v1',
-       '["geocoding","directions","travel feasibility"]',
-       'Site coordinates and travel records are modeled, but geocoding, routing and travel-feasibility workers are not connected.',
-       'demo', 'synthetic', 'not_implemented', ?, NULL, ?)`).bind(now, now),
+      VALUES ('INT-DEMO-MAPS', 'maps', 'LOKD coordinate map', 'internal', 'sandbox_ready', 1, 'v25-coordinate-map',
+       '["stored coordinates","site projection","presence signals","versioned travel evidence"]',
+       'The Operations map runs from stored coordinates and versioned travel evidence, so a third-party mapping provider is not a pilot dependency.',
+       'demo', 'synthetic', 'healthy', ?, NULL, ?)`).bind(now, now),
     db.prepare(`INSERT OR IGNORE INTO integration_provider_configs
       (key, capability, provider, mode, status, required_for_pilot, configuration_version, capabilities,
        detail, environment, integrity_state, last_health_state, last_health_checked_at, last_event_at, updated_at)
-      VALUES ('INT-DEMO-EVIDENCE', 'evidence', 'Evidence store adapter', 'schema_only', 'blocked', 0, 'contract-v1',
-       '["content hash","retention","artifact reference"]',
-       'Evidence references are modeled, but content hashing, object storage, retention jobs and access enforcement remain backend work.',
-       'demo', 'synthetic', 'not_implemented', ?, NULL, ?)`).bind(now, now),
-    db.prepare(`UPDATE integration_provider_configs SET provider = 'LOKD production backend',
-      mode = 'disabled', status = 'not_connected', required_for_pilot = 1,
-      configuration_version = 'contract-v1',
-      capabilities = '["production database","tenant access","workers","queues","evidence","monitoring"]',
-      detail = 'The backend workflows and operator controls are built against the isolated demo spine; production infrastructure and real-data activation are not connected.',
-      last_health_state = 'not_configured', updated_at = ?
-      WHERE key = 'INT-DEMO-BACKEND' AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(now),
+      VALUES ('INT-DEMO-EVIDENCE', 'evidence', 'Cloudflare R2 private evidence store', 'r2', 'sandbox_ready', 1, 'v25-r2',
+       '["private object storage","SHA-256 content hash","retention class","authorised download"]',
+       'The private object-store adapter and protected artifact route are built; runtime health verifies the R2 binding before activation.',
+       'demo', 'synthetic', 'healthy', ?, NULL, ?)`).bind(now, now),
+    db.prepare(`UPDATE integration_provider_configs SET
+      provider = CASE capability
+        WHEN 'backend' THEN 'LOKD internal backend'
+        WHEN 'payroll' THEN 'LOKD payroll policy engine'
+        WHEN 'messaging' THEN 'LOKD in-app notifications'
+        WHEN 'maps' THEN 'LOKD coordinate map'
+        ELSE 'Cloudflare R2 private evidence store' END,
+      mode = CASE capability WHEN 'evidence' THEN 'r2' ELSE 'internal' END,
+      status = CASE
+        WHEN configuration_version IN ('contract-v1','unconfigured') OR mode IN ('disabled','schema_only')
+          THEN 'sandbox_ready'
+        ELSE status END,
+      required_for_pilot = 1,
+      configuration_version = CASE capability
+        WHEN 'backend' THEN 'v25-runtime'
+        WHEN 'payroll' THEN 'v25-policy-engine'
+        WHEN 'messaging' THEN 'v25-outbox-worker'
+        WHEN 'maps' THEN 'v25-coordinate-map'
+        ELSE 'v25-r2' END,
+      capabilities = CASE capability
+        WHEN 'backend' THEN '["D1 database","role access","scheduled jobs","durable outbox","audit trail","health checks"]'
+        WHEN 'payroll' THEN '["versioned policy","gross-to-net calculation","dual approval boundary","payslip artifact contract"]'
+        WHEN 'messaging' THEN '["durable outbox","idempotent dispatch","operator inbox","retry state"]'
+        WHEN 'maps' THEN '["stored coordinates","site projection","presence signals","versioned travel evidence"]'
+        ELSE '["private object storage","SHA-256 content hash","retention class","authorised download"]' END,
+      detail = CASE capability
+        WHEN 'backend' THEN 'The internal backend, operator controls and fail-closed production access boundary are integration-ready. Real-data activation remains separately gated.'
+        WHEN 'payroll' THEN 'The deterministic policy engine and approval records are built. Live statutory values must be sourced and dual-approved before any production calculation.'
+        WHEN 'messaging' THEN 'The scheduled worker converts internal domain events into an auditable Operations inbox. External SMS, email or WhatsApp is optional rather than a launch dependency.'
+        WHEN 'maps' THEN 'The Operations map runs from stored coordinates and versioned travel evidence, so a third-party mapping provider is not a pilot dependency.'
+        ELSE 'The private object-store adapter and protected artifact route are built; runtime health verifies the R2 binding before activation.' END,
+      last_health_state = CASE
+        WHEN configuration_version IN ('contract-v1','unconfigured') OR mode IN ('disabled','schema_only')
+          THEN 'healthy'
+        ELSE last_health_state END,
+      updated_at = ?
+      WHERE environment = 'demo' AND integrity_state = 'synthetic'
+        AND capability IN ('backend','payroll','messaging','maps','evidence')`).bind(now),
   ]);
 }
 
@@ -463,7 +496,6 @@ async function readIntegrations(db: D1Database): Promise<PlatformIntegration[]> 
     capabilities, detail, last_health_state AS lastHealthState,
     last_health_checked_at AS lastHealthCheckedAt, last_event_at AS lastEventAt
     FROM integration_provider_configs WHERE environment = 'demo' AND integrity_state = 'synthetic'
-      AND capability IN ('backend','identity','payments')
     ORDER BY CASE capability WHEN 'backend' THEN 1 WHEN 'identity' THEN 2 WHEN 'payments' THEN 3
       WHEN 'payroll' THEN 4 WHEN 'messaging' THEN 5 WHEN 'maps' THEN 6 ELSE 7 END`).all<{
       key: string; capability: string; provider: string; mode: string; status: PlatformIntegration["status"];
@@ -480,19 +512,19 @@ async function readIntegrations(db: D1Database): Promise<PlatformIntegration[]> 
 function workflowSections(integrations: PlatformIntegration[]): PlatformWorkflowSection[] {
   const status = (capability: string) => integrations.find((item) => item.capability === capability)?.status;
   return [
-    { key: "client", label: "Client to roster", state: "connected", detail: "Request, quote, site, risk, post orders, invoice funding and the full dated roster share one guarded booking chain.", remaining: "Activate real tenants, data and address services through the production backend." },
+    { key: "client", label: "Client to roster", state: "connected", detail: "Request, quote, site, risk, post orders, invoice funding and the full dated roster share one guarded booking chain.", remaining: "Activate authenticated production tenants after the controlled-pilot gates pass." },
     { key: "officer", label: "Officer onboarding", state: status("identity") === "healthy" ? "connected" : "adapter_ready", detail: "Applications, applicant consent, identity cases, training routing and restricted Network profiles are persisted.", remaining: "Connect iiDENTIFii and activate authenticated production intake." },
     { key: "funding", label: "Funding and allocation", state: status("payments") === "healthy" ? "connected" : "adapter_ready", detail: "Payment commands, webhook projection, cleared funding evidence and invoice allocation are replay-safe in the demo backend.", remaining: "Connect the selected processor and its signed production webhooks." },
-    { key: "activation", label: "Assignment readiness", state: "connected", detail: "Offer acceptance materialises every dated slot with frozen economics, employer routing and workforce snapshots.", remaining: "Activate the same fail-closed controls against the production backend and verified evidence." },
-    { key: "delivery", label: "Shift to finance handoff", state: "connected", detail: "Arrival, check-in, incidents, relief, completion, client evidence, timesheet approval, invoice review and gross-pay handoff are operator controlled.", remaining: "Production backend workers perform statutory calculations, documents, notifications and authorised settlement." },
-    { key: "production", label: "Production activation", state: "blocked", detail: "The backend contracts, operator controls and provenance guards are built and exercised with synthetic data.", remaining: "Provision the isolated production database, tenant RBAC/MFA, workers, queues, secure evidence storage, monitoring, backup and recovery." },
+    { key: "activation", label: "Assignment readiness", state: "connected", detail: "Offer acceptance materialises every dated slot with frozen economics, employer routing and workforce snapshots.", remaining: "Replace synthetic identity and funding evidence with signed provider evidence." },
+    { key: "delivery", label: "Shift to finance handoff", state: "connected", detail: "Arrival, check-in, incidents, relief, completion, client evidence, timesheet approval, policy calculation and billing handoff are operator controlled.", remaining: "Load a sourced, dual-approved live payroll policy before paid processing." },
+    { key: "production", label: "Software integration readiness", state: status("backend") === "sandbox_ready" ? "connected" : "blocked", detail: "D1, role controls, scheduled jobs, outbox dispatch, in-app notifications, evidence storage, health checks and the policy engine are built into the runtime.", remaining: "Connect iiDENTIFii and the selected payment processor; regulated launch approval remains a separate business gate." },
   ];
 }
 
 export async function readPlatformState(db: D1Database): Promise<PlatformState> {
   await ensureIntegrationDemoData(db);
   const integrations = await readIntegrations(db);
-  const [identity, payments, requests, timesheetRows, invoiceRows, outbox, webhook] = await Promise.all([
+  const [identity, payments, requests, timesheetRows, invoiceRows, outbox, webhook, controlRows, jobRows, notificationRows] = await Promise.all([
     db.prepare(`SELECT identity.id, identity.application_id AS applicationId, identity.officer_id AS officerId,
       application.full_name AS applicantName, config.provider, identity.provider_reference AS providerReference,
       identity.status, identity.decision, identity.checks, identity.reason_codes AS reasonCodes,
@@ -542,6 +574,27 @@ export async function readPlatformState(db: D1Database): Promise<PlatformState> 
         LIMIT 1), (SELECT payable.status FROM partner_payables payable
           WHERE payable.timesheet_id = timesheet.id AND payable.environment = timesheet.environment
             AND payable.integrity_state = timesheet.integrity_state LIMIT 1)) AS backendHandoffStatus,
+      (SELECT item.employee_deduction_cents FROM pay_item_sources source
+        JOIN payroll_items item ON item.id = source.payroll_item_id
+        WHERE source.timesheet_id = timesheet.id AND source.active_key = timesheet.id
+          AND source.environment = timesheet.environment AND source.integrity_state = timesheet.integrity_state
+        LIMIT 1) AS employeeDeductionCents,
+      (SELECT item.net_pay_cents FROM pay_item_sources source
+        JOIN payroll_items item ON item.id = source.payroll_item_id
+        WHERE source.timesheet_id = timesheet.id AND source.active_key = timesheet.id
+          AND source.environment = timesheet.environment AND source.integrity_state = timesheet.integrity_state
+        LIMIT 1) AS netPayCents,
+      (SELECT item.policy_version FROM pay_item_sources source
+        JOIN payroll_items item ON item.id = source.payroll_item_id
+        WHERE source.timesheet_id = timesheet.id AND source.active_key = timesheet.id
+          AND source.environment = timesheet.environment AND source.integrity_state = timesheet.integrity_state
+        LIMIT 1) AS policyVersion,
+      (SELECT run.calculation_version FROM pay_item_sources source
+        JOIN payroll_items item ON item.id = source.payroll_item_id
+        JOIN payroll_runs run ON run.id = item.payroll_run_id
+        WHERE source.timesheet_id = timesheet.id AND source.active_key = timesheet.id
+          AND source.environment = timesheet.environment AND source.integrity_state = timesheet.integrity_state
+        LIMIT 1) AS calculationVersion,
       timesheet.submitted_at AS submittedAt, timesheet.approved_by AS approvedBy,
       timesheet.approved_at AS approvedAt, timesheet.version
       FROM shift_timesheets timesheet
@@ -578,6 +631,23 @@ export async function readPlatformState(db: D1Database): Promise<PlatformState> 
       WHERE environment = 'demo' AND integrity_state = 'synthetic' AND status = 'pending'`).first<{ total: number }>(),
     db.prepare(`SELECT COUNT(*) AS total FROM provider_webhook_inbox
       WHERE environment = 'demo' AND integrity_state = 'synthetic' AND processing_state <> 'processed'`).first<{ total: number }>(),
+    db.prepare(`SELECT code, category, label, status,
+      required_for_integration_ready AS requiredForIntegrationReady,
+      evidence_reference AS evidenceReference, detail, checked_at AS checkedAt, checked_by AS checkedBy
+      FROM platform_readiness_controls
+      WHERE environment = 'demo' AND integrity_state = 'synthetic'
+      ORDER BY category, label`).all<{
+        code: string; category: string; label: string; status: "ready" | "blocked" | "pending";
+        requiredForIntegrationReady: number; evidenceReference: string | null; detail: string;
+        checkedAt: string; checkedBy: string;
+      }>(),
+    db.prepare(`SELECT id, job_key AS jobKey, "trigger", status, processed_count AS processedCount,
+      failure_count AS failureCount, detail, started_at AS startedAt, completed_at AS completedAt
+      FROM scheduled_job_runs WHERE environment = 'demo' AND integrity_state = 'synthetic'
+      ORDER BY started_at DESC LIMIT 10`).all<PlatformState["jobRuns"][number]>(),
+    db.prepare(`SELECT id, subject, message, status, created_at AS createdAt
+      FROM operator_notifications WHERE environment = 'demo' AND integrity_state = 'synthetic'
+      ORDER BY created_at DESC LIMIT 25`).all<PlatformState["notifications"][number]>(),
   ]);
   const identityCases: PlatformIdentityCase[] = (identity.results ?? []).map(({ checks, reasonCodes, ...row }) => ({
     ...row,
@@ -588,7 +658,15 @@ export async function readPlatformState(db: D1Database): Promise<PlatformState> 
   const serviceRequests = requests.results ?? [];
   const timesheets = timesheetRows.results ?? [];
   const invoices = invoiceRows.results ?? [];
+  const readinessControls = (controlRows.results ?? []).map(({ requiredForIntegrationReady, ...control }) => ({
+    ...control,
+    requiredForIntegrationReady: Boolean(requiredForIntegrationReady),
+  }));
+  const jobRuns = jobRows.results ?? [];
+  const notifications = notificationRows.results ?? [];
   const required = integrations.filter((item) => item.requiredForPilot);
+  const external = integrations.filter((item) => item.capability === "identity" || item.capability === "payments");
+  const requiredControls = readinessControls.filter((item) => item.requiredForIntegrationReady);
   return {
     environment: "demo",
     generatedAt: new Date().toISOString(),
@@ -603,6 +681,10 @@ export async function readPlatformState(db: D1Database): Promise<PlatformState> 
       timesheetsAwaitingReview: timesheets.filter((item) => item.operationsStatus === "awaiting_review").length,
       invoicesAwaitingHandoff: invoices.filter((item) => item.fundingStatus === "fully_allocated_sandbox" && item.status === "draft").length,
       payrollHandoffs: timesheets.filter((item) => Boolean(item.backendHandoffStatus)).length,
+      externalIntegrationsRemaining: external.filter((item) => item.status !== "healthy").length,
+      readyControls: requiredControls.filter((item) => item.status === "ready").length,
+      requiredControls: requiredControls.length,
+      unreadOperatorNotifications: notifications.filter((item) => item.status === "unread").length,
     },
     sections: workflowSections(integrations),
     integrations,
@@ -611,32 +693,119 @@ export async function readPlatformState(db: D1Database): Promise<PlatformState> 
     serviceRequests,
     timesheets,
     invoices,
+    readinessControls,
+    jobRuns,
+    notifications,
   };
 }
 
-export async function applyPlatformAction(db: D1Database, action: PlatformAction, actorId: string) {
+export async function applyPlatformAction(
+  db: D1Database,
+  action: PlatformAction,
+  actorId: string,
+  runtime: { evidenceStoreBound?: boolean } = {},
+) {
   await ensureIntegrationDemoData(db);
   const now = new Date().toISOString();
-  if (action.action === "refresh_integration_health") {
-    const schema = await db.prepare(`SELECT COUNT(*) AS total FROM sqlite_master
-      WHERE type = 'trigger' AND name IN ('identity_case_transition_guard_v21',
-        'payment_order_evidence_guard_v21','integration_operation_transition_guard_v21',
-        'webhook_inbox_state_guard_v21','outbox_parent_provenance_v21')`)
-      .first<{ total: number }>();
-    if (Number(schema?.total ?? 0) !== 5) {
-      throw new PlatformWorkflowError("The Version 21 database guard set is incomplete.", 503);
+  if (action.action === "refresh_integration_health" || action.action === "run_platform_maintenance") {
+    await runPlatformMaintenance(db, {
+      actorId,
+      trigger: "operator",
+      evidenceStoreBound: Boolean(runtime.evidenceStoreBound),
+      environment: "demo",
+      integrityState: "synthetic",
+    });
+    return;
+  }
+
+  if (action.action === "calculate_payroll_run") {
+    const row = await db.prepare(`SELECT run.id, run.status, run.version,
+      item.id AS itemId, item.gross_wage_cents AS grossWageCents,
+      source.timesheet_id AS timesheetId, timesheet.booking_id AS bookingId,
+      timesheet.service_date AS serviceDate
+      FROM payroll_runs run
+      JOIN payroll_items item ON item.payroll_run_id = run.id
+      JOIN pay_item_sources source ON source.payroll_item_id = item.id AND source.active_key = source.timesheet_id
+      JOIN shift_timesheets timesheet ON timesheet.id = source.timesheet_id
+      WHERE run.id = ? AND run.environment = 'demo' AND run.integrity_state = 'synthetic'
+      LIMIT 1`).bind(action.payrollRunId).first<{
+        id: string; status: string; version: number; itemId: string; grossWageCents: number;
+        timesheetId: string; bookingId: string; serviceDate: string;
+      }>();
+    if (!row) throw new PlatformWorkflowError("That synthetic payroll run could not be found.", 404);
+    if (row.status === "calculated_for_review") return;
+    if (!new Set(["awaiting_backend_calculation", "retryable_calculation_failed"]).has(row.status)) {
+      throw new PlatformWorkflowError("That payroll run is not awaiting calculation.", 409);
     }
-    await db.batch([
-      db.prepare(`UPDATE integration_provider_configs SET last_health_checked_at = ?,
-        last_health_state = CASE WHEN mode = 'disabled' THEN 'not_configured' ELSE 'not_implemented' END,
-        updated_at = ? WHERE environment = 'demo' AND integrity_state = 'synthetic'`).bind(now, now),
-      db.prepare(`INSERT INTO service_heartbeats
-        (key, status, environment, detail, checked_at, last_success_at, consecutive_failures)
-        VALUES ('demo-core', 'healthy', 'demo', 'D1 query path and required Version 21 guard set responded to an explicit health check.', ?, ?, 0)
-        ON CONFLICT(key) DO UPDATE SET status = 'healthy', detail = excluded.detail,
-          checked_at = excluded.checked_at, last_success_at = excluded.last_success_at, consecutive_failures = 0
-        WHERE service_heartbeats.environment = 'demo'`).bind(now, now),
-    ]);
+    const claim = await db.prepare(`UPDATE payroll_runs SET status = 'calculating', updated_at = ?
+      WHERE id = ? AND version = ? AND status IN ('awaiting_backend_calculation','retryable_calculation_failed')
+        AND environment = 'demo' AND integrity_state = 'synthetic'`)
+      .bind(now, row.id, row.version).run();
+    if (Number(claim.meta.changes ?? 0) !== 1) {
+      const current = await db.prepare(`SELECT status FROM payroll_runs WHERE id = ?`).bind(row.id).first<{ status: string }>();
+      if (current?.status === "calculated_for_review") return;
+      throw new PlatformWorkflowError("That payroll run is already being calculated. Refresh before trying again.", 409);
+    }
+    try {
+      const calculation = calculatePayrollItem(row.grossWageCents, row.serviceDate, SYNTHETIC_ENGINE_TEST_POLICY);
+      const payloadHash = await sha256(`${row.id}|${row.version}|${calculation.policyVersion}|${calculation.netPayCents}`);
+      await db.batch([
+        db.prepare(`UPDATE payroll_items SET employee_deduction_cents = ?, net_pay_cents = ?,
+        employer_cost_cents = ?, status = 'calculated_for_review', policy_version = ?, updated_at = ?
+        WHERE id = ? AND status = 'awaiting_backend_calculation' AND environment = 'demo'
+          AND integrity_state = 'synthetic'`)
+          .bind(calculation.totalEmployeeDeductionsCents, calculation.netPayCents,
+          calculation.employerCostCents, calculation.policyVersion, now, row.itemId),
+        db.prepare(`UPDATE payroll_runs SET status = 'calculated_for_review',
+        employee_deduction_cents = ?, net_pay_cents = ?, employer_cost_cents = ?,
+        policy_version = ?, calculation_version = 'payroll-engine-v1', updated_at = ?, version = version + 1
+        WHERE id = ? AND version = ? AND status = 'calculating'
+          AND environment = 'demo' AND integrity_state = 'synthetic'`)
+          .bind(calculation.totalEmployeeDeductionsCents, calculation.netPayCents,
+          calculation.employerCostCents, calculation.policyVersion, now, row.id, row.version),
+        db.prepare(`INSERT OR IGNORE INTO pay_item_lines
+        (id, payroll_item_id, line_type, code, description, amount_cents, quantity_minutes,
+         rate_cents, rate_basis_points, statutory_code, rule_version, environment, integrity_state, created_at)
+        VALUES (?, ?, 'deduction', 'PAYE', 'Synthetic policy-engine PAYE', ?, NULL, NULL, NULL,
+          'PAYE', ?, 'demo', 'synthetic', ?)`)
+          .bind(`LINE-${row.itemId}-PAYE`, row.itemId, calculation.payeCents, calculation.policyVersion, now),
+        db.prepare(`INSERT OR IGNORE INTO pay_item_lines
+        (id, payroll_item_id, line_type, code, description, amount_cents, quantity_minutes,
+         rate_cents, rate_basis_points, statutory_code, rule_version, environment, integrity_state, created_at)
+        VALUES (?, ?, 'deduction', 'UIF-EMPLOYEE', 'Synthetic policy-engine employee UIF', ?, NULL, NULL, NULL,
+          'UIF', ?, 'demo', 'synthetic', ?)`)
+          .bind(`LINE-${row.itemId}-UIF-EMP`, row.itemId, calculation.employeeUifCents, calculation.policyVersion, now),
+        db.prepare(`INSERT OR IGNORE INTO pay_item_lines
+        (id, payroll_item_id, line_type, code, description, amount_cents, quantity_minutes,
+         rate_cents, rate_basis_points, statutory_code, rule_version, environment, integrity_state, created_at)
+        VALUES (?, ?, 'employer_cost', 'UIF-EMPLOYER', 'Synthetic policy-engine employer UIF', ?, NULL, NULL, NULL,
+          'UIF', ?, 'demo', 'synthetic', ?)`)
+          .bind(`LINE-${row.itemId}-UIF-ER`, row.itemId, calculation.employerUifCents, calculation.policyVersion, now),
+        db.prepare(`INSERT OR IGNORE INTO pay_item_lines
+        (id, payroll_item_id, line_type, code, description, amount_cents, quantity_minutes,
+         rate_cents, rate_basis_points, statutory_code, rule_version, environment, integrity_state, created_at)
+        VALUES (?, ?, 'employer_cost', 'SDL', 'Synthetic policy-engine skills levy', ?, NULL, NULL, NULL,
+          'SDL', ?, 'demo', 'synthetic', ?)`)
+          .bind(`LINE-${row.itemId}-SDL`, row.itemId, calculation.skillsDevelopmentLevyCents, calculation.policyVersion, now),
+        db.prepare(`INSERT OR IGNORE INTO domain_outbox_events
+        (id, aggregate_type, aggregate_id, event_type, payload_hash, payload_version, payload_json,
+         idempotency_key, status, attempts, available_at, environment, integrity_state, created_at)
+        VALUES (?, 'booking', ?, 'payroll.calculated_for_review', ?, 'v1', ?, ?, 'pending', 0, ?, 'demo', 'synthetic', ?)`)
+          .bind(`OUT-${row.id}`, row.bookingId, payloadHash,
+          JSON.stringify({ payrollRunId: row.id, timesheetId: row.timesheetId, policyVersion: calculation.policyVersion }),
+          `payroll-calculation:${row.id}:${row.version}`, now, now),
+        db.prepare(`INSERT INTO audit_events
+        (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
+        VALUES (?, 'operations', ?, 'synthetic_payroll_calculated', 'payroll_run', ?, ?, ?)`)
+          .bind(id("AUD"), actorId, row.id,
+          `DEMO ONLY: gross, deductions, net pay and employer cost were calculated under ${calculation.policyVersion}. No payslip or payment was issued.`, now),
+      ]);
+    } catch (cause) {
+      await db.prepare(`UPDATE payroll_runs SET status = 'retryable_calculation_failed', updated_at = ?
+        WHERE id = ? AND version = ? AND status = 'calculating'`)
+        .bind(new Date().toISOString(), row.id, row.version).run();
+      throw cause;
+    }
     return;
   }
 

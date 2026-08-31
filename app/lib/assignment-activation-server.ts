@@ -219,7 +219,7 @@ async function loadAssignmentActivationFacts(
   const [launchGates, funding, risk, orders, induction, officer, identityRecord, psiraRecord, passport,
     core, service, purpose, workforce, availability, scheduleDeclaration, travel, employerEvidence, conflicts, hourRows, legacyIntervals,
     invalidCommitmentEvidence] = await Promise.all([
-    all<LaunchGateInput & { hardGate: number; version: number }>(db.prepare(`SELECT code, status, hard_gate AS hardGate, version,
+    all<Omit<LaunchGateInput, "hardGate"> & { hardGate: number; version: number }>(db.prepare(`SELECT code, status, hard_gate AS hardGate, version,
       evidence_level AS evidenceLevel, evidence_reference AS evidenceReference,
       verified_at AS verifiedAt, expires_at AS expiresAt FROM launch_controls ORDER BY code`)),
     db.prepare(`SELECT id, environment, integrity_state AS integrityState, provider, currency,

@@ -46,7 +46,7 @@ export function requirePilotApiRole(request: Request, allowed: PilotRole | Pilot
 
 export function pilotStage() {
   const value = runtimeValue("LOKD_APP_STAGE").trim().toLowerCase();
-  return value === "pilot" || value === "demo" ? value : "prelaunch";
+  return value === "pilot" || value === "demo" || value === "production" ? value : "prelaunch";
 }
 
 export function liveShiftScanEnabled() {

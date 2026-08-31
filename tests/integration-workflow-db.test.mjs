@@ -13,6 +13,8 @@ import {
   reconcileDemoPayment,
   startDemoIdentityVerification,
 } from "../app/lib/integration-server.ts";
+import { runPlatformMaintenance } from "../app/lib/platform-jobs.ts";
+import { calculatePayrollItem, SYNTHETIC_ENGINE_TEST_POLICY } from "../app/lib/payroll-engine.ts";
 
 class Prepared {
   constructor(owner, sql, values = []) { this.owner = owner; this.sql = sql; this.values = values; }
@@ -170,6 +172,9 @@ test("client and officer requests preserve tenant provenance and support optimis
   const state = await readPlatformState(db);
   assert.equal(state.serviceRequests.length, 2);
   assert.equal(state.integrations.find((item) => item.capability === "identity").status, "not_connected");
+  assert.equal(state.integrations.find((item) => item.capability === "backend").status, "sandbox_ready");
+  assert.equal(state.integrations.length, 7);
+  assert.equal(state.summary.externalIntegrationsRemaining, 2);
   assert.equal(state.sections.find((item) => item.key === "funding").state, "adapter_ready");
   assert.throws(() => run(database, `DELETE FROM domain_outbox_events`), /outbox_append_only/);
   database.close();
@@ -213,5 +218,116 @@ test("provider inbox, identity, payment and outbox transitions fail closed under
      environment,integrity_state,created_at)
     VALUES ('OUT-CROSS','booking','BK-INT','test','hash','v1','pending',0,'x','production','production_verified','x')`),
   /outbox_parent_provenance_mismatch/);
+  database.close();
+});
+
+test("the policy-driven payroll engine is deterministic and rejects uncovered service dates", () => {
+  const first = calculatePayrollItem(100_000, "2026-06-30", SYNTHETIC_ENGINE_TEST_POLICY);
+  const repeated = calculatePayrollItem(100_000, "2026-06-30", SYNTHETIC_ENGINE_TEST_POLICY);
+  assert.deepEqual(repeated, first);
+  assert.equal(first.grossCents, 100_000);
+  assert.equal(first.netPayCents, 90_000);
+  assert.equal(first.employerCostCents, 102_000);
+  assert.throws(() => calculatePayrollItem(100_000, "2100-01-01", SYNTHETIC_ENGINE_TEST_POLICY), /covers this service date/i);
+});
+
+test("platform maintenance records controls and dispatches internal outbox events idempotently", async () => {
+  const database = migratedDatabase();
+  const db = new D1Adapter(database);
+  seedDomain(database);
+  await ensureIntegrationDemoData(db);
+  const requestId = await createServiceRequest(db, {
+    requestedByRole: "client",
+    requestedById: "client@example.test",
+    clientId: "CL-INT",
+    bookingId: "BK-INT",
+    category: "change_request",
+    summary: "Notify Operations",
+    detail: "This event should become one durable in-app notification.",
+  });
+
+  const first = await runPlatformMaintenance(db, {
+    actorId: "ops@example.test",
+    trigger: "test",
+    evidenceStoreBound: true,
+  });
+  const second = await runPlatformMaintenance(db, {
+    actorId: "ops@example.test",
+    trigger: "test",
+    evidenceStoreBound: true,
+  });
+
+  assert.equal(first.status, "completed");
+  assert.equal(first.requiredTables, 13);
+  assert.equal(first.requiredTriggers, 6);
+  assert.equal(first.processedEvents, 1);
+  assert.equal(second.processedEvents, 0);
+  assert.equal(one(database, `SELECT COUNT(*) AS total FROM platform_readiness_controls WHERE status='ready'`).total, 6);
+  assert.equal(one(database, `SELECT COUNT(*) AS total FROM operator_notifications WHERE source_event_id=(
+    SELECT id FROM domain_outbox_events WHERE aggregate_id=? LIMIT 1)`, requestId).total, 1);
+  assert.equal(one(database, `SELECT status FROM domain_outbox_events WHERE aggregate_id=? LIMIT 1`, requestId).status, "dispatched");
+  assert.equal(one(database, `SELECT COUNT(*) AS total FROM scheduled_job_runs WHERE status='completed'`).total, 2);
+  database.close();
+});
+
+test("Operations can run a replay-safe synthetic gross-to-net calculation after timesheet approval", async () => {
+  const database = migratedDatabase();
+  const db = new D1Adapter(database);
+  seedDomain(database);
+  const now = "2026-08-30T08:00:00.000Z";
+  run(database, `INSERT INTO workforce_employers
+    (id,legal_name,employer_type,environment,status,created_at,updated_at)
+    VALUES ('EMP-PAY','LOKD Test Employer','direct','demo','current',?,?)`, now, now);
+  run(database, `INSERT INTO workforce_engagements
+    (id,officer_id,employer_id,model,environment,status,active_key,engagement_reference,terms_version,
+     payroll_status,benefits_status,created_at,updated_at)
+    VALUES ('WE-PAY','OFF-INT','EMP-PAY','direct_flex','demo','active','OFF-INT','synthetic:engagement',
+     'test-terms','ready','ready',?,?)`, now, now);
+  run(database, `INSERT INTO shifts
+    (id,booking_id,officer_id,scheduled_date,environment,integrity_state,status,earnings_cents)
+    VALUES ('SHIFT-PAY','BK-INT','OFF-INT','2026-08-30','demo','synthetic','completed',100000)`);
+  run(database, `INSERT INTO shift_timesheets
+    (id,shift_id,booking_id,officer_id,workforce_engagement_id,employer_id,workforce_model,
+     service_date,scheduled_starts_at,scheduled_ends_at,scheduled_minutes,recorded_minutes,payable_minutes,
+     gross_wage_cents,calendar_category,policy_version,client_evidence_status,operations_status,
+     evidence_reference,evidence_hash,active_key,approved_by,approved_at,submitted_at,locked_at,
+     environment,integrity_state,version,created_at,updated_at)
+    VALUES ('TS-PAY','SHIFT-PAY','BK-INT','OFF-INT','WE-PAY','EMP-PAY','direct_flex',
+     '2026-08-30','2026-08-30T04:00:00.000Z','2026-08-30T16:00:00.000Z',720,720,720,
+     100000,'ordinary','synthetic-wage-v1','confirmed','approved_for_backend',
+     'synthetic:evidence','hash','SHIFT-PAY','ops@example.test',?,?,?,
+     'demo','synthetic',2,?,?)`, now, now, now, now, now);
+  run(database, `INSERT INTO payroll_runs
+    (id,batch_key,employer_id,period_start,period_end,pay_date,run_type,currency,status,gross_cents,
+     item_count,environment,integrity_state,created_by,created_at,updated_at,version)
+    VALUES ('PR-PAY','test:pay','EMP-PAY','2026-08-30','2026-08-30','2026-08-30','synthetic_handoff',
+     'ZAR','awaiting_backend_calculation',100000,1,'demo','synthetic','ops@example.test',?,?,1)`, now, now);
+  run(database, `INSERT INTO payroll_items
+    (id,payroll_run_id,officer_id,workforce_engagement_id,employer_id,workforce_model,gross_wage_cents,
+     status,environment,integrity_state,created_at,updated_at)
+    VALUES ('PI-PAY','PR-PAY','OFF-INT','WE-PAY','EMP-PAY','direct_flex',100000,
+     'awaiting_backend_calculation','demo','synthetic',?,?)`, now, now);
+  run(database, `INSERT INTO pay_item_sources
+    (id,payroll_item_id,timesheet_id,timesheet_version,payable_minutes,gross_wage_cents,
+     active_key,environment,integrity_state,created_at)
+    VALUES ('PIS-PAY','PI-PAY','TS-PAY',2,720,100000,'TS-PAY','demo','synthetic',?)`, now);
+
+  await applyPlatformAction(db, { action: "calculate_payroll_run", payrollRunId: "PR-PAY" }, "ops@example.test");
+  await applyPlatformAction(db, { action: "calculate_payroll_run", payrollRunId: "PR-PAY" }, "ops@example.test");
+
+  assert.deepEqual({ ...one(database, `SELECT status,employee_deduction_cents AS deductions,
+    net_pay_cents AS netPay,employer_cost_cents AS employerCost,calculation_version AS calculationVersion
+    FROM payroll_runs WHERE id='PR-PAY'`) }, {
+    status: "calculated_for_review",
+    deductions: 10000,
+    netPay: 90000,
+    employerCost: 102000,
+    calculationVersion: "payroll-engine-v1",
+  });
+  assert.equal(one(database, `SELECT COUNT(*) AS total FROM pay_item_lines WHERE payroll_item_id='PI-PAY'`).total, 4);
+  assert.equal(one(database, `SELECT COUNT(*) AS total FROM domain_outbox_events
+    WHERE event_type='payroll.calculated_for_review' AND aggregate_id='BK-INT'`).total, 1);
+  assert.equal(one(database, `SELECT COUNT(*) AS total FROM audit_events
+    WHERE event_type='synthetic_payroll_calculated' AND entity_id='PR-PAY'`).total, 1);
   database.close();
 });

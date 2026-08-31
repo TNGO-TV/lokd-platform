@@ -49,12 +49,12 @@ export function PlatformReadiness({ view, flash }: { view: PlatformView; flash: 
     const approved = state.timesheets.filter((item) => item.operationsStatus === "approved_for_backend").length;
     return <>
       <section className="command-heading"><div><p className="eyebrow">Service evidence to finance</p><h1>Timesheet approval</h1><p>Completion creates a canonical timesheet. Client evidence must be confirmed before Operations can lock payable minutes and create the backend handoff.</p></div><div className="command-heading-actions"><button className="secondary-button" onClick={() => void platform.refresh()}>Refresh</button></div></section>
-      <section className="activation-boundary"><span>NO LIVE PAYROLL</span><div><strong>Approval freezes evidence; it does not calculate or pay anyone.</strong><p>The demo uses scheduled minutes and the frozen offer value. Statutory deductions, net pay, payslips and settlement remain null until the production backend is activated.</p></div></section>
+      <section className="activation-boundary"><span>NO LIVE PAYOUTS</span><div><strong>The policy engine is operable; settlement remains locked.</strong><p>The demo can calculate a clearly labelled synthetic gross-to-net result after Operations approval. Live statutory policy values, payslip issue and money movement remain separately gated.</p></div></section>
       <section className="platform-summary-grid"><article><span>Awaiting client evidence</span><strong>{pendingClient}</strong><small>Completion recorded; sign-off still due</small></article><article><span>Operations review</span><strong>{state.summary.timesheetsAwaitingReview}</strong><small>Evidence-confirmed items can be approved</small></article><article><span>Backend handoffs</span><strong>{state.summary.payrollHandoffs || approved}</strong><small>Gross-only records; no deductions or settlement</small></article></section>
       <section className="platform-finance-list">{state.timesheets.length ? state.timesheets.map((timesheet) => <article className={`platform-finance-card state-${timesheet.operationsStatus}`} key={timesheet.id}>
         <header><div><span>{timesheet.id}</span><h2>{timesheet.siteName}</h2><p>{timesheet.officerName} · {dateLabel(timesheet.serviceDate)}</p></div><em>{label(timesheet.operationsStatus)}</em></header>
-        <dl><div><dt>Recorded</dt><dd>{timesheet.recordedMinutes} min</dd><small>Scheduled demo duration</small></div><div><dt>Payable</dt><dd>{timesheet.payableMinutes === null ? "Not approved" : `${timesheet.payableMinutes} min`}</dd><small>Locked by Operations</small></div><div><dt>Frozen gross value</dt><dd>{money(timesheet.grossWageCents)}</dd><small>No net-pay calculation</small></div><div><dt>Employer route</dt><dd>{timesheet.workforceModel ? label(timesheet.workforceModel) : "Missing"}</dd><small>{timesheet.employerName ?? "Employer not frozen"}</small></div></dl>
-        <footer><span><b>Client evidence:</b> {label(timesheet.clientEvidenceStatus)}{timesheet.backendHandoffStatus ? ` · Handoff: ${label(timesheet.backendHandoffStatus)}` : ""}</span>{timesheet.operationsStatus === "awaiting_review" && timesheet.clientEvidenceStatus === "confirmed" ? <button disabled={platform.busy} onClick={async () => { const result = await platform.runAction({ action: "approve_timesheet", timesheetId: timesheet.id, version: timesheet.version }); if (result) flash("Timesheet locked and routed to the production-backend handoff queue."); }}>Approve handoff</button> : <button disabled>{timesheet.clientEvidenceStatus !== "confirmed" ? "Awaiting client" : "Handoff created"}</button>}</footer>
+        <dl><div><dt>Recorded</dt><dd>{timesheet.recordedMinutes} min</dd><small>Scheduled demo duration</small></div><div><dt>Payable</dt><dd>{timesheet.payableMinutes === null ? "Not approved" : `${timesheet.payableMinutes} min`}</dd><small>Locked by Operations</small></div><div><dt>{timesheet.netPayCents === null ? "Frozen gross value" : "Synthetic net value"}</dt><dd>{money(timesheet.netPayCents ?? timesheet.grossWageCents)}</dd><small>{timesheet.employeeDeductionCents === null ? "Awaiting policy calculation" : `${money(timesheet.employeeDeductionCents)} synthetic deductions`}</small></div><div><dt>Employer route</dt><dd>{timesheet.workforceModel ? label(timesheet.workforceModel) : "Missing"}</dd><small>{timesheet.policyVersion ?? timesheet.employerName ?? "Employer not frozen"}</small></div></dl>
+        <footer><span><b>Client evidence:</b> {label(timesheet.clientEvidenceStatus)}{timesheet.backendHandoffStatus ? ` · Handoff: ${label(timesheet.backendHandoffStatus)}` : ""}</span>{timesheet.operationsStatus === "awaiting_review" && timesheet.clientEvidenceStatus === "confirmed" ? <button disabled={platform.busy} onClick={async () => { const result = await platform.runAction({ action: "approve_timesheet", timesheetId: timesheet.id, version: timesheet.version }); if (result) flash("Timesheet locked and routed to the payroll policy engine."); }}>Approve handoff</button> : timesheet.payrollRunId && timesheet.backendHandoffStatus === "awaiting_backend_calculation" ? <button disabled={platform.busy} onClick={async () => { const result = await platform.runAction({ action: "calculate_payroll_run", payrollRunId: timesheet.payrollRunId! }); if (result) flash("Synthetic gross-to-net calculation completed for Operations review."); }}>Run demo calculation</button> : <button disabled>{timesheet.clientEvidenceStatus !== "confirmed" ? "Awaiting client" : timesheet.backendHandoffStatus === "calculated_for_review" ? "Calculated for review" : "Handoff created"}</button>}</footer>
       </article>) : <div className="activation-empty"><span>⌁</span><strong>No submitted timesheets yet</strong><p>Accept a connected offer, complete its first shift, then confirm service in the Client workspace.</p></div>}</section>
       {platform.error && <p className="pilot-error" role="alert">{platform.error}</p>}
     </>;
@@ -76,12 +76,58 @@ export function PlatformReadiness({ view, flash }: { view: PlatformView; flash: 
     </>;
   }
 
+  const externalIntegrations = state.integrations.filter((item) => item.capability === "identity" || item.capability === "payments");
+  const internalIntegrations = state.integrations.filter((item) => item.capability !== "identity" && item.capability !== "payments");
+  const controlsVerified = state.summary.requiredControls > 0
+    && state.summary.readyControls === state.summary.requiredControls;
+
   return <>
-    <section className="command-heading"><div><p className="eyebrow">Backend and provider boundary</p><h1>Platform readiness</h1><p>The product workflows and operator controls are connected to the synthetic backend. Only the production runtime, iiDENTIFii and payment processor remain external activation boundaries.</p></div><div className="command-heading-actions"><button className="secondary-button" disabled={platform.busy} onClick={async () => { const result = await platform.runAction({ action: "refresh_integration_health" }); if (result) flash("The backend guard set was rechecked; disabled production connections were not contacted."); }}>Refresh health</button></div></section>
-    <section className="activation-boundary"><span>PRODUCTION LOCKED</span><div><strong>Sandbox success does not authorise paid deployment.</strong><p>iiDENTIFii and the payment processor remain explicitly not connected. Regulatory evidence and the separate production backend are still hard launch gates.</p></div></section>
-    <section className="platform-summary-grid"><article><span>Production connections remaining</span><strong>{state.summary.requiredIntegrations - state.summary.healthyIntegrations}</strong><small>Backend activation · iiDENTIFii · payment processor</small></article><article><span>Outbox</span><strong>{state.summary.queuedOutboxEvents}</strong><small>Durable workflow events for backend workers</small></article><article><span>Webhook exceptions</span><strong>{state.summary.pendingWebhooks}</strong><small>Unprocessed sandbox/provider events</small></article></section>
+    <section className="command-heading">
+      <div>
+        <p className="eyebrow">Internal platform and provider boundary</p>
+        <h1>Platform readiness</h1>
+        <p>The backend is now treated as owned product code. The only provider integrations left in the software plan are iiDENTIFii and the selected payment processor.</p>
+      </div>
+      <div className="command-heading-actions">
+        <button className="secondary-button" disabled={platform.busy} onClick={async () => {
+          const result = await platform.runAction({ action: "run_platform_maintenance" });
+          if (result) flash("Internal schema, jobs, evidence binding, outbox and payroll engine were checked.");
+        }}>{platform.busy ? "Checking…" : "Run full check"}</button>
+      </div>
+    </section>
+    <section className="activation-boundary">
+      <span>{controlsVerified ? "INTEGRATION READY" : "CHECK REQUIRED"}</span>
+      <div>
+        <strong>{controlsVerified ? "Internal software controls passed their runtime checks." : "Run the control check before treating this build as integration-ready."}</strong>
+        <p>Paid deployment is still locked: provider credentials, signed webhooks, sourced live payroll policy, regulatory evidence and explicit launch approval are not implied by a green software check.</p>
+      </div>
+    </section>
+    <section className="platform-summary-grid">
+      <article><span>External providers remaining</span><strong>{state.summary.externalIntegrationsRemaining}</strong><small>iiDENTIFii · payment processor</small></article>
+      <article><span>Internal controls ready</span><strong>{state.summary.readyControls}/{state.summary.requiredControls || "—"}</strong><small>Database · access · jobs · payroll · maps · evidence</small></article>
+      <article><span>Operations inbox</span><strong>{state.summary.unreadOperatorNotifications}</strong><small>{state.summary.queuedOutboxEvents} event(s) still queued</small></article>
+    </section>
     <section className="platform-workflow-grid">{state.sections.map((section) => <article key={section.key} className={`platform-workflow state-${section.state}`}><header><span>{section.label}</span><em>{label(section.state)}</em></header><strong>{section.detail}</strong><p><b>Remaining:</b> {section.remaining}</p></article>)}</section>
-    <section className="platform-connectors"><header><div><p className="eyebrow">Final activation boundary</p><h2>Three production connections</h2></div></header><div>{state.integrations.map((integration) => <article key={integration.key} className={`platform-connector state-${integration.status}`}><span>{integration.capability}</span><div><strong>{integration.provider}</strong><p>{integration.detail}</p><small>{integration.capabilities.join(" · ")}</small></div><em>{label(integration.status)}</em></article>)}</div></section>
+    <div className="platform-queue-grid">
+      <section className="platform-connectors">
+        <header><div><p className="eyebrow">Owned runtime</p><h2>Internal capabilities</h2></div><strong>{internalIntegrations.length}</strong></header>
+        <div>{internalIntegrations.map((integration) => <article key={integration.key} className={`platform-connector state-${integration.status}`}><span>{integration.capability}</span><div><strong>{integration.provider}</strong><p>{integration.detail}</p><small>{integration.capabilities.join(" · ")}</small></div><em>{label(integration.status)}</em></article>)}</div>
+      </section>
+      <section className="platform-connectors">
+        <header><div><p className="eyebrow">Provider activation</p><h2>Two connections remaining</h2></div><strong>{externalIntegrations.length}</strong></header>
+        <div>{externalIntegrations.map((integration) => <article key={integration.key} className={`platform-connector state-${integration.status}`}><span>{integration.capability}</span><div><strong>{integration.provider}</strong><p>{integration.detail}</p><small>{integration.capabilities.join(" · ")}</small></div><em>{label(integration.status)}</em></article>)}</div>
+      </section>
+    </div>
+    <div className="platform-queue-grid">
+      <section className="platform-connectors">
+        <header><div><p className="eyebrow">Runtime evidence</p><h2>Control register</h2></div><strong>{state.readinessControls.length}</strong></header>
+        <div>{state.readinessControls.length ? state.readinessControls.map((control) => <article className={`platform-connector state-${control.status}`} key={control.code}><span>{control.category}</span><div><strong>{control.label}</strong><p>{control.detail}</p><small>{control.evidenceReference ?? "Evidence pending"} · {control.checkedBy}</small></div><em>{label(control.status)}</em></article>) : <p className="platform-empty-copy">Run the full check to create the evidence-backed readiness register.</p>}</div>
+      </section>
+      <section className="platform-connectors">
+        <header><div><p className="eyebrow">Background processing</p><h2>Job and notification trail</h2></div><strong>{state.jobRuns.length}</strong></header>
+        <div>{state.jobRuns.slice(0, 4).map((job) => <article className={`platform-connector state-${job.status}`} key={job.id}><span>{job.trigger}</span><div><strong>{label(job.jobKey)}</strong><p>{job.detail}</p><small>{job.processedCount} processed · {dateLabel(job.startedAt)}</small></div><em>{label(job.status)}</em></article>)}{!state.jobRuns.length && <p className="platform-empty-copy">No maintenance run has been recorded yet.</p>}</div>
+      </section>
+    </div>
     <div className="platform-queue-grid"><section className="platform-connectors"><header><div><p className="eyebrow">Identity cases</p><h2>iiDENTIFii projection queue</h2></div><strong>{state.identityCases.length}</strong></header><div>{state.identityCases.length ? state.identityCases.map((item) => <article className="platform-connector" key={item.id}><span>ID</span><div><strong>{item.applicantName ?? item.applicationId}</strong><p>{item.id} · {item.provider}</p><small>{item.checks.join(" · ") || "Checks not yet projected"}</small></div><em>{label(item.status)}</em></article>) : <p className="platform-empty-copy">Start a demo identity review under Applications to create a canonical case.</p>}</div></section><section className="platform-connectors"><header><div><p className="eyebrow">Payment orders</p><h2>Funding projection queue</h2></div><strong>{state.paymentOrders.length}</strong></header><div>{state.paymentOrders.length ? state.paymentOrders.map((item) => <article className="platform-connector" key={item.id}><span>R</span><div><strong>{item.bookingId} · {money(item.amountCents)}</strong><p>{item.clientName}</p><small>{item.providerReference ?? "Provider reference pending"}</small></div><em>{label(item.status)}</em></article>) : <p className="platform-empty-copy">Create a booking in the Client workspace to open a canonical payment order.</p>}</div></section></div>
     {platform.error && <p className="pilot-error" role="alert">{platform.error}</p>}
   </>;

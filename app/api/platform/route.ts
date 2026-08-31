@@ -69,10 +69,12 @@ export async function POST(request: Request) {
       "resolve_service_request",
       "approve_timesheet",
       "review_invoice",
+      "calculate_payroll_run",
+      "run_platform_maintenance",
     ]).has(action.action)) {
       throw new PlatformWorkflowError("Choose a valid platform action.");
     }
-    await applyPlatformAction(getDb(), action, actor.email);
+    await applyPlatformAction(getDb(), action, actor.email, { evidenceStoreBound: Boolean(env.BUCKET) });
     return response({ state: await readPlatformState(getDb()) });
   } catch (cause) {
     return errorResponse(cause);
