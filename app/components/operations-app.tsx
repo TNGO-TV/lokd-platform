@@ -18,7 +18,7 @@ import { usePilot } from "../lib/use-pilot";
 import WorkspaceView from "./workspace-view";
 import { PlatformReadiness } from "./platform-readiness";
 
-const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officers", "Clients", "Service requests", "Timesheets", "Billing", "Integrations", "Feedback", "Launch readiness"];
+const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officer conversions", "Officers", "Clients", "Service requests", "Timesheets", "Billing", "Integrations", "Feedback", "Launch readiness"];
 
 function Icon({ name }: { name: "search" | "bell" | "refresh" | "incident" | "close" | "chevron" | "map" }) {
   const paths: Record<typeof name, React.ReactNode> = {
@@ -96,10 +96,11 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
   const isCoverage = activeNav === "Coverage";
   const isActivation = activeNav === "Assignment activation";
   const isWorkforce = activeNav === "Workforce";
+  const isOfficerConversion = activeNav === "Officer conversions";
   const isLaunchReadiness = activeNav === "Launch readiness";
   const isPlatform = activeNav === "Integrations" || activeNav === "Service requests"
     || activeNav === "Timesheets" || activeNav === "Billing";
-  const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isLaunchReadiness || isPlatform;
+  const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isOfficerConversion || isLaunchReadiness || isPlatform;
   const pendingPayments = pilot.state?.bookings.filter((booking) => booking.fundingStatus !== "paid_in_full").length ?? 0;
   const searchResults = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -173,6 +174,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
           /> : isCoverage ? <CoverageCentre operations={operations} flash={flash} />
             : isActivation ? <AssignmentActivationControl operations={operations} flash={flash} />
             : isWorkforce ? <WorkforceControl operations={operations} />
+              : isOfficerConversion ? <OfficerConversionControl operations={operations} flash={flash} />
               : isLaunchReadiness ? <LaunchReadinessControl operations={operations} />
                 : isPlatform ? <PlatformReadiness view={activeNav as "Integrations" | "Service requests" | "Timesheets" | "Billing"} flash={flash} />
                 : <WorkspaceView name={activeNav} />}
@@ -484,6 +486,110 @@ function WorkforceControl({ operations }: { operations: ReturnType<typeof useOpe
   </>;
 }
 
+function OfficerConversionControl({ operations, flash }: {
+  operations: ReturnType<typeof useOperations>;
+  flash: (message: string) => void;
+}) {
+  const state = operations.state;
+  const [formOpen, setFormOpen] = useState(false);
+  const [clientId, setClientId] = useState("");
+  const [officerId, setOfficerId] = useState("");
+  const [route, setRoute] = useState<"assigned_officer_conversion" | "private_recruitment_enquiry">("assigned_officer_conversion");
+  const [specialistCategory, setSpecialistCategory] = useState<"standard" | "armed" | "vip_tactical">("standard");
+  const [completedServiceMonths, setCompletedServiceMonths] = useState("8");
+  const [annualCashRand, setAnnualCashRand] = useState("195000");
+
+  if (operations.loading && !state) return <div className="command-loading"><span className="pulse-dot" /><strong>Loading private conversion controls…</strong><small>Clause · fee schedule · employer handover · compliance</small></div>;
+  if (!state) return <div className="command-error" role="alert"><strong>Officer conversion controls unavailable</strong><p>{operations.error || "The private conversion register could not be loaded."}</p><button onClick={() => void operations.refresh()}>Try again</button></div>;
+  const conversion = state.conversion;
+  const selectedClientId = clientId || conversion.clients[0]?.id || "";
+  const selectedOfficerId = officerId || conversion.officers[0]?.id || "";
+  const selectedClient = conversion.clients.find((client) => client.id === selectedClientId);
+  const activeCases = conversion.cases.filter((item) => !["completed", "withdrawn"].includes(item.status));
+  const stepLabel: Record<"record_offer_notice" | "record_offer_acceptance" | "confirm_client_employer_pack" | "confirm_lokd_payroll_closeout" | "confirm_psira_transfer" | "mark_fee_paid" | "complete" | "withdraw", string> = {
+    record_offer_notice: "Record client notice",
+    record_offer_acceptance: "Record accepted offer",
+    confirm_client_employer_pack: "Confirm client employer pack",
+    confirm_lokd_payroll_closeout: "Confirm LOKD close-out",
+    confirm_psira_transfer: "Confirm PSiRA formalities",
+    mark_fee_paid: "Record cleared fee",
+    complete: "Complete handover",
+    withdraw: "Withdraw case",
+  };
+
+  async function advance(caseId: string, version: number, step: keyof typeof stepLabel) {
+    const result = await operations.runAction({ action: "advance_officer_conversion_case", caseId, version, step });
+    if (result) flash(`${stepLabel[step]} saved to the synthetic Operations record.`);
+  }
+
+  async function openCase(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const serviceMonths = Number(completedServiceMonths);
+    const annualCash = Number(annualCashRand);
+    if (!Number.isInteger(serviceMonths) || serviceMonths < 0) return;
+    if (route === "private_recruitment_enquiry" && (!Number.isFinite(annualCash) || annualCash <= 0)) return;
+    const result = await operations.runAction({
+      action: "open_officer_conversion_case",
+      clientId: selectedClientId,
+      officerId: selectedOfficerId,
+      route,
+      specialistCategory,
+      completedServiceMonths: serviceMonths,
+      annualGuaranteedCashCents: route === "private_recruitment_enquiry" ? Math.round(annualCash * 100) : null,
+    });
+    if (result) {
+      setFormOpen(false);
+      flash("Private officer-conversion case opened with a server-calculated client fee.");
+    }
+  }
+
+  return <>
+    <section className="command-heading conversion-heading"><div><p className="eyebrow">Private Operations pathway</p><h1>Officer conversions</h1><p>Managed service remains the norm. This register is used only after a client asks to employ an assigned officer, or sends a direct private recruitment enquiry.</p></div><button className="primary-button" onClick={() => setFormOpen(true)}>＋ Open private case</button></section>
+    {operations.error && <div className="command-error conversion-inline-error" role="alert"><strong>Control not saved</strong><p>{operations.error}</p></div>}
+    <section className="conversion-policy-strip">
+      <article><span>0 days</span><strong>No credit terms. Ever.</strong><p>Client funds must clear in full before a placement handover can complete. LOKD does not finance client payroll or fees.</p></article>
+      <article><span>Officer protected</span><strong>The client pays the fee</strong><p>No conversion, recruitment or placement fee may be deducted from the officer or used to restrict the officer’s choice.</p></article>
+      <article className={conversion.peaGatePassed ? "is-passed" : "is-blocked"}><span>{conversion.peaGatePassed ? "Passed" : "Blocked"}</span><strong>PEA compliance gate</strong><p>{conversion.peaGateCode} · {conversion.peaGateLabel}. Fee clearance and handover fail closed until current evidence is recorded.</p></article>
+    </section>
+    <section className="conversion-layout">
+      <article className="conversion-register panel"><header className="command-panel-heading"><div><p className="eyebrow">Internal case register</p><h2>Permanent-engagement controls</h2></div><span>{activeCases.length} active · {conversion.readyCases} ready</span></header>
+        {conversion.cases.length ? <div className="conversion-case-list">{conversion.cases.map((conversionCase) => <article className={`conversion-case conversion-case--${conversionCase.readyToComplete ? "ready" : "blocked"}`} key={conversionCase.id}>
+          <header><div><p className="eyebrow">{conversionCase.route === "assigned_officer_conversion" ? "Assigned officer consequence" : "Private recruitment enquiry"}</p><h3>{conversionCase.officerName} → {conversionCase.clientName}</h3><small>{conversionCase.id} · {conversionCase.policyVersion}</small></div><em>{conversionCase.status.replaceAll("_", " ")}</em></header>
+          <dl><div><dt>Officer snapshot</dt><dd>{conversionCase.officerGrade} · {conversionCase.specialistCategory.replaceAll("_", " ")}</dd></div><div><dt>Client fee</dt><dd>{formatZar(conversionCase.calculatedFeeCents)} excl. VAT</dd></div><div><dt>Tenure factor</dt><dd>{conversionCase.tenurePercent}% · {conversionCase.completedServiceMonths} completed month(s)</dd></div><div><dt>Fee state</dt><dd>{conversionCase.feeStatus.replaceAll("_", " ")}</dd></div><div><dt>Client clause</dt><dd>{conversionCase.clauseStatus.replaceAll("_", " ")}</dd></div><div><dt>Protection tail</dt><dd>{conversion.tailMonths} months after final assignment or introduction</dd></div></dl>
+          <div className="conversion-control-grid"><span className={conversionCase.offerAcceptedAt ? "done" : "pending"}><i>{conversionCase.offerAcceptedAt ? "✓" : "1"}</i>Accepted offer</span><span className={conversionCase.clientEmployerPackStatus === "ready" ? "done" : "pending"}><i>{conversionCase.clientEmployerPackStatus === "ready" ? "✓" : "2"}</i>Client employer pack</span><span className={conversionCase.lokdPayrollCloseoutStatus === "ready" ? "done" : "pending"}><i>{conversionCase.lokdPayrollCloseoutStatus === "ready" ? "✓" : "3"}</i>Payroll and leave close-out</span><span className={conversionCase.psiraTransferStatus === "ready" ? "done" : "pending"}><i>{conversionCase.psiraTransferStatus === "ready" ? "✓" : "4"}</i>PSiRA formalities</span><span className={conversionCase.feeStatus === "paid" ? "done" : "pending"}><i>{conversionCase.feeStatus === "paid" ? "✓" : "5"}</i>Cleared client funds</span></div>
+          {!conversionCase.readyToComplete && !["completed", "withdrawn"].includes(conversionCase.status) && <div className="conversion-blockers"><strong>Handover remains blocked</strong><ul>{conversionCase.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul></div>}
+          {!["completed", "withdrawn"].includes(conversionCase.status) && <footer>
+            <div>{conversionCase.status === "enquiry" && <button disabled={operations.busy} onClick={() => void advance(conversionCase.id, conversionCase.version, "record_offer_notice")}>{stepLabel.record_offer_notice}</button>}{conversionCase.status === "offer_notified" && <button disabled={operations.busy} onClick={() => void advance(conversionCase.id, conversionCase.version, "record_offer_acceptance")}>{stepLabel.record_offer_acceptance}</button>}{conversionCase.offerAcceptedAt && <>
+              {conversionCase.clientEmployerPackStatus !== "ready" && <button disabled={operations.busy} onClick={() => void advance(conversionCase.id, conversionCase.version, "confirm_client_employer_pack")}>{stepLabel.confirm_client_employer_pack}</button>}
+              {conversionCase.lokdPayrollCloseoutStatus !== "ready" && <button disabled={operations.busy} onClick={() => void advance(conversionCase.id, conversionCase.version, "confirm_lokd_payroll_closeout")}>{stepLabel.confirm_lokd_payroll_closeout}</button>}
+              {conversionCase.psiraTransferStatus !== "ready" && <button disabled={operations.busy} onClick={() => void advance(conversionCase.id, conversionCase.version, "confirm_psira_transfer")}>{stepLabel.confirm_psira_transfer}</button>}
+              {conversionCase.feeStatus === "payable_prefund_required" && <button title={conversion.peaGatePassed ? "Record synthetic cleared funds" : "PEA evidence must pass first"} disabled={operations.busy || !conversion.peaGatePassed} onClick={() => void advance(conversionCase.id, conversionCase.version, "mark_fee_paid")}>{stepLabel.mark_fee_paid}</button>}
+              <button disabled={operations.busy || !conversionCase.readyToComplete} onClick={() => void advance(conversionCase.id, conversionCase.version, "complete")}>{stepLabel.complete}</button>
+            </>}</div><button className="conversion-withdraw" disabled={operations.busy || conversionCase.feeStatus === "paid"} onClick={() => void advance(conversionCase.id, conversionCase.version, "withdraw")}>Withdraw</button>
+          </footer>}
+        </article>)}</div> : <div className="activation-empty"><span>✓</span><strong>No active cases</strong><p>Permanent employment remains a private consequence, never a public product.</p></div>}
+      </article>
+      <aside className="conversion-policy panel"><header className="command-panel-heading"><div><p className="eyebrow">Policy {conversion.policyVersion}</p><h2>Fee and contract rules</h2></div></header>
+        <div className="conversion-fees"><h3>Minimum fee schedule</h3><dl><div><dt>Grade C / D / E</dt><dd>R12,500</dd></div><div><dt>Grade B</dt><dd>R14,000</dd></div><div><dt>Grade A / Supervisor</dt><dd>R15,000</dd></div><div><dt>Armed</dt><dd>Base + R5,000</dd></div><div><dt>VIP / Tactical</dt><dd>R25,000</dd></div></dl><small>All fees exclude VAT. Private recruitment enquiries use 15% of first-year guaranteed cash remuneration, subject to the applicable minimum.</small></div>
+        <div className="conversion-tenure"><h3>Assigned-officer tenure</h3><ol><li><span>0–3 months</span><strong>100%</strong></li><li><span>4–6 months</span><strong>75%</strong></li><li><span>7–12 months</span><strong>50%</strong></li><li><span>Over 12 months</span><strong>25%</strong></li></ol></div>
+        <div className="conversion-clause"><h3>Clause {conversion.clauseVersion}</h3><p>{conversion.clauseText}</p></div>
+        {conversion.clients.filter((client) => client.clauseStatus !== "acknowledged").map((client) => <button className="conversion-clause-action" key={client.id} disabled={operations.busy} onClick={async () => { const result = await operations.runAction({ action: "acknowledge_permanent_engagement_clause", clientId: client.id }); if (result) flash("Synthetic client clause acknowledgement recorded."); }}>Record {client.name} acknowledgement</button>)}
+      </aside>
+    </section>
+    <footer className="status-footer ops-command-footer"><span><i /> Internal Operations surface only · no public menu or booking product</span><span>Client prefunding required · officer pays R0 · six-month tail · PEA evidence fails closed</span></footer>
+    {formOpen && <div className="drawer-backdrop incident-dialog-backdrop" role="presentation" onMouseDown={() => setFormOpen(false)}><form className="incident-dialog conversion-dialog" role="dialog" aria-modal="true" aria-labelledby="conversion-dialog-title" onSubmit={(event) => void openCase(event)} onMouseDown={(event) => event.stopPropagation()}>
+      <div className="drawer-topline"><span className="detail-id">PRIVATE OPERATIONS CASE</span><button type="button" onClick={() => setFormOpen(false)} aria-label="Close conversion form"><Icon name="close" /></button></div><p className="eyebrow">Not a public service</p><h2 id="conversion-dialog-title">Open an officer-conversion case</h2><p className="incident-dialog-intro">The server freezes the grade, route, policy version and client-only fee. This does not notify the officer, send an invoice, extend credit, or create employment.</p>
+      <div className="incident-form-grid"><label>Approved client<select required value={selectedClientId} onChange={(event) => setClientId(event.target.value)}>{conversion.clients.map((client) => <option key={client.id} value={client.id}>{client.name} · clause {client.clauseStatus.replaceAll("_", " ")}</option>)}</select></label><label>Officer<select required value={selectedOfficerId} onChange={(event) => setOfficerId(event.target.value)}>{conversion.officers.map((officer) => <option key={officer.id} value={officer.id}>{officer.name} · {officer.grade}</option>)}</select></label></div>
+      <label>Private route<select value={route} onChange={(event) => setRoute(event.target.value as typeof route)}><option value="assigned_officer_conversion">Client wants an assigned officer permanently</option><option value="private_recruitment_enquiry">Direct private recruitment enquiry</option></select></label>
+      <div className="incident-form-grid"><label>Officer category<select value={specialistCategory} onChange={(event) => setSpecialistCategory(event.target.value as typeof specialistCategory)}><option value="standard">Standard grade</option><option value="armed">Armed · base plus R5,000</option><option value="vip_tactical">VIP / Tactical · R25,000 minimum</option></select></label><label>Completed LOKD service months<input inputMode="numeric" min="0" max="600" required type="number" value={completedServiceMonths} onChange={(event) => setCompletedServiceMonths(event.target.value)} /></label></div>
+      {route === "private_recruitment_enquiry" && <label>First-year guaranteed cash remuneration (ZAR)<input inputMode="decimal" min="1" max="10000000" required type="number" value={annualCashRand} onChange={(event) => setAnnualCashRand(event.target.value)} /></label>}
+      <div className="relief-gate-note"><strong>Hard commercial boundary</strong><p>Zero credit days. The client funds the fee in full; no amount is charged to the officer. PEA evidence must pass before fee clearance or handover.</p></div>
+      <div className="incident-dialog-actions"><button type="button" className="secondary-button" onClick={() => setFormOpen(false)}>Cancel</button><button className="primary-button primary-button--light" disabled={operations.busy || !selectedClientId || !selectedOfficerId}>{operations.busy ? "Opening…" : "Open controlled case"}</button></div>
+      {selectedClient && selectedClient.clauseStatus !== "acknowledged" && <small className="conversion-dialog-warning">This client’s permanent-engagement clause is not yet acknowledged; the case can be opened but cannot complete.</small>}
+    </form></div>}
+  </>;
+}
+
 function LaunchReadinessControl({ operations }: { operations: ReturnType<typeof useOperations> }) {
   const state = operations.state;
   if (operations.loading && !state) return <div className="command-loading"><span className="pulse-dot" /><strong>Evaluating launch controls…</strong><small>Regulatory · workforce · finance · production operations</small></div>;
@@ -498,7 +604,7 @@ function LaunchReadinessControl({ operations }: { operations: ReturnType<typeof 
     <section className={`launch-decision ${launch.activationLocked ? "is-locked" : "is-ready"}`}><div><span>{launch.activationLocked ? "LOCKED" : "READY"}</span><strong>{launch.activationLocked ? "Production paid-shift activation is disabled" : "Controlled pilot activation available"}</strong><p>{launch.activationLocked ? `${launch.blockers.length} required controls still need valid evidence or approval.` : "Every required control is present, evidenced and current."}</p></div><div className="launch-score"><strong>{launch.passedHardGates}/{launch.totalHardGates}</strong><span>required gates passed</span><i><b style={{ width: `${percent}%` }} /></i></div></section>
     <section className="psira-milestone"><div><span>01</span><p>Company paperwork</p><strong>{gateLabel("G1_PSIRA_PAPERWORK")}</strong><small>{gate("G1_PSIRA_PAPERWORK")?.detail ?? "Required gate missing"}</small></div><i /><div><span>02</span><p>Control-room inspection</p><strong>{gateLabel("G2_CONTROL_ROOM_INSPECTION")}</strong><small>{gate("G2_CONTROL_ROOM_INSPECTION")?.detail ?? "Required gate missing"}</small></div><i /><div><span>03</span><p>Business registration</p><strong>{gateLabel("G3_PSIRA_CERTIFICATE")}</strong><small>{gate("G3_PSIRA_CERTIFICATE")?.detail ?? "Required gate missing"}</small></div></section>
     <section className="launch-gate-groups">{groups.map((group) => <article className="launch-gate-group panel" key={group}><header><span>{group.replaceAll("_", " ")}</span><strong>{launch.gates.filter((gate) => gate.category === group && gate.status === "passed").length}/{launch.gates.filter((gate) => gate.category === group).length}</strong></header>{launch.gates.filter((gate) => gate.category === group).map((gate) => <div className={`launch-gate launch-gate--${gate.status}`} key={gate.code}><span>{gate.status === "passed" ? "✓" : gate.status === "reported" ? "R" : gate.status === "blocked" ? "×" : "•"}</span><div><strong>{gate.label}</strong><p>{gate.detail}</p><small>{gate.code} · {gate.evidenceLevel.replaceAll("_", " ")}</small></div><em>{gate.status.replaceAll("_", " ")}</em></div>)}</article>)}</section>
-    <section className="launch-truth panel"><span>!</span><div><strong>The control-room inspection is not the only remaining launch item.</strong><p>It is the current external PSiRA milestone. Identity verification, cleared client funds, payroll/statutory processing, insurance and production access still have to pass before the platform may turn a synthetic roster into a paid deployment.</p></div></section>
+    <section className="launch-truth panel"><span>!</span><div><strong>PSiRA is reported complete; evidence still has to pass the platform gate.</strong><p>The issued certificate and expiry evidence must be attached and verified rather than assumed. PEA registration is a separate placement-only gate. Identity verification, cleared client funds, payroll/statutory processing, insurance and production access still govern paid deployment.</p></div></section>
   </>;
 }
 

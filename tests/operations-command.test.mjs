@@ -264,6 +264,59 @@ test("Operations exposes a truthful synthetic activation queue and records a fai
   database.close();
 });
 
+test("Operations keeps officer conversion private, client-funded and blocked until PEA evidence passes", async () => {
+  const database = migratedOperationsDatabase();
+  const db = new D1Adapter(database);
+  await ensureOperationsDemoData(db);
+  const initial = await readOperationsState(db);
+  assert.equal(initial.conversion.clientCreditTermsDays, 0);
+  assert.equal(initial.conversion.peaGatePassed, false);
+  assert.equal(initial.conversion.cases.length, 1);
+  assert.ok(initial.conversion.cases[0].blockers.some((blocker) => blocker.includes("Private Employment Agency")));
+
+  await applyOperationsAction(db, {
+    action: "open_officer_conversion_case",
+    clientId: "CL-001",
+    officerId: "OFF-004",
+    route: "private_recruitment_enquiry",
+    specialistCategory: "standard",
+    completedServiceMonths: 0,
+    annualGuaranteedCashCents: 12_000_000,
+  }, { email: "ops-owner@example.test" });
+  let state = await readOperationsState(db);
+  let conversion = state.conversion.cases.find((item) => item.officerId === "OFF-004");
+  assert.ok(conversion);
+  assert.equal(conversion.calculatedFeeCents, 1_800_000);
+  assert.equal(conversion.feeStatus, "quoted");
+
+  await applyOperationsAction(db, {
+    action: "advance_officer_conversion_case",
+    caseId: conversion.id,
+    version: conversion.version,
+    step: "record_offer_notice",
+  }, { email: "ops-owner@example.test" });
+  state = await readOperationsState(db);
+  conversion = state.conversion.cases.find((item) => item.id === conversion.id);
+  await applyOperationsAction(db, {
+    action: "advance_officer_conversion_case",
+    caseId: conversion.id,
+    version: conversion.version,
+    step: "record_offer_acceptance",
+  }, { email: "ops-owner@example.test" });
+  state = await readOperationsState(db);
+  conversion = state.conversion.cases.find((item) => item.id === conversion.id);
+  assert.equal(conversion.feeStatus, "payable_prefund_required");
+  await assert.rejects(() => applyOperationsAction(db, {
+    action: "advance_officer_conversion_case",
+    caseId: conversion.id,
+    version: conversion.version,
+    step: "mark_fee_paid",
+  }, { email: "ops-owner@example.test" }), /PEA registration evidence/);
+  assert.throws(() => database.prepare(`UPDATE officer_conversion_cases SET fee_status='paid'
+    WHERE id=?`).run(conversion.id), /PEA registration evidence|PEA evidence/i);
+  database.close();
+});
+
 test("production work commitments do not block synthetic demo relief eligibility", async () => {
   const database = migratedOperationsDatabase();
   const db = new D1Adapter(database);

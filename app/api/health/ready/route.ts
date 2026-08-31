@@ -33,18 +33,21 @@ export async function GET() {
         'integration_provider_configs','api_idempotency_keys','integration_operations',
         'provider_webhook_inbox','domain_outbox_events','identity_verification_cases',
         'payment_orders','service_requests','document_artifacts','platform_readiness_controls',
-        'scheduled_job_runs','operator_notifications','payroll_policy_versions') THEN 1 ELSE 0 END) AS required_tables,
+        'scheduled_job_runs','operator_notifications','payroll_policy_versions',
+        'officer_conversion_cases') THEN 1 ELSE 0 END) AS required_tables,
       SUM(CASE WHEN type = 'trigger' AND name IN (
         'officer_application_provenance_insert_v21','identity_case_transition_guard_v21',
         'payment_order_evidence_guard_v21','integration_operation_transition_guard_v21',
-        'webhook_inbox_state_guard_v21','outbox_parent_provenance_v21') THEN 1 ELSE 0 END) AS required_triggers
+        'webhook_inbox_state_guard_v21','outbox_parent_provenance_v21',
+        'officer_conversion_fee_insert_guard','officer_conversion_fee_update_guard',
+        'officer_conversion_completion_guard') THEN 1 ELSE 0 END) AS required_triggers
       FROM sqlite_master`).first<{ required_tables: number; required_triggers: number }>();
     const checks = {
       requiredTables: Number(schema?.required_tables ?? 0),
       requiredTriggers: Number(schema?.required_triggers ?? 0),
       evidenceStoreBound: Boolean(env.BUCKET),
     };
-    if (checks.requiredTables !== 13 || checks.requiredTriggers !== 6 || !checks.evidenceStoreBound) {
+    if (checks.requiredTables !== 14 || checks.requiredTriggers !== 9 || !checks.evidenceStoreBound) {
       return reply("unavailable", 503, checks);
     }
     return reply("ready", 200, checks);

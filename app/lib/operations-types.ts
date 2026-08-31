@@ -8,6 +8,44 @@ export type ReliefStatus = "case_open" | "offer_pending" | "accepted" | "arrived
 export type WorkforceModel = "direct_flex" | "partner" | "managed";
 export type LaunchGateStatus = "passed" | "reported" | "pending" | "blocked";
 export type AssignmentActivationState = "ready" | "blocked" | "reserved" | "activated";
+export type OfficerConversionRoute = "assigned_officer_conversion" | "private_recruitment_enquiry";
+export type OfficerConversionSpecialistCategory = "standard" | "armed" | "vip_tactical";
+
+export type OperationsOfficerConversionCase = {
+  id: string;
+  clientId: string;
+  clientName: string;
+  officerId: string;
+  officerName: string;
+  bookingId: string | null;
+  workforceEngagementId: string | null;
+  route: OfficerConversionRoute;
+  status: string;
+  officerGrade: string;
+  specialistCategory: OfficerConversionSpecialistCategory;
+  completedServiceMonths: number;
+  annualGuaranteedCashCents: number | null;
+  minimumFeeCents: number;
+  tenurePercent: number;
+  percentageFeeCents: number | null;
+  calculatedFeeCents: number;
+  policyVersion: string;
+  clauseVersion: string;
+  clauseStatus: string;
+  clientEmployerPackStatus: string;
+  lokdPayrollCloseoutStatus: string;
+  psiraTransferStatus: string;
+  feeStatus: string;
+  offerNotifiedAt: string | null;
+  offerAcceptedAt: string | null;
+  protectionEndsAt: string | null;
+  ownerId: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  readyToComplete: boolean;
+  blockers: string[];
+};
 
 export type OperationsActivationBlocker = {
   code: string;
@@ -291,6 +329,28 @@ export type OperationsCommandState = {
     activated: number;
     queue: OperationsAssignmentActivation[];
   };
+  conversion: {
+    policyVersion: string;
+    clauseVersion: string;
+    clauseText: string;
+    peaGateCode: string;
+    peaGatePassed: boolean;
+    peaGateLabel: string;
+    tailMonths: number;
+    directRecruitmentRateBps: number;
+    clientCreditTermsDays: 0;
+    activeCases: number;
+    readyCases: number;
+    clients: Array<{
+      id: string;
+      name: string;
+      clauseStatus: string;
+      clauseVersion: string;
+      clauseAcknowledgedAt: string | null;
+    }>;
+    officers: Array<{ id: string; name: string; grade: string }>;
+    cases: OperationsOfficerConversionCase[];
+  };
   sites: OperationsSite[];
   roster: OperationsRosterSlot[];
   reserveOfficers: OperationsReserveOfficer[];
@@ -324,4 +384,28 @@ export type OperationsAction =
       rosterSlotId: string;
       officerId: string;
       expectedSlotVersion: number;
+    }
+  | {
+      action: "open_officer_conversion_case";
+      clientId: string;
+      officerId: string;
+      route: OfficerConversionRoute;
+      specialistCategory: OfficerConversionSpecialistCategory;
+      completedServiceMonths: number;
+      annualGuaranteedCashCents?: number | null;
+    }
+  | { action: "acknowledge_permanent_engagement_clause"; clientId: string }
+  | {
+      action: "advance_officer_conversion_case";
+      caseId: string;
+      version: number;
+      step:
+        | "record_offer_notice"
+        | "record_offer_acceptance"
+        | "confirm_client_employer_pack"
+        | "confirm_lokd_payroll_closeout"
+        | "confirm_psira_transfer"
+        | "mark_fee_paid"
+        | "complete"
+        | "withdraw";
     };

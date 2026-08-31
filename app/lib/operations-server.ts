@@ -22,6 +22,12 @@ import {
   launchGateDecision,
   REQUIRED_LAUNCH_GATE_CODES,
 } from "./workforce-core";
+import {
+  calculateOfficerConversionFee,
+  OFFICER_CONVERSION_POLICY,
+  officerConversionReadiness,
+  PERMANENT_ENGAGEMENT_CLAUSE,
+} from "./officer-conversion-core";
 import type {
   CoverageState,
   OperationsAction,
@@ -36,6 +42,7 @@ import type {
   OperationsSite,
   OperationsWorkforceOfficer,
   OperationsAssignmentActivation,
+  OperationsOfficerConversionCase,
 } from "./operations-types";
 
 const PILOT_CLIENT_ID = "CL-001";
@@ -146,6 +153,8 @@ async function assertOperationsDemoSeedIsolation(db: D1Database) {
       WHERE id LIKE 'ECE-EMP-%-DEMO-%' AND (environment <> 'demo' OR integrity_state <> 'synthetic')
     UNION ALL SELECT 'workforce_snapshot', id FROM assignment_workforce_snapshots
       WHERE id IN ('AWS-RA-RSB-01','AWS-RA-MID-01','AWS-RA-LIN-01') AND environment <> 'demo'
+    UNION ALL SELECT 'officer_conversion', id FROM officer_conversion_cases
+      WHERE id = 'CONV-DEMO-001' AND (environment <> 'demo' OR integrity_state <> 'synthetic')
     UNION ALL SELECT 'signal', id FROM site_presence_signals
       WHERE id IN ('SIG-RSB-001','SIG-MID-001','SIG-LIN-001')
         AND (environment <> 'demo' OR integrity_state <> 'synthetic')
@@ -331,14 +340,34 @@ export async function ensureOperationsDemoData(db: D1Database) {
   const endDate = isoOffset(now, 60 * 24 * 30).slice(0, 10);
   const signalRetention = isoOffset(now, 60 * 24 * 30);
   const incidentRetention = isoOffset(now, 60 * 24 * 90);
+  const seedConversionFee = calculateOfficerConversionFee({
+    route: "assigned_officer_conversion",
+    officerGrade: "Grade B",
+    specialistCategory: "standard",
+    completedServiceMonths: 8,
+  });
 
   await assertOperationsDemoSeedIsolation(db);
 
   await db.batch([
     db.prepare(`INSERT OR IGNORE INTO clients
-      (id, organisation_name, contact_name, contact_email, approval_status, environment, integrity_state)
-      VALUES (?, ?, ?, ?, 'approved', 'demo', 'synthetic')`)
-      .bind(PILOT_CLIENT_ID, "Northbridge Property Services", "Nadia Jacobs", "nadia@northbridge.example"),
+      (id, organisation_name, contact_name, contact_email, approval_status, permanent_engagement_clause_version,
+       permanent_engagement_clause_status, permanent_engagement_clause_acknowledged_at, environment, integrity_state)
+      VALUES (?, ?, ?, ?, 'approved', ?, 'acknowledged', ?, 'demo', 'synthetic')`)
+      .bind(PILOT_CLIENT_ID, "Northbridge Property Services", "Nadia Jacobs", "nadia@northbridge.example",
+        OFFICER_CONVERSION_POLICY.clauseVersion, now.toISOString()),
+    db.prepare(`UPDATE clients SET permanent_engagement_clause_version = ?,
+      permanent_engagement_clause_status = 'acknowledged',
+      permanent_engagement_clause_acknowledged_at = COALESCE(permanent_engagement_clause_acknowledged_at, ?)
+      WHERE id = ? AND environment = 'demo' AND integrity_state = 'synthetic'`)
+      .bind(OFFICER_CONVERSION_POLICY.clauseVersion, now.toISOString(), PILOT_CLIENT_ID),
+    db.prepare(`INSERT OR IGNORE INTO launch_controls
+      (code, label, category, status, evidence_level, evidence_reference, detail, hard_gate, sort_order,
+       verified_by, verified_at, expires_at, version, updated_at)
+      VALUES (?, 'Private Employment Agency registration', 'officer_conversion', 'pending', 'none', NULL,
+       'Required before LOKD may charge or complete an officer placement or private recruitment case.',
+       0, 95, NULL, NULL, NULL, 1, ?)`)
+      .bind(OFFICER_CONVERSION_POLICY.peaGateCode, now.toISOString()),
     db.prepare(`INSERT OR IGNORE INTO officers
       (id, full_name, mobile, email, city, psira_number, psira_grade, psira_expiry, approval_status, banking_status, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', 'verified', ?)`)
@@ -795,6 +824,29 @@ export async function ensureOperationsDemoData(db: D1Database) {
     db.prepare(`UPDATE officer_availability_windows
       SET evidence_reference = COALESCE(evidence_reference, 'demo:availability:' || id)
       WHERE officer_id IN ('OFF-004','OFF-005') AND environment = 'demo' AND integrity_state = 'synthetic'`),
+    db.prepare(`INSERT OR IGNORE INTO officer_conversion_cases
+      (id, client_id, officer_id, booking_id, workforce_engagement_id, route, status, active_key,
+       officer_grade, specialist_category, completed_service_months, annual_guaranteed_cash_cents,
+       minimum_fee_cents, tenure_percent, percentage_fee_cents, calculated_fee_cents, policy_version,
+       clause_version, clause_status, client_employer_pack_status, lokd_payroll_closeout_status,
+       psira_transfer_status, fee_status, offer_notified_at, offer_accepted_at, employment_starts_at,
+       final_assignment_at, protection_ends_at, completed_at, owner_id, environment, integrity_state,
+       version, created_at, updated_at)
+      SELECT 'CONV-DEMO-001', client.id, officer.id, booking.id, engagement.id,
+       'assigned_officer_conversion', 'offer_notified', client.id || ':' || officer.id,
+       officer.psira_grade, 'standard', 8, NULL, ?, ?, NULL, ?, ?, ?,
+       client.permanent_engagement_clause_status, 'pending', 'pending', 'pending', 'quoted', ?, NULL,
+       NULL, NULL, NULL, NULL, 'operations-demo', 'demo', 'synthetic', 1, ?, ?
+      FROM clients client JOIN officers officer ON officer.id = 'OFF-003'
+      JOIN bookings booking ON booking.id = 'BK-2090' AND booking.client_id = client.id
+      JOIN workforce_engagements engagement ON engagement.id = 'WE-OFF-003' AND engagement.officer_id = officer.id
+      WHERE client.id = ? AND client.environment = 'demo' AND client.integrity_state = 'synthetic'
+        AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'
+        AND engagement.environment = 'demo'`)
+      .bind(seedConversionFee.minimumFeeCents, seedConversionFee.tenurePercent,
+        seedConversionFee.calculatedFeeCents, OFFICER_CONVERSION_POLICY.version,
+        OFFICER_CONVERSION_POLICY.clauseVersion, isoOffset(now, -60 * 24 * 2),
+        isoOffset(now, -60 * 24 * 2), now.toISOString(), PILOT_CLIENT_ID),
   ]);
 }
 
@@ -1038,6 +1090,47 @@ export async function readOperationsState(db: D1Database): Promise<OperationsCom
     category, status, evidence_level AS evidenceLevel, evidence_reference AS evidenceReference, detail,
     hard_gate AS hardGate, verified_at AS verifiedAt, expires_at AS expiresAt
     FROM launch_controls ORDER BY sort_order, code`));
+  const conversionClients = await all<OperationsCommandState["conversion"]["clients"][number]>(db.prepare(`SELECT
+    id, organisation_name AS name, permanent_engagement_clause_status AS clauseStatus,
+    permanent_engagement_clause_version AS clauseVersion,
+    permanent_engagement_clause_acknowledged_at AS clauseAcknowledgedAt
+    FROM clients WHERE approval_status = 'approved' AND environment = 'demo' AND integrity_state = 'synthetic'
+    ORDER BY organisation_name`));
+  const conversionOfficers = await all<OperationsCommandState["conversion"]["officers"][number]>(db.prepare(`SELECT
+    officer.id, officer.full_name AS name, officer.psira_grade AS grade
+    FROM officers officer JOIN officer_passports passport ON passport.officer_id = officer.id
+      AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+    WHERE officer.approval_status = 'approved' ORDER BY officer.full_name`));
+  const conversionRows = await all<Omit<OperationsOfficerConversionCase, "readyToComplete" | "blockers"> & {
+    clauseAcknowledgedAt: string | null;
+  }>(db.prepare(`SELECT conversion.id, conversion.client_id AS clientId,
+    client.organisation_name AS clientName, conversion.officer_id AS officerId,
+    officer.full_name AS officerName, conversion.booking_id AS bookingId,
+    conversion.workforce_engagement_id AS workforceEngagementId, conversion.route, conversion.status,
+    conversion.officer_grade AS officerGrade, conversion.specialist_category AS specialistCategory,
+    conversion.completed_service_months AS completedServiceMonths,
+    conversion.annual_guaranteed_cash_cents AS annualGuaranteedCashCents,
+    conversion.minimum_fee_cents AS minimumFeeCents, conversion.tenure_percent AS tenurePercent,
+    conversion.percentage_fee_cents AS percentageFeeCents, conversion.calculated_fee_cents AS calculatedFeeCents,
+    conversion.policy_version AS policyVersion, conversion.clause_version AS clauseVersion,
+    client.permanent_engagement_clause_status AS clauseStatus,
+    client.permanent_engagement_clause_acknowledged_at AS clauseAcknowledgedAt,
+    conversion.client_employer_pack_status AS clientEmployerPackStatus,
+    conversion.lokd_payroll_closeout_status AS lokdPayrollCloseoutStatus,
+    conversion.psira_transfer_status AS psiraTransferStatus, conversion.fee_status AS feeStatus,
+    conversion.offer_notified_at AS offerNotifiedAt, conversion.offer_accepted_at AS offerAcceptedAt,
+    conversion.protection_ends_at AS protectionEndsAt, conversion.owner_id AS ownerId,
+    conversion.version, conversion.created_at AS createdAt, conversion.updated_at AS updatedAt
+    FROM officer_conversion_cases conversion
+    JOIN clients client ON client.id = conversion.client_id
+      AND client.environment = 'demo' AND client.integrity_state = 'synthetic'
+    JOIN officers officer ON officer.id = conversion.officer_id
+    JOIN officer_passports passport ON passport.officer_id = officer.id
+      AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+    WHERE conversion.environment = 'demo' AND conversion.integrity_state = 'synthetic'
+    ORDER BY CASE conversion.status WHEN 'offer_accepted' THEN 1 WHEN 'offer_notified' THEN 2
+      WHEN 'enquiry' THEN 3 WHEN 'handover_ready' THEN 4 WHEN 'completed' THEN 5 ELSE 6 END,
+      conversion.updated_at DESC LIMIT 50`));
   const workforceRows = await all<{
     officerId: string; officerName: string; passportStatus: string | null; networkStatus: string;
     engagementStatus: OperationsWorkforceOfficer["employmentStatus"] | null;
@@ -1259,15 +1352,16 @@ export async function readOperationsState(db: D1Database): Promise<OperationsCom
     return { ...row, employmentStatus, nextControl };
   });
   const currentTime = Date.now();
-  const gateEvidenceIsCurrent = (gate: (typeof launchGates)[number]) => {
+  const gateEvidenceIsCurrentWithoutHardGate = (gate: (typeof launchGates)[number]) => {
     const verifiedAt = gate.verifiedAt ? new Date(gate.verifiedAt).getTime() : Number.NaN;
     const expiresAt = gate.expiresAt ? new Date(gate.expiresAt).getTime() : Number.NaN;
-    return Boolean(gate.hardGate)
-      && (gate.evidenceLevel === "system_verified" || gate.evidenceLevel === "independently_verified")
+    return (gate.evidenceLevel === "system_verified" || gate.evidenceLevel === "independently_verified")
       && Boolean(gate.evidenceReference)
       && Number.isFinite(verifiedAt) && verifiedAt <= currentTime
       && Number.isFinite(expiresAt) && expiresAt >= currentTime;
   };
+  const gateEvidenceIsCurrent = (gate: (typeof launchGates)[number]) => Boolean(gate.hardGate)
+    && gateEvidenceIsCurrentWithoutHardGate(gate);
   const launchGateState = launchGates.map((gate) => ({
     ...gate,
     hardGate: Boolean(gate.hardGate),
@@ -1290,6 +1384,21 @@ export async function readOperationsState(db: D1Database): Promise<OperationsCom
   });
   const assignmentTotal = Number(assignmentSnapshotCounts?.total ?? 0);
   const assignmentWithSnapshot = Number(assignmentSnapshotCounts?.withSnapshots ?? 0);
+  const peaGate = launchGates.find((gate) => gate.code === OFFICER_CONVERSION_POLICY.peaGateCode);
+  const peaGatePassed = Boolean(peaGate?.status === "passed" && gateEvidenceIsCurrentWithoutHardGate(peaGate));
+  const conversionCases: OperationsOfficerConversionCase[] = conversionRows.map(({ clauseAcknowledgedAt, ...row }) => {
+    const readiness = officerConversionReadiness({
+      status: row.status,
+      clauseAcknowledged: row.clauseStatus === "acknowledged" && Boolean(clauseAcknowledgedAt),
+      peaGatePassed,
+      offerAccepted: Boolean(row.offerAcceptedAt),
+      clientEmployerPackReady: row.clientEmployerPackStatus === "ready",
+      lokdPayrollCloseoutReady: row.lokdPayrollCloseoutStatus === "ready",
+      psiraTransferReady: row.psiraTransferStatus === "ready",
+      feePaid: row.feeStatus === "paid",
+    });
+    return { ...row, readyToComplete: readiness.ready, blockers: readiness.blockers };
+  });
 
   const activationQueue: OperationsAssignmentActivation[] = activationCommandRows.map((row) => {
     const { snapshotId, snapshotFinal, snapshotIntegrityState, snapshotStatutoryCostCents, ...publicRow } = row;
@@ -1574,6 +1683,22 @@ export async function readOperationsState(db: D1Database): Promise<OperationsCom
       activated: activationQueue.filter((item) => item.state === "activated").length,
       queue: activationQueue,
     },
+    conversion: {
+      policyVersion: OFFICER_CONVERSION_POLICY.version,
+      clauseVersion: OFFICER_CONVERSION_POLICY.clauseVersion,
+      clauseText: PERMANENT_ENGAGEMENT_CLAUSE,
+      peaGateCode: OFFICER_CONVERSION_POLICY.peaGateCode,
+      peaGatePassed,
+      peaGateLabel: peaGate ? `${peaGate.status.replaceAll("_", " ")} · ${peaGate.evidenceLevel.replaceAll("_", " ")}` : "missing",
+      tailMonths: OFFICER_CONVERSION_POLICY.tailMonths,
+      directRecruitmentRateBps: OFFICER_CONVERSION_POLICY.directRecruitmentRateBps,
+      clientCreditTermsDays: OFFICER_CONVERSION_POLICY.clientCreditTermsDays,
+      activeCases: conversionCases.filter((item) => !["completed", "withdrawn"].includes(item.status)).length,
+      readyCases: conversionCases.filter((item) => item.readyToComplete).length,
+      clients: conversionClients,
+      officers: conversionOfficers,
+      cases: conversionCases,
+    },
     sites,
     roster,
     reserveOfficers,
@@ -1607,6 +1732,13 @@ function requireText(value: unknown, label: string, minimum: number, maximum: nu
   return clean;
 }
 
+function requireWholeNumber(value: unknown, label: string, minimum: number, maximum: number) {
+  if (!Number.isInteger(value) || Number(value) < minimum || Number(value) > maximum) {
+    throw new OperationsError(`${label} must be a whole number between ${minimum} and ${maximum}.`);
+  }
+  return Number(value);
+}
+
 export async function applyOperationsAction(db: D1Database, payload: OperationsAction, actor: PilotPrincipal) {
   const now = new Date().toISOString();
   if (payload.action === "evaluate_assignment_activation") {
@@ -1634,6 +1766,233 @@ export async function applyOperationsAction(db: D1Database, payload: OperationsA
       if (cause instanceof AssignmentActivationError) throw new OperationsError(cause.message, cause.status);
       throw cause;
     }
+    return;
+  }
+  if (payload.action === "open_officer_conversion_case") {
+    const clientId = requireId(payload.clientId, "Client");
+    const officerId = requireId(payload.officerId, "Officer");
+    const routes = ["assigned_officer_conversion", "private_recruitment_enquiry"] as const;
+    const specialistCategories = ["standard", "armed", "vip_tactical"] as const;
+    if (!routes.includes(payload.route)) throw new OperationsError("Choose a valid private conversion route.");
+    if (!specialistCategories.includes(payload.specialistCategory)) throw new OperationsError("Choose a valid officer category.");
+    const completedServiceMonths = requireWholeNumber(payload.completedServiceMonths, "Completed service months", 0, 600);
+    const annualGuaranteedCashCents = payload.annualGuaranteedCashCents == null
+      ? null
+      : requireWholeNumber(payload.annualGuaranteedCashCents, "First-year guaranteed cash remuneration", 1, 1_000_000_000);
+    const source = await db.prepare(`SELECT client.id AS clientId,
+      client.permanent_engagement_clause_version AS clauseVersion,
+      client.permanent_engagement_clause_status AS clauseStatus,
+      officer.id AS officerId, officer.psira_grade AS officerGrade,
+      engagement.id AS workforceEngagementId,
+      (SELECT booking.id FROM bookings booking JOIN shifts shift ON shift.booking_id = booking.id
+        WHERE booking.client_id = client.id AND shift.officer_id = officer.id
+          AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'
+        ORDER BY booking.end_date DESC, booking.id DESC LIMIT 1) AS bookingId
+      FROM clients client JOIN officers officer ON officer.id = ?
+      JOIN officer_passports passport ON passport.officer_id = officer.id
+        AND passport.environment = 'demo' AND passport.integrity_state = 'synthetic'
+      LEFT JOIN workforce_engagements engagement ON engagement.officer_id = officer.id
+        AND engagement.active_key = officer.id AND engagement.environment = 'demo'
+      WHERE client.id = ? AND client.approval_status = 'approved'
+        AND client.environment = 'demo' AND client.integrity_state = 'synthetic'
+        AND officer.approval_status = 'approved'`)
+      .bind(officerId, clientId).first<{
+        clientId: string; clauseVersion: string; clauseStatus: string; officerId: string; officerGrade: string;
+        workforceEngagementId: string | null; bookingId: string | null;
+      }>();
+    if (!source) throw new OperationsError("That approved synthetic client and officer combination is unavailable.", 404);
+    if (payload.route === "assigned_officer_conversion" && (!source.workforceEngagementId || !source.bookingId)) {
+      throw new OperationsError("An assigned-officer conversion requires a connected LOKD engagement and client assignment.", 409);
+    }
+    let fee;
+    try {
+      fee = calculateOfficerConversionFee({
+        route: payload.route,
+        officerGrade: source.officerGrade,
+        specialistCategory: payload.specialistCategory,
+        completedServiceMonths,
+        annualGuaranteedCashCents,
+      });
+    } catch (cause) {
+      throw new OperationsError(cause instanceof Error ? cause.message : "The conversion fee could not be calculated.");
+    }
+    const caseId = eventId("CONV");
+    try {
+      await db.batch([
+        db.prepare(`INSERT INTO officer_conversion_cases
+          (id, client_id, officer_id, booking_id, workforce_engagement_id, route, status, active_key,
+           officer_grade, specialist_category, completed_service_months, annual_guaranteed_cash_cents,
+           minimum_fee_cents, tenure_percent, percentage_fee_cents, calculated_fee_cents, policy_version,
+           clause_version, clause_status, client_employer_pack_status, lokd_payroll_closeout_status,
+           psira_transfer_status, fee_status, owner_id, environment, integrity_state, version, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, 'enquiry', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'pending',
+           'pending', 'quoted', ?, 'demo', 'synthetic', 1, ?, ?)`)
+          .bind(caseId, clientId, officerId, source.bookingId, source.workforceEngagementId, payload.route,
+            `${clientId}:${officerId}`, source.officerGrade, payload.specialistCategory, completedServiceMonths,
+            annualGuaranteedCashCents, fee.minimumFeeCents, fee.tenurePercent, fee.percentageFeeCents,
+            fee.calculatedFeeCents, OFFICER_CONVERSION_POLICY.version, OFFICER_CONVERSION_POLICY.clauseVersion,
+            source.clauseStatus, actor.email, now, now),
+        db.prepare(`INSERT INTO audit_events
+          (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
+          VALUES (?, 'operations', ?, 'officer_conversion_opened', 'officer_conversion', ?,
+           'Private Operations case opened; fee is quoted to the client only and no credit terms apply.', ?)`)
+          .bind(eventId("AUD"), actor.email, caseId, now),
+      ]);
+    } catch {
+      throw new OperationsError("An active conversion case already exists for this client and officer.", 409);
+    }
+    return;
+  }
+  if (payload.action === "acknowledge_permanent_engagement_clause") {
+    const clientId = requireId(payload.clientId, "Client");
+    const client = await db.prepare(`SELECT id FROM clients WHERE id = ? AND environment = 'demo'
+      AND integrity_state = 'synthetic' AND approval_status = 'approved'`)
+      .bind(clientId).first<{ id: string }>();
+    if (!client) throw new OperationsError("That approved synthetic client is unavailable.", 404);
+    await db.batch([
+      db.prepare(`UPDATE clients SET permanent_engagement_clause_version = ?,
+        permanent_engagement_clause_status = 'acknowledged', permanent_engagement_clause_acknowledged_at = ?
+        WHERE id = ? AND environment = 'demo' AND integrity_state = 'synthetic'`)
+        .bind(OFFICER_CONVERSION_POLICY.clauseVersion, now, clientId),
+      db.prepare(`UPDATE officer_conversion_cases SET clause_version = ?, clause_status = 'acknowledged',
+        version = version + 1, updated_at = ? WHERE client_id = ? AND active_key IS NOT NULL
+        AND environment = 'demo' AND integrity_state = 'synthetic'`)
+        .bind(OFFICER_CONVERSION_POLICY.clauseVersion, now, clientId),
+      db.prepare(`INSERT INTO audit_events
+        (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
+        VALUES (?, 'operations', ?, 'permanent_engagement_clause_acknowledged', 'client', ?,
+         'Synthetic client acknowledgement recorded against the permanent-engagement clause version.', ?)`)
+        .bind(eventId("AUD"), actor.email, clientId, now),
+    ]);
+    return;
+  }
+  if (payload.action === "advance_officer_conversion_case") {
+    const caseId = requireId(payload.caseId, "Conversion case");
+    const version = requireVersion(payload.version);
+    const steps = ["record_offer_notice", "record_offer_acceptance", "confirm_client_employer_pack",
+      "confirm_lokd_payroll_closeout", "confirm_psira_transfer", "mark_fee_paid", "complete", "withdraw"] as const;
+    if (!steps.includes(payload.step)) throw new OperationsError("Choose a valid conversion control step.");
+    const current = await db.prepare(`SELECT conversion.id, conversion.status, conversion.version,
+      conversion.workforce_engagement_id AS workforceEngagementId, conversion.fee_status AS feeStatus,
+      conversion.offer_accepted_at AS offerAcceptedAt,
+      conversion.client_employer_pack_status AS clientEmployerPackStatus,
+      conversion.lokd_payroll_closeout_status AS lokdPayrollCloseoutStatus,
+      conversion.psira_transfer_status AS psiraTransferStatus,
+      client.permanent_engagement_clause_status AS clauseStatus,
+      client.permanent_engagement_clause_acknowledged_at AS clauseAcknowledgedAt
+      FROM officer_conversion_cases conversion JOIN clients client ON client.id = conversion.client_id
+        AND client.environment = 'demo' AND client.integrity_state = 'synthetic'
+      WHERE conversion.id = ? AND conversion.version = ?
+        AND conversion.environment = 'demo' AND conversion.integrity_state = 'synthetic'`)
+      .bind(caseId, version).first<{
+        id: string; status: string; version: number; workforceEngagementId: string | null; feeStatus: string;
+        offerAcceptedAt: string | null; clientEmployerPackStatus: string; lokdPayrollCloseoutStatus: string;
+        psiraTransferStatus: string; clauseStatus: string; clauseAcknowledgedAt: string | null;
+      }>();
+    if (!current) throw new OperationsError("This conversion case changed before your action. Refresh and try again.", 409);
+    if (["completed", "withdrawn"].includes(current.status)) throw new OperationsError("This conversion case is already closed.", 409);
+
+    let update: D1PreparedStatement;
+    let auditType: string;
+    let auditDetail: string;
+    if (payload.step === "record_offer_notice") {
+      if (current.status !== "enquiry") throw new OperationsError("The client offer notice is already recorded.", 409);
+      update = db.prepare(`UPDATE officer_conversion_cases SET status = 'offer_notified', offer_notified_at = ?,
+        version = version + 1, updated_at = ? WHERE id = ? AND version = ? AND status = 'enquiry'
+          AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(now, now, caseId, version);
+      auditType = "conversion_offer_notified";
+      auditDetail = "Client notice recorded before the permanent offer; the officer remains unrestricted.";
+    } else if (payload.step === "record_offer_acceptance") {
+      if (current.status !== "offer_notified") throw new OperationsError("Record the client offer notice before acceptance.", 409);
+      update = db.prepare(`UPDATE officer_conversion_cases SET status = 'offer_accepted', offer_accepted_at = ?,
+        fee_status = 'payable_prefund_required', version = version + 1, updated_at = ?
+        WHERE id = ? AND version = ? AND status = 'offer_notified'
+          AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(now, now, caseId, version);
+      auditType = "conversion_offer_accepted";
+      auditDetail = "Offer acceptance recorded; the client fee is payable but may not be charged on credit or cleared before the PEA gate passes.";
+    } else if (payload.step === "confirm_client_employer_pack") {
+      if (!current.offerAcceptedAt) throw new OperationsError("Record offer acceptance before the employer handover pack.", 409);
+      update = db.prepare(`UPDATE officer_conversion_cases SET client_employer_pack_status = 'ready',
+        version = version + 1, updated_at = ? WHERE id = ? AND version = ? AND offer_accepted_at IS NOT NULL
+          AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(now, caseId, version);
+      auditType = "conversion_client_pack_ready";
+      auditDetail = "Client employment contract, employer and payroll readiness pack marked ready in the synthetic case.";
+    } else if (payload.step === "confirm_lokd_payroll_closeout") {
+      if (!current.offerAcceptedAt) throw new OperationsError("Record offer acceptance before LOKD payroll close-out.", 409);
+      update = db.prepare(`UPDATE officer_conversion_cases SET lokd_payroll_closeout_status = 'ready',
+        version = version + 1, updated_at = ? WHERE id = ? AND version = ? AND offer_accepted_at IS NOT NULL
+          AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(now, caseId, version);
+      auditType = "conversion_lokd_closeout_ready";
+      auditDetail = "LOKD final payroll and leave close-out marked ready in the synthetic case.";
+    } else if (payload.step === "confirm_psira_transfer") {
+      if (!current.offerAcceptedAt) throw new OperationsError("Record offer acceptance before transfer formalities.", 409);
+      update = db.prepare(`UPDATE officer_conversion_cases SET psira_transfer_status = 'ready',
+        version = version + 1, updated_at = ? WHERE id = ? AND version = ? AND offer_accepted_at IS NOT NULL
+          AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(now, caseId, version);
+      auditType = "conversion_psira_transfer_ready";
+      auditDetail = "Applicable PSiRA transfer and employment formalities marked ready in the synthetic case.";
+    } else if (payload.step === "mark_fee_paid") {
+      const peaGate = await db.prepare(`SELECT code FROM launch_controls WHERE code = ? AND status = 'passed'
+        AND evidence_level IN ('system_verified','independently_verified') AND evidence_reference IS NOT NULL
+        AND verified_at IS NOT NULL AND datetime(verified_at) <= datetime('now')
+        AND expires_at IS NOT NULL AND datetime(expires_at) >= datetime('now')`)
+        .bind(OFFICER_CONVERSION_POLICY.peaGateCode).first<{ code: string }>();
+      if (!peaGate) throw new OperationsError("PEA registration evidence must be passed and current before any placement fee can clear.", 409);
+      if (!current.offerAcceptedAt || current.clauseStatus !== "acknowledged" || !current.clauseAcknowledgedAt) {
+        throw new OperationsError("An accepted offer and acknowledged client clause are required before fee clearance.", 409);
+      }
+      update = db.prepare(`UPDATE officer_conversion_cases SET fee_status = 'paid',
+        version = version + 1, updated_at = ? WHERE id = ? AND version = ? AND offer_accepted_at IS NOT NULL
+          AND fee_status = 'payable_prefund_required' AND environment = 'demo' AND integrity_state = 'synthetic'`)
+        .bind(now, caseId, version);
+      auditType = "conversion_fee_cleared";
+      auditDetail = "Synthetic client conversion fee marked cleared in full; no credit terms and no officer deduction apply.";
+    } else if (payload.step === "withdraw") {
+      if (current.feeStatus === "paid") throw new OperationsError("A paid case needs a controlled refund decision before withdrawal.", 409);
+      update = db.prepare(`UPDATE officer_conversion_cases SET status = 'withdrawn', active_key = NULL,
+        fee_status = 'cancelled', version = version + 1, updated_at = ? WHERE id = ? AND version = ?
+          AND status NOT IN ('completed','withdrawn') AND fee_status <> 'paid'
+          AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(now, caseId, version);
+      auditType = "officer_conversion_withdrawn";
+      auditDetail = "Conversion case withdrawn; the officer remains unrestricted and no client fee is due.";
+    } else {
+      const peaGate = await db.prepare(`SELECT code FROM launch_controls WHERE code = ? AND status = 'passed'
+        AND evidence_level IN ('system_verified','independently_verified') AND evidence_reference IS NOT NULL
+        AND verified_at IS NOT NULL AND datetime(verified_at) <= datetime('now')
+        AND expires_at IS NOT NULL AND datetime(expires_at) >= datetime('now')`)
+        .bind(OFFICER_CONVERSION_POLICY.peaGateCode).first<{ code: string }>();
+      const readiness = officerConversionReadiness({
+        status: current.status,
+        clauseAcknowledged: current.clauseStatus === "acknowledged" && Boolean(current.clauseAcknowledgedAt),
+        peaGatePassed: Boolean(peaGate),
+        offerAccepted: Boolean(current.offerAcceptedAt),
+        clientEmployerPackReady: current.clientEmployerPackStatus === "ready",
+        lokdPayrollCloseoutReady: current.lokdPayrollCloseoutStatus === "ready",
+        psiraTransferReady: current.psiraTransferStatus === "ready",
+        feePaid: current.feeStatus === "paid",
+      });
+      if (!readiness.ready) throw new OperationsError(readiness.blockers[0] ?? "The conversion handover is not ready.", 409);
+      update = db.prepare(`UPDATE officer_conversion_cases SET status = 'completed', active_key = NULL,
+        completed_at = ?, version = version + 1, updated_at = ? WHERE id = ? AND version = ?
+          AND fee_status = 'paid' AND environment = 'demo' AND integrity_state = 'synthetic'`)
+        .bind(now, now, caseId, version);
+      auditType = "officer_conversion_completed";
+      auditDetail = "Client employer handover completed after clause, PEA, prefunding, payroll close-out and transfer controls passed.";
+    }
+    const result = await update.run();
+    if (!result.meta.changes) throw new OperationsError("This conversion case changed before your action. Refresh and try again.", 409);
+    const followups: D1PreparedStatement[] = [
+      db.prepare(`INSERT INTO audit_events
+        (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
+        VALUES (?, 'operations', ?, ?, 'officer_conversion', ?, ?, ?)`)
+        .bind(eventId("AUD"), actor.email, auditType, caseId, auditDetail, now),
+    ];
+    if (payload.step === "complete" && current.workforceEngagementId) {
+      followups.unshift(db.prepare(`UPDATE workforce_engagements SET status = 'ended', active_key = NULL,
+        ended_at = ?, version = version + 1, updated_at = ? WHERE id = ? AND environment = 'demo'`)
+        .bind(now, now, current.workforceEngagementId));
+    }
+    await db.batch(followups);
     return;
   }
   if (payload.action === "create_incident") {
