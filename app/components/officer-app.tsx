@@ -1438,13 +1438,15 @@ function OfficerEarnings({ state }: { state: PilotState }) {
   };
   const downloadHref = (statementId: string) =>
     `/api/pilot?scope=officer&download=payroll-calculation&id=${encodeURIComponent(statementId)}`;
+  const shadowPayslipHref = (statementId: string) =>
+    `/api/pilot?scope=officer&download=shadow-payslip&id=${encodeURIComponent(statementId)}`;
   return (
     <section className="wallet-v2">
       <article className="wallet-balance-v2">
         <div>
-          <span>Current net pay balance</span>
+          <span>Calculated net pay balance</span>
           <strong>{money(state.wallet.calculatedNetCents)}</strong>
-          <p>Calculated and not yet marked paid</p>
+          <p>Payroll accrual only—not stored value, credit or a wallet</p>
         </div>
         <dl>
           <div>
@@ -1509,8 +1511,9 @@ function OfficerEarnings({ state }: { state: PilotState }) {
                 <div className="payroll-statement-actions">
                   <button onClick={() => setSelectedStatement(statement)}>View calculation</button>
                   <a href={downloadHref(statement.id)} download>
-                    Download PDF
+                    Calculation PDF
                   </a>
+                  {statement.runStatus === "approved_for_export" && <a href={shadowPayslipHref(statement.id)} download>Shadow payslip</a>}
                 </div>
               </article>
             ))}
@@ -1627,6 +1630,7 @@ function OfficerEarnings({ state }: { state: PilotState }) {
               <a href={downloadHref(selectedStatement.id)} download>
                 Download calculation PDF
               </a>
+              {selectedStatement.runStatus === "approved_for_export" && <a href={shadowPayslipHref(selectedStatement.id)} download>Download shadow payslip</a>}
             </footer>
           </section>
         </div>

@@ -29,12 +29,16 @@ test("the sourced 2027 candidate applies PAYE bands, rebates, capped UIF and SDL
   assert.equal(result.grossCents, 3_000_000);
   assert.equal(result.payeCents, 468_100);
   assert.equal(result.employeeUifCents, 17_712);
-  assert.equal(result.totalEmployeeDeductionsCents, 485_812);
-  assert.equal(result.netPayCents, 2_514_188);
+  assert.equal(result.employeeProvidentFundCents, 225_000);
+  assert.equal(result.employeeCouncilLevyCents, 940);
+  assert.equal(result.totalEmployeeDeductionsCents, 711_752);
+  assert.equal(result.netPayCents, 2_288_248);
   assert.equal(result.employerUifCents, 17_712);
+  assert.equal(result.employerProvidentFundCents, 225_000);
+  assert.equal(result.employerCouncilLevyCents, 0);
   assert.equal(result.skillsDevelopmentLevyCents, 30_000);
   assert.equal(result.coidaProvisionCents, 0);
-  assert.equal(result.employerCostCents, 3_047_712);
+  assert.equal(result.employerCostCents, 3_272_712);
 });
 
 test("age and medical inputs reduce PAYE, while the SDL exemption fails closed without employer context", () => {

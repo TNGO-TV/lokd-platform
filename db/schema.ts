@@ -2026,3 +2026,77 @@ export const payrollPolicyVersions = sqliteTable(
     index("payroll_policy_effective_idx").on(table.environment, table.jurisdiction, table.status, table.effectiveFrom),
   ],
 );
+
+export const payrollShadowValidationRuns = sqliteTable(
+  "payroll_shadow_validation_runs",
+  {
+    id: text("id").primaryKey(),
+    policyId: text("policy_id").notNull().references(() => payrollPolicyVersions.id),
+    policyHash: text("policy_hash").notNull(),
+    engineVersion: text("engine_version").notNull(),
+    status: text("status").notNull(),
+    scenarioCount: integer("scenario_count").notNull(),
+    passedCount: integer("passed_count").notNull(),
+    failedCount: integer("failed_count").notNull(),
+    resultJson: text("result_json").notNull(),
+    resultHash: text("result_hash").notNull(),
+    activationEligible: integer("activation_eligible").notNull().default(0),
+    settlementLocked: integer("settlement_locked").notNull().default(1),
+    environment: text("environment").notNull(),
+    integrityState: text("integrity_state").notNull(),
+    runBy: text("run_by").notNull().references(() => operatorAccounts.id),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("payroll_shadow_validation_policy_idx").on(table.policyId, table.createdAt),
+    index("payroll_shadow_validation_status_idx").on(table.environment, table.status, table.createdAt),
+  ],
+);
+
+export const payrollExportPreviews = sqliteTable(
+  "payroll_export_previews",
+  {
+    id: text("id").primaryKey(),
+    payrollRunId: text("payroll_run_id").notNull().references(() => payrollRuns.id),
+    exportType: text("export_type").notNull(),
+    mimeType: text("mime_type").notNull(),
+    contentHash: text("content_hash").notNull(),
+    fileName: text("file_name").notNull(),
+    rowCount: integer("row_count").notNull(),
+    status: text("status").notNull().default("shadow_generated"),
+    watermark: text("watermark").notNull().default("SHADOW ONLY - NOT FOR SUBMISSION OR PAYMENT"),
+    createdBy: text("created_by").notNull().references(() => operatorAccounts.id),
+    createdAt: text("created_at").notNull(),
+    environment: text("environment").notNull(),
+    integrityState: text("integrity_state").notNull(),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    uniqueIndex("payroll_export_preview_run_type_idx").on(table.payrollRunId, table.exportType, table.version),
+    index("payroll_export_preview_status_idx").on(table.environment, table.status, table.createdAt),
+  ],
+);
+
+export const payrollExceptions = sqliteTable(
+  "payroll_exceptions",
+  {
+    id: text("id").primaryKey(),
+    payrollRunId: text("payroll_run_id").notNull().references(() => payrollRuns.id),
+    code: text("code").notNull(),
+    severity: text("severity").notNull(),
+    detail: text("detail").notNull(),
+    status: text("status").notNull().default("open"),
+    evidenceReference: text("evidence_reference"),
+    createdBy: text("created_by").notNull().references(() => operatorAccounts.id),
+    resolvedBy: text("resolved_by").references(() => operatorAccounts.id),
+    createdAt: text("created_at").notNull(),
+    resolvedAt: text("resolved_at"),
+    environment: text("environment").notNull(),
+    integrityState: text("integrity_state").notNull(),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    index("payroll_exceptions_queue_idx").on(table.environment, table.status, table.severity, table.createdAt),
+    index("payroll_exceptions_run_idx").on(table.payrollRunId, table.status),
+  ],
+);

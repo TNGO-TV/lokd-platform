@@ -17,6 +17,7 @@ function reply(status: "ready" | "unavailable", code: number, checks?: Readiness
       service: "lokd-security",
       checkedAt: new Date().toISOString(),
       productionActivationAuthorized: false,
+      payrollMode: "shadow_settlement_locked",
       softwareIntegrationReady: status === "ready",
       remainingExternalProviders: ["iiDENTIFii", "payment processor"],
       checks: checks ?? null,
@@ -35,7 +36,8 @@ export async function GET() {
         'payment_orders','service_requests','document_artifacts','platform_readiness_controls',
         'scheduled_job_runs','operator_notifications','payroll_policy_versions',
         'officer_conversion_cases','operator_accounts','operator_role_assignments',
-        'operator_action_policies','operator_approval_requests') THEN 1 ELSE 0 END) AS required_tables,
+        'operator_action_policies','operator_approval_requests','payroll_shadow_validation_runs',
+        'payroll_export_previews','payroll_exceptions') THEN 1 ELSE 0 END) AS required_tables,
       SUM(CASE WHEN type = 'trigger' AND name IN (
         'officer_application_provenance_insert_v21','identity_case_transition_guard_v21',
         'payment_order_evidence_guard_v21','integration_operation_transition_guard_v21',
@@ -44,14 +46,22 @@ export async function GET() {
         'officer_conversion_completion_guard','booking_zero_credit_insert_guard_v28',
         'booking_zero_credit_update_guard_v28','offer_advance_funding_insert_guard_v28',
         'offer_advance_funding_update_guard_v28','payroll_run_first_approval_guard_v28',
-        'payroll_run_second_approval_guard_v28','payroll_policy_activation_guard_v28') THEN 1 ELSE 0 END) AS required_triggers
+        'payroll_run_second_approval_guard_v28','payroll_policy_activation_guard_v28',
+        'payroll_shadow_validation_insert_guard_v29','payroll_shadow_validation_update_guard_v29',
+        'payroll_shadow_validation_delete_guard_v29','payroll_export_preview_insert_guard_v29',
+        'payroll_export_preview_update_guard_v29','payroll_export_preview_delete_guard_v29',
+        'payroll_exception_resolution_guard_v29','payroll_exception_delete_guard_v29',
+        'payroll_settlement_lock_v29','payroll_settlement_insert_lock_v29',
+        'payroll_disbursement_insert_lock_v29','payroll_disbursement_update_lock_v29',
+        'payroll_disbursement_item_insert_lock_v29','payroll_disbursement_item_update_lock_v29',
+        'payroll_payslip_insert_lock_v29','payroll_payslip_update_lock_v29') THEN 1 ELSE 0 END) AS required_triggers
       FROM sqlite_master`).first<{ required_tables: number; required_triggers: number }>();
     const checks = {
       requiredTables: Number(schema?.required_tables ?? 0),
       requiredTriggers: Number(schema?.required_triggers ?? 0),
       evidenceStoreBound: Boolean(env.BUCKET),
     };
-    if (checks.requiredTables !== 18 || checks.requiredTriggers !== 16 || !checks.evidenceStoreBound) {
+    if (checks.requiredTables !== 21 || checks.requiredTriggers !== 32 || !checks.evidenceStoreBound) {
       return reply("unavailable", 503, checks);
     }
     return reply("ready", 200, checks);

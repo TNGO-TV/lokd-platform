@@ -173,6 +173,8 @@ export type PlatformPayrollPolicy = {
     leaveDivisor: number | null;
   };
   blockers: string[];
+  latestValidationStatus: string | null;
+  latestValidationAt: string | null;
 };
 
 export type PlatformPayrollRun = {
@@ -193,6 +195,48 @@ export type PlatformPayrollRun = {
   secondApprovedBy: string | null;
   version: number;
   approvalBlockers: string[];
+};
+
+export type PlatformPayrollValidation = {
+  id: string;
+  policyId: string;
+  engineVersion: string;
+  status: string;
+  scenarioCount: number;
+  passedCount: number;
+  failedCount: number;
+  activationEligible: boolean;
+  settlementLocked: boolean;
+  activationBlockers: string[];
+  runBy: string;
+  createdAt: string;
+};
+
+export type PlatformPayrollExportPreview = {
+  id: string;
+  payrollRunId: string;
+  exportType: string;
+  fileName: string;
+  rowCount: number;
+  status: string;
+  watermark: string;
+  createdBy: string;
+  createdAt: string;
+};
+
+export type PlatformPayrollException = {
+  id: string;
+  payrollRunId: string;
+  code: string;
+  severity: string;
+  detail: string;
+  status: string;
+  evidenceReference: string | null;
+  createdBy: string;
+  resolvedBy: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  version: number;
 };
 
 export type PlatformOperatorAccount = {
@@ -262,7 +306,7 @@ export type PlatformState = {
   jobRuns: PlatformJobRun[];
   notifications: PlatformNotification[];
   payroll: {
-    engineVersion: "payroll-engine-v2";
+    engineVersion: "payroll-engine-v3-shadow";
     creditTermsDays: 0;
     fundingModel: "advance_only";
     livePolicyActivated: false;
@@ -271,6 +315,9 @@ export type PlatformState = {
     requiredReserveCents: number;
     policies: PlatformPayrollPolicy[];
     runs: PlatformPayrollRun[];
+    validations: PlatformPayrollValidation[];
+    exportPreviews: PlatformPayrollExportPreview[];
+    exceptions: PlatformPayrollException[];
   };
   operatorControls: {
     currentActorId: string;
@@ -291,4 +338,6 @@ export type PlatformAction =
   | { action: "calculate_payroll_run"; payrollRunId: string }
   | { action: "approve_payroll_run"; payrollRunId: string; version: number }
   | { action: "second_approve_payroll_run"; payrollRunId: string; version: number }
+  | { action: "run_payroll_shadow_validation"; policyId: string }
+  | { action: "resolve_payroll_exception"; exceptionId: string; version: number; evidenceReference: string }
   | { action: "run_platform_maintenance" };

@@ -72,6 +72,8 @@ export async function POST(request: Request) {
       "calculate_payroll_run",
       "approve_payroll_run",
       "second_approve_payroll_run",
+      "run_payroll_shadow_validation",
+      "resolve_payroll_exception",
       "run_platform_maintenance",
     ]).has(action.action)) {
       throw new PlatformWorkflowError("Choose a valid platform action.");

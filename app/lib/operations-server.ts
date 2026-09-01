@@ -592,7 +592,7 @@ export async function ensureOperationsDemoData(db: D1Database) {
        created_at, updated_at, version)
       SELECT 'PR-DEMO-HISTORY-2077', 'demo:history:2026-08-14', employer.id,
        '2026-08-11', '2026-08-17', '2026-08-21', 'regular', 'ZAR', 'calculated_for_review',
-       ?, ?, ?, ?, 1, ?, 'payroll-engine-v2', 'demo', 'synthetic',
+       ?, ?, ?, ?, 1, ?, 'payroll-engine-v3-shadow', 'demo', 'synthetic',
        'payroll-automation@demo.lokd.invalid', ?, ?, 1
       FROM workforce_employers employer
       WHERE employer.id = 'EMP-LOKD-DEMO' AND employer.environment = 'demo'`)

@@ -176,7 +176,7 @@ test("client and officer requests preserve tenant provenance and support optimis
   assert.equal(state.integrations.length, 7);
   assert.equal(state.summary.externalIntegrationsRemaining, 2);
   assert.equal(state.sections.find((item) => item.key === "funding").state, "adapter_ready");
-  assert.equal(state.payroll.engineVersion, "payroll-engine-v2");
+  assert.equal(state.payroll.engineVersion, "payroll-engine-v3-shadow");
   assert.equal(state.payroll.creditTermsDays, 0);
   assert.equal(state.payroll.fundingModel, "advance_only");
   assert.equal(state.payroll.livePolicyActivated, false);
@@ -185,6 +185,16 @@ test("client and officer requests preserve tenant provenance and support optimis
   assert.ok(state.operatorControls.currentActorRoles.includes("payroll_reviewer"));
   assert.ok(state.operatorControls.policies.some((policy) => policy.actionCode === "settlement.release"
     && policy.secondApprovalRequired));
+  await applyPlatformAction(db, {
+    action: "run_payroll_shadow_validation",
+    policyId: "PAYPOL-ZA-2027-CANDIDATE",
+  }, "ops@example.test");
+  const validatedState = await readPlatformState(db, "ops@example.test");
+  assert.equal(validatedState.payroll.validations[0].status, "passed");
+  assert.equal(validatedState.payroll.validations[0].activationEligible, false);
+  assert.equal(validatedState.payroll.validations[0].settlementLocked, true);
+  assert.throws(() => run(database, `UPDATE payroll_shadow_validation_runs SET status='failed'`),
+    /payroll_shadow_validation_append_only/);
   assert.throws(() => run(database, `DELETE FROM domain_outbox_events`), /outbox_append_only/);
   database.close();
 });
@@ -269,8 +279,8 @@ test("platform maintenance records controls and dispatches internal outbox event
   });
 
   assert.equal(first.status, "completed");
-  assert.equal(first.requiredTables, 17);
-  assert.equal(first.requiredTriggers, 13);
+  assert.equal(first.requiredTables, 20);
+  assert.equal(first.requiredTriggers, 29);
   assert.equal(first.processedEvents, 1);
   assert.equal(second.processedEvents, 0);
   assert.equal(one(database, `SELECT COUNT(*) AS total FROM platform_readiness_controls WHERE status='ready'`).total, 6);
@@ -333,7 +343,7 @@ test("Operations can run a replay-safe synthetic gross-to-net calculation after 
     deductions: 10000,
     netPay: 90000,
     employerCost: 102500,
-    calculationVersion: "payroll-engine-v2",
+    calculationVersion: "payroll-engine-v3-shadow",
   });
   assert.equal(one(database, `SELECT COUNT(*) AS total FROM pay_item_lines WHERE payroll_item_id='PI-PAY'`).total, 6);
   assert.deepEqual({ ...one(database, `SELECT status,requested_by AS requestedBy,amount_cents AS amountCents
@@ -384,6 +394,19 @@ test("Operations can run a replay-safe synthetic gross-to-net calculation after 
   assert.equal(one(database, `SELECT status FROM operator_approval_requests WHERE aggregate_id='PR-PAY'`).status, "approved");
   assert.equal(one(database, `SELECT settlement_reference AS settlementReference FROM payroll_runs
     WHERE id='PR-PAY'`).settlementReference, null);
+  assert.throws(() => run(database, `UPDATE payroll_runs SET status='released_for_settlement',
+    settlement_reference='SETTLEMENT-MUST-NOT-EXIST' WHERE id='PR-PAY'`),
+  /payroll_settlement_locked_until_controlled_pilot_authorisation/);
+  assert.throws(() => run(database, `INSERT INTO disbursement_batches
+    (id,employer_id,rail,currency,status,total_cents,item_count,provider_reference,
+     environment,integrity_state,created_by,created_at,updated_at)
+    VALUES ('DB-PAY','EMP-PAY','eft','ZAR','submitted',90000,1,'provider-ref',
+     'demo','synthetic','ops@example.test',?,?)`, now, now),
+  /payroll_disbursement_locked_until_controlled_pilot_authorisation/);
+  assert.throws(() => run(database, `INSERT INTO payslips
+    (id,payroll_item_id,artifact_id,document_version,status,environment,integrity_state,generated_at)
+    VALUES ('PS-PAY','PI-PAY','ART-NOT-ISSUED',1,'generated','demo','synthetic',?)`, now),
+  /payroll_payslip_issue_locked_until_controlled_pilot_authorisation/);
   database.close();
 });
 

@@ -39,6 +39,7 @@ import { ensureOperationsDemoData } from "../../lib/operations-server";
 import {
   readOfficerPayrollStatements,
   renderPayrollCalculationPdf,
+  renderShadowPayslipPdf,
 } from "../../lib/payroll-statement-server";
 
 export const dynamic = "force-dynamic";
@@ -3736,7 +3737,7 @@ export async function GET(request: Request) {
     await ensurePilotData(db);
     await ensureOperationsDemoData(db);
     const url = new URL(request.url);
-    if (url.searchParams.get("download") === "payroll-calculation") {
+    if (url.searchParams.get("download") === "payroll-calculation" || url.searchParams.get("download") === "shadow-payslip") {
       if (scope !== "officer")
         throw new PilotAccessError("Payroll calculations are available only in the officer workspace.", 403);
       const statementId = url.searchParams.get("id")?.trim() ?? "";
@@ -3749,12 +3750,18 @@ export async function GET(request: Request) {
         .find((item) => item.id === statementId);
       if (!statement)
         throw new PilotAccessError("That payroll calculation is not available.", 404);
-      const bytes = renderPayrollCalculationPdf(statement);
+      const shadowPayslip = url.searchParams.get("download") === "shadow-payslip";
+      let bytes: Uint8Array;
+      try {
+        bytes = shadowPayslip ? renderShadowPayslipPdf(statement) : renderPayrollCalculationPdf(statement);
+      } catch (cause) {
+        throw new PilotAccessError(cause instanceof Error ? cause.message : "That payroll preview is unavailable.", 409);
+      }
       return new Response(bytes, {
         status: 200,
         headers: {
           "content-type": "application/pdf",
-          "content-disposition": `attachment; filename="LOKD-pay-calculation-${statement.id}.pdf"`,
+          "content-disposition": `attachment; filename="LOKD-${shadowPayslip ? "shadow-payslip" : "pay-calculation"}-${statement.id}.pdf"`,
           "cache-control": "no-store, private",
           "x-content-type-options": "nosniff",
           "referrer-policy": "no-referrer",

@@ -115,7 +115,7 @@ export type PilotLedgerEntry = {
 
 export type PilotPayrollLine = {
   id: string;
-  lineType: "earning" | "deduction" | "employer_cost";
+  lineType: "earning" | "deduction" | "employer_cost" | "accrual";
   code: string;
   description: string;
   amountCents: number;
@@ -134,6 +134,7 @@ export type PilotPayrollStatement = {
   periodEnd: string;
   payDate: string;
   status: string;
+  runStatus: string;
   grossCents: number;
   employeeDeductionCents: number;
   netPayCents: number;

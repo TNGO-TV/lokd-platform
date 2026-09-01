@@ -30,7 +30,7 @@ export const OPERATOR_ACTION_POLICIES: OperatorActionPolicy[] = [
   { actionCode: "payroll.calculate", label: "Calculate payroll", requiredRole: "payroll_preparer", mfaMaxAgeMinutes: 30, maxAmountCents: 100_000_000, secondApprovalRequired: false },
   { actionCode: "payroll.first_approve", label: "First payroll approval", requiredRole: "payroll_reviewer", mfaMaxAgeMinutes: 15, maxAmountCents: 50_000_000, secondApprovalRequired: true },
   { actionCode: "payroll.second_approve", label: "Second payroll approval", requiredRole: "finance_approver", mfaMaxAgeMinutes: 15, maxAmountCents: 50_000_000, secondApprovalRequired: true },
-  { actionCode: "payroll.export", label: "Create statutory and bank exports", requiredRole: "payroll_preparer", mfaMaxAgeMinutes: 15, maxAmountCents: 50_000_000, secondApprovalRequired: true },
+  { actionCode: "payroll.export", label: "Create controlled shadow exports", requiredRole: "payroll_preparer", mfaMaxAgeMinutes: 15, maxAmountCents: 50_000_000, secondApprovalRequired: true },
   { actionCode: "settlement.release", label: "Release payroll settlement", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
   { actionCode: "funding.verify", label: "Verify cleared client funding", requiredRole: "funding_reconciler", mfaMaxAgeMinutes: 15, maxAmountCents: 100_000_000, secondApprovalRequired: false },
   { actionCode: "offer.release", label: "Release officer offer", requiredRole: "operations_controller", mfaMaxAgeMinutes: 15, maxAmountCents: 10_000_000, secondApprovalRequired: false },
