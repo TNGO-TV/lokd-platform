@@ -17,6 +17,7 @@ import { usePilot } from "../lib/use-pilot";
 import WorkspaceView from "./workspace-view";
 import { PlatformReadiness } from "./platform-readiness";
 import ClientEnquiriesView from "./client-enquiries-view";
+import { OnboardingControl } from "./onboarding-control";
 import {
   CLIENT_PORTAL_URL,
   OFFICER_PORTAL_URL,
@@ -24,7 +25,7 @@ import {
   PUBLIC_SITE_URL,
 } from "../lib/public-site";
 
-const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officer conversions", "Officers", "Clients", "Client enquiries", "Service requests", "Timesheets", "Payroll", "Billing", "Operator controls", "Integrations", "Feedback", "Launch readiness"];
+const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officer conversions", "Officers", "Clients", "Client enquiries", "Onboarding", "Service requests", "Timesheets", "Payroll", "Billing", "Operator controls", "Integrations", "Feedback", "Launch readiness"];
 
 function Icon({ name }: { name: "search" | "bell" | "refresh" | "incident" | "close" | "chevron" | "map" }) {
   const paths: Record<typeof name, React.ReactNode> = {
@@ -104,11 +105,12 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
   const isWorkforce = activeNav === "Workforce";
   const isOfficerConversion = activeNav === "Officer conversions";
   const isClientEnquiries = activeNav === "Client enquiries";
+  const isOnboarding = activeNav === "Onboarding";
   const isLaunchReadiness = activeNav === "Launch readiness";
   const isPlatform = activeNav === "Integrations" || activeNav === "Service requests"
     || activeNav === "Timesheets" || activeNav === "Payroll" || activeNav === "Billing"
     || activeNav === "Operator controls";
-  const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isOfficerConversion || isClientEnquiries || isLaunchReadiness || isPlatform;
+  const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isOfficerConversion || isClientEnquiries || isOnboarding || isLaunchReadiness || isPlatform;
   const pendingPayments = pilot.state?.bookings.filter((booking) => booking.fundingStatus !== "paid_in_full").length ?? 0;
   const searchResults = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -147,11 +149,12 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
             {item === "Bookings" && pendingPayments > 0 && <em className="nav-warning">{pendingPayments}</em>}
             {item === "Applications" && <em>New</em>}
             {item === "Client enquiries" && <em>Web</em>}
+            {item === "Onboarding" && <em>V32</em>}
             {item === "Feedback" && <em>Team</em>}
           </button>)}
         </nav>
         <div className="rail-footer"><div className="avatar avatar--dark">Z</div><span><strong>Operations</strong>{actorEmail}</span><button aria-label="Account and access status" aria-expanded={accountOpen} onClick={() => setAccountOpen((value) => !value)}>•••</button></div>
-        {accountOpen && <aside className="ops-account-popover"><header><strong>Operations access</strong><button aria-label="Close account details" onClick={() => setAccountOpen(false)}>×</button></header><dl><div><dt>Signed in as</dt><dd>{actorEmail}</dd></div><div><dt>Current role</dt><dd>Operations owner</dd></div><div><dt>Environment</dt><dd>{stage} · synthetic</dd></div></dl><p>Version 31 preserves role limits, recent MFA, maker/checker controls and shadow-payroll settlement locks. Production identity and step-up MFA are still activation gates.</p><nav aria-label="Switch pilot workspace"><a href={CLIENT_PORTAL_URL}>Client workspace</a><a href={OFFICER_PORTAL_URL}>Officer workspace</a></nav></aside>}
+        {accountOpen && <aside className="ops-account-popover"><header><strong>Operations access</strong><button aria-label="Close account details" onClick={() => setAccountOpen(false)}>×</button></header><dl><div><dt>Signed in as</dt><dd>{actorEmail}</dd></div><div><dt>Current role</dt><dd>Operations owner</dd></div><div><dt>Environment</dt><dd>{stage} · synthetic</dd></div></dl><p>Version 32 preserves role limits, recent MFA, maker/checker controls, controlled onboarding evidence and shadow-payroll settlement locks. Production identity and step-up MFA are still activation gates.</p><nav aria-label="Switch pilot workspace"><a href={CLIENT_PORTAL_URL}>Client workspace</a><a href={OFFICER_PORTAL_URL}>Officer workspace</a></nav></aside>}
       </aside>
 
       <section className="main-stage">
@@ -185,6 +188,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
             : isWorkforce ? <WorkforceControl operations={operations} />
               : isOfficerConversion ? <OfficerConversionControl operations={operations} flash={flash} />
                 : isClientEnquiries ? <ClientEnquiriesView flash={flash} />
+                  : isOnboarding ? <OnboardingControl flash={flash} />
               : isLaunchReadiness ? <LaunchReadinessControl operations={operations} />
                 : isPlatform ? <PlatformReadiness view={activeNav as "Integrations" | "Service requests" | "Timesheets" | "Payroll" | "Billing" | "Operator controls"} flash={flash} />
                 : <WorkspaceView name={activeNav} />}

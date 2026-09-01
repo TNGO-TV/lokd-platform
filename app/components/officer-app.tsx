@@ -14,6 +14,7 @@ import {
   PUBLIC_SITE_URL,
 } from "../lib/public-site";
 import { usePilot } from "../lib/use-pilot";
+import { PortalOnboardingSummary } from "./portal-onboarding-summary";
 
 type OfficerTab = "Home" | "Work" | "Earnings" | "Profile";
 type WorkView = "Offers" | "My shifts";
@@ -627,13 +628,16 @@ function ApprovedOfficer({
         <OfficerEarnings state={state} pilot={pilot} flash={flash} />
       )}
       {tab === "Profile" && (
-        <OfficerProfile
-          state={state}
-          pilot={pilot}
-          flash={flash}
-          setFlexAvailability={setFlexAvailability}
-          createOfficerRequest={createOfficerRequest}
-        />
+        <>
+          <PortalOnboardingSummary scope="officer" />
+          <OfficerProfile
+            state={state}
+            pilot={pilot}
+            flash={flash}
+            setFlexAvailability={setFlexAvailability}
+            createOfficerRequest={createOfficerRequest}
+          />
+        </>
       )}
 
       <nav

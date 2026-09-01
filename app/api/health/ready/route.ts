@@ -18,6 +18,7 @@ function reply(status: "ready" | "unavailable", code: number, checks?: Readiness
       checkedAt: new Date().toISOString(),
       productionActivationAuthorized: false,
       payrollMode: "shadow_settlement_locked",
+      onboardingMode: "controlled_demo_rehearsal",
       softwareIntegrationReady: status === "ready",
       remainingExternalProviders: ["iiDENTIFii", "payment processor"],
       checks: checks ?? null,
@@ -37,7 +38,9 @@ export async function GET() {
         'scheduled_job_runs','operator_notifications','payroll_policy_versions',
         'officer_conversion_cases','operator_accounts','operator_role_assignments',
         'operator_action_policies','operator_approval_requests','payroll_shadow_validation_runs',
-        'payroll_export_previews','payroll_exceptions','client_enquiries') THEN 1 ELSE 0 END) AS required_tables,
+        'payroll_export_previews','payroll_exceptions','client_enquiries',
+        'onboarding_cases','onboarding_checklist_items','contract_template_versions',
+        'contract_envelopes','workspace_access_invitations','controlled_pilot_rehearsals') THEN 1 ELSE 0 END) AS required_tables,
       SUM(CASE WHEN type = 'trigger' AND name IN (
         'officer_application_provenance_insert_v21','identity_case_transition_guard_v21',
         'payment_order_evidence_guard_v21','integration_operation_transition_guard_v21',
@@ -56,14 +59,24 @@ export async function GET() {
         'payroll_disbursement_item_insert_lock_v29','payroll_disbursement_item_update_lock_v29',
         'payroll_payslip_insert_lock_v29','payroll_payslip_update_lock_v29',
         'client_enquiry_insert_guard_v30','client_enquiry_update_guard_v30',
-        'client_enquiry_delete_guard_v30') THEN 1 ELSE 0 END) AS required_triggers
+        'client_enquiry_delete_guard_v30','onboarding_case_insert_guard_v32',
+        'onboarding_case_update_guard_v32','onboarding_case_delete_guard_v32',
+        'onboarding_check_insert_guard_v32','onboarding_check_update_guard_v32',
+        'onboarding_check_delete_guard_v32','contract_template_insert_guard_v32',
+        'contract_template_update_guard_v32','contract_template_delete_guard_v32',
+        'contract_envelope_insert_guard_v32','contract_envelope_update_guard_v32',
+        'contract_envelope_delete_guard_v32','workspace_access_insert_guard_v32',
+        'workspace_access_update_guard_v32','workspace_access_delete_guard_v32',
+        'controlled_pilot_rehearsal_insert_guard_v32',
+        'controlled_pilot_rehearsal_update_guard_v32',
+        'controlled_pilot_rehearsal_delete_guard_v32') THEN 1 ELSE 0 END) AS required_triggers
       FROM sqlite_master`).first<{ required_tables: number; required_triggers: number }>();
     const checks = {
       requiredTables: Number(schema?.required_tables ?? 0),
       requiredTriggers: Number(schema?.required_triggers ?? 0),
       evidenceStoreBound: Boolean(env.BUCKET),
     };
-    if (checks.requiredTables !== 22 || checks.requiredTriggers !== 35 || !checks.evidenceStoreBound) {
+    if (checks.requiredTables !== 28 || checks.requiredTriggers !== 53 || !checks.evidenceStoreBound) {
       return reply("unavailable", 503, checks);
     }
     return reply("ready", 200, checks);

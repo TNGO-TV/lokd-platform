@@ -25,6 +25,7 @@ import {
   OPERATIONS_PORTAL_URL,
   PUBLIC_SITE_URL,
 } from "../lib/public-site";
+import { PortalOnboardingSummary } from "./portal-onboarding-summary";
 
 const serviceOptions = (Object.keys(servicePriceBook) as ServiceType[]).map(
   (name) => ({ name, ...servicePriceBook[name] }),
@@ -318,6 +319,7 @@ export default function ClientApp() {
             Test a request
           </button>
         </div>
+        <PortalOnboardingSummary scope="client" />
         <section className="client-status-card">
           <div className="client-status-main">
             <span

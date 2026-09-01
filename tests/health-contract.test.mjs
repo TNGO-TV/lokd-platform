@@ -23,7 +23,7 @@ test("readiness fails closed without a bound database", async () => {
   assert.equal(body.productionActivationAuthorized, false);
 });
 
-test("readiness verifies the Version 30 launch and shadow-payroll schema without authorising paid deployment", async () => {
+test("readiness verifies the Version 32 onboarding and shadow-payroll schema without authorising paid deployment", async () => {
   env.BUCKET = {};
   env.DB = {
     prepare(statement) {
@@ -42,7 +42,11 @@ test("readiness verifies the Version 30 launch and shadow-payroll schema without
       assert.match(statement, /client_enquiries/);
       assert.match(statement, /client_enquiry_insert_guard_v30/);
       assert.match(statement, /client_enquiry_delete_guard_v30/);
-      return { first: async () => ({ required_tables: 22, required_triggers: 35 }) };
+      assert.match(statement, /onboarding_cases/);
+      assert.match(statement, /contract_envelopes/);
+      assert.match(statement, /workspace_access_insert_guard_v32/);
+      assert.match(statement, /controlled_pilot_rehearsal_insert_guard_v32/);
+      return { first: async () => ({ required_tables: 28, required_triggers: 53 }) };
     },
   };
   try {
@@ -52,9 +56,10 @@ test("readiness verifies the Version 30 launch and shadow-payroll schema without
     assert.equal(body.status, "ready");
     assert.equal(body.productionActivationAuthorized, false);
     assert.equal(body.payrollMode, "shadow_settlement_locked");
+    assert.equal(body.onboardingMode, "controlled_demo_rehearsal");
     assert.equal(body.softwareIntegrationReady, true);
     assert.deepEqual(body.remainingExternalProviders, ["iiDENTIFii", "payment processor"]);
-    assert.deepEqual(body.checks, { requiredTables: 22, requiredTriggers: 35, evidenceStoreBound: true });
+    assert.deepEqual(body.checks, { requiredTables: 28, requiredTriggers: 53, evidenceStoreBound: true });
   } finally {
     delete env.DB;
     delete env.BUCKET;
@@ -63,7 +68,7 @@ test("readiness verifies the Version 30 launch and shadow-payroll schema without
 
 test("readiness fails closed when a required database guard is missing", async () => {
   env.BUCKET = {};
-  env.DB = { prepare: () => ({ first: async () => ({ required_tables: 22, required_triggers: 34 }) }) };
+  env.DB = { prepare: () => ({ first: async () => ({ required_tables: 28, required_triggers: 52 }) }) };
   try {
     const response = await ready();
     const body = await response.json();
@@ -77,7 +82,7 @@ test("readiness fails closed when a required database guard is missing", async (
 });
 
 test("readiness fails closed when private evidence storage is not bound", async () => {
-  env.DB = { prepare: () => ({ first: async () => ({ required_tables: 22, required_triggers: 35 }) }) };
+  env.DB = { prepare: () => ({ first: async () => ({ required_tables: 28, required_triggers: 53 }) }) };
   try {
     const response = await ready();
     const body = await response.json();
