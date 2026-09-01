@@ -1402,13 +1402,16 @@ function ShiftDetail({
 }
 
 function OfficerEarnings({ state }: { state: PilotState }) {
+  const [selectedStatement, setSelectedStatement] = useState<
+    PilotState["payrollStatements"][number] | null
+  >(null);
   const stateCopy: Record<
     string,
     { label: string; note: string; tone: string }
   > = {
     available: {
-      label: "Payroll preview ready",
-      note: "Illustrative approved time awaiting a future payroll batch",
+      label: "Approved for payroll",
+      note: "Approved gross time is ready for the automated pay calculation",
       tone: "green",
     },
     pending_signoff: {
@@ -1417,8 +1420,8 @@ function OfficerEarnings({ state }: { state: PilotState }) {
       tone: "amber",
     },
     pending_release: {
-      label: "Payroll preview scheduled",
-      note: "Illustrative approved work waiting for a future payroll cycle",
+      label: "Scheduled for payroll",
+      note: "Approved work is waiting for its configured payroll cycle",
       tone: "blue",
     },
     withdrawal_queued: {
@@ -1433,39 +1436,92 @@ function OfficerEarnings({ state }: { state: PilotState }) {
       tone: "red",
     },
   };
+  const downloadHref = (statementId: string) =>
+    `/api/pilot?scope=officer&download=payroll-calculation&id=${encodeURIComponent(statementId)}`;
   return (
     <section className="wallet-v2">
       <article className="wallet-balance-v2">
         <div>
-          <span>LOKD Payroll Preview</span>
-          <strong>{money(state.wallet.availableCents)}</strong>
-          <p>Illustrative approved amount</p>
+          <span>Current net pay balance</span>
+          <strong>{money(state.wallet.calculatedNetCents)}</strong>
+          <p>Calculated and not yet marked paid</p>
         </div>
         <dl>
           <div>
-            <dt>Example time under review</dt>
+            <dt>Time under review</dt>
             <dd>{money(state.wallet.pendingCents)}</dd>
           </div>
           <div>
-            <dt>Legacy demo queue</dt>
-            <dd>{money(state.wallet.withdrawalQueuedCents)}</dd>
+            <dt>Approved gross awaiting payroll</dt>
+            <dd>{money(state.wallet.availableCents)}</dd>
           </div>
           <div>
-            <dt>Production requirement</dt>
-            <dd>Payroll batch · payslip · EFT evidence</dd>
+            <dt>Paid calculations</dt>
+            <dd>{money(state.wallet.paidCents)}</dd>
           </div>
         </dl>
         <div className="wallet-withdrawal">
-          <span>Activation status</span>
-          <strong>Payroll integration not connected</strong>
-          <button disabled>Payroll action locked</button>
+          <span>Calculation status</span>
+          <strong>
+            {state.payrollStatements.length
+              ? "Automated breakdown available"
+              : "Waiting for approved payroll input"}
+          </strong>
+          {state.payrollStatements[0] ? (
+            <button onClick={() => setSelectedStatement(state.payrollStatements[0])}>
+              View latest calculation
+            </button>
+          ) : (
+            <button disabled>No calculation yet</button>
+          )}
         </div>
         <p className="earnings-disclaimer">
-          These are simulated work records, not a wallet, wage calculation or
-          promise of payment. Production payroll will be run by LOKD as employer
-          or compliant TES and will not depend on an officer withdrawal request.
+          This public example uses synthetic work and a synthetic policy version.
+          In production, LOKD will calculate payroll from approved time under the
+          effective policy, then issue a payslip and separate settlement evidence.
         </p>
       </article>
+      <section className="officer-section-card payroll-statements-v2">
+        <div className="officer-section-heading">
+          <div>
+            <p className="eyebrow">Pay calculations</p>
+            <h2>See how every rand was calculated</h2>
+            <p>Each statement keeps its original policy and calculation version.</p>
+          </div>
+        </div>
+        {state.payrollStatements.length ? (
+          <div className="payroll-statement-list">
+            {state.payrollStatements.map((statement) => (
+              <article className="payroll-statement-row" key={statement.id}>
+                <div>
+                  <span>{statement.periodStart} – {statement.periodEnd}</span>
+                  <strong>{statement.siteName}</strong>
+                  <small>
+                    {statement.shiftCount} approved shift{statement.shiftCount === 1 ? "" : "s"}
+                    {" · "}{statement.status.replaceAll("_", " ")}
+                  </small>
+                </div>
+                <dl>
+                  <div><dt>Gross</dt><dd>{money(statement.grossCents)}</dd></div>
+                  <div><dt>Deductions</dt><dd>− {money(statement.employeeDeductionCents)}</dd></div>
+                  <div><dt>Net pay</dt><dd>{money(statement.netPayCents)}</dd></div>
+                </dl>
+                <div className="payroll-statement-actions">
+                  <button onClick={() => setSelectedStatement(statement)}>View calculation</button>
+                  <a href={downloadHref(statement.id)} download>
+                    Download PDF
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="payroll-statement-empty">
+            <strong>No pay calculation has been produced yet.</strong>
+            <p>It will appear after the timesheet is approved and the payroll engine runs.</p>
+          </div>
+        )}
+      </section>
       <section className="officer-section-card wallet-activity-v2">
         <div className="officer-section-heading">
           <div>
@@ -1509,6 +1565,72 @@ function OfficerEarnings({ state }: { state: PilotState }) {
           </small>
         </div>
       </section>
+      {selectedStatement && (
+        <div
+          className="drawer-backdrop officer-modal-backdrop"
+          onMouseDown={() => setSelectedStatement(null)}
+        >
+          <section
+            className="payroll-calculation-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="payroll-calculation-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              aria-label="Close pay calculation"
+              onClick={() => setSelectedStatement(null)}
+            >
+              ×
+            </button>
+            <p className="eyebrow">Synthetic pay calculation</p>
+            <h2 id="payroll-calculation-title">
+              {selectedStatement.periodStart} – {selectedStatement.periodEnd}
+            </h2>
+            <p className="payroll-modal-intro">
+              {selectedStatement.siteName} · Pay date {selectedStatement.payDate}
+            </p>
+            <div className="payroll-modal-totals">
+              <div><span>Gross</span><strong>{money(selectedStatement.grossCents)}</strong></div>
+              <div><span>Employee deductions</span><strong>− {money(selectedStatement.employeeDeductionCents)}</strong></div>
+              <div><span>Net pay</span><strong>{money(selectedStatement.netPayCents)}</strong></div>
+            </div>
+            <div className="payroll-line-table" role="table" aria-label="Pay calculation lines">
+              {selectedStatement.lines
+                .filter((line) => line.lineType !== "employer_cost")
+                .map((line) => (
+                  <div role="row" key={line.id}>
+                    <span role="cell">
+                      <strong>{line.description}</strong>
+                      <small>{line.code} · {line.ruleVersion}</small>
+                    </span>
+                    <b role="cell" className={line.lineType === "deduction" ? "is-deduction" : ""}>
+                      {line.lineType === "deduction" ? "− " : ""}{money(line.amountCents)}
+                    </b>
+                  </div>
+                ))}
+            </div>
+            <div className="employer-cost-note">
+              <strong>Employer contributions—not deducted from your pay</strong>
+              <p>
+                {selectedStatement.lines
+                  .filter((line) => line.lineType === "employer_cost")
+                  .map((line) => `${line.description}: ${money(line.amountCents)}`)
+                  .join(" · ") || "None recorded"}
+              </p>
+            </div>
+            <footer className="payroll-modal-footer">
+              <small>
+                Policy {selectedStatement.policyVersion} · Engine {selectedStatement.calculationVersion}
+              </small>
+              <a href={downloadHref(selectedStatement.id)} download>
+                Download calculation PDF
+              </a>
+            </footer>
+          </section>
+        </div>
+      )}
     </section>
   );
 }

@@ -28,6 +28,10 @@ import {
   officerConversionReadiness,
   PERMANENT_ENGAGEMENT_CLAUSE,
 } from "./officer-conversion-core";
+import {
+  calculatePayrollItem,
+  SYNTHETIC_ENGINE_TEST_POLICY,
+} from "./payroll-engine";
 import type {
   CoverageState,
   OperationsAction,
@@ -146,6 +150,12 @@ async function assertOperationsDemoSeedIsolation(db: D1Database) {
       WHERE id IN ('EMP-LOKD-DEMO','EMP-PARTNER-DEMO') AND environment <> 'demo'
     UNION ALL SELECT 'engagement', id FROM workforce_engagements
       WHERE id IN ('WE-OFF-001','WE-OFF-002','WE-OFF-003','WE-OFF-004') AND environment <> 'demo'
+    UNION ALL SELECT 'payroll_run', id FROM payroll_runs
+      WHERE id = 'PR-DEMO-HISTORY-2077' AND (environment <> 'demo' OR integrity_state <> 'synthetic')
+    UNION ALL SELECT 'payroll_item', id FROM payroll_items
+      WHERE id = 'PI-DEMO-HISTORY-2077' AND (environment <> 'demo' OR integrity_state <> 'synthetic')
+    UNION ALL SELECT 'timesheet', id FROM shift_timesheets
+      WHERE id = 'TS-DEMO-HISTORY-2077' AND (environment <> 'demo' OR integrity_state <> 'synthetic')
     UNION ALL SELECT 'terms', id FROM workforce_terms_acceptances
       WHERE id IN ('WTA-OFF-001','WTA-OFF-002','WTA-OFF-003','WTA-OFF-004')
         AND (environment <> 'demo' OR integrity_state <> 'synthetic')
@@ -346,6 +356,11 @@ export async function ensureOperationsDemoData(db: D1Database) {
     specialistCategory: "standard",
     completedServiceMonths: 8,
   });
+  const seedPayroll = calculatePayrollItem(
+    80_000,
+    "2026-08-14",
+    SYNTHETIC_ENGINE_TEST_POLICY,
+  );
 
   await assertOperationsDemoSeedIsolation(db);
 
@@ -547,6 +562,84 @@ export async function ensureOperationsDemoData(db: D1Database) {
       (id, booking_id, officer_id, scheduled_date, status, check_in_at, check_out_at, client_signoff_status, signed_off_at, earnings_cents)
       VALUES (?, ?, ?, ?, 'on_post', ?, NULL, 'not_due', NULL, 80000)`)
       .bind("SH-2090", "BK-2090", "OFF-003", today, isoOffset(now, -94)),
+    db.prepare(`INSERT OR IGNORE INTO shift_timesheets
+      (id, shift_id, booking_id, officer_id, workforce_engagement_id, employer_id, workforce_model,
+       service_date, scheduled_starts_at, scheduled_ends_at, check_in_at, check_out_at,
+       scheduled_minutes, recorded_minutes, payable_minutes, gross_wage_cents, calendar_category,
+       policy_version, client_evidence_status, operations_status, evidence_reference, active_key,
+       approved_by, approved_at, submitted_at, locked_at, environment, integrity_state, version,
+       created_at, updated_at)
+      SELECT 'TS-DEMO-HISTORY-2077', shift.id, booking.id, shift.officer_id, engagement.id,
+       engagement.employer_id, engagement.model, shift.scheduled_date,
+       '2026-08-14T04:00:00.000Z', '2026-08-14T16:00:00.000Z', shift.check_in_at,
+       shift.check_out_at, 720, 720, 720, shift.earnings_cents, 'ordinary',
+       'LOKD-DEMO-TIMESHEET-v1', 'confirmed', 'approved_for_backend',
+       'demo:timesheet:SH-2077', shift.id, 'Synthetic payroll demo',
+       '2026-08-14T16:20:00.000Z', '2026-08-14T16:15:00.000Z',
+       '2026-08-14T16:20:00.000Z', 'demo', 'synthetic', 1, ?, ?
+      FROM shifts shift
+      JOIN bookings booking ON booking.id = shift.booking_id
+      JOIN workforce_engagements engagement ON engagement.officer_id = shift.officer_id
+       AND engagement.active_key = shift.officer_id AND engagement.environment = 'demo'
+      WHERE shift.id = 'SH-2077' AND shift.officer_id = 'OFF-001'
+       AND shift.environment = 'demo' AND shift.integrity_state = 'synthetic'
+       AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'`)
+      .bind(now.toISOString(), now.toISOString()),
+    db.prepare(`INSERT OR IGNORE INTO payroll_runs
+      (id, batch_key, employer_id, period_start, period_end, pay_date, run_type, currency, status,
+       gross_cents, employee_deduction_cents, net_pay_cents, employer_cost_cents, item_count,
+       policy_version, calculation_version, environment, integrity_state, created_by,
+       created_at, updated_at, version)
+      SELECT 'PR-DEMO-HISTORY-2077', 'demo:history:2026-08-14', employer.id,
+       '2026-08-11', '2026-08-17', '2026-08-21', 'regular', 'ZAR', 'calculated_for_review',
+       ?, ?, ?, ?, 1, ?, 'payroll-engine-v1', 'demo', 'synthetic',
+       'Synthetic payroll demo', ?, ?, 1
+      FROM workforce_employers employer
+      WHERE employer.id = 'EMP-LOKD-DEMO' AND employer.environment = 'demo'`)
+      .bind(seedPayroll.grossCents, seedPayroll.totalEmployeeDeductionsCents,
+        seedPayroll.netPayCents, seedPayroll.employerCostCents, seedPayroll.policyVersion,
+        now.toISOString(), now.toISOString()),
+    db.prepare(`INSERT OR IGNORE INTO payroll_items
+      (id, payroll_run_id, officer_id, payroll_profile_id, workforce_engagement_id, employer_id,
+       workforce_model, gross_wage_cents, employee_deduction_cents, net_pay_cents,
+       employer_cost_cents, status, policy_version, environment, integrity_state, created_at, updated_at)
+      SELECT 'PI-DEMO-HISTORY-2077', run.id, 'OFF-001', NULL, engagement.id, engagement.employer_id,
+       engagement.model, ?, ?, ?, ?, 'calculated_for_review', ?, 'demo', 'synthetic', ?, ?
+      FROM payroll_runs run JOIN workforce_engagements engagement ON engagement.id = 'WE-OFF-001'
+      WHERE run.id = 'PR-DEMO-HISTORY-2077' AND run.environment = 'demo'
+       AND run.integrity_state = 'synthetic' AND engagement.environment = 'demo'`)
+      .bind(seedPayroll.grossCents, seedPayroll.totalEmployeeDeductionsCents,
+        seedPayroll.netPayCents, seedPayroll.employerCostCents, seedPayroll.policyVersion,
+        now.toISOString(), now.toISOString()),
+    db.prepare(`INSERT OR IGNORE INTO pay_item_sources
+      (id, payroll_item_id, timesheet_id, timesheet_version, payable_minutes, gross_wage_cents,
+       active_key, environment, integrity_state, created_at)
+      SELECT 'PIS-DEMO-HISTORY-2077', item.id, timesheet.id, timesheet.version,
+       timesheet.payable_minutes, timesheet.gross_wage_cents, timesheet.id,
+       'demo', 'synthetic', ?
+      FROM payroll_items item JOIN shift_timesheets timesheet ON timesheet.id = 'TS-DEMO-HISTORY-2077'
+      WHERE item.id = 'PI-DEMO-HISTORY-2077' AND item.environment = 'demo'
+       AND item.integrity_state = 'synthetic' AND timesheet.environment = 'demo'
+       AND timesheet.integrity_state = 'synthetic'`)
+      .bind(now.toISOString()),
+    ...[
+      ["PIL-DEMO-HISTORY-2077-GROSS", "earning", "ORDINARY", "Approved ordinary-time earnings", seedPayroll.grossCents, 720, null, null],
+      ["PIL-DEMO-HISTORY-2077-PAYE", "deduction", "PAYE", "PAYE under the frozen synthetic policy", seedPayroll.payeCents, null, null, null],
+      ["PIL-DEMO-HISTORY-2077-UIF-EE", "deduction", "UIF-EMPLOYEE", "Employee UIF", seedPayroll.employeeUifCents, null, null, 100],
+      ["PIL-DEMO-HISTORY-2077-UIF-ER", "employer_cost", "UIF-EMPLOYER", "Employer UIF - not deducted from the officer", seedPayroll.employerUifCents, null, null, 100],
+      ["PIL-DEMO-HISTORY-2077-SDL", "employer_cost", "SDL", "Employer skills development levy - not deducted from the officer", seedPayroll.skillsDevelopmentLevyCents, null, null, 100],
+    ].map(([id, lineType, code, description, amountCents, quantityMinutes, rateCents, rateBasisPoints]) =>
+      db.prepare(`INSERT OR IGNORE INTO pay_item_lines
+        (id, payroll_item_id, line_type, code, description, amount_cents, quantity_minutes,
+         rate_cents, rate_basis_points, statutory_code, rule_version, environment, integrity_state, created_at)
+        SELECT ?, item.id, ?, ?, ?, ?, ?, ?, ?,
+         CASE WHEN ? IN ('PAYE','UIF-EMPLOYEE','UIF-EMPLOYER','SDL') THEN ? ELSE NULL END,
+         ?, 'demo', 'synthetic', ? FROM payroll_items item
+        WHERE item.id = 'PI-DEMO-HISTORY-2077' AND item.environment = 'demo'
+         AND item.integrity_state = 'synthetic'`)
+        .bind(id, lineType, code, description, amountCents, quantityMinutes, rateCents,
+          rateBasisPoints, code, code === "UIF-EMPLOYEE" || code === "UIF-EMPLOYER" ? "UIF" : code,
+          seedPayroll.policyVersion, now.toISOString())),
     db.prepare(`INSERT OR IGNORE INTO operational_sites
       (id, client_id, booking_id, name, area, address_label, latitude_e6, longitude_e6, timezone, risk_band,
        service_type, geofence_radius_meters, geofence_version, telemetry_mode, sensitivity_classification,

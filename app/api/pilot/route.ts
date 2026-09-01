@@ -36,6 +36,10 @@ import {
   reconcileDemoPayment,
 } from "../../lib/integration-server";
 import { ensureOperationsDemoData } from "../../lib/operations-server";
+import {
+  readOfficerPayrollStatements,
+  renderPayrollCalculationPdf,
+} from "../../lib/payroll-statement-server";
 
 export const dynamic = "force-dynamic";
 
@@ -1415,6 +1419,10 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
       )
       .bind(PILOT_OFFICER_ID, PILOT_CLIENT_ID),
   );
+  const payrollStatements = await readOfficerPayrollStatements(
+    db,
+    PILOT_OFFICER_ID,
+  );
   const audit = await all<{
     id: string;
     actorType: string;
@@ -1441,6 +1449,12 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
   const withdrawalQueuedCents = ledger
     .filter((entry) => entry.state === "withdrawal_queued")
     .reduce((sum, entry) => sum + entry.amountCents, 0);
+  const calculatedNetCents = payrollStatements
+    .filter((statement) => !["paid", "settled", "void", "reversed"].includes(statement.status))
+    .reduce((sum, statement) => sum + statement.netPayCents, 0);
+  const paidCents = payrollStatements
+    .filter((statement) => ["paid", "settled"].includes(statement.status))
+    .reduce((sum, statement) => sum + statement.netPayCents, 0);
   const initials = officer.fullName
     .split(/\s+/)
     .map((part) => part[0])
@@ -1476,10 +1490,13 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
     bookings,
     shifts,
     ledger,
+    payrollStatements,
     wallet: {
       pendingCents,
       availableCents,
       withdrawalQueuedCents,
+      calculatedNetCents,
+      paidCents,
       totalTrackedCents: pendingCents + availableCents + withdrawalQueuedCents,
     },
     audit,
@@ -3588,6 +3605,8 @@ function stateForScope(state: PilotState, scope: PilotScope): PilotState {
     pendingCents: 0,
     availableCents: 0,
     withdrawalQueuedCents: 0,
+    calculatedNetCents: 0,
+    paidCents: 0,
     totalTrackedCents: 0,
   };
   if (scope === "client") {
@@ -3624,6 +3643,7 @@ function stateForScope(state: PilotState, scope: PilotScope): PilotState {
         .filter((shift) => bookingIds.has(shift.bookingId))
         .map((shift) => ({ ...shift, earningsCents: 0 })),
       ledger: [],
+      payrollStatements: [],
       wallet: emptyMoney,
       audit: [],
     };
@@ -3715,6 +3735,33 @@ export async function GET(request: Request) {
     const db = getPilotDb();
     await ensurePilotData(db);
     await ensureOperationsDemoData(db);
+    const url = new URL(request.url);
+    if (url.searchParams.get("download") === "payroll-calculation") {
+      if (scope !== "officer")
+        throw new PilotAccessError("Payroll calculations are available only in the officer workspace.", 403);
+      const statementId = url.searchParams.get("id")?.trim() ?? "";
+      if (!/^PI-[A-Z0-9-]{1,100}$/.test(statementId))
+        throw new PilotAccessError("Choose a valid payroll calculation.", 400);
+      const officerId = viewer.officerId ?? PILOT_OFFICER_ID;
+      if (!viewer.owner && officerId !== PILOT_OFFICER_ID)
+        throw new PilotAccessError("This payroll calculation is not assigned to your account.", 403);
+      const statement = (await readOfficerPayrollStatements(db, officerId))
+        .find((item) => item.id === statementId);
+      if (!statement)
+        throw new PilotAccessError("That payroll calculation is not available.", 404);
+      const bytes = renderPayrollCalculationPdf(statement);
+      return new Response(bytes, {
+        status: 200,
+        headers: {
+          "content-type": "application/pdf",
+          "content-disposition": `attachment; filename="LOKD-pay-calculation-${statement.id}.pdf"`,
+          "cache-control": "no-store, private",
+          "x-content-type-options": "nosniff",
+          "referrer-policy": "no-referrer",
+          vary: "oai-authenticated-user-email",
+        },
+      });
+    }
     return response({ state: stateForScope(await readPilotState(db), scope) });
   } catch (cause) {
     return errorResponse(cause);

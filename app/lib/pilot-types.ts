@@ -113,6 +113,38 @@ export type PilotLedgerEntry = {
   updatedAt: string;
 };
 
+export type PilotPayrollLine = {
+  id: string;
+  lineType: "earning" | "deduction" | "employer_cost";
+  code: string;
+  description: string;
+  amountCents: number;
+  quantityMinutes: number | null;
+  rateCents: number | null;
+  ruleVersion: string;
+};
+
+export type PilotPayrollStatement = {
+  id: string;
+  payrollRunId: string;
+  officerName: string;
+  siteName: string;
+  shiftCount: number;
+  periodStart: string;
+  periodEnd: string;
+  payDate: string;
+  status: string;
+  grossCents: number;
+  employeeDeductionCents: number;
+  netPayCents: number;
+  employerCostCents: number;
+  policyVersion: string;
+  calculationVersion: string;
+  generatedAt: string;
+  paidAt: string | null;
+  lines: PilotPayrollLine[];
+};
+
 export type PilotBooking = {
   id: string;
   siteName: string;
@@ -199,10 +231,13 @@ export type PilotState = {
   bookings: PilotBooking[];
   shifts: PilotShift[];
   ledger: PilotLedgerEntry[];
+  payrollStatements: PilotPayrollStatement[];
   wallet: {
     pendingCents: number;
     availableCents: number;
     withdrawalQueuedCents: number;
+    calculatedNetCents: number;
+    paidCents: number;
     totalTrackedCents: number;
   };
   audit: Array<{

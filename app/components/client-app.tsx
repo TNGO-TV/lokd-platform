@@ -455,10 +455,11 @@ export default function ClientApp() {
         <section className="contract-rule-strip">
           <span>✓</span>
           <div>
-            <strong>Simulated funding gate passed before matching</strong>
+            <strong>Cleared prepayment gate passed before matching</strong>
             <p>
               This demonstrates the intended control only. No card was charged,
-              invoice issued or bank receipt confirmed.
+              invoice issued or bank receipt confirmed. LOKD offers no credit
+              terms and cannot activate work against an unpaid balance.
             </p>
           </div>
         </section>
@@ -1167,11 +1168,12 @@ export default function ClientApp() {
                   {quote.manualReview
                     ? "Risk plan first, payment second."
                     : engagementModel === "fixed"
-                      ? "Full-term payment required."
-                      : "Shift payment required."}
+                      ? "Full-term cleared prepayment required."
+                      : "Shift cleared prepayment required."}
                 </strong>{" "}
-                No officer offer is released until the plan is approved where
-                required and LOKD records payment as received.
+                No credit terms are available. No officer offer is released
+                until the plan is approved where required and LOKD independently
+                records the full payment as cleared and reconciled.
               </p>
             </div>
             <div className="drawer-actions">

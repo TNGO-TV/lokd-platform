@@ -622,6 +622,24 @@
 .pilot-error { margin: 12px 0 0; color: #a53d32; font-size: var(--type-secondary); line-height: 1.5; }
 .client-signoff-card > .pilot-error { margin: 0 24px 18px; }
 .earnings-disclaimer { grid-column: 1/-1; margin: 4px 0 0; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.1); color: #7e8588; font-size: var(--type-secondary); }
+.wallet-withdrawal button:disabled { opacity: .55; cursor: default; }
+.payroll-statements-v2 { padding: 0 24px 8px; }
+.payroll-statements-v2 > .officer-section-heading { padding-left: 0; padding-right: 0; border: 0; border-bottom: 1px solid #e6e9e9; border-radius: 0; }
+.payroll-statement-list { display: grid; }
+.payroll-statement-row { padding: 18px 0; border-bottom: 1px solid #e7eaea; display: grid; grid-template-columns: minmax(190px,1fr) minmax(310px,1.25fr) auto; gap: 22px; align-items: center; }
+.payroll-statement-row > div:first-child > span { display: block; color: #7b8285; font-size: 12px; }
+.payroll-statement-row > div:first-child > strong { display: block; margin-top: 5px; font-size: 15px; }
+.payroll-statement-row > div:first-child > small { display: block; margin-top: 5px; color: #777f81; font-size: 12px; text-transform: capitalize; }
+.payroll-statement-row dl { margin: 0; display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.payroll-statement-row dl div { min-width: 0; padding: 10px 12px; border-radius: 10px; background: #f5f7f6; }
+.payroll-statement-row dt { color: #7c8486; font-size: 11px; }
+.payroll-statement-row dd { margin: 5px 0 0; font-size: 13px; font-weight: 850; white-space: nowrap; }
+.payroll-statement-actions { display: flex; flex-direction: column; gap: 7px; }
+.payroll-statement-actions button, .payroll-statement-actions a, .payroll-modal-footer a { min-height: 39px; padding: 0 13px; border: 1px solid #dbe0de; border-radius: 10px; background: #fff; color: #252a28; font: inherit; font-size: 12px; font-weight: 850; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
+.payroll-statement-actions a, .payroll-modal-footer a { border-color: var(--lime); background: var(--lime); color: #1c2114; }
+.payroll-statement-empty { padding: 24px 0; }
+.payroll-statement-empty strong { font-size: 15px; }
+.payroll-statement-empty p { margin: 6px 0 0; color: #747c7e; font-size: 13px; }
 .wallet-activity-v2 { padding: 0 24px 8px; }
 .wallet-activity-v2 .officer-section-heading { padding-left: 0; padding-right: 0; border: 0; border-bottom: 1px solid #e6e9e9; border-radius: 0; }
 .earning-row-v2 { min-height: 90px; padding: 16px 0; border-bottom: 1px solid #e8ebeb; display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; }
@@ -653,9 +671,28 @@
 .compliance-centre .reg21-note { margin-top: 14px; padding: 13px; border-radius: 11px; background: #f3f5f4; color: #6a7174; font-size: var(--type-secondary); line-height: 1.5; }
 
 .officer-modal-backdrop { align-items: center; justify-content: center; padding: 18px; }
-.officer-confirm-modal, .officer-help-modal { width: min(540px,100%); max-height: calc(100vh - 36px); overflow-y: auto; padding: 28px; border-radius: 22px; background: #fff; box-shadow: 0 30px 80px rgba(0,0,0,.22); position: relative; }
+.officer-confirm-modal, .officer-help-modal, .payroll-calculation-modal { width: min(540px,100%); max-height: calc(100vh - 36px); overflow-y: auto; padding: 28px; border-radius: 22px; background: #fff; box-shadow: 0 30px 80px rgba(0,0,0,.22); position: relative; }
+.payroll-calculation-modal { width: min(690px,100%); }
 .modal-close { position: absolute; right: 18px; top: 18px; width: 38px; height: 38px; border: 1px solid #dfe3e3; border-radius: 11px; background: #fff; font-size: 22px; cursor: pointer; }
 .officer-confirm-modal h2, .officer-help-modal h2 { margin: 7px 45px 8px 0; font-size: 29px; letter-spacing: -.04em; }
+.payroll-calculation-modal h2 { margin: 7px 45px 5px 0; font-size: 30px; letter-spacing: -.04em; }
+.payroll-modal-intro { margin: 0; color: #747c7e; font-size: 14px; }
+.payroll-modal-totals { margin: 22px 0 17px; display: grid; grid-template-columns: repeat(3,1fr); border: 1px solid #e1e5e3; border-radius: 14px; overflow: hidden; }
+.payroll-modal-totals div { padding: 15px; border-right: 1px solid #e1e5e3; }
+.payroll-modal-totals div:last-child { border: 0; background: #eef4d8; }
+.payroll-modal-totals span { display: block; color: #777f81; font-size: 11px; }
+.payroll-modal-totals strong { display: block; margin-top: 5px; font-size: 17px; }
+.payroll-line-table { border-top: 1px solid #e5e8e7; }
+.payroll-line-table > div { min-height: 62px; padding: 12px 2px; border-bottom: 1px solid #e5e8e7; display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; }
+.payroll-line-table span strong { display: block; font-size: 14px; }
+.payroll-line-table span small { display: block; margin-top: 4px; color: #7d8587; font-size: 11px; }
+.payroll-line-table b { font-size: 14px; }
+.payroll-line-table b.is-deduction { color: #9d4035; }
+.employer-cost-note { margin-top: 17px; padding: 14px 16px; border-radius: 12px; background: #f3f5f4; }
+.employer-cost-note strong { font-size: 13px; }
+.employer-cost-note p { margin: 5px 0 0; color: #697173; font-size: 12px; line-height: 1.55; }
+.payroll-modal-footer { margin-top: 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.payroll-modal-footer small { color: #747c7e; font-size: 11px; }
 .officer-confirm-modal > p:not(.eyebrow), .officer-help-modal > p:not(.eyebrow) { margin: 0; color: #737a7d; font-size: 13px; }
 .officer-confirm-modal dl { margin: 22px 0; display: grid; grid-template-columns: repeat(3,1fr); border: 1px solid #e4e7e7; border-radius: 13px; }
 .officer-confirm-modal dl div { padding: 13px; border-right: 1px solid #e4e7e7; }
@@ -706,6 +743,9 @@
   .officer-glance-grid { grid-template-columns: repeat(3,1fr); grid-template-rows: auto; }
   .officer-offer-list { grid-template-columns: 1fr; }
   .wallet-balance-v2 { grid-template-columns: 1fr 1fr; }
+  .payroll-statement-row { grid-template-columns: 1fr; gap: 13px; }
+  .payroll-statement-actions { flex-direction: row; }
+  .payroll-statement-actions > * { flex: 1; }
   .wallet-withdrawal { grid-column: 1/-1; padding: 18px 0 0; border-left: 0; border-top: 1px solid rgba(255,255,255,.1); }
   .wallet-withdrawal button { margin-top: 18px; }
   .application-v2 { grid-template-columns: 1fr; }
@@ -760,6 +800,14 @@
   .wallet-balance-v2 dl { padding: 16px 0 0; border-left: 0; border-top: 1px solid rgba(255,255,255,.1); }
   .wallet-withdrawal { grid-column: 1; }
   .wallet-activity-v2 { padding: 0 16px 6px; }
+  .payroll-statements-v2 { padding: 0 16px 6px; }
+  .payroll-statement-row dl { grid-template-columns: 1fr; }
+  .payroll-statement-actions { flex-direction: column; }
+  .payroll-modal-totals { grid-template-columns: 1fr; }
+  .payroll-modal-totals div { border-right: 0; border-bottom: 1px solid #e1e5e3; }
+  .payroll-calculation-modal { padding: 24px 18px; border-radius: 18px; }
+  .payroll-calculation-modal h2 { font-size: 25px; }
+  .payroll-modal-footer { align-items: stretch; flex-direction: column; }
   .earning-row-v2 { align-items: flex-start; grid-template-columns: 1fr; }
   .earning-row-v2 > span { align-items: flex-start; }
   .card-preview-v2 { grid-template-columns: 1fr; }
