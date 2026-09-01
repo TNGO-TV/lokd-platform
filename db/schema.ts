@@ -636,6 +636,8 @@ export const bookings = sqliteTable(
     officerRateCents: integer("officer_rate_cents").notNull(),
     environment: text("environment").notNull().default("demo"),
     integrityState: text("integrity_state").notNull().default("synthetic"),
+    fundingModel: text("funding_model").notNull().default("advance_only"),
+    creditTermsDays: integer("credit_terms_days").notNull().default(0),
     fundingStatus: text("funding_status").notNull().default("unfunded"),
     releaseCadence: text("release_cadence").notNull(),
     status: text("status").notNull().default("draft"),
@@ -1902,6 +1904,97 @@ export const operatorNotifications = sqliteTable(
   (table) => [
     uniqueIndex("operator_notifications_source_idx").on(table.sourceEventId),
     index("operator_notifications_queue_idx").on(table.environment, table.status, table.createdAt),
+  ],
+);
+
+export const operatorAccounts = sqliteTable(
+  "operator_accounts",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull(),
+    displayName: text("display_name").notNull(),
+    status: text("status").notNull().default("pending"),
+    mfaStatus: text("mfa_status").notNull().default("not_verified"),
+    mfaVerifiedAt: text("mfa_verified_at"),
+    approvalLimitCents: integer("approval_limit_cents").notNull().default(0),
+    environment: text("environment").notNull(),
+    integrityState: text("integrity_state").notNull(),
+    version: integer("version").notNull().default(1),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("operator_accounts_email_env_idx").on(table.email, table.environment),
+    index("operator_accounts_status_idx").on(table.environment, table.status),
+  ],
+);
+
+export const operatorRoleAssignments = sqliteTable(
+  "operator_role_assignments",
+  {
+    id: text("id").primaryKey(),
+    operatorId: text("operator_id").notNull().references(() => operatorAccounts.id),
+    role: text("role").notNull(),
+    status: text("status").notNull().default("active"),
+    environment: text("environment").notNull(),
+    integrityState: text("integrity_state").notNull(),
+    grantedBy: text("granted_by").notNull(),
+    grantedAt: text("granted_at").notNull(),
+    revokedAt: text("revoked_at"),
+  },
+  (table) => [
+    uniqueIndex("operator_role_active_idx").on(table.operatorId, table.role, table.environment),
+    index("operator_role_queue_idx").on(table.environment, table.role, table.status),
+  ],
+);
+
+export const operatorActionPolicies = sqliteTable(
+  "operator_action_policies",
+  {
+    id: text("id").primaryKey(),
+    actionCode: text("action_code").notNull(),
+    label: text("label").notNull(),
+    requiredRole: text("required_role").notNull(),
+    mfaMaxAgeMinutes: integer("mfa_max_age_minutes").notNull(),
+    maxAmountCents: integer("max_amount_cents"),
+    secondApprovalRequired: integer("second_approval_required").notNull().default(0),
+    status: text("status").notNull().default("active"),
+    environment: text("environment").notNull(),
+    integrityState: text("integrity_state").notNull(),
+    version: integer("version").notNull().default(1),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("operator_action_policy_code_idx").on(table.environment, table.actionCode),
+    index("operator_action_policy_role_idx").on(table.environment, table.requiredRole, table.status),
+  ],
+);
+
+export const operatorApprovalRequests = sqliteTable(
+  "operator_approval_requests",
+  {
+    id: text("id").primaryKey(),
+    actionCode: text("action_code").notNull(),
+    aggregateType: text("aggregate_type").notNull(),
+    aggregateId: text("aggregate_id").notNull(),
+    amountCents: integer("amount_cents").notNull().default(0),
+    status: text("status").notNull().default("pending_first_approval"),
+    requestedBy: text("requested_by").notNull().references(() => operatorAccounts.id),
+    firstApprovedBy: text("first_approved_by").references(() => operatorAccounts.id),
+    secondApprovedBy: text("second_approved_by").references(() => operatorAccounts.id),
+    requestedAt: text("requested_at").notNull(),
+    firstApprovedAt: text("first_approved_at"),
+    secondApprovedAt: text("second_approved_at"),
+    expiresAt: text("expires_at").notNull(),
+    environment: text("environment").notNull(),
+    integrityState: text("integrity_state").notNull(),
+    version: integer("version").notNull().default(1),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("operator_approval_active_idx").on(table.environment, table.actionCode, table.aggregateId),
+    index("operator_approval_queue_idx").on(table.environment, table.status, table.requestedAt),
   ],
 );
 

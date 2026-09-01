@@ -37,11 +37,11 @@ function requireDemo() {
 
 export async function GET(request: Request) {
   try {
-    requirePilotApiRole(request, "operations");
+    const actor = requirePilotApiRole(request, "operations");
     requireDemo();
     const db = getDb();
     await ensureIntegrationDemoData(db);
-    return response({ state: await readPlatformState(db) });
+    return response({ state: await readPlatformState(db, actor.email) });
   } catch (cause) {
     return errorResponse(cause);
   }
@@ -70,12 +70,14 @@ export async function POST(request: Request) {
       "approve_timesheet",
       "review_invoice",
       "calculate_payroll_run",
+      "approve_payroll_run",
+      "second_approve_payroll_run",
       "run_platform_maintenance",
     ]).has(action.action)) {
       throw new PlatformWorkflowError("Choose a valid platform action.");
     }
     await applyPlatformAction(getDb(), action, actor.email, { evidenceStoreBound: Boolean(env.BUCKET) });
-    return response({ state: await readPlatformState(getDb()) });
+    return response({ state: await readPlatformState(getDb(), actor.email) });
   } catch (cause) {
     return errorResponse(cause);
   }

@@ -592,8 +592,8 @@ export async function ensureOperationsDemoData(db: D1Database) {
        created_at, updated_at, version)
       SELECT 'PR-DEMO-HISTORY-2077', 'demo:history:2026-08-14', employer.id,
        '2026-08-11', '2026-08-17', '2026-08-21', 'regular', 'ZAR', 'calculated_for_review',
-       ?, ?, ?, ?, 1, ?, 'payroll-engine-v1', 'demo', 'synthetic',
-       'Synthetic payroll demo', ?, ?, 1
+       ?, ?, ?, ?, 1, ?, 'payroll-engine-v2', 'demo', 'synthetic',
+       'payroll-automation@demo.lokd.invalid', ?, ?, 1
       FROM workforce_employers employer
       WHERE employer.id = 'EMP-LOKD-DEMO' AND employer.environment = 'demo'`)
       .bind(seedPayroll.grossCents, seedPayroll.totalEmployeeDeductionsCents,
@@ -628,6 +628,8 @@ export async function ensureOperationsDemoData(db: D1Database) {
       ["PIL-DEMO-HISTORY-2077-UIF-EE", "deduction", "UIF-EMPLOYEE", "Employee UIF", seedPayroll.employeeUifCents, null, null, 100],
       ["PIL-DEMO-HISTORY-2077-UIF-ER", "employer_cost", "UIF-EMPLOYER", "Employer UIF - not deducted from the officer", seedPayroll.employerUifCents, null, null, 100],
       ["PIL-DEMO-HISTORY-2077-SDL", "employer_cost", "SDL", "Employer skills development levy - not deducted from the officer", seedPayroll.skillsDevelopmentLevyCents, null, null, 100],
+      ["PIL-DEMO-HISTORY-2077-COIDA", "employer_cost", "COIDA-PROVISION", "Synthetic COIDA provision - not deducted from the officer", seedPayroll.coidaProvisionCents, null, null, 50],
+      ["PIL-DEMO-HISTORY-2077-LEAVE", "accrual", "ANNUAL-LEAVE", "Synthetic annual leave accrual", 0, seedPayroll.leaveAccruedMinutes, null, null],
     ].map(([id, lineType, code, description, amountCents, quantityMinutes, rateCents, rateBasisPoints]) =>
       db.prepare(`INSERT OR IGNORE INTO pay_item_lines
         (id, payroll_item_id, line_type, code, description, amount_cents, quantity_minutes,

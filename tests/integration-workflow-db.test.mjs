@@ -176,6 +176,15 @@ test("client and officer requests preserve tenant provenance and support optimis
   assert.equal(state.integrations.length, 7);
   assert.equal(state.summary.externalIntegrationsRemaining, 2);
   assert.equal(state.sections.find((item) => item.key === "funding").state, "adapter_ready");
+  assert.equal(state.payroll.engineVersion, "payroll-engine-v2");
+  assert.equal(state.payroll.creditTermsDays, 0);
+  assert.equal(state.payroll.fundingModel, "advance_only");
+  assert.equal(state.payroll.livePolicyActivated, false);
+  assert.ok(state.payroll.policies.some((policy) => policy.id === "PAYPOL-ZA-2027-CANDIDATE"
+    && policy.status === "source_review" && policy.sourceReferences.length >= 5));
+  assert.ok(state.operatorControls.currentActorRoles.includes("payroll_reviewer"));
+  assert.ok(state.operatorControls.policies.some((policy) => policy.actionCode === "settlement.release"
+    && policy.secondApprovalRequired));
   assert.throws(() => run(database, `DELETE FROM domain_outbox_events`), /outbox_append_only/);
   database.close();
 });
@@ -227,7 +236,9 @@ test("the policy-driven payroll engine is deterministic and rejects uncovered se
   assert.deepEqual(repeated, first);
   assert.equal(first.grossCents, 100_000);
   assert.equal(first.netPayCents, 90_000);
-  assert.equal(first.employerCostCents, 102_000);
+  assert.equal(first.employerCostCents, 102_500);
+  assert.equal(first.coidaProvisionCents, 500);
+  assert.equal(first.leaveAccruedMinutes, 4);
   assert.throws(() => calculatePayrollItem(100_000, "2100-01-01", SYNTHETIC_ENGINE_TEST_POLICY), /covers this service date/i);
 });
 
@@ -258,8 +269,8 @@ test("platform maintenance records controls and dispatches internal outbox event
   });
 
   assert.equal(first.status, "completed");
-  assert.equal(first.requiredTables, 13);
-  assert.equal(first.requiredTriggers, 6);
+  assert.equal(first.requiredTables, 17);
+  assert.equal(first.requiredTriggers, 13);
   assert.equal(first.processedEvents, 1);
   assert.equal(second.processedEvents, 0);
   assert.equal(one(database, `SELECT COUNT(*) AS total FROM platform_readiness_controls WHERE status='ready'`).total, 6);
@@ -321,13 +332,71 @@ test("Operations can run a replay-safe synthetic gross-to-net calculation after 
     status: "calculated_for_review",
     deductions: 10000,
     netPay: 90000,
-    employerCost: 102000,
-    calculationVersion: "payroll-engine-v1",
+    employerCost: 102500,
+    calculationVersion: "payroll-engine-v2",
   });
-  assert.equal(one(database, `SELECT COUNT(*) AS total FROM pay_item_lines WHERE payroll_item_id='PI-PAY'`).total, 4);
+  assert.equal(one(database, `SELECT COUNT(*) AS total FROM pay_item_lines WHERE payroll_item_id='PI-PAY'`).total, 6);
+  assert.deepEqual({ ...one(database, `SELECT status,requested_by AS requestedBy,amount_cents AS amountCents
+    FROM operator_approval_requests WHERE aggregate_id='PR-PAY'`) }, {
+    status: "pending_first_approval",
+    requestedBy: "ops@example.test",
+    amountCents: 90000,
+  });
   assert.equal(one(database, `SELECT COUNT(*) AS total FROM domain_outbox_events
     WHERE event_type='payroll.calculated_for_review' AND aggregate_id='BK-INT'`).total, 1);
   assert.equal(one(database, `SELECT COUNT(*) AS total FROM audit_events
     WHERE event_type='synthetic_payroll_calculated' AND entity_id='PR-PAY'`).total, 1);
+
+  assert.throws(() => run(database, `UPDATE payroll_runs SET status='first_approved',
+    approved_by='ops@example.test' WHERE id='PR-PAY'`), /payroll_maker_checker_first_approval_invalid/);
+  assert.throws(() => run(database, `UPDATE payroll_runs SET status='first_approved'
+    WHERE id='PR-PAY'`), /payroll_maker_checker_first_approval_invalid/);
+  await applyPlatformAction(db, {
+    action: "approve_payroll_run",
+    payrollRunId: "PR-PAY",
+    version: 2,
+  }, "payroll-reviewer@demo.lokd.invalid");
+  assert.deepEqual({ ...one(database, `SELECT status,approved_by AS approvedBy,version
+    FROM payroll_runs WHERE id='PR-PAY'`) }, {
+    status: "first_approved",
+    approvedBy: "payroll-reviewer@demo.lokd.invalid",
+    version: 3,
+  });
+  await assert.rejects(() => applyPlatformAction(db, {
+    action: "second_approve_payroll_run",
+    payrollRunId: "PR-PAY",
+    version: 3,
+  }, "finance-approver@demo.lokd.invalid"), /MFA/i);
+  run(database, `UPDATE operator_accounts SET mfa_status='verified',mfa_verified_at=?
+    WHERE id='finance-approver@demo.lokd.invalid'`, new Date().toISOString());
+  await applyPlatformAction(db, {
+    action: "second_approve_payroll_run",
+    payrollRunId: "PR-PAY",
+    version: 3,
+  }, "finance-approver@demo.lokd.invalid");
+  assert.deepEqual({ ...one(database, `SELECT status,approved_by AS approvedBy,
+    second_approved_by AS secondApprovedBy,version FROM payroll_runs WHERE id='PR-PAY'`) }, {
+    status: "approved_for_export",
+    approvedBy: "payroll-reviewer@demo.lokd.invalid",
+    secondApprovedBy: "finance-approver@demo.lokd.invalid",
+    version: 4,
+  });
+  assert.equal(one(database, `SELECT status FROM operator_approval_requests WHERE aggregate_id='PR-PAY'`).status, "approved");
+  assert.equal(one(database, `SELECT settlement_reference AS settlementReference FROM payroll_runs
+    WHERE id='PR-PAY'`).settlementReference, null);
+  database.close();
+});
+
+test("zero-credit database guards block credit terms and unfunded officer offers", () => {
+  const database = migratedDatabase();
+  seedDomain(database);
+  assert.throws(() => run(database, `UPDATE bookings SET credit_terms_days=30 WHERE id='BK-INT'`),
+    /zero_credit_advance_funding_required/);
+  assert.throws(() => run(database, `UPDATE bookings SET funding_model='invoice_credit' WHERE id='BK-INT'`),
+    /zero_credit_advance_funding_required/);
+  assert.throws(() => run(database, `INSERT INTO offers
+    (id,booking_id,officer_id,position_index,amount_cents,status,expires_at)
+    VALUES ('OF-NO-CREDIT','BK-INT','OFF-INT',1,80000,'open','2039-08-28T00:00:00.000Z')`),
+  /offer_release_requires_full_cleared_advance_funding/);
   database.close();
 });

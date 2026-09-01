@@ -10,7 +10,19 @@ import type {
   PlatformWorkflowSection,
 } from "./platform-types";
 import { runPlatformMaintenance } from "./platform-jobs";
-import { calculatePayrollItem, SYNTHETIC_ENGINE_TEST_POLICY } from "./payroll-engine";
+import {
+  assertPayrollPolicy,
+  calculatePayrollItem,
+  SYNTHETIC_ENGINE_TEST_POLICY,
+  ZA_2027_SARS_POLICY_CANDIDATE,
+  type PayrollPolicy,
+} from "./payroll-engine";
+import {
+  OPERATOR_ACTION_POLICIES,
+  operatorControlDecision,
+  type OperatorActionCode,
+  type OperatorRole,
+} from "./operator-controls";
 
 export class PlatformWorkflowError extends Error {
   status: number;
@@ -41,13 +53,145 @@ async function sha256(value: string) {
   return [...new Uint8Array(digest)].map((part) => part.toString(16).padStart(2, "0")).join("");
 }
 
+function operatorId(value: string) {
+  return value.trim().toLowerCase();
+}
+
+async function ensureDemoOperator(db: D1Database, actorId: string, now = new Date().toISOString()) {
+  const idValue = operatorId(actorId);
+  if (!idValue) throw new PlatformWorkflowError("An authenticated operator identity is required.", 401);
+  const mfaAt = now;
+  await db.batch([
+    db.prepare(`INSERT OR IGNORE INTO operator_accounts
+      (id, email, display_name, status, mfa_status, mfa_verified_at, approval_limit_cents,
+       environment, integrity_state, version, created_at, updated_at)
+      VALUES (?, ?, 'Current demo operator', 'active', 'verified', ?, 50000000,
+       'demo', 'synthetic', 1, ?, ?)`).bind(idValue, idValue, mfaAt, now, now),
+    ...["operations_owner", "operations_controller", "payroll_preparer", "payroll_reviewer", "funding_reconciler"]
+      .map((role) => db.prepare(`INSERT OR IGNORE INTO operator_role_assignments
+        (id, operator_id, role, status, environment, integrity_state, granted_by, granted_at, revoked_at)
+        VALUES (?, ?, ?, 'active', 'demo', 'synthetic', 'demo-bootstrap', ?, NULL)`)
+        .bind(`ROLE-${idValue}-${role}`, idValue, role, now)),
+  ]);
+  return idValue;
+}
+
+async function operatorFacts(db: D1Database, actorId: string) {
+  const idValue = operatorId(actorId);
+  const account = await db.prepare(`SELECT id, status, mfa_status AS mfaStatus,
+    mfa_verified_at AS mfaVerifiedAt, approval_limit_cents AS approvalLimitCents
+    FROM operator_accounts WHERE id = ? AND environment = 'demo' AND integrity_state = 'synthetic'`)
+    .bind(idValue).first<{ id: string; status: string; mfaStatus: string; mfaVerifiedAt: string | null; approvalLimitCents: number }>();
+  const roles = await db.prepare(`SELECT role FROM operator_role_assignments
+    WHERE operator_id = ? AND status = 'active' AND environment = 'demo' AND integrity_state = 'synthetic'`)
+    .bind(idValue).all<{ role: OperatorRole }>();
+  if (!account) throw new PlatformWorkflowError("The operator account is not active in this workspace.", 403);
+  return { ...account, roles: (roles.results ?? []).map((item) => item.role) };
+}
+
+async function requireOperatorControl(
+  db: D1Database,
+  input: { actorId: string; actionCode: OperatorActionCode; amountCents: number; makerId?: string | null; firstApproverId?: string | null },
+) {
+  await ensureDemoOperator(db, input.actorId);
+  const facts = await operatorFacts(db, input.actorId);
+  const decision = operatorControlDecision({
+    actionCode: input.actionCode,
+    actorId: facts.id,
+    roles: facts.roles,
+    accountStatus: facts.status,
+    mfaStatus: facts.mfaStatus,
+    mfaVerifiedAt: facts.mfaVerifiedAt,
+    amountCents: input.amountCents,
+    makerId: input.makerId ? operatorId(input.makerId) : null,
+    firstApproverId: input.firstApproverId ? operatorId(input.firstApproverId) : null,
+  });
+  if (!decision.allowed) throw new PlatformWorkflowError(decision.blockers[0] ?? "The operator control blocked this action.", 403);
+  return facts;
+}
+
+async function loadActivePayrollPolicy(db: D1Database, serviceDate: string) {
+  const row = await db.prepare(`SELECT id, rules_json AS rulesJson, policy_hash AS policyHash
+    FROM payroll_policy_versions WHERE active_key = 'demo:ZA' AND status = 'active'
+      AND environment = 'demo' AND integrity_state = 'synthetic'
+      AND effective_from <= ? AND (effective_to IS NULL OR effective_to >= ?) LIMIT 1`)
+    .bind(serviceDate, serviceDate).first<{ id: string; rulesJson: string; policyHash: string }>();
+  if (!row) throw new PlatformWorkflowError("No active approved payroll policy covers this service date.", 409);
+  if (await sha256(row.rulesJson) !== row.policyHash) throw new PlatformWorkflowError("The active payroll policy integrity check failed.", 409);
+  let policy: PayrollPolicy;
+  try {
+    policy = JSON.parse(row.rulesJson) as PayrollPolicy;
+    assertPayrollPolicy(policy);
+  } catch {
+    throw new PlatformWorkflowError("The active payroll policy is invalid.", 409);
+  }
+  return policy;
+}
+
 export async function ensureIntegrationDemoData(db: D1Database) {
   const now = new Date().toISOString();
+  const approvalExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1_000).toISOString();
+  const syntheticRulesJson = JSON.stringify(SYNTHETIC_ENGINE_TEST_POLICY);
+  const candidateRulesJson = JSON.stringify(ZA_2027_SARS_POLICY_CANDIDATE);
+  const syntheticPolicyHash = await sha256(syntheticRulesJson);
+  const candidatePolicyHash = await sha256(candidateRulesJson);
   await db.batch([
+    ...[
+      ["payroll-automation@demo.lokd.invalid", "Payroll automation", "verified", 100_000_000],
+      ["payroll-reviewer@demo.lokd.invalid", "Payroll reviewer", "verified", 50_000_000],
+      ["finance-approver@demo.lokd.invalid", "Finance approver", "not_verified", 25_000_000],
+    ].map(([operator, displayName, mfaStatus, limit]) => db.prepare(`INSERT OR IGNORE INTO operator_accounts
+      (id, email, display_name, status, mfa_status, mfa_verified_at, approval_limit_cents,
+       environment, integrity_state, version, created_at, updated_at)
+      VALUES (?, ?, ?, 'active', ?, ?, ?, 'demo', 'synthetic', 1, ?, ?)`)
+      .bind(operator, operator, displayName, mfaStatus, mfaStatus === "verified" ? now : null, limit, now, now)),
+    ...[
+      ["payroll-automation@demo.lokd.invalid", "payroll_preparer"],
+      ["payroll-reviewer@demo.lokd.invalid", "payroll_reviewer"],
+      ["finance-approver@demo.lokd.invalid", "finance_approver"],
+    ].map(([operator, role]) => db.prepare(`INSERT OR IGNORE INTO operator_role_assignments
+      (id, operator_id, role, status, environment, integrity_state, granted_by, granted_at, revoked_at)
+      VALUES (?, ?, ?, 'active', 'demo', 'synthetic', 'demo-bootstrap', ?, NULL)`)
+      .bind(`ROLE-${operator}-${role}`, operator, role, now)),
+    ...OPERATOR_ACTION_POLICIES.map((policy) => db.prepare(`INSERT OR IGNORE INTO operator_action_policies
+      (id, action_code, label, required_role, mfa_max_age_minutes, max_amount_cents,
+       second_approval_required, status, environment, integrity_state, version, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 'demo', 'synthetic', 1, ?, ?)`)
+      .bind(`POLICY-demo-${policy.actionCode}`, policy.actionCode, policy.label, policy.requiredRole,
+        policy.mfaMaxAgeMinutes, policy.maxAmountCents, policy.secondApprovalRequired ? 1 : 0, now, now)),
+    db.prepare(`INSERT OR IGNORE INTO payroll_policy_versions
+      (id, jurisdiction, currency, effective_from, effective_to, status, rules_json, policy_hash,
+       source_reference, active_key, environment, integrity_state, created_by, reviewed_by, approved_by,
+       created_at, reviewed_at, activated_at, version)
+      VALUES ('PAYPOL-DEMO-SYNTHETIC', 'ZA', 'ZAR', ?, ?, 'active', ?, ?, ?, 'demo:ZA',
+       'demo', 'synthetic', 'policy-maker@demo.lokd.invalid', 'payroll-reviewer@demo.lokd.invalid',
+       'finance-approver@demo.lokd.invalid', ?, ?, ?, 1)`)
+      .bind(SYNTHETIC_ENGINE_TEST_POLICY.effectiveFrom, SYNTHETIC_ENGINE_TEST_POLICY.effectiveTo,
+        syntheticRulesJson, syntheticPolicyHash, JSON.stringify(SYNTHETIC_ENGINE_TEST_POLICY.sourceReferences ?? []),
+        now, now, now),
+    db.prepare(`INSERT OR IGNORE INTO payroll_policy_versions
+      (id, jurisdiction, currency, effective_from, effective_to, status, rules_json, policy_hash,
+       source_reference, active_key, environment, integrity_state, created_by, reviewed_by, approved_by,
+       created_at, reviewed_at, activated_at, version)
+      VALUES ('PAYPOL-ZA-2027-CANDIDATE', 'ZA', 'ZAR', ?, ?, 'source_review', ?, ?, ?, NULL,
+       'demo', 'synthetic', 'policy-maker@demo.lokd.invalid', NULL, NULL, ?, NULL, NULL, 1)`)
+      .bind(ZA_2027_SARS_POLICY_CANDIDATE.effectiveFrom, ZA_2027_SARS_POLICY_CANDIDATE.effectiveTo,
+        candidateRulesJson, candidatePolicyHash, JSON.stringify(ZA_2027_SARS_POLICY_CANDIDATE.sourceReferences ?? []), now),
+    db.prepare(`INSERT OR IGNORE INTO operator_approval_requests
+      (id, action_code, aggregate_type, aggregate_id, amount_cents, status, requested_by,
+       first_approved_by, second_approved_by, requested_at, first_approved_at, second_approved_at,
+       expires_at, environment, integrity_state, version, updated_at)
+      SELECT 'APR-' || run.id, 'payroll.first_approve', 'payroll_run', run.id,
+       COALESCE(run.net_pay_cents, run.gross_cents), 'pending_first_approval',
+       'payroll-automation@demo.lokd.invalid', NULL, NULL, ?, NULL, NULL, ?,
+       'demo', 'synthetic', 1, ? FROM payroll_runs run
+      WHERE run.environment = 'demo' AND run.integrity_state = 'synthetic'
+       AND run.status = 'calculated_for_review'`)
+      .bind(now, approvalExpiresAt, now),
     db.prepare(`INSERT OR IGNORE INTO integration_provider_configs
       (key, capability, provider, mode, status, required_for_pilot, configuration_version, capabilities,
        detail, environment, integrity_state, last_health_state, last_health_checked_at, last_event_at, updated_at)
-      VALUES ('INT-DEMO-BACKEND', 'backend', 'LOKD internal backend', 'internal', 'sandbox_ready', 1, 'v25-runtime',
+      VALUES ('INT-DEMO-BACKEND', 'backend', 'LOKD internal backend', 'internal', 'sandbox_ready', 1, 'v28-runtime',
        '["D1 database","role access","scheduled jobs","durable outbox","audit trail","health checks"]',
        'The internal backend, operator controls and fail-closed production access boundary are integration-ready. Real-data activation remains separately gated.',
        'demo', 'synthetic', 'healthy', ?, NULL, ?)`).bind(now, now),
@@ -68,9 +212,9 @@ export async function ensureIntegrationDemoData(db: D1Database) {
     db.prepare(`INSERT OR IGNORE INTO integration_provider_configs
       (key, capability, provider, mode, status, required_for_pilot, configuration_version, capabilities,
        detail, environment, integrity_state, last_health_state, last_health_checked_at, last_event_at, updated_at)
-      VALUES ('INT-DEMO-PAYROLL', 'payroll', 'LOKD payroll policy engine', 'internal', 'sandbox_ready', 1, 'v25-policy-engine',
-       '["versioned policy","gross-to-net calculation","dual approval boundary","payslip artifact contract"]',
-       'The deterministic policy engine and approval records are built. Live statutory values must be sourced and dual-approved before any production calculation.',
+      VALUES ('INT-DEMO-PAYROLL', 'payroll', 'LOKD payroll policy engine', 'internal', 'sandbox_ready', 1, 'v28-policy-engine',
+       '["approved-time earnings","PAYE","UIF","SDL","COIDA provision","leave accrual","three-person approval","payslip artifact contract"]',
+       'The deterministic Version 28 engine loads a hash-verified policy and calculates approved earnings. Live sector rules and COIDA classification still require controlled approval.',
        'demo', 'synthetic', 'healthy', ?, NULL, ?)`).bind(now, now),
     db.prepare(`INSERT OR IGNORE INTO integration_provider_configs
       (key, capability, provider, mode, status, required_for_pilot, configuration_version, capabilities,
@@ -107,20 +251,20 @@ export async function ensureIntegrationDemoData(db: D1Database) {
         ELSE status END,
       required_for_pilot = 1,
       configuration_version = CASE capability
-        WHEN 'backend' THEN 'v25-runtime'
-        WHEN 'payroll' THEN 'v25-policy-engine'
+        WHEN 'backend' THEN 'v28-runtime'
+        WHEN 'payroll' THEN 'v28-policy-engine'
         WHEN 'messaging' THEN 'v25-outbox-worker'
         WHEN 'maps' THEN 'v25-coordinate-map'
         ELSE 'v25-r2' END,
       capabilities = CASE capability
         WHEN 'backend' THEN '["D1 database","role access","scheduled jobs","durable outbox","audit trail","health checks"]'
-        WHEN 'payroll' THEN '["versioned policy","gross-to-net calculation","dual approval boundary","payslip artifact contract"]'
+        WHEN 'payroll' THEN '["approved-time earnings","PAYE","UIF","SDL","COIDA provision","leave accrual","three-person approval","payslip artifact contract"]'
         WHEN 'messaging' THEN '["durable outbox","idempotent dispatch","operator inbox","retry state"]'
         WHEN 'maps' THEN '["stored coordinates","site projection","presence signals","versioned travel evidence"]'
         ELSE '["private object storage","SHA-256 content hash","retention class","authorised download"]' END,
       detail = CASE capability
         WHEN 'backend' THEN 'The internal backend, operator controls and fail-closed production access boundary are integration-ready. Real-data activation remains separately gated.'
-        WHEN 'payroll' THEN 'The deterministic policy engine and approval records are built. Live statutory values must be sourced and dual-approved before any production calculation.'
+        WHEN 'payroll' THEN 'The deterministic Version 28 engine loads a hash-verified policy and calculates approved earnings. Live sector rules and COIDA classification still require controlled approval.'
         WHEN 'messaging' THEN 'The scheduled worker converts internal domain events into an auditable Operations inbox. External SMS, email or WhatsApp is optional rather than a launch dependency.'
         WHEN 'maps' THEN 'The Operations map runs from stored coordinates and versioned travel evidence, so a third-party mapping provider is not a pilot dependency.'
         ELSE 'The private object-store adapter and protected artifact route are built; runtime health verifies the R2 binding before activation.' END,
@@ -521,8 +665,12 @@ function workflowSections(integrations: PlatformIntegration[]): PlatformWorkflow
   ];
 }
 
-export async function readPlatformState(db: D1Database): Promise<PlatformState> {
+export async function readPlatformState(
+  db: D1Database,
+  currentActorId = "public-demo@lokd.invalid",
+): Promise<PlatformState> {
   await ensureIntegrationDemoData(db);
+  const resolvedActorId = await ensureDemoOperator(db, currentActorId);
   const integrations = await readIntegrations(db);
   const [identity, payments, requests, timesheetRows, invoiceRows, outbox, webhook, controlRows, jobRows, notificationRows] = await Promise.all([
     db.prepare(`SELECT identity.id, identity.application_id AS applicationId, identity.officer_id AS officerId,
@@ -664,6 +812,118 @@ export async function readPlatformState(db: D1Database): Promise<PlatformState> 
   }));
   const jobRuns = jobRows.results ?? [];
   const notifications = notificationRows.results ?? [];
+  const [payrollPolicyRows, payrollRunRows, operatorAccountRows, operatorRoleRows, operatorPolicyRows, operatorApprovalRows] = await Promise.all([
+    db.prepare(`SELECT id, effective_from AS effectiveFrom, effective_to AS effectiveTo, status,
+      rules_json AS rulesJson, policy_hash AS policyHash, source_reference AS sourceReference,
+      created_by AS createdBy, reviewed_by AS reviewedBy, approved_by AS approvedBy,
+      activated_at AS activatedAt
+      FROM payroll_policy_versions WHERE environment = 'demo' AND integrity_state = 'synthetic'
+      ORDER BY CASE status WHEN 'active' THEN 1 WHEN 'source_review' THEN 2 ELSE 3 END, effective_from DESC`)
+      .all<{
+        id: string; effectiveFrom: string; effectiveTo: string | null; status: string;
+        rulesJson: string; policyHash: string; sourceReference: string | null;
+        createdBy: string; reviewedBy: string | null; approvedBy: string | null; activatedAt: string | null;
+      }>(),
+    db.prepare(`SELECT id, period_start AS periodStart, period_end AS periodEnd, pay_date AS payDate,
+      status, gross_cents AS grossCents, employee_deduction_cents AS employeeDeductionCents,
+      net_pay_cents AS netPayCents, employer_cost_cents AS employerCostCents, item_count AS itemCount,
+      policy_version AS policyVersion, calculation_version AS calculationVersion,
+      created_by AS createdBy, approved_by AS approvedBy, second_approved_by AS secondApprovedBy, version
+      FROM payroll_runs WHERE environment = 'demo' AND integrity_state = 'synthetic'
+      ORDER BY CASE status WHEN 'calculated_for_review' THEN 1 WHEN 'first_approved' THEN 2
+        WHEN 'awaiting_backend_calculation' THEN 3 ELSE 4 END, updated_at DESC LIMIT 100`)
+      .all<Omit<PlatformState["payroll"]["runs"][number], "approvalBlockers">>(),
+    db.prepare(`SELECT id, email, display_name AS displayName, status, mfa_status AS mfaStatus,
+      mfa_verified_at AS mfaVerifiedAt, approval_limit_cents AS approvalLimitCents
+      FROM operator_accounts WHERE environment = 'demo' AND integrity_state = 'synthetic'
+      ORDER BY display_name, id`).all<Omit<PlatformState["operatorControls"]["accounts"][number], "roles">>(),
+    db.prepare(`SELECT operator_id AS operatorId, role FROM operator_role_assignments
+      WHERE status = 'active' AND environment = 'demo' AND integrity_state = 'synthetic'
+      ORDER BY operator_id, role`).all<{ operatorId: string; role: string }>(),
+    db.prepare(`SELECT action_code AS actionCode, label, required_role AS requiredRole,
+      mfa_max_age_minutes AS mfaMaxAgeMinutes, max_amount_cents AS maxAmountCents,
+      second_approval_required AS secondApprovalRequired, status
+      FROM operator_action_policies WHERE environment = 'demo' AND integrity_state = 'synthetic'
+      ORDER BY action_code`).all<{
+        actionCode: string; label: string; requiredRole: string; mfaMaxAgeMinutes: number;
+        maxAmountCents: number | null; secondApprovalRequired: number; status: string;
+      }>(),
+    db.prepare(`SELECT id, action_code AS actionCode, aggregate_type AS aggregateType,
+      aggregate_id AS aggregateId, amount_cents AS amountCents, status, requested_by AS requestedBy,
+      first_approved_by AS firstApprovedBy, second_approved_by AS secondApprovedBy,
+      expires_at AS expiresAt, version FROM operator_approval_requests
+      WHERE environment = 'demo' AND integrity_state = 'synthetic'
+      ORDER BY CASE status WHEN 'pending_first_approval' THEN 1 WHEN 'pending_second_approval' THEN 2 ELSE 3 END,
+        requested_at DESC LIMIT 100`).all<PlatformState["operatorControls"]["approvals"][number]>(),
+  ]);
+  const policies: PlatformState["payroll"]["policies"] = (payrollPolicyRows.results ?? []).map((row) => {
+    let rules: PayrollPolicy | null = null;
+    try {
+      rules = JSON.parse(row.rulesJson) as PayrollPolicy;
+      assertPayrollPolicy(rules);
+    } catch {
+      rules = null;
+    }
+    const sourceReferences = rules?.sourceReferences ?? parseStringArray(row.sourceReference);
+    const blockers = !rules
+      ? ["The stored policy rules failed validation."]
+      : row.status === "active"
+        ? ["Synthetic engine-test policy only; live payroll activation is blocked."]
+        : [
+            "Sector-specific wage schedules still require controlled legal and payroll review.",
+            "The applicable COIDA classification and assessment rate are not configured.",
+            "Maker, payroll reviewer and finance approver activation is incomplete.",
+          ];
+    return {
+      id: row.id,
+      version: rules?.version ?? "invalid-policy",
+      effectiveFrom: row.effectiveFrom,
+      effectiveTo: row.effectiveTo,
+      status: row.status,
+      policyHash: row.policyHash,
+      sourceReferences,
+      createdBy: row.createdBy,
+      reviewedBy: row.reviewedBy,
+      approvedBy: row.approvedBy,
+      activatedAt: row.activatedAt,
+      ruleSummary: {
+        taxBrackets: rules?.incomeTax.brackets.length ?? 0,
+        uifEmployeeRateBasisPoints: rules?.uif.employeeRateBasisPoints ?? 0,
+        uifEmployerRateBasisPoints: rules?.uif.employerRateBasisPoints ?? 0,
+        sdlEmployerRateBasisPoints: rules?.skillsDevelopmentLevy.employerRateBasisPoints ?? 0,
+        coidaConfigured: Boolean(rules?.coida?.enabled && rules.coida.classificationCode),
+        leaveDivisor: rules?.leave?.hoursWorkedDivisor ?? null,
+      },
+      blockers,
+    };
+  });
+  const payrollRuns: PlatformState["payroll"]["runs"] = (payrollRunRows.results ?? []).map((run) => ({
+    ...run,
+    approvalBlockers: run.status === "awaiting_backend_calculation"
+      ? ["Policy calculation is pending."]
+      : run.status === "calculated_for_review"
+        ? ["A payroll reviewer must approve; the run maker cannot approve their own run."]
+        : run.status === "first_approved"
+          ? ["A different finance approver must complete the second approval with recent MFA."]
+          : run.status === "approved_for_export"
+            ? ["Export and settlement remain locked in this demo environment."]
+            : [],
+  }));
+  const rolesByOperator = new Map<string, string[]>();
+  for (const assignment of operatorRoleRows.results ?? []) {
+    rolesByOperator.set(assignment.operatorId, [...(rolesByOperator.get(assignment.operatorId) ?? []), assignment.role]);
+  }
+  const operatorAccounts: PlatformState["operatorControls"]["accounts"] = (operatorAccountRows.results ?? []).map((account) => ({
+    ...account,
+    roles: rolesByOperator.get(account.id) ?? [],
+  }));
+  const operatorPolicies: PlatformState["operatorControls"]["policies"] = (operatorPolicyRows.results ?? []).map(({ secondApprovalRequired, ...policy }) => ({
+    ...policy,
+    secondApprovalRequired: Boolean(secondApprovalRequired),
+  }));
+  const operatorApprovals = operatorApprovalRows.results ?? [];
+  const currentActor = operatorAccounts.find((account) => account.id === resolvedActorId);
+  const requiredReserveCents = Math.max(0, ...payrollRuns.map((run) => run.employerCostCents ?? run.grossCents)) * 2;
   const required = integrations.filter((item) => item.requiredForPilot);
   const external = integrations.filter((item) => item.capability === "identity" || item.capability === "payments");
   const requiredControls = readinessControls.filter((item) => item.requiredForIntegrationReady);
@@ -685,6 +945,8 @@ export async function readPlatformState(db: D1Database): Promise<PlatformState> 
       readyControls: requiredControls.filter((item) => item.status === "ready").length,
       requiredControls: requiredControls.length,
       unreadOperatorNotifications: notifications.filter((item) => item.status === "unread").length,
+      payrollRunsAwaitingApproval: payrollRuns.filter((run) => new Set(["calculated_for_review", "first_approved"]).has(run.status)).length,
+      operatorApprovalsPending: operatorApprovals.filter((approval) => approval.status.startsWith("pending_")).length,
     },
     sections: workflowSections(integrations),
     integrations,
@@ -696,6 +958,25 @@ export async function readPlatformState(db: D1Database): Promise<PlatformState> 
     readinessControls,
     jobRuns,
     notifications,
+    payroll: {
+      engineVersion: "payroll-engine-v2",
+      creditTermsDays: 0,
+      fundingModel: "advance_only",
+      livePolicyActivated: false,
+      reserveCyclesRequired: 2,
+      reserveVerified: false,
+      requiredReserveCents,
+      policies,
+      runs: payrollRuns,
+    },
+    operatorControls: {
+      currentActorId: resolvedActorId,
+      currentActorRoles: currentActor?.roles ?? [],
+      currentActorMfaStatus: currentActor?.mfaStatus ?? "not_verified",
+      accounts: operatorAccounts,
+      policies: operatorPolicies,
+      approvals: operatorApprovals,
+    },
   };
 }
 
@@ -737,6 +1018,12 @@ export async function applyPlatformAction(
     if (!new Set(["awaiting_backend_calculation", "retryable_calculation_failed"]).has(row.status)) {
       throw new PlatformWorkflowError("That payroll run is not awaiting calculation.", 409);
     }
+    await requireOperatorControl(db, {
+      actorId,
+      actionCode: "payroll.calculate",
+      amountCents: row.grossWageCents,
+    });
+    const payrollPolicy = await loadActivePayrollPolicy(db, row.serviceDate);
     const claim = await db.prepare(`UPDATE payroll_runs SET status = 'calculating', updated_at = ?
       WHERE id = ? AND version = ? AND status IN ('awaiting_backend_calculation','retryable_calculation_failed')
         AND environment = 'demo' AND integrity_state = 'synthetic'`)
@@ -747,8 +1034,9 @@ export async function applyPlatformAction(
       throw new PlatformWorkflowError("That payroll run is already being calculated. Refresh before trying again.", 409);
     }
     try {
-      const calculation = calculatePayrollItem(row.grossWageCents, row.serviceDate, SYNTHETIC_ENGINE_TEST_POLICY);
+      const calculation = calculatePayrollItem(row.grossWageCents, row.serviceDate, payrollPolicy);
       const payloadHash = await sha256(`${row.id}|${row.version}|${calculation.policyVersion}|${calculation.netPayCents}`);
+      const approvalExpiresAt = new Date(new Date(now).getTime() + 24 * 60 * 60 * 1_000).toISOString();
       await db.batch([
         db.prepare(`UPDATE payroll_items SET employee_deduction_cents = ?, net_pay_cents = ?,
         employer_cost_cents = ?, status = 'calculated_for_review', policy_version = ?, updated_at = ?
@@ -758,7 +1046,7 @@ export async function applyPlatformAction(
           calculation.employerCostCents, calculation.policyVersion, now, row.itemId),
         db.prepare(`UPDATE payroll_runs SET status = 'calculated_for_review',
         employee_deduction_cents = ?, net_pay_cents = ?, employer_cost_cents = ?,
-        policy_version = ?, calculation_version = 'payroll-engine-v1', updated_at = ?, version = version + 1
+        policy_version = ?, calculation_version = 'payroll-engine-v2', updated_at = ?, version = version + 1
         WHERE id = ? AND version = ? AND status = 'calculating'
           AND environment = 'demo' AND integrity_state = 'synthetic'`)
           .bind(calculation.totalEmployeeDeductionsCents, calculation.netPayCents,
@@ -787,6 +1075,25 @@ export async function applyPlatformAction(
         VALUES (?, ?, 'employer_cost', 'SDL', 'Synthetic policy-engine skills levy', ?, NULL, NULL, NULL,
           'SDL', ?, 'demo', 'synthetic', ?)`)
           .bind(`LINE-${row.itemId}-SDL`, row.itemId, calculation.skillsDevelopmentLevyCents, calculation.policyVersion, now),
+        db.prepare(`INSERT OR IGNORE INTO pay_item_lines
+        (id, payroll_item_id, line_type, code, description, amount_cents, quantity_minutes,
+         rate_cents, rate_basis_points, statutory_code, rule_version, environment, integrity_state, created_at)
+        VALUES (?, ?, 'employer_cost', 'COIDA-PROVISION', 'Policy-engine COIDA provision', ?, NULL, NULL, NULL,
+          'COIDA', ?, 'demo', 'synthetic', ?)`)
+          .bind(`LINE-${row.itemId}-COIDA`, row.itemId, calculation.coidaProvisionCents, calculation.policyVersion, now),
+        db.prepare(`INSERT OR IGNORE INTO pay_item_lines
+        (id, payroll_item_id, line_type, code, description, amount_cents, quantity_minutes,
+         rate_cents, rate_basis_points, statutory_code, rule_version, environment, integrity_state, created_at)
+        VALUES (?, ?, 'accrual', 'ANNUAL-LEAVE', 'Policy-engine annual leave accrual', 0, ?, NULL, NULL,
+          'BCEA-LEAVE', ?, 'demo', 'synthetic', ?)`)
+          .bind(`LINE-${row.itemId}-LEAVE`, row.itemId, calculation.leaveAccruedMinutes, calculation.policyVersion, now),
+        db.prepare(`INSERT OR IGNORE INTO operator_approval_requests
+        (id, action_code, aggregate_type, aggregate_id, amount_cents, status, requested_by,
+         first_approved_by, second_approved_by, requested_at, first_approved_at, second_approved_at,
+         expires_at, environment, integrity_state, version, updated_at)
+        VALUES (?, 'payroll.first_approve', 'payroll_run', ?, ?, 'pending_first_approval', ?,
+          NULL, NULL, ?, NULL, NULL, ?, 'demo', 'synthetic', 1, ?)`)
+          .bind(`APR-${row.id}`, row.id, calculation.netPayCents, operatorId(actorId), now, approvalExpiresAt, now),
         db.prepare(`INSERT OR IGNORE INTO domain_outbox_events
         (id, aggregate_type, aggregate_id, event_type, payload_hash, payload_version, payload_json,
          idempotency_key, status, attempts, available_at, environment, integrity_state, created_at)
@@ -806,6 +1113,88 @@ export async function applyPlatformAction(
         .bind(new Date().toISOString(), row.id, row.version).run();
       throw cause;
     }
+    return;
+  }
+
+  if (action.action === "approve_payroll_run") {
+    const run = await db.prepare(`SELECT id, status, version, gross_cents AS grossCents,
+      net_pay_cents AS netPayCents, created_by AS createdBy, approved_by AS approvedBy
+      FROM payroll_runs WHERE id = ? AND environment = 'demo' AND integrity_state = 'synthetic'`)
+      .bind(action.payrollRunId).first<{
+        id: string; status: string; version: number; grossCents: number; netPayCents: number | null;
+        createdBy: string; approvedBy: string | null;
+      }>();
+    if (!run) throw new PlatformWorkflowError("That synthetic payroll run could not be found.", 404);
+    if (run.version !== action.version) throw new PlatformWorkflowError("This payroll run changed. Refresh before trying again.", 409);
+    if (run.status !== "calculated_for_review") throw new PlatformWorkflowError("This payroll run is not awaiting first approval.", 409);
+    await requireOperatorControl(db, {
+      actorId,
+      actionCode: "payroll.first_approve",
+      amountCents: run.netPayCents ?? run.grossCents,
+      makerId: run.createdBy,
+    });
+    const reviewerId = operatorId(actorId);
+    const results = await db.batch([
+      db.prepare(`UPDATE payroll_runs SET status = 'first_approved', approved_by = ?, approved_at = ?,
+        updated_at = ?, version = version + 1 WHERE id = ? AND version = ?
+          AND status = 'calculated_for_review' AND approved_by IS NULL
+          AND environment = 'demo' AND integrity_state = 'synthetic'`)
+        .bind(reviewerId, now, now, run.id, run.version),
+      db.prepare(`UPDATE operator_approval_requests SET status = 'pending_second_approval',
+        first_approved_by = ?, first_approved_at = ?, updated_at = ?, version = version + 1
+        WHERE aggregate_type = 'payroll_run' AND aggregate_id = ? AND action_code = 'payroll.first_approve'
+          AND status = 'pending_first_approval' AND environment = 'demo' AND integrity_state = 'synthetic'`)
+        .bind(reviewerId, now, now, run.id),
+      db.prepare(`INSERT INTO audit_events
+        (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
+        VALUES (?, 'operations', ?, 'synthetic_payroll_first_approved', 'payroll_run', ?,
+          'DEMO ONLY: maker/checker and recent-MFA controls passed for first approval. Export and settlement remain locked.', ?)`)
+        .bind(id("AUD"), reviewerId, run.id, now),
+    ]);
+    if (!results[0]?.meta?.changes) throw new PlatformWorkflowError("This payroll run changed. Refresh before trying again.", 409);
+    return;
+  }
+
+  if (action.action === "second_approve_payroll_run") {
+    const run = await db.prepare(`SELECT id, status, version, gross_cents AS grossCents,
+      net_pay_cents AS netPayCents, created_by AS createdBy, approved_by AS approvedBy,
+      second_approved_by AS secondApprovedBy FROM payroll_runs
+      WHERE id = ? AND environment = 'demo' AND integrity_state = 'synthetic'`)
+      .bind(action.payrollRunId).first<{
+        id: string; status: string; version: number; grossCents: number; netPayCents: number | null;
+        createdBy: string; approvedBy: string | null; secondApprovedBy: string | null;
+      }>();
+    if (!run) throw new PlatformWorkflowError("That synthetic payroll run could not be found.", 404);
+    if (run.version !== action.version) throw new PlatformWorkflowError("This payroll run changed. Refresh before trying again.", 409);
+    if (run.status !== "first_approved" || !run.approvedBy) {
+      throw new PlatformWorkflowError("This payroll run is not awaiting finance approval.", 409);
+    }
+    await requireOperatorControl(db, {
+      actorId,
+      actionCode: "payroll.second_approve",
+      amountCents: run.netPayCents ?? run.grossCents,
+      makerId: run.createdBy,
+      firstApproverId: run.approvedBy,
+    });
+    const financeApproverId = operatorId(actorId);
+    const results = await db.batch([
+      db.prepare(`UPDATE payroll_runs SET status = 'approved_for_export', second_approved_by = ?,
+        updated_at = ?, version = version + 1 WHERE id = ? AND version = ?
+          AND status = 'first_approved' AND approved_by IS NOT NULL AND second_approved_by IS NULL
+          AND environment = 'demo' AND integrity_state = 'synthetic'`)
+        .bind(financeApproverId, now, run.id, run.version),
+      db.prepare(`UPDATE operator_approval_requests SET status = 'approved',
+        second_approved_by = ?, second_approved_at = ?, updated_at = ?, version = version + 1
+        WHERE aggregate_type = 'payroll_run' AND aggregate_id = ? AND action_code = 'payroll.first_approve'
+          AND status = 'pending_second_approval' AND environment = 'demo' AND integrity_state = 'synthetic'`)
+        .bind(financeApproverId, now, now, run.id),
+      db.prepare(`INSERT INTO audit_events
+        (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
+        VALUES (?, 'operations', ?, 'synthetic_payroll_second_approved', 'payroll_run', ?,
+          'DEMO ONLY: the distinct finance approver and recent-MFA controls passed. No bank file, payslip or settlement was created.', ?)`)
+        .bind(id("AUD"), financeApproverId, run.id, now),
+    ]);
+    if (!results[0]?.meta?.changes) throw new PlatformWorkflowError("This payroll run changed. Refresh before trying again.", 409);
     return;
   }
 

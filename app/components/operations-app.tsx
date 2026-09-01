@@ -18,7 +18,7 @@ import { usePilot } from "../lib/use-pilot";
 import WorkspaceView from "./workspace-view";
 import { PlatformReadiness } from "./platform-readiness";
 
-const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officer conversions", "Officers", "Clients", "Service requests", "Timesheets", "Billing", "Integrations", "Feedback", "Launch readiness"];
+const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officer conversions", "Officers", "Clients", "Service requests", "Timesheets", "Payroll", "Billing", "Operator controls", "Integrations", "Feedback", "Launch readiness"];
 
 function Icon({ name }: { name: "search" | "bell" | "refresh" | "incident" | "close" | "chevron" | "map" }) {
   const paths: Record<typeof name, React.ReactNode> = {
@@ -99,7 +99,8 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
   const isOfficerConversion = activeNav === "Officer conversions";
   const isLaunchReadiness = activeNav === "Launch readiness";
   const isPlatform = activeNav === "Integrations" || activeNav === "Service requests"
-    || activeNav === "Timesheets" || activeNav === "Billing";
+    || activeNav === "Timesheets" || activeNav === "Payroll" || activeNav === "Billing"
+    || activeNav === "Operator controls";
   const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isOfficerConversion || isLaunchReadiness || isPlatform;
   const pendingPayments = pilot.state?.bookings.filter((booking) => booking.fundingStatus !== "paid_in_full").length ?? 0;
   const searchResults = useMemo(() => {
@@ -142,7 +143,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
           </button>)}
         </nav>
         <div className="rail-footer"><div className="avatar avatar--dark">Z</div><span><strong>Operations</strong>{actorEmail}</span><button aria-label="Account and access status" aria-expanded={accountOpen} onClick={() => setAccountOpen((value) => !value)}>•••</button></div>
-        {accountOpen && <aside className="ops-account-popover"><header><strong>Operations access</strong><button aria-label="Close account details" onClick={() => setAccountOpen(false)}>×</button></header><dl><div><dt>Signed in as</dt><dd>{actorEmail}</dd></div><div><dt>Current role</dt><dd>Operations owner</dd></div><div><dt>Environment</dt><dd>{stage} · synthetic</dd></div></dl><p>Production tenant roles and Operations MFA remain part of the production-backend connection.</p><nav aria-label="Switch pilot workspace"><Link href="/client">Client workspace</Link><Link href="/officer">Officer workspace</Link></nav></aside>}
+        {accountOpen && <aside className="ops-account-popover"><header><strong>Operations access</strong><button aria-label="Close account details" onClick={() => setAccountOpen(false)}>×</button></header><dl><div><dt>Signed in as</dt><dd>{actorEmail}</dd></div><div><dt>Current role</dt><dd>Operations owner</dd></div><div><dt>Environment</dt><dd>{stage} · synthetic</dd></div></dl><p>Version 28 models role limits, recent MFA and maker/checker controls. Production identity and step-up MFA are still activation gates.</p><nav aria-label="Switch pilot workspace"><Link href="/client">Client workspace</Link><Link href="/officer">Officer workspace</Link></nav></aside>}
       </aside>
 
       <section className="main-stage">
@@ -176,7 +177,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
             : isWorkforce ? <WorkforceControl operations={operations} />
               : isOfficerConversion ? <OfficerConversionControl operations={operations} flash={flash} />
               : isLaunchReadiness ? <LaunchReadinessControl operations={operations} />
-                : isPlatform ? <PlatformReadiness view={activeNav as "Integrations" | "Service requests" | "Timesheets" | "Billing"} flash={flash} />
+                : isPlatform ? <PlatformReadiness view={activeNav as "Integrations" | "Service requests" | "Timesheets" | "Payroll" | "Billing" | "Operator controls"} flash={flash} />
                 : <WorkspaceView name={activeNav} />}
         </div>
       </section>
