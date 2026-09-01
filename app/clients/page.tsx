@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PublicFooter, PublicHeader, PublicLaunchBar } from "../components/public-site-shell";
 
 export const metadata: Metadata = {
-  title: "How LOKD Works for Clients | LOKD Security",
+  title: "How LOKD Works for Clients",
   description: "A complete guide to LOKD client onboarding, risk assessment, pricing, officer readiness, roster control, attendance evidence and service records.",
+  alternates: { canonical: "/clients" },
 };
 
 const journey = [
@@ -66,24 +68,8 @@ const faqs = [
 export default function ClientGuidePage() {
   return (
     <main className="public-home client-guide-page">
-      <aside className="team-review-bar" aria-label="Launch status">
-        <div><strong>Controlled pre-launch</strong><span>PSiRA paperwork is reported complete; no paid deployment is active while the control-room inspection and production activation checks remain open.</span></div>
-        <nav><Link href="/join">Officer interest</Link><Link href="/client">Open public demo</Link></nav>
-      </aside>
-
-      <header className="public-header">
-        <Link className="public-logo" href="/" aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></Link>
-        <nav aria-label="Main navigation">
-          <Link aria-current="page" href="/clients">For clients</Link>
-          <Link href="/#passport">LOKD Passport</Link>
-          <Link href="/#officers">For officers</Link>
-          <Link href="/#training">Training</Link>
-        </nav>
-        <div className="public-header-actions">
-          <Link className="public-login" href="/">Home</Link>
-          <Link className="public-button public-button--dark" href="/client">Pilot sign-in</Link>
-        </div>
-      </header>
+      <PublicLaunchBar />
+      <PublicHeader active="clients" />
 
       <section className="client-guide-hero">
         <div>
@@ -205,18 +191,12 @@ export default function ClientGuidePage() {
       </section>
 
       <section className="client-guide-cta">
-        <p className="public-kicker">Controlled pre-launch</p>
-        <h2>Understand the service now. Activate only when every gate is ready.</h2>
-        <p>The current platform is available for authorised product testing. Paid security deployment remains blocked until LOKD&apos;s regulatory, employment, insurance, funding and production-control gates are approved. Public client enquiries are not open yet; existing pilot participants can use the authorised sign-in.</p>
-        <div><Link className="public-button public-button--lime" href="/client">Authorised pilot sign-in <b>→</b></Link><Link className="public-button public-button--outline" href="/">Return to LOKD <b>→</b></Link></div>
+        <p className="public-kicker">Controlled Johannesburg launch</p>
+        <h2>Tell us about the site. We will tell you whether Phase 1 fits.</h2>
+        <p>Client enquiries are open for planned, scheduled Unarmed fixed-site security. An enquiry is not an accepted booking: LOKD reviews the site, post, mobilisation window, workforce capacity and production gates before making any service commitment.</p>
+        <div><Link className="public-button public-button--lime" href="/contact">Request a security plan <b>→</b></Link><a className="public-button public-button--outline" href="https://portal.lokd.co.za">Client portal <b>→</b></a></div>
       </section>
-
-      <footer className="public-footer">
-        <img src="/lokd-logo.png" alt="LOKD" />
-        <p>Verified people. Controlled operations. Complete proof.</p>
-        <div><Link href="/clients">Client guide</Link><Link href="/join">Officer interest</Link><Link href="/officer">Authorised officer access</Link><Link href="/client">Authorised client access</Link></div>
-        <small>© 2026 LOKD · Controlled pre-launch platform · No paid security deployment is active</small>
-      </footer>
+      <PublicFooter />
     </main>
   );
 }

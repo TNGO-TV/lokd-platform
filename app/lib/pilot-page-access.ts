@@ -1,4 +1,5 @@
 import { getChatGPTUser, requireChatGPTUser, type ChatGPTUser } from "../chatgpt-auth";
+import { headers } from "next/headers";
 import {
   principalHasRole,
   publicDemoPrincipal,
@@ -6,12 +7,17 @@ import {
   type PilotRole,
 } from "./pilot-access-core";
 import { pilotStage, principalForEmail } from "./pilot-runtime";
+import { isLegacyPublicDemoHost, requestHostname } from "./public-site";
 
 export { pilotStage, principalHasRole, type PilotRole };
 
 export async function requirePilotPageRole(role: PilotRole, returnTo: string): Promise<{ user: ChatGPTUser; principal: PilotPrincipal }> {
   const optionalUser = await getChatGPTUser();
-  if (pilotStage() === "demo") {
+  const requestHeaders = await headers();
+  const hostname = requestHostname(requestHeaders.get("host"));
+  const publicDemoFallback = pilotStage() === "demo"
+    && (!hostname || isLegacyPublicDemoHost(hostname) || hostname.endsWith(".chatgpt.site"));
+  if (publicDemoFallback) {
     const user = optionalUser ?? {
       displayName: "Public demo visitor",
       email: "public-demo@lokd.invalid",

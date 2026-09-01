@@ -23,7 +23,7 @@ test("readiness fails closed without a bound database", async () => {
   assert.equal(body.productionActivationAuthorized, false);
 });
 
-test("readiness verifies the Version 29 shadow-payroll schema without authorising paid deployment", async () => {
+test("readiness verifies the Version 30 launch and shadow-payroll schema without authorising paid deployment", async () => {
   env.BUCKET = {};
   env.DB = {
     prepare(statement) {
@@ -39,7 +39,10 @@ test("readiness verifies the Version 29 shadow-payroll schema without authorisin
       assert.match(statement, /payroll_settlement_lock_v29/);
       assert.match(statement, /payroll_disbursement_update_lock_v29/);
       assert.match(statement, /payroll_payslip_insert_lock_v29/);
-      return { first: async () => ({ required_tables: 21, required_triggers: 32 }) };
+      assert.match(statement, /client_enquiries/);
+      assert.match(statement, /client_enquiry_insert_guard_v30/);
+      assert.match(statement, /client_enquiry_delete_guard_v30/);
+      return { first: async () => ({ required_tables: 22, required_triggers: 35 }) };
     },
   };
   try {
@@ -51,7 +54,7 @@ test("readiness verifies the Version 29 shadow-payroll schema without authorisin
     assert.equal(body.payrollMode, "shadow_settlement_locked");
     assert.equal(body.softwareIntegrationReady, true);
     assert.deepEqual(body.remainingExternalProviders, ["iiDENTIFii", "payment processor"]);
-    assert.deepEqual(body.checks, { requiredTables: 21, requiredTriggers: 32, evidenceStoreBound: true });
+    assert.deepEqual(body.checks, { requiredTables: 22, requiredTriggers: 35, evidenceStoreBound: true });
   } finally {
     delete env.DB;
     delete env.BUCKET;
@@ -60,7 +63,7 @@ test("readiness verifies the Version 29 shadow-payroll schema without authorisin
 
 test("readiness fails closed when a required database guard is missing", async () => {
   env.BUCKET = {};
-  env.DB = { prepare: () => ({ first: async () => ({ required_tables: 21, required_triggers: 31 }) }) };
+  env.DB = { prepare: () => ({ first: async () => ({ required_tables: 22, required_triggers: 34 }) }) };
   try {
     const response = await ready();
     const body = await response.json();
@@ -74,7 +77,7 @@ test("readiness fails closed when a required database guard is missing", async (
 });
 
 test("readiness fails closed when private evidence storage is not bound", async () => {
-  env.DB = { prepare: () => ({ first: async () => ({ required_tables: 21, required_triggers: 32 }) }) };
+  env.DB = { prepare: () => ({ first: async () => ({ required_tables: 22, required_triggers: 35 }) }) };
   try {
     const response = await ready();
     const body = await response.json();

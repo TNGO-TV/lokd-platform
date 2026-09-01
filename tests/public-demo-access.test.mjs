@@ -48,3 +48,31 @@ test("unassigned signed-in visitors fall back to public demo without gaining pro
     /does not have access/i,
   );
 });
+
+test("the new client and Operations hosts require real sign-in and configured roles", () => {
+  env.LOKD_APP_STAGE = "demo";
+  env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({
+    owners: ["owner@lokd.example"],
+    clients: { "client@lokd.example": "CL-001" },
+  });
+
+  assert.throws(
+    () => runtime.requirePilotApiRole(new Request("https://portal.lokd.co.za/api/pilot?scope=client"), "client"),
+    /Sign in/i,
+  );
+  assert.throws(
+    () => runtime.requirePilotApiRole(new Request("https://operations.lokd.co.za/api/operations", {
+      headers: { "oai-authenticated-user-email": "client@lokd.example" },
+    }), "operations"),
+    /does not have access/i,
+  );
+
+  const client = runtime.requirePilotApiRole(new Request("https://portal.lokd.co.za/api/pilot?scope=client", {
+    headers: { "oai-authenticated-user-email": "client@lokd.example" },
+  }), "client");
+  assert.equal(client.clientId, "CL-001");
+  const owner = runtime.requirePilotApiRole(new Request("https://operations.lokd.co.za/api/operations", {
+    headers: { "oai-authenticated-user-email": "owner@lokd.example" },
+  }), "operations");
+  assert.equal(owner.owner, true);
+});

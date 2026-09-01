@@ -9,6 +9,7 @@ import {
   type PilotPrincipal,
   type PilotRole,
 } from "./pilot-access-core";
+import { isLegacyPublicDemoHost, requestHostname } from "./public-site";
 
 export {
   PilotAccessError,
@@ -32,13 +33,16 @@ export function principalForEmail(email: string, displayName = email): PilotPrin
 export function requirePilotApiRole(request: Request, allowed: PilotRole | PilotRole[]) {
   const email = request.headers.get("oai-authenticated-user-email");
   const roles = Array.isArray(allowed) ? allowed : [allowed];
+  const hostname = requestHostname(new URL(request.url).hostname);
+  const publicDemoFallback = pilotStage() === "demo"
+    && (isLegacyPublicDemoHost(hostname) || hostname.endsWith(".chatgpt.site") || hostname === "app.local");
   if (!email) {
-    if (pilotStage() === "demo") return publicDemoPrincipal();
+    if (publicDemoFallback) return publicDemoPrincipal();
     throw new PilotAccessError("Sign in to continue.", 401);
   }
   const principal = principalForEmail(email, email);
   if (!roles.some((role) => principalHasRole(principal, role))) {
-    if (pilotStage() === "demo") return publicDemoPrincipal();
+    if (publicDemoFallback) return publicDemoPrincipal();
     throw new PilotAccessError("This account does not have access to that LOKD workspace.", 403);
   }
   return principal;

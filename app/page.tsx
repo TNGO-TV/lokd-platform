@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { PublicFooter, PublicHeader, PublicLaunchBar } from "./components/public-site-shell";
+import { isClientPortalHost, isOperationsPortalHost, requestHostname } from "./lib/public-site";
 
 const workCategories = [
   { name: "Unarmed · Phase 1", note: "The first controlled pilot is limited to scheduled, fixed-site unarmed guarding in one Gauteng operating area." },
@@ -6,37 +10,25 @@ const workCategories = [
   { name: "VIP · Future", note: "Protective Operations remains outside Phase 1 and will not be offered until its specialist operating model is approved." },
 ];
 
-export default function PublicHome() {
+export default async function PublicHome() {
+  const hostname = requestHostname((await headers()).get("host"));
+  if (isClientPortalHost(hostname)) redirect("/client");
+  if (isOperationsPortalHost(hostname)) redirect("/ops");
   return (
     <main className="public-home">
-      <aside className="team-review-bar" aria-label="Launch status">
-        <div><strong>Controlled pre-launch</strong><span>PSiRA paperwork is reported complete; paid deployment remains locked pending the control-room inspection and production activation checks.</span></div>
-        <nav><a href="/join">Officer interest</a><a href="/client">Open public demo</a></nav>
-      </aside>
-      <header className="public-header">
-        <Link className="public-logo" href="/" aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></Link>
-        <nav aria-label="Main navigation">
-          <Link href="/clients">For clients</Link>
-          <a href="#passport">LOKD Passport</a>
-          <a href="#officers">For officers</a>
-          <a href="#training">Training</a>
-        </nav>
-        <div className="public-header-actions">
-          <a className="public-login" href="/join">Officer interest</a>
-          <a className="public-button public-button--dark" href="/client">Pilot sign-in</a>
-        </div>
-      </header>
+      <PublicLaunchBar />
+      <PublicHeader active="home" />
 
       <section className="public-hero">
         <div className="public-hero-copy">
-          <p className="public-kicker"><i /> Building purpose-trained South African security</p>
-          <h1>The right officer.<br />Trained for the purpose.<br /><span>Ready for the post.</span></h1>
-          <p>LOKD is building an employer-led security platform that pays professionals properly, trains them continuously and assigns them only where verified LOKD Passport controls show they are current for the post.</p>
+          <p className="public-kicker"><i /> Johannesburg security, controlled end to end</p>
+          <h1>The right officer.<br />Ready for the post.<br /><span>Proof at every step.</span></h1>
+          <p>LOKD is launching an employer-led security service for scheduled Unarmed fixed-site posts. Every site starts with a risk brief; every roster is eligibility-checked; every service period is funded in advance and operated through one accountable record.</p>
           <div className="public-hero-actions">
-            <a className="public-button public-button--lime" href="/join?path=qualified">I&apos;m already qualified <b>→</b></a>
-            <a className="public-button public-button--outline" href="/join?path=training">I need training <b>→</b></a>
+            <Link className="public-button public-button--lime" href="/contact">Plan security for my site <b>→</b></Link>
+            <Link className="public-button public-button--outline" href="/join">Join as an officer <b>→</b></Link>
           </div>
-          <div className="public-proof-row"><span>✓ Purpose endorsements</span><span>✓ Continuous readiness</span><span>✓ QR verification prototype</span></div>
+          <div className="public-proof-row"><span>✓ Verified readiness</span><span>✓ Controlled Operations</span><span>✓ No credit terms</span></div>
         </div>
 
         <div className="public-hero-product" aria-label="Example of a LOKD officer work offer">
@@ -49,7 +41,7 @@ export default function PublicHome() {
             <small>Contractor access · 18 km away</small>
             <dl><div><dt>Your offer</dt><dd>R800</dd></div><div><dt>Release</dt><dd>Weekly</dd></div></dl>
             <div className="offer-match-row"><span>✓ Passport current</span><span>✓ Construction endorsed</span></div>
-            <Link href="/officer">Preview offer <b>→</b></Link>
+            <Link href="/security-services">See the service model <b>→</b></Link>
           </article>
           <aside className="public-verified-card"><span>LK</span><div><strong>Passport preview ready</strong><small>Illustrative Grade B · Purpose trained</small></div><i>✓</i></aside>
           <aside className="public-earnings-chip"><small>Illustrative payroll item</small><strong>R800</strong><span>No payment generated</span></aside>
@@ -126,17 +118,11 @@ export default function PublicHome() {
       </section>
 
       <section className="public-final-cta">
-        <p className="public-kicker">Your next move</p>
-        <h2>Whether you are qualified or starting from zero, start here.</h2>
-        <a className="public-button public-button--dark" href="/join">Join the LOKD officer network <b>→</b></a>
+        <p className="public-kicker">Johannesburg launch</p>
+        <h2>Start with the site, the risk and the outcome you need.</h2>
+        <Link className="public-button public-button--dark" href="/contact">Request a security plan <b>→</b></Link>
       </section>
-
-      <footer className="public-footer">
-        <img src="/lokd-logo.png" alt="LOKD" />
-        <p>Verified people. Controlled operations. Complete proof.</p>
-        <div><Link href="/clients">Client guide</Link><a href="/join">Officer interest</a><a href="/officer">Authorised officer access</a><a href="/client">Authorised client access</a></div>
-        <small>© 2026 LOKD · Controlled pre-launch platform · No paid security deployment is active</small>
-      </footer>
+      <PublicFooter />
     </main>
   );
 }

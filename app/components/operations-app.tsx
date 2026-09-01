@@ -17,8 +17,9 @@ import { useOperations } from "../lib/use-operations";
 import { usePilot } from "../lib/use-pilot";
 import WorkspaceView from "./workspace-view";
 import { PlatformReadiness } from "./platform-readiness";
+import ClientEnquiriesView from "./client-enquiries-view";
 
-const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officer conversions", "Officers", "Clients", "Service requests", "Timesheets", "Payroll", "Billing", "Operator controls", "Integrations", "Feedback", "Launch readiness"];
+const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officer conversions", "Officers", "Clients", "Client enquiries", "Service requests", "Timesheets", "Payroll", "Billing", "Operator controls", "Integrations", "Feedback", "Launch readiness"];
 
 function Icon({ name }: { name: "search" | "bell" | "refresh" | "incident" | "close" | "chevron" | "map" }) {
   const paths: Record<typeof name, React.ReactNode> = {
@@ -97,11 +98,12 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
   const isActivation = activeNav === "Assignment activation";
   const isWorkforce = activeNav === "Workforce";
   const isOfficerConversion = activeNav === "Officer conversions";
+  const isClientEnquiries = activeNav === "Client enquiries";
   const isLaunchReadiness = activeNav === "Launch readiness";
   const isPlatform = activeNav === "Integrations" || activeNav === "Service requests"
     || activeNav === "Timesheets" || activeNav === "Payroll" || activeNav === "Billing"
     || activeNav === "Operator controls";
-  const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isOfficerConversion || isLaunchReadiness || isPlatform;
+  const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isOfficerConversion || isClientEnquiries || isLaunchReadiness || isPlatform;
   const pendingPayments = pilot.state?.bookings.filter((booking) => booking.fundingStatus !== "paid_in_full").length ?? 0;
   const searchResults = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -139,6 +141,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
             {item === "Incidents" && (operations.state?.summary.openIncidents ?? 0) > 0 && <em className="nav-warning">{operations.state?.summary.openIncidents}</em>}
             {item === "Bookings" && pendingPayments > 0 && <em className="nav-warning">{pendingPayments}</em>}
             {item === "Applications" && <em>New</em>}
+            {item === "Client enquiries" && <em>Web</em>}
             {item === "Feedback" && <em>Team</em>}
           </button>)}
         </nav>
@@ -176,6 +179,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
             : isActivation ? <AssignmentActivationControl operations={operations} flash={flash} />
             : isWorkforce ? <WorkforceControl operations={operations} />
               : isOfficerConversion ? <OfficerConversionControl operations={operations} flash={flash} />
+                : isClientEnquiries ? <ClientEnquiriesView flash={flash} />
               : isLaunchReadiness ? <LaunchReadinessControl operations={operations} />
                 : isPlatform ? <PlatformReadiness view={activeNav as "Integrations" | "Service requests" | "Timesheets" | "Payroll" | "Billing" | "Operator controls"} flash={flash} />
                 : <WorkspaceView name={activeNav} />}

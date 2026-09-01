@@ -37,7 +37,7 @@ export async function GET() {
         'scheduled_job_runs','operator_notifications','payroll_policy_versions',
         'officer_conversion_cases','operator_accounts','operator_role_assignments',
         'operator_action_policies','operator_approval_requests','payroll_shadow_validation_runs',
-        'payroll_export_previews','payroll_exceptions') THEN 1 ELSE 0 END) AS required_tables,
+        'payroll_export_previews','payroll_exceptions','client_enquiries') THEN 1 ELSE 0 END) AS required_tables,
       SUM(CASE WHEN type = 'trigger' AND name IN (
         'officer_application_provenance_insert_v21','identity_case_transition_guard_v21',
         'payment_order_evidence_guard_v21','integration_operation_transition_guard_v21',
@@ -54,14 +54,16 @@ export async function GET() {
         'payroll_settlement_lock_v29','payroll_settlement_insert_lock_v29',
         'payroll_disbursement_insert_lock_v29','payroll_disbursement_update_lock_v29',
         'payroll_disbursement_item_insert_lock_v29','payroll_disbursement_item_update_lock_v29',
-        'payroll_payslip_insert_lock_v29','payroll_payslip_update_lock_v29') THEN 1 ELSE 0 END) AS required_triggers
+        'payroll_payslip_insert_lock_v29','payroll_payslip_update_lock_v29',
+        'client_enquiry_insert_guard_v30','client_enquiry_update_guard_v30',
+        'client_enquiry_delete_guard_v30') THEN 1 ELSE 0 END) AS required_triggers
       FROM sqlite_master`).first<{ required_tables: number; required_triggers: number }>();
     const checks = {
       requiredTables: Number(schema?.required_tables ?? 0),
       requiredTriggers: Number(schema?.required_triggers ?? 0),
       evidenceStoreBound: Boolean(env.BUCKET),
     };
-    if (checks.requiredTables !== 21 || checks.requiredTriggers !== 32 || !checks.evidenceStoreBound) {
+    if (checks.requiredTables !== 22 || checks.requiredTriggers !== 35 || !checks.evidenceStoreBound) {
       return reply("unavailable", 503, checks);
     }
     return reply("ready", 200, checks);

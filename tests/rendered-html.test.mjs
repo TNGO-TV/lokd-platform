@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-test("renders the production LOKD identity and current officer offer", async () => {
+test("renders the canonical public LOKD launch identity and illustrative officer offer", async () => {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
@@ -27,7 +27,9 @@ test("renders the production LOKD identity and current officer offer", async () 
     /^text\/html\b/i,
   );
   const html = await response.text();
-  assert.match(html, /<title>LOKD Security Platform<\/title>/i);
+  assert.match(html, /<title>LOKD Security \| Verified Guarding in Johannesburg<\/title>/i);
+  assert.match(html, /<link rel="canonical" href="https:\/\/lokd\.co\.za\/"\/>/i);
+  assert.match(html, /No credit terms/i);
   assert.match(html, /<dd>R800<\/dd>/i);
   assert.doesNotMatch(html, /Starter Project/i);
 });

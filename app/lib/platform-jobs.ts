@@ -42,7 +42,7 @@ async function schemaChecks(db: D1Database) {
       'scheduled_job_runs','operator_notifications','payroll_policy_versions',
       'operator_accounts','operator_role_assignments','operator_action_policies',
       'operator_approval_requests','payroll_shadow_validation_runs','payroll_export_previews',
-      'payroll_exceptions') THEN 1 ELSE 0 END) AS requiredTables,
+      'payroll_exceptions','client_enquiries') THEN 1 ELSE 0 END) AS requiredTables,
     SUM(CASE WHEN type = 'trigger' AND name IN (
       'officer_application_provenance_insert_v21','identity_case_transition_guard_v21',
       'payment_order_evidence_guard_v21','integration_operation_transition_guard_v21',
@@ -58,7 +58,8 @@ async function schemaChecks(db: D1Database) {
       'payroll_settlement_insert_lock_v29','payroll_disbursement_insert_lock_v29',
       'payroll_disbursement_update_lock_v29','payroll_disbursement_item_insert_lock_v29',
       'payroll_disbursement_item_update_lock_v29','payroll_payslip_insert_lock_v29',
-      'payroll_payslip_update_lock_v29') THEN 1 ELSE 0 END) AS requiredTriggers
+      'payroll_payslip_update_lock_v29','client_enquiry_insert_guard_v30',
+      'client_enquiry_update_guard_v30','client_enquiry_delete_guard_v30') THEN 1 ELSE 0 END) AS requiredTriggers
     FROM sqlite_master`).first<{ requiredTables: number; requiredTriggers: number }>();
   return {
     requiredTables: Number(result?.requiredTables ?? 0),
@@ -154,8 +155,8 @@ export async function runPlatformMaintenance(db: D1Database, options: Maintenanc
 
   try {
     const checks = await schemaChecks(db);
-    if (checks.requiredTables !== 20 || checks.requiredTriggers !== 29) {
-      throw new Error(`Required database contract is incomplete (${checks.requiredTables}/20 tables, ${checks.requiredTriggers}/29 guards).`);
+    if (checks.requiredTables !== 21 || checks.requiredTriggers !== 32) {
+      throw new Error(`Required database contract is incomplete (${checks.requiredTables}/21 tables, ${checks.requiredTriggers}/32 guards).`);
     }
     const payrollProof = calculatePayrollItem(100_000, "2026-06-30", SYNTHETIC_ENGINE_TEST_POLICY);
     if (payrollProof.netPayCents <= 0 || payrollProof.employerCostCents < payrollProof.grossCents) {
@@ -166,7 +167,7 @@ export async function runPlatformMaintenance(db: D1Database, options: Maintenanc
     const completedAt = new Date().toISOString();
     const prefix = `${environment}:`;
     await db.batch([
-      controlStatement(db, { code: `${prefix}database`, category: "backend", label: "Database and provenance guards", status: "ready", evidenceReference: "schema:v29", detail: "Required operational tables, zero-credit funding guards, shadow export controls and the settlement lock passed a live schema query.", environment, integrityState, checkedAt: completedAt, checkedBy: options.actorId }),
+      controlStatement(db, { code: `${prefix}database`, category: "backend", label: "Database and provenance guards", status: "ready", evidenceReference: "schema:v30", detail: "Required operational tables, zero-credit funding guards, controlled client intake, shadow export controls and the settlement lock passed a live schema query.", environment, integrityState, checkedAt: completedAt, checkedBy: options.actorId }),
       controlStatement(db, { code: `${prefix}access`, category: "security", label: "Authenticated role boundary", status: "ready", evidenceReference: "code:operator-controls-v29", detail: "Role limits, recent MFA and distinct maker/checker approvals are enforced for controlled payroll commands.", environment, integrityState, checkedAt: completedAt, checkedBy: options.actorId }),
       controlStatement(db, { code: `${prefix}jobs`, category: "backend", label: "Scheduled jobs and durable outbox", status: "ready", evidenceReference: `job:${id}`, detail: `The maintenance runner completed and dispatched ${processedEvents} internal event(s) idempotently.`, environment, integrityState, checkedAt: completedAt, checkedBy: options.actorId }),
       controlStatement(db, { code: `${prefix}payroll`, category: "finance", label: "Versioned payroll policy engine", status: "ready", evidenceReference: `self-test:${SYNTHETIC_ENGINE_TEST_POLICY.version}`, detail: "Engine v3 shadow passed its PAYE, UIF, SDL, COIDA-provision and leave-accrual self-test. Preview artifacts remain non-settling and a live policy still requires controlled activation.", environment, integrityState, checkedAt: completedAt, checkedBy: options.actorId }),

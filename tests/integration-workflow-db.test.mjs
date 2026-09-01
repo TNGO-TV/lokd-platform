@@ -279,8 +279,8 @@ test("platform maintenance records controls and dispatches internal outbox event
   });
 
   assert.equal(first.status, "completed");
-  assert.equal(first.requiredTables, 20);
-  assert.equal(first.requiredTriggers, 29);
+  assert.equal(first.requiredTables, 21);
+  assert.equal(first.requiredTriggers, 32);
   assert.equal(first.processedEvents, 1);
   assert.equal(second.processedEvents, 0);
   assert.equal(one(database, `SELECT COUNT(*) AS total FROM platform_readiness_controls WHERE status='ready'`).total, 6);

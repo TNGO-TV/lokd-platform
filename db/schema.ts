@@ -2100,3 +2100,36 @@ export const payrollExceptions = sqliteTable(
     index("payroll_exceptions_run_idx").on(table.payrollRunId, table.status),
   ],
 );
+
+export const clientEnquiries = sqliteTable(
+  "client_enquiries",
+  {
+    id: text("id").primaryKey(),
+    organisationName: text("organisation_name").notNull(),
+    contactName: text("contact_name").notNull(),
+    emailNormalized: text("email_normalized").notNull(),
+    mobileNormalized: text("mobile_normalized"),
+    siteArea: text("site_area").notNull(),
+    siteType: text("site_type").notNull(),
+    requiredStart: text("required_start").notNull(),
+    message: text("message").notNull(),
+    serviceType: text("service_type").notNull().default("scheduled_unarmed_fixed_site"),
+    fundingModel: text("funding_model").notNull().default("advance_only"),
+    creditTermsDays: integer("credit_terms_days").notNull().default(0),
+    privacyNoticeVersion: text("privacy_notice_version").notNull(),
+    privacyAcknowledgedAt: text("privacy_acknowledged_at").notNull(),
+    status: text("status").notNull().default("new"),
+    ownerId: text("owner_id"),
+    resolution: text("resolution"),
+    environment: text("environment").notNull().default("prelaunch"),
+    integrityState: text("integrity_state").notNull().default("user_submitted"),
+    retentionReviewAt: text("retention_review_at").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    index("client_enquiries_queue_idx").on(table.environment, table.status, table.createdAt),
+    index("client_enquiries_email_idx").on(table.emailNormalized, table.createdAt),
+  ],
+);
