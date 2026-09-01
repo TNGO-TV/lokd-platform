@@ -7,7 +7,11 @@ import {
   type PilotRole,
 } from "./pilot-access-core";
 import { pilotStage, principalForEmail } from "./pilot-runtime";
-import { isLegacyPublicDemoHost, requestHostname } from "./public-site";
+import {
+  isLegacyPublicDemoHost,
+  requestHostname,
+  workspaceRedirectForHost,
+} from "./public-site";
 
 export { pilotStage, principalHasRole, type PilotRole };
 
@@ -15,6 +19,10 @@ export async function requirePilotPageRole(role: PilotRole, returnTo: string): P
   const optionalUser = await getChatGPTUser();
   const requestHeaders = await headers();
   const hostname = requestHostname(requestHeaders.get("host"));
+  if (role !== "reviewer") {
+    const workspaceRedirect = workspaceRedirectForHost(hostname, role);
+    if (workspaceRedirect) redirect(workspaceRedirect);
+  }
   const publicDemoFallback = pilotStage() === "demo"
     && (!hostname || isLegacyPublicDemoHost(hostname) || hostname.endsWith(".chatgpt.site"));
   if (publicDemoFallback) {

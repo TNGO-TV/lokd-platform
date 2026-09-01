@@ -2,7 +2,12 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { PublicFooter, PublicHeader, PublicLaunchBar } from "./components/public-site-shell";
-import { isClientPortalHost, isOperationsPortalHost, requestHostname } from "./lib/public-site";
+import {
+  isClientPortalHost,
+  isOfficerPortalHost,
+  isOperationsPortalHost,
+  requestHostname,
+} from "./lib/public-site";
 
 const workCategories = [
   { name: "Unarmed · Phase 1", note: "The first controlled pilot is limited to scheduled, fixed-site unarmed guarding in one Gauteng operating area." },
@@ -13,6 +18,7 @@ const workCategories = [
 export default async function PublicHome() {
   const hostname = requestHostname((await headers()).get("host"));
   if (isClientPortalHost(hostname)) redirect("/client");
+  if (isOfficerPortalHost(hostname)) redirect("/officer");
   if (isOperationsPortalHost(hostname)) redirect("/ops");
   return (
     <main className="public-home">

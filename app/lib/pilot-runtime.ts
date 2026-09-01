@@ -9,7 +9,11 @@ import {
   type PilotPrincipal,
   type PilotRole,
 } from "./pilot-access-core";
-import { isLegacyPublicDemoHost, requestHostname } from "./public-site";
+import {
+  isLegacyPublicDemoHost,
+  requestHostname,
+  workspaceRoleForHost,
+} from "./public-site";
 
 export {
   PilotAccessError,
@@ -34,6 +38,13 @@ export function requirePilotApiRole(request: Request, allowed: PilotRole | Pilot
   const email = request.headers.get("oai-authenticated-user-email");
   const roles = Array.isArray(allowed) ? allowed : [allowed];
   const hostname = requestHostname(new URL(request.url).hostname);
+  const hostnameRole = workspaceRoleForHost(hostname);
+  if (hostnameRole && !roles.includes(hostnameRole)) {
+    throw new PilotAccessError(
+      "Use the correct LOKD workspace for this request.",
+      403,
+    );
+  }
   const publicDemoFallback = pilotStage() === "demo"
     && (isLegacyPublicDemoHost(hostname) || hostname.endsWith(".chatgpt.site") || hostname === "app.local");
   if (!email) {

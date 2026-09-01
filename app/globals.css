@@ -603,19 +603,24 @@
 .shift-action-row button { min-height: 50px; padding: 0 18px; border: 0; border-radius: 12px; background: var(--carbon); color: #fff; font-size: 13px; font-weight: 850; cursor: pointer; }
 .pilot-control-note { margin: 12px 0 0; color: #848b8e; font-size: var(--type-secondary); }
 
-.wallet-balance-v2 { padding: 28px; border-radius: 22px; background: var(--carbon); color: #fff; display: grid; grid-template-columns: .8fr 1.2fr .9fr; gap: 24px; }
-.wallet-balance-v2 > div:first-child > span { color: #92989b; font-size: 12px; }
-.wallet-balance-v2 > div:first-child > strong { display: block; margin-top: 28px; font-size: 40px; letter-spacing: -.04em; }
-.wallet-balance-v2 > div:first-child > p { margin: 5px 0 0; color: #a2a8aa; font-size: 13px; }
-.wallet-balance-v2 dl { margin: 0; border-left: 1px solid rgba(255,255,255,.1); padding-left: 24px; }
-.wallet-balance-v2 dl div { padding: 7px 0 14px; }
-.wallet-balance-v2 dt { color: #7e8588; font-size: var(--type-small); text-transform: uppercase; letter-spacing: .06em; }
-.wallet-balance-v2 dd { margin: 5px 0 0; font-size: 13px; font-weight: 750; }
+.wallet-balance-v2 { padding: 28px; border-radius: 22px; background: var(--carbon); color: #fff; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) .86fr; gap: 18px; }
+.earnings-balance-card { min-height: 176px; padding: 22px; border: 1px solid rgba(255,255,255,.1); border-radius: 18px; display: flex; flex-direction: column; }
+.earnings-balance-card > span { color: #92989b; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.earnings-balance-card > strong { display: block; margin-top: 24px; font-size: 38px; letter-spacing: -.04em; }
+.earnings-balance-card > p { margin: auto 0 0; color: #a2a8aa; font-size: 12px; line-height: 1.5; }
+.earnings-balance-card--available { border-color: var(--lime); background: var(--lime); color: #1b2115; }
+.earnings-balance-card--available > span,.earnings-balance-card--available > p { color: #4f5b31; }
+.earnings-balance-card--pending { background: rgba(255,255,255,.035); }
 .wallet-withdrawal { padding-left: 24px; border-left: 1px solid rgba(255,255,255,.1); display: flex; flex-direction: column; align-items: flex-start; }
 .wallet-withdrawal span { color: #7f8689; font-size: var(--type-secondary); text-transform: uppercase; letter-spacing: .06em; }
 .wallet-withdrawal strong { margin-top: 8px; color: #dce0e1; font-size: 13px; }
 .wallet-withdrawal button { min-height: 48px; margin-top: auto; padding: 0 16px; border: 0; border-radius: 12px; background: var(--lime); color: #1b1e14; font-size: 12px; font-weight: 850; cursor: pointer; }
 .wallet-withdrawal button:disabled { opacity: .45; cursor: default; }
+.withdrawal-confirm-modal > dl { margin: 22px 0; display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #e1e5e3; border-radius: 13px; overflow: hidden; }
+.withdrawal-confirm-modal > dl div { padding: 14px; }
+.withdrawal-confirm-modal > dl div + div { border-left: 1px solid #e1e5e3; }
+.withdrawal-confirm-modal dt { color: #7d8587; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.withdrawal-confirm-modal dd { margin: 6px 0 0; font-size: 15px; font-weight: 850; text-transform: capitalize; }
 
 .primary-button:disabled, .thursday-card button:disabled, .signoff-actions button:disabled { opacity: .5; cursor: default; }
 .service-record-note { margin: 0 24px 16px; padding: 12px 14px; border-left: 3px solid var(--lime); border-radius: 8px; background: #f3f6ef; color: #59605b; font-size: var(--type-secondary); line-height: 1.55; }
@@ -797,8 +802,9 @@
   .shift-detail-v2 > dl div:nth-child(n+3) { border-bottom: 0; }
   .shift-action-row { display: grid; grid-template-columns: 1fr auto; }
   .wallet-balance-v2 { grid-template-columns: 1fr; padding: 22px; }
-  .wallet-balance-v2 dl { padding: 16px 0 0; border-left: 0; border-top: 1px solid rgba(255,255,255,.1); }
   .wallet-withdrawal { grid-column: 1; }
+  .withdrawal-confirm-modal > dl { grid-template-columns: 1fr; }
+  .withdrawal-confirm-modal > dl div + div { border-left: 0; border-top: 1px solid #e1e5e3; }
   .wallet-activity-v2 { padding: 0 16px 6px; }
   .payroll-statements-v2 { padding: 0 16px 6px; }
   .payroll-statement-row dl { grid-template-columns: 1fr; }

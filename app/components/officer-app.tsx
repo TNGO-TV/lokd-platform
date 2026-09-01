@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import type {
   PilotOffer,
@@ -8,6 +7,12 @@ import type {
   PilotState,
   ServiceType,
 } from "../lib/pilot-types";
+import {
+  CLIENT_PORTAL_URL,
+  OFFICER_PORTAL_URL,
+  OPERATIONS_PORTAL_URL,
+  PUBLIC_SITE_URL,
+} from "../lib/public-site";
 import { usePilot } from "../lib/use-pilot";
 
 type OfficerTab = "Home" | "Work" | "Earnings" | "Profile";
@@ -71,18 +76,18 @@ export default function OfficerApp() {
   return (
     <main className="portal-shell officer-shell officer-v2">
       <header className="portal-header officer-header-v2">
-        <Link href="/" className="portal-logo">
+        <a href={PUBLIC_SITE_URL} className="portal-logo">
           <img src="/lokd-logo.png" alt="LOKD" />
-        </Link>
+        </a>
         <div
           className="portal-role-switch pilot-role-switch"
           aria-label="Pilot role preview"
         >
-          <Link href="/ops">Ops</Link>
-          <Link className="active" href="/officer">
+          <a href={OPERATIONS_PORTAL_URL}>Ops</a>
+          <a className="active" href={OFFICER_PORTAL_URL}>
             Officer
-          </Link>
-          <Link href="/client">Client</Link>
+          </a>
+          <a href={CLIENT_PORTAL_URL}>Client</a>
         </div>
         <button
           className="portal-profile"
@@ -618,7 +623,9 @@ function ApprovedOfficer({
           flash={flash}
         />
       )}
-      {tab === "Earnings" && <OfficerEarnings state={state} />}
+      {tab === "Earnings" && (
+        <OfficerEarnings state={state} pilot={pilot} flash={flash} />
+      )}
       {tab === "Profile" && (
         <OfficerProfile
           state={state}
@@ -955,12 +962,12 @@ function OfficerHome({
             <b>›</b>
           </button>
           <button onClick={() => choose("Earnings")}>
-            <span>Payroll preview</span>
+            <span>Available for withdrawal</span>
             <strong>{money(state.wallet.availableCents)}</strong>
             <small>
               {state.wallet.pendingCents
-                ? `${money(state.wallet.pendingCents)} in simulated records`
-                : "No pending example records"}
+                ? `${money(state.wallet.pendingCents)} awaiting approval`
+                : "Nothing awaiting approval"}
             </small>
             <b>›</b>
           </button>
@@ -1401,32 +1408,41 @@ function ShiftDetail({
   );
 }
 
-function OfficerEarnings({ state }: { state: PilotState }) {
+function OfficerEarnings({
+  state,
+  pilot,
+  flash,
+}: {
+  state: PilotState;
+  pilot: ReturnType<typeof usePilot>;
+  flash: (text: string) => void;
+}) {
   const [selectedStatement, setSelectedStatement] = useState<
     PilotState["payrollStatements"][number] | null
   >(null);
+  const [withdrawalOpen, setWithdrawalOpen] = useState(false);
   const stateCopy: Record<
     string,
     { label: string; note: string; tone: string }
   > = {
     available: {
-      label: "Approved for payroll",
-      note: "Approved gross time is ready for the automated pay calculation",
+      label: "Available for withdrawal",
+      note: "All required approvals have passed and this earning can be withdrawn",
       tone: "green",
     },
     pending_signoff: {
-      label: "Timesheet review",
-      note: "LOKD Operations review is still required; client input is supporting evidence only",
+      label: "Awaiting approval",
+      note: "Attendance or Operations approval is still required; client input is supporting evidence only",
       tone: "amber",
     },
     pending_release: {
-      label: "Scheduled for payroll",
-      note: "Approved work is waiting for its configured payroll cycle",
+      label: "Awaiting approval",
+      note: "The work record is waiting for its final payroll approval and release control",
       tone: "blue",
     },
     withdrawal_queued: {
-      label: "Legacy demo state",
-      note: "This old payout state will not exist in the employer-led production model",
+      label: "Withdrawal processing",
+      note: "The approved withdrawal request has entered the payout-processing queue",
       tone: "blue",
     },
     paid: { label: "Paid", note: "Settlement completed", tone: "green" },
@@ -1440,47 +1456,53 @@ function OfficerEarnings({ state }: { state: PilotState }) {
     `/api/pilot?scope=officer&download=payroll-calculation&id=${encodeURIComponent(statementId)}`;
   const shadowPayslipHref = (statementId: string) =>
     `/api/pilot?scope=officer&download=shadow-payslip&id=${encodeURIComponent(statementId)}`;
+  async function requestWithdrawal() {
+    const result = await pilot.runAction({ action: "request_payout" });
+    if (!result) return;
+    setWithdrawalOpen(false);
+    flash("Withdrawal request recorded. Track it under Withdrawal processing.");
+  }
   return (
     <section className="wallet-v2">
-      <article className="wallet-balance-v2">
-        <div>
-          <span>Calculated net pay balance</span>
-          <strong>{money(state.wallet.calculatedNetCents)}</strong>
-          <p>Payroll accrual only—not stored value, credit or a wallet</p>
+      <article className="wallet-balance-v2 earnings-balance-board">
+        <div className="earnings-balance-card earnings-balance-card--available">
+          <span>Available for withdrawal</span>
+          <strong>{money(state.wallet.availableCents)}</strong>
+          <p>Fully approved earnings available to request now.</p>
         </div>
-        <dl>
-          <div>
-            <dt>Time under review</dt>
-            <dd>{money(state.wallet.pendingCents)}</dd>
-          </div>
-          <div>
-            <dt>Approved gross awaiting payroll</dt>
-            <dd>{money(state.wallet.availableCents)}</dd>
-          </div>
-          <div>
-            <dt>Paid calculations</dt>
-            <dd>{money(state.wallet.paidCents)}</dd>
-          </div>
-        </dl>
+        <div className="earnings-balance-card earnings-balance-card--pending">
+          <span>Awaiting approval</span>
+          <strong>{money(state.wallet.pendingCents)}</strong>
+          <p>Completed work still passing attendance and payroll controls.</p>
+        </div>
         <div className="wallet-withdrawal">
-          <span>Calculation status</span>
+          <span>Withdrawal status</span>
           <strong>
-            {state.payrollStatements.length
-              ? "Automated breakdown available"
-              : "Waiting for approved payroll input"}
+            {state.wallet.withdrawalQueuedCents
+              ? `${money(state.wallet.withdrawalQueuedCents)} processing`
+              : state.officer.bankingStatus === "verified"
+                ? "Verified payout account"
+                : "Payout account verification required"}
           </strong>
-          {state.payrollStatements[0] ? (
-            <button onClick={() => setSelectedStatement(state.payrollStatements[0])}>
-              View latest calculation
-            </button>
-          ) : (
-            <button disabled>No calculation yet</button>
-          )}
+          <button
+            disabled={
+              pilot.busy ||
+              state.wallet.availableCents <= 0 ||
+              state.officer.bankingStatus !== "verified"
+            }
+            onClick={() => setWithdrawalOpen(true)}
+          >
+            {pilot.busy
+              ? "Submitting…"
+              : state.wallet.availableCents > 0
+                ? "Withdraw available balance"
+                : "Nothing available"}
+          </button>
         </div>
         <p className="earnings-disclaimer">
-          This public example uses synthetic work and a synthetic policy version.
-          In production, LOKD will calculate payroll from approved time under the
-          effective policy, then issue a payslip and separate settlement evidence.
+          The balances are earned-pay records, never credit against future work.
+          This public example is synthetic; production withdrawals remain locked
+          until the controlled settlement activation is approved.
         </p>
       </article>
       <section className="officer-section-card payroll-statements-v2">
@@ -1632,6 +1654,59 @@ function OfficerEarnings({ state }: { state: PilotState }) {
               </a>
               {selectedStatement.runStatus === "approved_for_export" && <a href={shadowPayslipHref(selectedStatement.id)} download>Download shadow payslip</a>}
             </footer>
+          </section>
+        </div>
+      )}
+      {withdrawalOpen && (
+        <div
+          className="drawer-backdrop officer-modal-backdrop"
+          onMouseDown={() => setWithdrawalOpen(false)}
+        >
+          <section
+            className="officer-confirm-modal withdrawal-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="withdrawal-confirm-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              aria-label="Close withdrawal confirmation"
+              onClick={() => setWithdrawalOpen(false)}
+            >
+              ×
+            </button>
+            <p className="eyebrow">Available earnings</p>
+            <h2 id="withdrawal-confirm-title">
+              Withdraw {money(state.wallet.availableCents)}?
+            </h2>
+            <p>
+              The full available balance will move to Withdrawal processing.
+              Awaiting approval earnings will remain untouched.
+            </p>
+            <dl>
+              <div>
+                <dt>Payout account</dt>
+                <dd>{state.officer.bankingStatus}</dd>
+              </div>
+              <div>
+                <dt>Awaiting approval</dt>
+                <dd>{money(state.wallet.pendingCents)}</dd>
+              </div>
+            </dl>
+            <div className="offer-confirm-note">
+              <span>i</span>
+              <p>
+                This records a synthetic withdrawal request only. No bank,
+                payroll settlement or card instruction is issued in pre-launch.
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button onClick={() => setWithdrawalOpen(false)}>Cancel</button>
+              <button disabled={pilot.busy} onClick={() => void requestWithdrawal()}>
+                {pilot.busy ? "Submitting…" : "Confirm withdrawal"}
+              </button>
+            </div>
           </section>
         </div>
       )}

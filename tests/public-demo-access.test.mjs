@@ -49,11 +49,12 @@ test("unassigned signed-in visitors fall back to public demo without gaining pro
   );
 });
 
-test("the new client and Operations hosts require real sign-in and configured roles", () => {
+test("the client, officer and Operations hosts require real sign-in and configured roles", () => {
   env.LOKD_APP_STAGE = "demo";
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({
     owners: ["owner@lokd.example"],
     clients: { "client@lokd.example": "CL-001" },
+    officers: { "officer@lokd.example": "OFF-001" },
   });
 
   assert.throws(
@@ -66,6 +67,16 @@ test("the new client and Operations hosts require real sign-in and configured ro
     }), "operations"),
     /does not have access/i,
   );
+  assert.throws(
+    () => runtime.requirePilotApiRole(new Request("https://officers.lokd.co.za/api/pilot?scope=officer"), "officer"),
+    /Sign in/i,
+  );
+  assert.throws(
+    () => runtime.requirePilotApiRole(new Request("https://officers.lokd.co.za/api/pilot?scope=client", {
+      headers: { "oai-authenticated-user-email": "client@lokd.example" },
+    }), "client"),
+    /correct LOKD workspace/i,
+  );
 
   const client = runtime.requirePilotApiRole(new Request("https://portal.lokd.co.za/api/pilot?scope=client", {
     headers: { "oai-authenticated-user-email": "client@lokd.example" },
@@ -75,4 +86,8 @@ test("the new client and Operations hosts require real sign-in and configured ro
     headers: { "oai-authenticated-user-email": "owner@lokd.example" },
   }), "operations");
   assert.equal(owner.owner, true);
+  const officer = runtime.requirePilotApiRole(new Request("https://officers.lokd.co.za/api/pilot?scope=officer", {
+    headers: { "oai-authenticated-user-email": "officer@lokd.example" },
+  }), "officer");
+  assert.equal(officer.officerId, "OFF-001");
 });

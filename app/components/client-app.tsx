@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ServiceType } from "../lib/pilot-types";
 import {
@@ -20,6 +19,12 @@ import {
   type RosterPattern,
 } from "../lib/pilot-pricing";
 import { usePilot } from "../lib/use-pilot";
+import {
+  CLIENT_PORTAL_URL,
+  OFFICER_PORTAL_URL,
+  OPERATIONS_PORTAL_URL,
+  PUBLIC_SITE_URL,
+} from "../lib/public-site";
 
 const serviceOptions = (Object.keys(servicePriceBook) as ServiceType[]).map(
   (name) => ({ name, ...servicePriceBook[name] }),
@@ -253,9 +258,9 @@ export default function ClientApp() {
     return (
       <main className="portal-shell client-shell">
         <header className="portal-header client-header">
-          <Link href="/" className="portal-logo">
+          <a href={PUBLIC_SITE_URL} className="portal-logo">
             <img src="/lokd-logo.png" alt="LOKD" />
-          </Link>
+          </a>
         </header>
         <section className="portal-page client-page">
           <div className="officer-loading">
@@ -272,15 +277,15 @@ export default function ClientApp() {
   return (
     <main className="portal-shell client-shell">
       <header className="portal-header client-header">
-        <Link href="/" className="portal-logo">
+        <a href={PUBLIC_SITE_URL} className="portal-logo">
           <img src="/lokd-logo.png" alt="LOKD" />
-        </Link>
+        </a>
         <div className="portal-role-switch">
-          <Link href="/ops">Ops</Link>
-          <Link href="/officer">Officer</Link>
-          <Link className="active" href="/client">
+          <a href={OPERATIONS_PORTAL_URL}>Ops</a>
+          <a href={OFFICER_PORTAL_URL}>Officer</a>
+          <a className="active" href={CLIENT_PORTAL_URL}>
             Client
-          </Link>
+          </a>
         </div>
         <div className="client-account">
           <span>
@@ -470,7 +475,7 @@ export default function ClientApp() {
               <span>Connected booking pipeline</span>
               <strong>Your new coverage requests</strong>
             </div>
-            <a href="/ops">Open Operations →</a>
+            <a href={OPERATIONS_PORTAL_URL}>Open Operations →</a>
           </div>
           {demoBookings.length ? (
             demoBookings.map((booking) => (

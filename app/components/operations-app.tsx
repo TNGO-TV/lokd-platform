@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { projectGautengCoordinate } from "../lib/operations-core";
 import type {
@@ -18,6 +17,12 @@ import { usePilot } from "../lib/use-pilot";
 import WorkspaceView from "./workspace-view";
 import { PlatformReadiness } from "./platform-readiness";
 import ClientEnquiriesView from "./client-enquiries-view";
+import {
+  CLIENT_PORTAL_URL,
+  OFFICER_PORTAL_URL,
+  OPERATIONS_PORTAL_URL,
+  PUBLIC_SITE_URL,
+} from "../lib/public-site";
 
 const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officer conversions", "Officers", "Clients", "Client enquiries", "Service requests", "Timesheets", "Payroll", "Billing", "Operator controls", "Integrations", "Feedback", "Launch readiness"];
 
@@ -128,10 +133,10 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
   return (
     <main className="app-shell ops-premium-shell">
       <aside className="side-rail">
-        <Link className="brand-lockup" href="/" aria-label="LOKD home"><img src="/lokd-logo-reverse.png" alt="LOKD" /></Link>
+        <a className="brand-lockup" href={PUBLIC_SITE_URL} aria-label="LOKD home"><img src="/lokd-logo-reverse.png" alt="LOKD" /></a>
         <div className="pilot-chip"><span className="pulse-dot" /><span><strong>Johannesburg pilot</strong>Operations command · Synthetic</span></div>
         <div className="experience-switcher" aria-label="Preview experience">
-          <a className="experience-active" href="/ops">Ops</a><a href="/officer">Officer</a><a href="/client">Client</a>
+          <a className="experience-active" href={OPERATIONS_PORTAL_URL}>Ops</a><a href={OFFICER_PORTAL_URL}>Officer</a><a href={CLIENT_PORTAL_URL}>Client</a>
         </div>
         <nav aria-label="LOKD operations">
           <p className="nav-label">Workspace</p>
@@ -146,25 +151,25 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
           </button>)}
         </nav>
         <div className="rail-footer"><div className="avatar avatar--dark">Z</div><span><strong>Operations</strong>{actorEmail}</span><button aria-label="Account and access status" aria-expanded={accountOpen} onClick={() => setAccountOpen((value) => !value)}>•••</button></div>
-        {accountOpen && <aside className="ops-account-popover"><header><strong>Operations access</strong><button aria-label="Close account details" onClick={() => setAccountOpen(false)}>×</button></header><dl><div><dt>Signed in as</dt><dd>{actorEmail}</dd></div><div><dt>Current role</dt><dd>Operations owner</dd></div><div><dt>Environment</dt><dd>{stage} · synthetic</dd></div></dl><p>Version 29 enforces role limits, recent MFA, maker/checker controls and shadow-payroll settlement locks. Production identity and step-up MFA are still activation gates.</p><nav aria-label="Switch pilot workspace"><Link href="/client">Client workspace</Link><Link href="/officer">Officer workspace</Link></nav></aside>}
+        {accountOpen && <aside className="ops-account-popover"><header><strong>Operations access</strong><button aria-label="Close account details" onClick={() => setAccountOpen(false)}>×</button></header><dl><div><dt>Signed in as</dt><dd>{actorEmail}</dd></div><div><dt>Current role</dt><dd>Operations owner</dd></div><div><dt>Environment</dt><dd>{stage} · synthetic</dd></div></dl><p>Version 31 preserves role limits, recent MFA, maker/checker controls and shadow-payroll settlement locks. Production identity and step-up MFA are still activation gates.</p><nav aria-label="Switch pilot workspace"><a href={CLIENT_PORTAL_URL}>Client workspace</a><a href={OFFICER_PORTAL_URL}>Officer workspace</a></nav></aside>}
       </aside>
 
       <section className="main-stage">
         <header className="top-bar ops-command-topbar">
-          <Link className="mobile-brand" href="/" aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></Link>
+          <a className="mobile-brand" href={PUBLIC_SITE_URL} aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></a>
           <div className="breadcrumb"><span>Operations</span><b>/</b><strong>{activeNav}</strong></div>
           <div className="top-actions">
             <button className="icon-button" aria-label="Search" aria-expanded={searchOpen} onClick={() => { setSearchOpen((value) => !value); setNotificationsOpen(false); }}><Icon name="search" /></button>
             <button className="icon-button notification-button" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => { setNotificationsOpen((value) => !value); setSearchOpen(false); }}><span className="notification-dot" /><Icon name="bell" /></button>
             {isOperationalSurface ? <button className="primary-button ops-incident-button" onClick={() => setCreateIncidentOpen(true)}><Icon name="incident" /> Create incident</button>
-              : <Link className="primary-button" href="/client"><span>＋</span> Create booking</Link>}
+              : <a className="primary-button" href={CLIENT_PORTAL_URL}><span>＋</span> Create booking</a>}
           </div>
         </header>
         {searchOpen && <aside className="ops-top-popover ops-search-popover"><label><Icon name="search" /><input autoFocus value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search sites, officers or bookings" /></label><div>{searchQuery.trim() ? searchResults.length ? searchResults.map((item) => <button key={`${item.type}-${item.id}`} onClick={() => { setActiveNav(item.destination); setSearchOpen(false); }}><span>{item.type}</span><strong>{item.label}</strong><small>{item.id} · {item.detail}</small></button>) : <p>No matching connected records.</p> : <p>Search the current server-backed Operations picture.</p>}</div></aside>}
         {notificationsOpen && <aside className="ops-top-popover ops-notification-popover"><header><strong>Operations notifications</strong><button onClick={() => setNotificationsOpen(false)}>×</button></header><div><button onClick={() => { setActiveNav("Coverage"); setNotificationsOpen(false); }}><span className="tone-amber">Coverage</span><strong>{operations.state?.summary.arrivalWatch ?? 0} arrival or coverage item(s)</strong><small>Open the live synthetic roster queue</small></button><button onClick={() => { setActiveNav("Incidents"); setNotificationsOpen(false); }}><span className="tone-red">Incidents</span><strong>{operations.state?.summary.openIncidents ?? 0} open incident(s)</strong><small>Review ownership and SLA state</small></button><button onClick={() => { setActiveNav("Bookings"); setNotificationsOpen(false); }}><span className="tone-blue">Funding</span><strong>{pendingPayments} booking(s) before matching</strong><small>Risk or payment evidence still required</small></button></div></aside>}
 
         <div className="mobile-ops-controls">
-          <div className="mobile-experience-switcher" aria-label="Preview experience"><a className="active" href="/ops">Ops</a><a href="/officer">Officer</a><a href="/client">Client</a></div>
+          <div className="mobile-experience-switcher" aria-label="Preview experience"><a className="active" href={OPERATIONS_PORTAL_URL}>Ops</a><a href={OFFICER_PORTAL_URL}>Officer</a><a href={CLIENT_PORTAL_URL}>Client</a></div>
           <nav aria-label="LOKD operations mobile navigation">{navItems.map((item) => <button className={activeNav === item ? "active" : ""} key={item} onClick={() => setActiveNav(item)}>{item}</button>)}</nav>
         </div>
 

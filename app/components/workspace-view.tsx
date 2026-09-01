@@ -5,6 +5,7 @@ import type { PilotState } from "../lib/pilot-types";
 import type { OperationsCommandState } from "../lib/operations-types";
 import { usePilot } from "../lib/use-pilot";
 import { useOperations } from "../lib/use-operations";
+import { CLIENT_PORTAL_URL } from "../lib/public-site";
 
 const workspaceCopy: Record<string, { eyebrow: string; title: string; subtitle: string; action: string }> = {
   Bookings: { eyebrow: "Pre-funded client demand", title: "Booking control", subtitle: "The full contract payment must be received and confirmed before a booking can release officer offers.", action: "Create booking" },
@@ -46,11 +47,11 @@ export default function WorkspaceView({ name }: { name: string }) {
       const result = await pilot.runAction({ action: "reset_demo" });
       setMessage(result ? "Shared transaction demo reset. Applications and feedback were preserved." : "The demo could not be reset.");
     } else if (name === "Bookings") {
-      window.location.href = "/client";
+      window.location.href = CLIENT_PORTAL_URL;
     } else if (name === "Officers") {
       window.location.href = "/join";
     } else if (name === "Clients") {
-      window.location.href = "/client";
+      window.location.href = CLIENT_PORTAL_URL;
     } else if (name === "Offers") {
       const booking = pilot.state?.bookings.find((item) => item.fundingStatus === "paid_in_full" && ["matching", "partially_staffed"].includes(item.status));
       if (!booking) setMessage("No funded booking is waiting for another offer wave.");

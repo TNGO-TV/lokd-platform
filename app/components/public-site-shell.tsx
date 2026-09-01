@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { CLIENT_PORTAL_URL, OPERATIONS_PORTAL_URL } from "../lib/public-site";
+import {
+  CLIENT_PORTAL_URL,
+  OFFICER_PORTAL_URL,
+  OPERATIONS_PORTAL_URL,
+} from "../lib/public-site";
 
 export type PublicSection = "home" | "services" | "industries" | "clients" | "officers" | "about" | "contact";
 
@@ -36,7 +40,7 @@ export function PublicFooter() {
     <div className="public-footer-brand"><img src="/lokd-logo.png" alt="LOKD" /><p>Verified people. Controlled operations. Complete proof.</p></div>
     <nav aria-label="LOKD services"><strong>Explore</strong><Link href="/security-services">Security services</Link><Link href="/industries">Industries</Link><Link href="/locations/johannesburg">Johannesburg</Link><Link href="/clients">Client guide</Link></nav>
     <nav aria-label="LOKD company"><strong>LOKD</strong><Link href="/about">About</Link><Link href="/compliance">Compliance</Link><Link href="/training">Training</Link><Link href="/contact">Contact</Link></nav>
-    <nav aria-label="LOKD workspaces"><strong>Workspaces</strong><a href={CLIENT_PORTAL_URL}>Client portal</a><a href={OPERATIONS_PORTAL_URL}>Operations portal</a><Link href="/officer">Officer portal</Link><Link href="/join">Officer applications</Link></nav>
+    <nav aria-label="LOKD workspaces"><strong>Workspaces</strong><a href={CLIENT_PORTAL_URL}>Client portal</a><a href={OFFICER_PORTAL_URL}>Officer portal</a><a href={OPERATIONS_PORTAL_URL}>Operations portal</a><Link href="/join">Officer applications</Link></nav>
     <small>© 2026 LOKD · Gauteng controlled launch · No credit terms · Cleared advance funding is required before matching or deployment · <Link href="/privacy">Privacy notice</Link></small>
   </footer>;
 }

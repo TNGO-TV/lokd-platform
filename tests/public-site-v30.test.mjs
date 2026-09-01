@@ -6,10 +6,14 @@ import sitemap from "../app/sitemap.ts";
 import {
   canonicalUrl,
   isClientPortalHost,
+  isOfficerPortalHost,
   isOperationsPortalHost,
+  OFFICER_PORTAL_URL,
   PUBLIC_SITE_URL,
   PUBLIC_SITEMAP_PATHS,
   requestHostname,
+  workspaceRedirectForHost,
+  workspaceRoleForHost,
 } from "../app/lib/public-site.ts";
 
 test("public sitemap uses one canonical host and includes the launch search pages", () => {
@@ -33,10 +37,23 @@ test("robots keeps public client and officer content crawlable while excluding p
   assert.equal(disallow.includes("/officer"), false, "blocking /officer also blocks the public /officers prefix");
 });
 
-test("custom host routing recognises the two strict authenticated portal domains", () => {
+test("custom host routing recognises all three strict authenticated workspaces", () => {
   assert.equal(requestHostname("PORTAL.LOKD.CO.ZA:443"), "portal.lokd.co.za");
   assert.equal(isClientPortalHost("portal.lokd.co.za"), true);
+  assert.equal(isOfficerPortalHost("officers.lokd.co.za"), true);
   assert.equal(isOperationsPortalHost("operations.lokd.co.za"), true);
+  assert.equal(workspaceRoleForHost("portal.lokd.co.za"), "client");
+  assert.equal(workspaceRoleForHost("officers.lokd.co.za"), "officer");
+  assert.equal(workspaceRoleForHost("operations.lokd.co.za"), "operations");
   assert.equal(isClientPortalHost("demo.lokd.co.za"), false);
+  assert.equal(isOfficerPortalHost("demo.lokd.co.za"), false);
   assert.equal(isOperationsPortalHost("demo.lokd.co.za"), false);
+});
+
+test("known public and mismatched portal hosts route to the requested workspace", () => {
+  assert.equal(workspaceRedirectForHost("lokd.co.za", "officer"), OFFICER_PORTAL_URL);
+  assert.equal(workspaceRedirectForHost("portal.lokd.co.za", "officer"), OFFICER_PORTAL_URL);
+  assert.equal(workspaceRedirectForHost("officers.lokd.co.za", "officer"), null);
+  assert.equal(workspaceRedirectForHost("demo.lokd.co.za", "officer"), null);
+  assert.equal(workspaceRedirectForHost("lokd-security.example.chatgpt.site", "officer"), null);
 });
