@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 
 const siteTypes = new Set(["commercial_property", "logistics_industrial", "construction", "residential_estate", "education", "retail", "other"]);
 const startWindows = new Set(["within_30_days", "one_to_three_months", "three_to_six_months", "planning"]);
+const serviceTypes = new Set(["scheduled_unarmed_fixed_site", "armed_static", "armed_movement", "vip_unarmed", "vip_armed", "vip_protective_driver", "vip_team"]);
 const privacyNoticeVersion = "client-enquiry-2026-09-01-v1";
 
 class EnquiryError extends Error {
@@ -78,6 +79,10 @@ export async function POST(request: Request) {
     if (!siteTypes.has(siteType)) throw new EnquiryError("Choose a valid site type.");
     const requiredStart = clean(input.requiredStart, "Required start", 3, 40);
     if (!startWindows.has(requiredStart)) throw new EnquiryError("Choose a valid planning window.");
+    const serviceType = typeof input.serviceType === "string" && input.serviceType
+      ? clean(input.serviceType, "Security service", 3, 60)
+      : "scheduled_unarmed_fixed_site";
+    if (!serviceTypes.has(serviceType)) throw new EnquiryError("Choose a valid security service.");
     const message = clean(input.message, "Site brief", 20, 2_000);
     if (input.advanceFundingAcknowledged !== true) throw new EnquiryError("Confirm that LOKD offers no credit terms and requires cleared advance funding.");
     if (input.privacyConsent !== true) throw new EnquiryError("Consent is required to save and respond to this enquiry.");
@@ -101,14 +106,14 @@ export async function POST(request: Request) {
          site_type, required_start, message, service_type, funding_model, credit_terms_days,
          privacy_notice_version, privacy_acknowledged_at, status, owner_id, resolution,
          environment, integrity_state, retention_review_at, created_at, updated_at, version)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled_unarmed_fixed_site', 'advance_only', 0,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'advance_only', 0,
          ?, ?, 'new', NULL, NULL, 'prelaunch', 'user_submitted', ?, ?, ?, 1)`)
         .bind(id, organisationName, contactName, emailNormalized, mobileNormalized, siteArea,
-          siteType, requiredStart, message, privacyNoticeVersion, nowIso, retention.toISOString(), nowIso, nowIso),
+          siteType, requiredStart, message, serviceType, privacyNoticeVersion, nowIso, retention.toISOString(), nowIso, nowIso),
       db.prepare(`INSERT INTO audit_events
         (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
         VALUES (?, 'client_enquiry', ?, 'public_client_enquiry_submitted', 'client_enquiry', ?,
-         'A public Phase 1 site enquiry was received. No quotation, booking, credit or deployment was created.', ?)`)
+         'A public service enquiry was received. No quotation, booking, credit or deployment was created.', ?)`)
         .bind(`AUD-${crypto.randomUUID()}`, id, id, nowIso),
     ]);
     return reply({ reference: id }, 202);
@@ -121,7 +126,7 @@ export async function GET(request: Request) {
     const result = await getDb().prepare(`SELECT id, organisation_name AS organisationName,
       contact_name AS contactName, email_normalized AS email, mobile_normalized AS mobile,
       site_area AS siteArea, site_type AS siteType, required_start AS requiredStart,
-      message, status, owner_id AS ownerId, resolution, created_at AS createdAt,
+      service_type AS serviceType, message, status, owner_id AS ownerId, resolution, created_at AS createdAt,
       updated_at AS updatedAt, version FROM client_enquiries
       WHERE environment = 'prelaunch' AND integrity_state = 'user_submitted'
       ORDER BY CASE status WHEN 'new' THEN 1 WHEN 'triaged' THEN 2 ELSE 3 END, created_at DESC LIMIT 100`)

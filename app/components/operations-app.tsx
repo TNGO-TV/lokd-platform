@@ -19,13 +19,18 @@ import { PlatformReadiness } from "./platform-readiness";
 import ClientEnquiriesView from "./client-enquiries-view";
 import { OnboardingControl } from "./onboarding-control";
 import {
+  indicativeSingleShiftPrice,
+  specialistProfiles,
+  type SpecialistServiceCode,
+} from "../lib/specialist-pricing";
+import {
   CLIENT_PORTAL_URL,
   OFFICER_PORTAL_URL,
   OPERATIONS_PORTAL_URL,
   PUBLIC_SITE_URL,
 } from "../lib/public-site";
 
-const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Offers", "Applications", "Workforce", "Officer conversions", "Officers", "Clients", "Client enquiries", "Onboarding", "Service requests", "Timesheets", "Payroll", "Billing", "Operator controls", "Integrations", "Feedback", "Launch readiness"];
+const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Specialist pricing", "Offers", "Applications", "Workforce", "Officer conversions", "Officers", "Clients", "Client enquiries", "Onboarding", "Service requests", "Timesheets", "Payroll", "Billing", "Operator controls", "Integrations", "Feedback", "Launch readiness"];
 
 function Icon({ name }: { name: "search" | "bell" | "refresh" | "incident" | "close" | "chevron" | "map" }) {
   const paths: Record<typeof name, React.ReactNode> = {
@@ -105,12 +110,13 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
   const isWorkforce = activeNav === "Workforce";
   const isOfficerConversion = activeNav === "Officer conversions";
   const isClientEnquiries = activeNav === "Client enquiries";
+  const isSpecialistPricing = activeNav === "Specialist pricing";
   const isOnboarding = activeNav === "Onboarding";
   const isLaunchReadiness = activeNav === "Launch readiness";
   const isPlatform = activeNav === "Integrations" || activeNav === "Service requests"
     || activeNav === "Timesheets" || activeNav === "Payroll" || activeNav === "Billing"
     || activeNav === "Operator controls";
-  const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isOfficerConversion || isClientEnquiries || isOnboarding || isLaunchReadiness || isPlatform;
+  const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isOfficerConversion || isClientEnquiries || isSpecialistPricing || isOnboarding || isLaunchReadiness || isPlatform;
   const pendingPayments = pilot.state?.bookings.filter((booking) => booking.fundingStatus !== "paid_in_full").length ?? 0;
   const searchResults = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -149,6 +155,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
             {item === "Bookings" && pendingPayments > 0 && <em className="nav-warning">{pendingPayments}</em>}
             {item === "Applications" && <em>New</em>}
             {item === "Client enquiries" && <em>Web</em>}
+            {item === "Specialist pricing" && <em>V33</em>}
             {item === "Onboarding" && <em>V32</em>}
             {item === "Feedback" && <em>Team</em>}
           </button>)}
@@ -188,6 +195,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
             : isWorkforce ? <WorkforceControl operations={operations} />
               : isOfficerConversion ? <OfficerConversionControl operations={operations} flash={flash} />
                 : isClientEnquiries ? <ClientEnquiriesView flash={flash} />
+                  : isSpecialistPricing ? <SpecialistPricingControl state={pilot.state} />
                   : isOnboarding ? <OnboardingControl flash={flash} />
               : isLaunchReadiness ? <LaunchReadinessControl operations={operations} />
                 : isPlatform ? <PlatformReadiness view={activeNav as "Integrations" | "Service requests" | "Timesheets" | "Payroll" | "Billing" | "Operator controls"} flash={flash} />
@@ -202,6 +210,50 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
     </main>
   );
+}
+
+function SpecialistPricingControl({ state }: { state: ReturnType<typeof usePilot>["state"] }) {
+  const serviceCodes = Object.keys(specialistProfiles).filter(
+    (code) => code !== "standard_unarmed",
+  ) as SpecialistServiceCode[];
+  const actual = state?.bookings.filter((booking) =>
+    booking.serviceType === "Armed" || booking.serviceType === "VIP",
+  ) ?? [];
+  return <>
+    <section className="command-heading specialist-pricing-heading">
+      <div><p className="eyebrow">Versioned commercial control</p><h1>Armed &amp; VIP pricing</h1><p>Cost floor first, minimum margin second, 15% VAT third. Cleared VAT-inclusive funding remains the final commercial gate.</p></div>
+      <span className="specialist-policy-chip">LOKD-SPECIALIST-2026.09-v1</span>
+    </section>
+    <section className="specialist-pricing-summary">
+      <article><span>VAT</span><strong>15%</strong><small>SARS standard rate</small></article>
+      <article><span>Armed margin floor</span><strong>30–32%</strong><small>Ex-VAT revenue</small></article>
+      <article><span>VIP margin floor</span><strong>35–38%</strong><small>Ex-VAT revenue</small></article>
+      <article><span>Credit days</span><strong>0</strong><small>Cleared advance only</small></article>
+    </section>
+    <section className="specialist-model-grid">
+      {serviceCodes.map((code) => {
+        const profile = specialistProfiles[code];
+        const price = indicativeSingleShiftPrice(code);
+        return <article key={code} className={`specialist-model-card service-${profile.serviceType.toLowerCase()}`}>
+          <header><span>{profile.serviceType}</span><em>{profile.minimumTeamSize} operator{profile.minimumTeamSize === 1 ? "" : "s"}</em></header>
+          <h2>{profile.label}</h2><p>{profile.description}</p>
+          <dl><div><dt>Indicative subtotal</dt><dd>{formatZar(price.subtotalCents)}</dd></div><div><dt>VAT</dt><dd>{formatZar(price.vatCents)}</dd></div><div><dt>Client total</dt><dd>{formatZar(price.totalCents)}</dd></div><div><dt>Cost floor</dt><dd>{formatZar(price.costFloorCents)}</dd></div><div><dt>Margin</dt><dd>{(price.marginBasisPoints / 100).toFixed(1)}%</dd></div></dl>
+          <small>Ordinary single shift · minimum planning · no supplier vehicle · Operations review required before payment</small>
+        </article>;
+      })}
+    </section>
+    <section className="specialist-margin-register">
+      <header><div><p className="eyebrow">Quote register</p><h2>Specialist margin decisions</h2></div><span>{actual.length} specialist booking{actual.length === 1 ? "" : "s"}</span></header>
+      {actual.length ? actual.map((booking) => <article key={booking.id}>
+        <span><strong>{booking.id} · {booking.specialistServiceCode.replaceAll("_", " ")}</strong><small>{booking.siteName} · {booking.headcount} position{booking.headcount === 1 ? "" : "s"} · {booking.shiftCount} shifts</small></span>
+        <span><strong>{formatZar(booking.subtotalCents)}</strong><small>Ex VAT · {formatZar(booking.vatCents)} VAT</small></span>
+        <span><strong>{formatZar(booking.pricingInternal?.costFloorCents ?? 0)}</strong><small>Controlled cost floor</small></span>
+        <span><strong>{((booking.pricingInternal?.marginBasisPoints ?? 0) / 100).toFixed(1)}%</strong><small>Minimum {((booking.pricingInternal?.minimumMarginBasisPoints ?? 0) / 100).toFixed(1)}%</small></span>
+        <em className={`pill ${booking.pricingStatus === "authoritative" ? "tone-green" : "tone-amber"}`}>{booking.pricingStatus.replaceAll("_", " ")}</em>
+      </article>) : <div className="clean-state"><span>i</span><div><strong>No specialist quote has been submitted</strong><p>The reference models above are active. A client configuration will appear here with its exact cost-floor decision.</p></div></div>}
+    </section>
+    <section className="specialist-pricing-boundary"><strong>Fail-closed pricing boundary</strong><p>Supplier estimates, armoured vehicles, overnight work or missing readiness evidence force Operations review. A discount can never reduce the quote below its stored cost floor or margin requirement, and no offer can release against an ex-VAT or partially funded amount.</p></section>
+  </>;
 }
 
 function CommandCentre({ operations, incidentFocus, openIncident, flash }: {
@@ -663,7 +715,7 @@ function SiteDrawer({ site, incident, events, busy, resolutionNote, setResolutio
     <div className="site-drawer-heading"><span className={`site-state-symbol tone-${stateTone(site.state)}`} /><div><p className="eyebrow">{site.area} · {site.stateLabel}</p><h2 id="site-drawer-title">{site.name}</h2><p>{site.clientName}</p></div></div>
     <div className={`detail-status detail-status--${site.state === "attention" || site.state === "critical" ? "attention" : site.state === "scheduled" ? "confirmed" : "on-post"}`}><span className={`site-state-symbol tone-${stateTone(site.state)}`} />{site.nextAction}</div>
     <dl className="detail-list site-command-facts">
-      <div><dt>Site address</dt><dd>{site.addressLabel}</dd></div><div><dt>Risk and service</dt><dd>{site.riskBand} · {site.serviceType} · Phase 1 scheduled post</dd></div>
+      <div><dt>Site address</dt><dd>{site.addressLabel}</dd></div><div><dt>Risk and service</dt><dd>{site.riskBand} · {site.serviceType} · controlled assignment</dd></div>
       <div><dt>Current officer</dt><dd>{site.deployment.officerName ?? "No officer assigned"}</dd></div><div><dt>Shift and post</dt><dd>{site.deployment.postName ?? "No active post"} · {site.deployment.shiftStart ?? "—"}–{site.deployment.shiftEnd ?? "—"}</dd></div>
       <div><dt>LOKD Passport</dt><dd>{site.deployment.passportStatus ? `Passport ${site.deployment.passportStatus}` : "Passport test record not connected"}</dd></div><div><dt>Attendance evidence</dt><dd>{site.latestSignal ? `${site.latestSignal.type.replaceAll("_", " ")} · ${site.latestSignal.ageMinutes}m old · ${site.latestSignal.accuracyMeters ?? "—"}m stated accuracy` : "No signal available"}</dd></div>
       <div><dt>Geofence control</dt><dd>{site.geofenceRadiusMeters}m · Version {site.geofenceVersion} · synthetic data only</dd></div><div><dt>Open controls</dt><dd>{site.openIncidentCount} incident · {site.openExceptionCount} exception</dd></div>

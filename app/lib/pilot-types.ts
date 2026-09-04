@@ -1,3 +1,8 @@
+import type {
+  SpecialistConfiguration,
+  SpecialistServiceCode,
+} from "./specialist-pricing";
+
 export type ServiceType = "Unarmed" | "Armed" | "VIP";
 export type EngagementModel = "fixed" | "flex";
 export type RosterPattern = "weekdays" | "monday_saturday" | "daily";
@@ -175,6 +180,35 @@ export type PilotBooking = {
     calendarPremiumCents: number;
     dispatchPremiumCents: number;
     riskPremiumCents: number;
+    marginFloorAdjustmentCents: number;
+    subtotalCents: number;
+    vatCents: number;
+    payrollBurdenCents: number;
+    readinessAndEquipmentCents: number;
+    commandAndSupervisionCents: number;
+    planningCents: number;
+    travelCents: number;
+    vehicleAndPartnerCents: number;
+    overnightCents: number;
+  };
+  specialistServiceCode: SpecialistServiceCode;
+  specialistConfiguration: SpecialistConfiguration;
+  subtotalCents: number;
+  vatCents: number;
+  vatRateBasisPoints: number;
+  pricingStatus: "authoritative" | "partner_review_required";
+  pricingInternal?: {
+    costFloorCents: number;
+    marginCents: number;
+    marginBasisPoints: number;
+    minimumMarginBasisPoints: number;
+    payrollBurdenCents: number;
+    readinessAndEquipmentCents: number;
+    commandAndSupervisionCents: number;
+    planningCents: number;
+    travelCents: number;
+    vehicleAndPartnerCents: number;
+    overnightCents: number;
   };
   minimumGrade: string;
   contractMonths: number;
@@ -272,6 +306,7 @@ export type PilotAction =
         nightOperation: boolean;
         vulnerablePeople: boolean;
       };
+      specialistConfiguration: SpecialistConfiguration;
       startDate: string;
       shift: "day" | "night";
       postName: string;

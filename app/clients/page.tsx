@@ -60,9 +60,9 @@ const faqs = [
   ["Does better training guarantee that a loss will not occur?", "No security service can guarantee that crime, injury or loss will never occur. Better preparation, suitable matching, clear duties, supervision and timely escalation are intended to reduce avoidable operational failures."],
   ["How do Sundays and public holidays affect pricing?", "The quotation will state the client-facing calendar category. Employment and payroll treatment must follow the applicable law and sector collective agreement; any separate Easter or Christmas commercial scarcity premium will be identified clearly in the client quotation."],
   ["When would the client pay?", "Before matching or activation. LOKD offers no credit terms and does not finance client security services. The production service will use an approved quotation, service agreement and valid invoice with the applicable VAT or tax treatment stated, and the full required payment must clear first. The current demo cannot take or verify real payment."],
-  ["How much mobilisation time is required?", "Phase 1 is a scheduled fixed-site service, not immediate dispatch. The final lead time will depend on site approval, post orders, induction, roster capacity and funding. LOKD will not compress those controls merely to accept a booking."],
+  ["How much mobilisation time is required?", "The final lead time depends on the service, assessment, approved orders or movement plan, officer readiness, equipment, partner capacity, roster capacity and funding. LOKD will not compress those controls merely to accept a booking."],
   ["What if the site or duties change?", "A material change in hours, people, assets, hazards, duties or access can change the risk and price. LOKD will reassess and agree the revised scope before an officer is instructed to perform it."],
-  ["Can I book Armed, VIP or immediate Flex cover now?", "Not in Phase 1. The first controlled service is scheduled Unarmed fixed-site guarding in one Gauteng operating area. Armed, VIP, high-risk and Flex services remain future, separately gated products."],
+  ["Can I request Armed, VIP or immediate Flex cover now?", "You can request and configure Armed or VIP protection for Operations assessment. They are not instant-booking products: legal authority, competency, insurance, equipment or partner evidence, the assignment plan, margin and cleared advance funding must pass separately. Immediate Flex remains capacity- and control-gated."],
 ];
 
 export default function ClientGuidePage() {
@@ -78,19 +78,19 @@ export default function ClientGuidePage() {
           <p>LOKD is not designed to send the cheapest available person to a post. The production model will understand the risk, define the job properly, deploy an eligible and purpose-ready officer, manage the shift and give the client evidence of delivery.</p>
           <div className="public-hero-actions">
             <a className="public-button public-button--lime" href="#journey">Follow the client journey <b>↓</b></a>
-            <a className="public-button public-button--outline" href="#phase-one">See Phase 1 scope <b>→</b></a>
+            <a className="public-button public-button--outline" href="#launch-scope">See launch scope <b>→</b></a>
           </div>
         </div>
-        <aside className="client-guide-snapshot" aria-label="LOKD Phase 1 snapshot">
-          <span>PHASE 1 · CONTROLLED PILOT</span>
-          <h2>Scheduled Unarmed fixed-site security</h2>
+        <aside className="client-guide-snapshot" aria-label="LOKD controlled launch snapshot">
+          <span>CONTROLLED JOHANNESBURG LAUNCH</span>
+          <h2>Unarmed · Armed · VIP</h2>
           <dl>
             <div><dt>Operating area</dt><dd>One approved Gauteng area</dd></div>
             <div><dt>Service model</dt><dd>LOKD contracts and operates</dd></div>
             <div><dt>Officer model</dt><dd>LOKD directly or an approved compliant TES</dd></div>
             <div><dt>Activation</dt><dd>Blocked until launch gates pass</dd></div>
           </dl>
-          <p>Armed, VIP, high-risk and on-demand Flex work remain outside the first paid pilot.</p>
+          <p>The first paid pilot remains deliberately narrow. Armed and VIP requests use separate assessment, pricing, evidence and activation gates.</p>
         </aside>
       </section>
 
@@ -137,15 +137,15 @@ export default function ClientGuidePage() {
           <h2>“Unarmed” does not mean “one standard fits all.”</h2>
         </div>
         <div className="client-scenario-grid">
-          <article><span>SAFEGUARDING-SENSITIVE EXAMPLE</span><h3>School access post</h3><p>Potentially Unarmed, but the safeguarding exposure makes visitor control, communication and child-sensitive conduct mandatory.</p><em>Enhanced review · may fit Phase 1</em></article>
-          <article><span>CONTROLLED COMMERCIAL EXAMPLE</span><h3>Office or industrial access</h3><p>Post orders may include visitor checks, vehicle control, keys, perimeter observations and escalation procedures.</p><em>Phase 1 may be suitable after review</em></article>
-          <article><span>HIGHER-RISK EXAMPLE</span><h3>Jewellery or high-value retail</h3><p>High-value stock, public access and robbery exposure may require a specialist plan or service outside Unarmed Phase 1.</p><em>Manual review · may be declined</em></article>
+          <article><span>SAFEGUARDING-SENSITIVE EXAMPLE</span><h3>School access post</h3><p>Potentially Unarmed, but the safeguarding exposure makes visitor control, communication and child-sensitive conduct mandatory.</p><em>Enhanced review required</em></article>
+          <article><span>CONTROLLED COMMERCIAL EXAMPLE</span><h3>Office or industrial access</h3><p>Post orders may include visitor checks, vehicle control, keys, perimeter observations and escalation procedures.</p><em>May suit scheduled Unarmed</em></article>
+          <article><span>HIGHER-RISK EXAMPLE</span><h3>Jewellery or high-value retail</h3><p>High-value stock, public access and robbery exposure may require separately controlled Armed static or movement protection.</p><em>Specialist review · may be declined</em></article>
         </div>
       </section>
 
-      <section className="client-phase-section" id="phase-one">
-        <div><p className="public-kicker">Phase 1 boundary</p><h2>Start narrow. Prove the standard.</h2><p>The first paid pilot is deliberately limited so LOKD can prove lawful employment, dependable coverage, client service and evidence quality before adding complexity.</p></div>
-        <div className="phase-scope-grid"><article><span>IN</span><strong>Scheduled Unarmed fixed-site posts</strong><p>Approved clients, sites, post orders, rosters and employed officers in one Gauteng operating area.</p></article><article><span>NOT YET</span><strong>Armed, VIP, immediate Flex and high-risk work</strong><p>Each requires separate regulatory, competency, insurance, equipment and operating controls.</p></article></div>
+      <section className="client-phase-section" id="launch-scope">
+        <div><p className="public-kicker">Controlled launch boundary</p><h2>One platform. Separate activation gates.</h2><p>LOKD can assess and price three service categories, while the first paid pilot remains deliberately limited. Armed and VIP activation never rides on an Unarmed approval.</p></div>
+        <div className="phase-scope-grid"><article><span>PILOT CORE</span><strong>Scheduled Unarmed fixed-site posts</strong><p>Approved clients, sites, post orders, rosters and employed officers in one Johannesburg operating area.</p></article><article><span>SPECIALIST GATE</span><strong>Armed and VIP protection</strong><p>Available for assessment and controlled quoting; deployment requires separate legal, competency, insurance, equipment, board and operating approval.</p></article></div>
       </section>
 
       <section className="client-duty-boundary">
@@ -157,7 +157,7 @@ export default function ClientGuidePage() {
         <div className="client-guide-heading client-guide-heading--light">
           <p className="public-kicker">How pricing works</p>
           <h2>Premium, explainable and never built on bidding officers down.</h2>
-          <p>LOKD&apos;s lawful loaded-cost floor must cover the real cost of a controlled deployment. Phase 1 is scheduled fixed-site work and does not use an immediate-dispatch multiplier. Any future Flex dispatch premium will be a separately governed product rule.</p>
+          <p>LOKD&apos;s lawful loaded-cost floor must cover the real cost of a controlled deployment. The Version 33 specialist models add role pay, statutory and employer burden, readiness, equipment, planning, command, movement, vehicles, overnight inputs and a service-specific minimum margin before VAT. Flex dispatch remains a separately governed premium.</p>
         </div>
         <div className="pricing-factor-grid">
           <article><span>01</span><strong>Rostered hours</strong><p>Number of posts, shifts, term and relief requirement.</p></article>
@@ -192,8 +192,8 @@ export default function ClientGuidePage() {
 
       <section className="client-guide-cta">
         <p className="public-kicker">Controlled Johannesburg launch</p>
-        <h2>Tell us about the site. We will tell you whether Phase 1 fits.</h2>
-        <p>Client enquiries are open for planned, scheduled Unarmed fixed-site security. An enquiry is not an accepted booking: LOKD reviews the site, post, mobilisation window, workforce capacity and production gates before making any service commitment.</p>
+        <h2>Tell us about the requirement. We will identify the controlled service fit.</h2>
+        <p>Client enquiries are open for planned Unarmed guarding, Armed site or movement protection and VIP protection. An enquiry is not an accepted booking: LOKD reviews the requirement, mobilisation window, authority, evidence, workforce capacity, price floor and production gates before making any service commitment.</p>
         <div><Link className="public-button public-button--lime" href="/contact">Request a security plan <b>→</b></Link><a className="public-button public-button--outline" href="https://portal.lokd.co.za">Client portal <b>→</b></a></div>
       </section>
       <PublicFooter />

@@ -21,7 +21,7 @@ test("public sitemap uses one canonical host and includes the launch search page
   assert.equal(entries.length, PUBLIC_SITEMAP_PATHS.length);
   assert.equal(new Set(entries.map((entry) => entry.url)).size, entries.length);
   for (const entry of entries) assert.equal(new URL(entry.url).origin, PUBLIC_SITE_URL);
-  for (const path of ["/security-services", "/industries", "/locations/johannesburg", "/clients", "/officers", "/contact"]) {
+  for (const path of ["/security-services", "/armed-security", "/vip-protection", "/industries", "/locations/johannesburg", "/clients", "/officers", "/contact"]) {
     assert.ok(entries.some((entry) => entry.url === canonicalUrl(path)), `${path} should be in the public sitemap`);
   }
 });

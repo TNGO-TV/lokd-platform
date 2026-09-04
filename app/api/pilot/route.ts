@@ -23,6 +23,11 @@ import {
   servicePriceBook,
 } from "../../lib/pilot-pricing";
 import {
+  defaultSpecialistConfiguration,
+  normalizeSpecialistConfiguration,
+  type SpecialistServiceCode,
+} from "../../lib/specialist-pricing";
+import {
   evaluateBookingReadiness,
   PILOT_PASSPORT_NUMBER,
   PILOT_PASSPORT_TOKEN,
@@ -1070,6 +1075,20 @@ function parsePricingBreakdown(value: string | null | undefined) {
       calendarPremiumCents: Number(parsed.calendarPremiumCents) || 0,
       dispatchPremiumCents: Number(parsed.dispatchPremiumCents) || 0,
       riskPremiumCents: Number(parsed.riskPremiumCents) || 0,
+      marginFloorAdjustmentCents:
+        Number(parsed.marginFloorAdjustmentCents) || 0,
+      subtotalCents: Number(parsed.subtotalCents) || 0,
+      vatCents: Number(parsed.vatCents) || 0,
+      payrollBurdenCents: Number(parsed.payrollBurdenCents) || 0,
+      readinessAndEquipmentCents:
+        Number(parsed.readinessAndEquipmentCents) || 0,
+      commandAndSupervisionCents:
+        Number(parsed.commandAndSupervisionCents) || 0,
+      planningCents: Number(parsed.planningCents) || 0,
+      travelCents: Number(parsed.travelCents) || 0,
+      vehicleAndPartnerCents:
+        Number(parsed.vehicleAndPartnerCents) || 0,
+      overnightCents: Number(parsed.overnightCents) || 0,
     };
   } catch {
     return {
@@ -1077,7 +1096,52 @@ function parsePricingBreakdown(value: string | null | undefined) {
       calendarPremiumCents: 0,
       dispatchPremiumCents: 0,
       riskPremiumCents: 0,
+      marginFloorAdjustmentCents: 0,
+      subtotalCents: 0,
+      vatCents: 0,
+      payrollBurdenCents: 0,
+      readinessAndEquipmentCents: 0,
+      commandAndSupervisionCents: 0,
+      planningCents: 0,
+      travelCents: 0,
+      vehicleAndPartnerCents: 0,
+      overnightCents: 0,
     };
+  }
+}
+
+function parseSpecialistConfiguration(
+  serviceType: ServiceType,
+  value: string | null | undefined,
+) {
+  try {
+    const parsed = JSON.parse(value ?? "{}") as Record<string, unknown>;
+    return normalizeSpecialistConfiguration(serviceType, {
+      serviceCode:
+        typeof parsed.serviceCode === "string"
+          ? (parsed.serviceCode as SpecialistServiceCode)
+          : undefined,
+      teamSize:
+        typeof parsed.teamSize === "number" ? parsed.teamSize : undefined,
+      vehicleClass:
+        typeof parsed.vehicleClass === "string"
+          ? (parsed.vehicleClass as never)
+          : undefined,
+      travelKmPerServiceDay:
+        typeof parsed.travelKmPerServiceDay === "number"
+          ? parsed.travelKmPerServiceDay
+          : undefined,
+      planningHours:
+        typeof parsed.planningHours === "number"
+          ? parsed.planningHours
+          : undefined,
+      overnightDays:
+        typeof parsed.overnightDays === "number"
+          ? parsed.overnightDays
+          : undefined,
+    });
+  } catch {
+    return defaultSpecialistConfiguration[serviceType];
   }
 }
 
@@ -1271,6 +1335,16 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
     grossPlatformContributionCents: number;
     pricingVersion: string;
     pricingBreakdownJson: string;
+    specialistServiceCode: SpecialistServiceCode;
+    specialistConfigurationJson: string;
+    subtotalCents: number;
+    vatCents: number;
+    vatRateBasisPoints: number;
+    costFloorCents: number;
+    marginCents: number;
+    marginBasisPoints: number;
+    minimumMarginBasisPoints: number;
+    pricingStatus: "authoritative" | "partner_review_required" | "legacy";
     minimumGrade: string;
     contractMonths: number;
     startDate: string;
@@ -1296,6 +1370,12 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
     b.shift_count AS shiftCount, b.officer_total_cents AS officerTotalCents,
     b.gross_platform_contribution_cents AS grossPlatformContributionCents, b.pricing_version AS pricingVersion,
     b.pricing_breakdown AS pricingBreakdownJson,
+    b.specialist_service_code AS specialistServiceCode,
+    b.specialist_configuration AS specialistConfigurationJson,
+    b.quote_subtotal_cents AS subtotalCents, b.vat_cents AS vatCents,
+    b.vat_rate_basis_points AS vatRateBasisPoints, b.cost_floor_cents AS costFloorCents,
+    b.margin_cents AS marginCents, b.margin_basis_points AS marginBasisPoints,
+    b.minimum_margin_basis_points AS minimumMarginBasisPoints, b.pricing_status AS pricingStatus,
     b.minimum_grade AS minimumGrade, b.contract_months AS contractMonths, b.start_date AS startDate,
     b.end_date AS endDate, b.shift_start AS shiftStart, b.shift_end AS shiftEnd,
     b.client_price_cents AS clientPriceCents, b.officer_rate_cents AS officerRateCents,
@@ -1316,7 +1396,6 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
         PILOT_OFFICER_ID,
         booking.id,
         {
-          assignmentDate: booking.startDate,
           requireServiceOptIn: true,
         },
       );
@@ -1338,15 +1417,42 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
         riskReasonsJson,
         requiredEndorsementsJson,
         pricingBreakdownJson,
+        specialistConfigurationJson,
         manualReview,
         ...bookingFields
       } = booking;
       const blockers = [...readiness.blockers, ...availabilityBlockers];
+      const pricingBreakdown = parsePricingBreakdown(pricingBreakdownJson);
       return {
         ...bookingFields,
         riskReasons: parseStringArray(riskReasonsJson),
         requiredEndorsements: parseStringArray(requiredEndorsementsJson),
-        pricingBreakdown: parsePricingBreakdown(pricingBreakdownJson),
+        pricingBreakdown,
+        specialistConfiguration: parseSpecialistConfiguration(
+          booking.serviceType,
+          specialistConfigurationJson,
+        ),
+        pricingStatus:
+          bookingFields.pricingStatus === "partner_review_required"
+            ? "partner_review_required"
+            : "authoritative",
+        pricingInternal: {
+          costFloorCents: bookingFields.costFloorCents,
+          marginCents: bookingFields.marginCents,
+          marginBasisPoints: bookingFields.marginBasisPoints,
+          minimumMarginBasisPoints:
+            bookingFields.minimumMarginBasisPoints,
+          payrollBurdenCents: pricingBreakdown.payrollBurdenCents,
+          readinessAndEquipmentCents:
+            pricingBreakdown.readinessAndEquipmentCents,
+          commandAndSupervisionCents:
+            pricingBreakdown.commandAndSupervisionCents,
+          planningCents: pricingBreakdown.planningCents,
+          travelCents: pricingBreakdown.travelCents,
+          vehicleAndPartnerCents:
+            pricingBreakdown.vehicleAndPartnerCents,
+          overnightCents: pricingBreakdown.overnightCents,
+        },
         manualReview: Boolean(manualReview),
         matchEligible: blockers.length === 0,
         matchBlockers: blockers,
@@ -1672,7 +1778,6 @@ async function releaseOfferWave(
     PILOT_OFFICER_ID,
     bookingId,
     {
-      assignmentDate: targetPosition.firstServiceDate,
       requireServiceOptIn: true,
     },
   );
@@ -2060,6 +2165,7 @@ async function applyAction(
         shift: payload.shift,
         rosterPattern: payload.rosterPattern,
         riskInput,
+        specialistConfiguration: payload.specialistConfiguration,
       });
     } catch (cause) {
       throw new PilotError(
@@ -2077,6 +2183,7 @@ async function applyAction(
         rosterPattern: payload.rosterPattern,
         purposeCode: payload.purposeCode,
         riskInput,
+        specialistConfiguration: quote.specialistConfiguration,
         startDate: payload.startDate,
         shift: payload.shift,
         postName,
@@ -2129,6 +2236,7 @@ async function applyAction(
       const window = shiftWindow(serviceDate, shiftStart, shiftEnd);
       const economics = officerShiftEconomicsForRoster({
         serviceType: payload.serviceType,
+        specialistServiceCode: quote.specialistServiceCode,
         riskBand: quote.risk.band,
         engagementModel: quote.engagementModel,
         serviceDate,
@@ -2157,6 +2265,18 @@ async function applyAction(
       calendarPremiumCents: quote.calendarPremiumCents,
       dispatchPremiumCents: quote.dispatchPremiumCents,
       riskPremiumCents: quote.riskPremiumCents,
+      marginFloorAdjustmentCents: quote.marginFloorAdjustmentCents,
+      subtotalCents: quote.subtotalCents,
+      vatCents: quote.vatCents,
+      payrollBurdenCents: quote.pricingDecision.payrollBurdenCents,
+      readinessAndEquipmentCents:
+        quote.pricingDecision.readinessAndEquipmentCents,
+      commandAndSupervisionCents:
+        quote.pricingDecision.commandAndSupervisionCents,
+      planningCents: quote.pricingDecision.planningCents,
+      travelCents: quote.pricingDecision.travelCents,
+      vehicleAndPartnerCents: quote.pricingDecision.vehicleAndPartnerCents,
+      overnightCents: quote.pricingDecision.overnightCents,
     });
     await ensureIntegrationDemoData(db);
     const paymentStatements = await demoPaymentOrderStatements(db, {
@@ -2176,8 +2296,11 @@ async function applyAction(
            service_day_count, shift_count,
            minimum_grade, contract_months, start_date, end_date, shift_start, shift_end,
            client_price_cents, officer_rate_cents, officer_total_cents, gross_platform_contribution_cents,
-           pricing_version, pricing_breakdown, environment, integrity_state, funding_status, release_cadence, status)
-          SELECT ?, client.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+           pricing_version, pricing_breakdown, specialist_service_code, specialist_configuration,
+           quote_subtotal_cents, vat_rate_basis_points, vat_cents, cost_floor_cents, margin_cents,
+           margin_basis_points, minimum_margin_basis_points, pricing_status,
+           environment, integrity_state, funding_status, release_cadence, status)
+          SELECT ?, client.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             'demo', 'synthetic', ?, ?, ?
           FROM clients client
           WHERE client.id = ? AND client.environment = 'demo' AND client.integrity_state = 'synthetic'`,
@@ -2215,6 +2338,16 @@ async function applyAction(
             quote.grossPlatformContributionCents,
             quote.version,
             pricingBreakdown,
+            quote.specialistServiceCode,
+            JSON.stringify(quote.specialistConfiguration),
+            quote.subtotalCents,
+            quote.vatRateBasisPoints,
+            quote.vatCents,
+            quote.costFloorCents,
+            quote.marginCents,
+            quote.marginBasisPoints,
+            quote.minimumMarginBasisPoints,
+            quote.pricingStatus,
             "site_review",
             quote.releaseCadence,
             "site_review",
@@ -2322,8 +2455,9 @@ async function applyAction(
            payment_reference, due_at, issued_at, settled_at, environment, integrity_state,
            created_at, updated_at, version)
           SELECT ?, booking.id, booking.client_id, NULL, NULL, NULL, NULL, 'invoice', NULL, 'ZAR',
-           booking.start_date, booking.end_date, booking.client_price_cents, NULL, NULL, NULL,
-           'pending_configuration', 'draft', 'not_started', booking.pricing_version, NULL, NULL,
+           booking.start_date, booking.end_date, booking.quote_subtotal_cents, booking.vat_cents,
+           booking.client_price_cents, booking.client_price_cents,
+           'standard_vat_15', 'draft', 'not_started', booking.pricing_version, NULL, NULL,
            NULL, NULL, NULL, NULL, NULL, 'demo', 'synthetic', ?, ?, 1
           FROM bookings booking WHERE booking.id = ? AND booking.client_id = ?
            AND booking.environment = 'demo' AND booking.integrity_state = 'synthetic'`,
@@ -2337,8 +2471,9 @@ async function applyAction(
            pricing_version, environment, integrity_state, created_at)
           SELECT ?, invoice.id, booking.id, NULL, NULL,
            booking.service_type || ' security service · ' || booking.service_day_count || ' service day(s) × ' || booking.headcount || ' position(s)',
-           1, booking.client_price_cents, booking.client_price_cents, NULL, NULL,
-           'pending_configuration', NULL, booking.pricing_version, 'demo', 'synthetic', ?
+           1, booking.quote_subtotal_cents, booking.quote_subtotal_cents, booking.vat_cents,
+           booking.client_price_cents, 'standard', booking.vat_rate_basis_points,
+           booking.pricing_version, 'demo', 'synthetic', ?
           FROM client_invoices invoice JOIN bookings booking ON booking.id = invoice.booking_id
           WHERE invoice.id = ? AND booking.id = ? AND invoice.environment = 'demo'
            AND invoice.integrity_state = 'synthetic' AND booking.environment = 'demo'
@@ -2384,10 +2519,12 @@ async function applyAction(
             AND (SELECT COUNT(*) FROM roster_slots slot WHERE slot.booking_id = ? AND slot.site_id = ?
               AND slot.post_id = ? AND slot.environment = 'demo' AND slot.integrity_state = 'synthetic') = ?
             AND EXISTS (SELECT 1 FROM client_invoices invoice WHERE invoice.id = ? AND invoice.booking_id = ?
-              AND invoice.client_id = ? AND invoice.subtotal_cents = ? AND invoice.status = 'draft'
+              AND invoice.client_id = ? AND invoice.subtotal_cents = ? AND invoice.tax_cents = ?
+              AND invoice.total_cents = ? AND invoice.status = 'draft'
               AND invoice.environment = 'demo' AND invoice.integrity_state = 'synthetic')
             AND EXISTS (SELECT 1 FROM client_invoice_lines line WHERE line.id = ? AND line.invoice_id = ?
-              AND line.booking_id = ? AND line.net_cents = ? AND line.environment = 'demo'
+              AND line.booking_id = ? AND line.net_cents = ? AND line.tax_cents = ?
+              AND line.gross_cents = ? AND line.environment = 'demo'
               AND line.integrity_state = 'synthetic')
             AND EXISTS (SELECT 1 FROM payment_orders payment WHERE payment.id = ? AND payment.booking_id = ?
               AND payment.client_id = ? AND payment.amount_cents = ? AND payment.status = 'requires_action'
@@ -2427,10 +2564,14 @@ async function applyAction(
             invoiceId,
             bookingId,
             PILOT_CLIENT_ID,
+            quote.subtotalCents,
+            quote.vatCents,
             quote.clientPriceCents,
             invoiceLineId,
             invoiceId,
             bookingId,
+            quote.subtotalCents,
+            quote.vatCents,
             quote.clientPriceCents,
             `PAYORD-${bookingId}`,
             bookingId,
@@ -2669,7 +2810,6 @@ async function applyAction(
       PILOT_OFFICER_ID,
       offer.bookingId,
       {
-        assignmentDate: offer.startDate,
         requireServiceOptIn: true,
       },
     );
@@ -3632,12 +3772,24 @@ function stateForScope(state: PilotState, scope: PilotScope): PilotState {
         officerTotalCents: 0,
         grossPlatformContributionCents: 0,
         officerRateCents: 0,
+        pricingInternal: undefined,
         pricingBreakdown: {
           ...booking.pricingBreakdown,
           baseClientCents: booking.clientPriceCents,
           calendarPremiumCents: 0,
           dispatchPremiumCents: 0,
           riskPremiumCents: 0,
+          marginFloorAdjustmentCents:
+            booking.pricingBreakdown.marginFloorAdjustmentCents,
+          subtotalCents: booking.subtotalCents,
+          vatCents: booking.vatCents,
+          payrollBurdenCents: 0,
+          readinessAndEquipmentCents: 0,
+          commandAndSupervisionCents: 0,
+          planningCents: 0,
+          travelCents: 0,
+          vehicleAndPartnerCents: 0,
+          overnightCents: 0,
         },
       })),
       shifts: state.shifts
@@ -3664,11 +3816,22 @@ function stateForScope(state: PilotState, scope: PilotScope): PilotState {
         clientPriceCents: 0,
         officerTotalCents: 0,
         grossPlatformContributionCents: 0,
+        pricingInternal: undefined,
         pricingBreakdown: {
           baseClientCents: 0,
           calendarPremiumCents: 0,
           dispatchPremiumCents: 0,
           riskPremiumCents: 0,
+          marginFloorAdjustmentCents: 0,
+          subtotalCents: 0,
+          vatCents: 0,
+          payrollBurdenCents: 0,
+          readinessAndEquipmentCents: 0,
+          commandAndSupervisionCents: 0,
+          planningCents: 0,
+          travelCents: 0,
+          vehicleAndPartnerCents: 0,
+          overnightCents: 0,
         },
       })),
     audit: [],

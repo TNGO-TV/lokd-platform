@@ -44,8 +44,11 @@ export async function evaluateBookingReadiness(
   options: BookingReadinessOptions = {},
 ) {
   const row = await db.prepare(`SELECT b.id AS bookingId, b.service_type AS serviceType,
+    b.specialist_service_code AS specialistServiceCode,
     b.purpose_code AS purposeCode, b.minimum_grade AS minimumGrade, b.funding_status AS fundingStatus,
-    b.start_date AS startDate, o.approval_status AS approvalStatus, o.psira_grade AS psiraGrade,
+    b.start_date AS startDate,
+    COALESCE((SELECT MAX(slot.ends_at) FROM roster_slots slot WHERE slot.booking_id = b.id), b.end_date || 'T23:59:59.999Z') AS validThrough,
+    o.approval_status AS approvalStatus, o.psira_grade AS psiraGrade,
     o.psira_expiry AS psiraExpiry, p.status AS passportStatus, p.next_review_at AS passportNextReviewAt,
     os.qualified AS serviceQualified, os.opted_in AS serviceOptedIn,
     os.qualification_expiry AS qualificationExpiry
@@ -56,10 +59,12 @@ export async function evaluateBookingReadiness(
     WHERE b.id = ?`).bind(officerId, bookingId).first<{
       bookingId: string;
       serviceType: ServiceType;
+      specialistServiceCode: string;
       purposeCode: string;
       minimumGrade: string;
       fundingStatus: string;
       startDate: string;
+      validThrough: string;
       approvalStatus: string;
       psiraGrade: string;
       psiraExpiry: string;
@@ -70,8 +75,15 @@ export async function evaluateBookingReadiness(
       qualificationExpiry: string | null;
     }>();
   if (!row) return { eligible: false, displayStatus: "restricted" as PassportStatus, blockers: ["Booking or officer record was not found."], warnings: [] };
-  const endorsements = await readEndorsements(db, officerId);
-  return evaluateReadiness({
+  const [endorsements, compliance] = await Promise.all([
+    readEndorsements(db, officerId),
+    all<{ recordType: string; status: string; expiresAt: string | null; nextDueAt: string | null }>(
+      db.prepare(`SELECT record_type AS recordType, status, expires_at AS expiresAt,
+        next_due_at AS nextDueAt FROM compliance_records WHERE officer_id = ?`)
+        .bind(officerId),
+    ),
+  ]);
+  const result = evaluateReadiness({
     assignmentDate: options.assignmentDate ?? row.startDate,
     fundingStatus: row.fundingStatus,
     approvalStatus: row.approvalStatus,
@@ -88,6 +100,39 @@ export async function evaluateBookingReadiness(
     purposeCode: row.purposeCode,
     endorsements,
   });
+  const assignmentDate = options.assignmentDate ?? row.validThrough.slice(0, 10);
+  const recordCurrent = (labels: string[]) => compliance.some((item) =>
+    labels.includes(item.recordType.toLowerCase())
+      && item.status === "current"
+      && (!item.expiresAt || item.expiresAt.slice(0, 10) >= assignmentDate)
+      && (!item.nextDueAt || item.nextDueAt.slice(0, 10) >= assignmentDate));
+  const specialistBlockers: string[] = [];
+  const armedCapability = row.serviceType === "Armed" || row.specialistServiceCode === "vip_armed";
+  if (armedCapability && !recordCurrent(["firearm competency"])) {
+    specialistBlockers.push("Current firearm competency evidence must cover this shift.");
+  }
+  if (armedCapability && !recordCurrent(["regulation 21 record"])) {
+    specialistBlockers.push("The current armed issue-and-return control record must cover this shift.");
+  }
+  if (row.serviceType === "VIP" && !recordCurrent(["first aid", "first-aid readiness"])) {
+    specialistBlockers.push("Current first-aid readiness must cover this shift.");
+  }
+  if (row.specialistServiceCode === "vip_protective_driver") {
+    if (!recordCurrent(["driving licence"])) {
+      specialistBlockers.push("The verified driving licence must cover this shift.");
+    }
+    if (!recordCurrent(["protective driving qualification"])) {
+      specialistBlockers.push("Protective-driving qualification evidence must cover this shift.");
+    }
+  }
+  return {
+    ...result,
+    eligible: result.eligible && specialistBlockers.length === 0,
+    displayStatus: specialistBlockers.length && result.displayStatus !== "revoked"
+      ? "restricted" as PassportStatus
+      : result.displayStatus,
+    blockers: [...result.blockers, ...specialistBlockers],
+  };
 }
 
 export type PublicPassport = {

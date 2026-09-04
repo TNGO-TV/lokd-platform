@@ -551,7 +551,7 @@ export async function reconcileDemoPayment(db: D1Database, bookingId: string, cl
         AND funding.booking_id = invoice.booking_id AND funding.status = 'cleared_reconciled'
         AND funding.environment = invoice.environment AND funding.integrity_state = invoice.integrity_state
       WHERE invoice.booking_id = ? AND invoice.client_id = ? AND invoice.document_type = 'invoice'
-        AND invoice.original_invoice_id IS NULL AND invoice.subtotal_cents = payment.amount_cents
+        AND invoice.original_invoice_id IS NULL AND invoice.total_cents = payment.amount_cents
         AND invoice.environment = 'demo' AND invoice.integrity_state = 'synthetic'`)
       .bind(now, order.id, reconciliationId, bookingId, clientId),
     db.prepare(`UPDATE client_invoices SET funding_status = 'fully_allocated_sandbox',
@@ -559,7 +559,7 @@ export async function reconcileDemoPayment(db: D1Database, bookingId: string, cl
       WHERE booking_id = ? AND client_id = ? AND document_type = 'invoice'
         AND original_invoice_id IS NULL AND environment = 'demo' AND integrity_state = 'synthetic'
         AND funding_status = 'not_started'
-        AND subtotal_cents = (SELECT COALESCE(SUM(allocation.amount_cents), 0)
+        AND total_cents = (SELECT COALESCE(SUM(allocation.amount_cents), 0)
           FROM invoice_receipt_allocations allocation WHERE allocation.invoice_id = client_invoices.id
             AND allocation.status = 'allocated' AND allocation.environment = client_invoices.environment
             AND allocation.integrity_state = client_invoices.integrity_state)`)

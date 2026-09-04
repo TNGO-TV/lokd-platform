@@ -10,9 +10,9 @@ import {
 } from "./lib/public-site";
 
 const workCategories = [
-  { name: "Unarmed · Phase 1", note: "The first controlled pilot is limited to scheduled, fixed-site unarmed guarding in one Gauteng operating area." },
-  { name: "Armed · Future", note: "Not part of the first paid pilot. It remains gated behind separate regulatory, competency, equipment and operational controls." },
-  { name: "VIP · Future", note: "Protective Operations remains outside Phase 1 and will not be offered until its specialist operating model is approved." },
+  { name: "Unarmed", note: "Scheduled fixed-site guarding with approved duties, roster eligibility, attendance and service evidence." },
+  { name: "Armed", note: "Static and movement protection priced and controlled as separate specialist operating models." },
+  { name: "VIP", note: "Unarmed or Armed close protection, protective drivers and coordinated protection teams." },
 ];
 
 export default async function PublicHome() {
@@ -29,7 +29,7 @@ export default async function PublicHome() {
         <div className="public-hero-copy">
           <p className="public-kicker"><i /> Johannesburg security, controlled end to end</p>
           <h1>The right officer.<br />Ready for the post.<br /><span>Proof at every step.</span></h1>
-          <p>LOKD is launching an employer-led security service for scheduled Unarmed fixed-site posts. Every site starts with a risk brief; every roster is eligibility-checked; every service period is funded in advance and operated through one accountable record.</p>
+          <p>LOKD is building an employer-led security service for Unarmed guarding, Armed protection and VIP operations. Every assignment starts with a risk brief; every roster is role-checked; every VAT-inclusive service period is funded in advance and operated through one accountable record.</p>
           <div className="public-hero-actions">
             <Link className="public-button public-button--lime" href="/contact">Plan security for my site <b>→</b></Link>
             <Link className="public-button public-button--outline" href="/join">Join as an officer <b>→</b></Link>
@@ -75,7 +75,7 @@ export default async function PublicHome() {
             <span className="path-number">01</span>
             <p>Already registered or qualified</p>
             <h3>Build your officer profile</h3>
-            <ul><li>Add your PSiRA grade and service interests</li><li>Submit qualifications for verification later</li><li>Register Armed or VIP interest for future phases</li><li>Phase 1 assignments are scheduled Unarmed fixed-site posts only</li></ul>
+            <ul><li>Add your PSiRA grade and service interests</li><li>Submit qualifications for controlled verification</li><li>Register Armed, VIP or protective-driving evidence</li><li>Choose notifications only for work you are qualified to perform</li></ul>
             <a href="/join?path=qualified">Start officer application <b>→</b></a>
           </article>
           <article className="path-card path-card--training">
@@ -106,7 +106,7 @@ export default async function PublicHome() {
         <div className="public-section-heading">
           <p className="public-kicker">Work preferences</p>
           <h2>Higher grade. Your choice of interest.</h2>
-          <p>A Grade A or B officer may still choose Unarmed work. Phase 1 is scheduled Unarmed fixed-site guarding; other interests are recorded only for future regulated phases.</p>
+          <p>A Grade A or B officer may still choose Unarmed work. Armed, VIP and driving work remain separately gated by role-specific qualifications, current evidence and assignment readiness.</p>
         </div>
         <div className="category-grid">{workCategories.map((item, index) => <article key={item.name}><span>0{index + 1}</span><h3>{item.name}</h3><p>{item.note}</p><i>Eligibility verified before activation</i></article>)}</div>
       </section>

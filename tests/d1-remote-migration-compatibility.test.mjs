@@ -7,7 +7,7 @@ const migrationsDirectory = new URL("../drizzle/", import.meta.url);
 const migrationFiles = fs.readdirSync(migrationsDirectory)
   .filter((name) => /^\d{4}_.*\.sql$/.test(name))
   .sort();
-const targetSequences = Array.from({ length: 20 }, (_, index) => String(index + 7).padStart(4, "0"));
+const targetSequences = Array.from({ length: 21 }, (_, index) => String(index + 7).padStart(4, "0"));
 const targetFiles = migrationFiles.filter((name) => targetSequences.includes(name.slice(0, 4)));
 const statementBreakpoint = "--> statement-breakpoint";
 
@@ -24,7 +24,7 @@ function migrationChunks(file) {
 
 test("activation and integration migrations preserve the D1 remote SQL formatting contract", () => {
   assert.deepEqual(targetFiles.map((name) => name.slice(0, 4)), targetSequences,
-    "migrations 0007 through 0026 must each be present exactly once");
+    "migrations 0007 through 0027 must each be present exactly once");
 
   for (const file of targetFiles) {
     const source = readMigration(file);

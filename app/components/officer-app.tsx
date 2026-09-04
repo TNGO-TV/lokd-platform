@@ -1748,6 +1748,43 @@ function OfficerProfile({
       );
   }
   const passport = state.officer.passport;
+  const currentCompliance = (label: string) =>
+    state.officer.compliance.some(
+      (record) =>
+        record.recordType.toLowerCase() === label.toLowerCase() &&
+        record.status === "current",
+    );
+  const specialistReadiness = [
+    {
+      service: "Armed" as const,
+      qualified:
+        Boolean(
+          state.officer.services.find((item) => item.serviceType === "Armed")
+            ?.qualified,
+        ) &&
+        currentCompliance("Firearm competency") &&
+        currentCompliance("Regulation 21 record"),
+      controls: [
+        "Armed qualification",
+        "Firearm competency",
+        "Issue-and-return control",
+        "Monthly LOKD readiness",
+      ],
+    },
+    {
+      service: "VIP" as const,
+      qualified: Boolean(
+        state.officer.services.find((item) => item.serviceType === "VIP")
+          ?.qualified,
+      ),
+      controls: [
+        "Close-protection qualification",
+        "First aid",
+        "Role and purpose endorsement",
+        "Assignment-specific briefing",
+      ],
+    },
+  ];
   return (
     <section className="profile-v2">
       <article
@@ -1946,6 +1983,55 @@ function OfficerProfile({
             endorsement.
           </p>
         </div>
+      </article>
+      <article className="officer-section-card specialist-readiness-card">
+        <div className="officer-section-heading">
+          <div>
+            <p className="eyebrow">Specialist work</p>
+            <h2>Armed &amp; VIP readiness</h2>
+            <p>
+              Interest is separate from eligibility. Every item must remain
+              current through the exact shift before an offer can be accepted.
+            </p>
+          </div>
+        </div>
+        <div className="specialist-readiness-grid">
+          {specialistReadiness.map((item) => (
+            <section key={item.service}>
+              <header>
+                <span
+                  className={`service-badge service-${item.service.toLowerCase()}`}
+                >
+                  {item.service}
+                </span>
+                <em className={`pill ${item.qualified ? "tone-green" : "tone-amber"}`}>
+                  {item.qualified ? "Base evidence current" : "Evidence incomplete"}
+                </em>
+              </header>
+              <ul>
+                {item.controls.map((control) => (
+                  <li key={control}>{control}</li>
+                ))}
+              </ul>
+              <button
+                onClick={() =>
+                  void createOfficerRequest(
+                    "specialist_readiness",
+                    `Review ${item.service} readiness`,
+                    `Officer requested a controlled review of ${item.service} qualifications, evidence and expiry dates.`,
+                  )
+                }
+              >
+                Review evidence
+              </button>
+            </section>
+          ))}
+        </div>
+        <small>
+          A Grade A or B registration does not by itself authorise Armed, VIP,
+          driving or firearm-related work. Assignment evidence is rechecked at
+          offer, activation and check-in.
+        </small>
       </article>
       <article className="officer-section-card compliance-centre">
         <div className="officer-section-heading">

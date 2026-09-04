@@ -11,6 +11,7 @@ type ClientEnquiry = {
   siteArea: string;
   siteType: string;
   requiredStart: string;
+  serviceType: string;
   message: string;
   status: "new" | "triaged" | "closed";
   ownerId: string | null;
@@ -35,6 +36,16 @@ const startLabels: Record<string, string> = {
   one_to_three_months: "1–3 months",
   three_to_six_months: "3–6 months",
   planning: "Early planning",
+};
+
+const serviceLabels: Record<string, string> = {
+  scheduled_unarmed_fixed_site: "Scheduled Unarmed",
+  armed_static: "Armed static",
+  armed_movement: "Armed movement",
+  vip_unarmed: "VIP · unarmed",
+  vip_armed: "VIP · armed",
+  vip_protective_driver: "Protective driver",
+  vip_team: "Protective team",
 };
 
 function formatDate(value: string) {
@@ -140,7 +151,7 @@ export default function ClientEnquiriesView({ flash }: { flash: (message: string
         : visible.length === 0 ? <div className="enquiry-queue-empty"><span>✓</span><strong>No {filter} enquiries.</strong><p>The queue stays separate from bookings and deployment controls.</p></div>
           : <div className="enquiry-queue-list">{visible.map((item) => <article className={`enquiry-queue-card status-${item.status}`} key={item.id}>
             <header><div><span>{item.id}</span><h2>{item.organisationName}</h2><p>{item.contactName} · {item.email}{item.mobile ? ` · ${item.mobile}` : ""}</p></div><em>{item.status}</em></header>
-            <dl><div><dt>Area</dt><dd>{item.siteArea}</dd></div><div><dt>Site</dt><dd>{siteTypeLabels[item.siteType] ?? item.siteType}</dd></div><div><dt>Window</dt><dd>{startLabels[item.requiredStart] ?? item.requiredStart}</dd></div><div><dt>Received</dt><dd>{formatDate(item.createdAt)} SAST</dd></div></dl>
+            <dl><div><dt>Service</dt><dd>{serviceLabels[item.serviceType] ?? item.serviceType}</dd></div><div><dt>Area</dt><dd>{item.siteArea}</dd></div><div><dt>Site</dt><dd>{siteTypeLabels[item.siteType] ?? item.siteType}</dd></div><div><dt>Window</dt><dd>{startLabels[item.requiredStart] ?? item.requiredStart}</dd></div><div><dt>Received</dt><dd>{formatDate(item.createdAt)} SAST</dd></div></dl>
             <blockquote>{item.message}</blockquote>
             {item.ownerId && <p className="enquiry-owner">Owner: <strong>{item.ownerId}</strong></p>}
             {item.resolution && <p className="enquiry-resolution"><strong>Resolution</strong>{item.resolution}</p>}

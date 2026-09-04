@@ -1,4 +1,12 @@
 import type { ServiceType } from "./pilot-types";
+import {
+  normalizeSpecialistConfiguration,
+  priceSpecialistCostFloor,
+  specialistProfiles,
+  SPECIALIST_PRICING_VERSION,
+  type SpecialistConfiguration,
+  type SpecialistServiceCode,
+} from "./specialist-pricing";
 
 export type ContractTerm = "single" | "1" | "3" | "6" | "12";
 export type NoticeWindow = "standard" | "priority" | "urgent" | "immediate";
@@ -43,10 +51,11 @@ export type BookingQuoteRequest = {
   shift: "day" | "night";
   rosterPattern: RosterPattern;
   riskInput: RiskInput;
+  specialistConfiguration?: Partial<SpecialistConfiguration>;
   now?: Date;
 };
 
-export const PRICE_BOOK_VERSION = "LOKD-PREMIUM-2026.09";
+export const PRICE_BOOK_VERSION = SPECIALIST_PRICING_VERSION;
 export const RISK_RULES_VERSION = "LOKD-RISK-RULES-2026.09";
 
 export const defaultRiskInput: RiskInput = {
@@ -298,6 +307,7 @@ export function calendarCategoryForDate(dateValue: string): CalendarCategory {
  */
 export function officerShiftEconomicsForRoster(input: {
   serviceType: string;
+  specialistServiceCode?: string;
   riskBand: string;
   engagementModel: string;
   serviceDate: string;
@@ -312,13 +322,18 @@ export function officerShiftEconomicsForRoster(input: {
   const serviceDate = johannesburgStart.toISOString().slice(0, 10);
   const calendarCategory = calendarCategoryForDate(serviceDate);
   const service = servicePriceBook[input.serviceType as ServiceType];
+  const specialist = input.specialistServiceCode
+    ? specialistProfiles[input.specialistServiceCode as SpecialistServiceCode]
+    : null;
+  if (specialist && specialist.serviceType !== input.serviceType) return null;
+  const officerShiftCents = specialist?.officerShiftCents ?? service.officerShiftCents;
   const risk = riskMultipliers[input.riskBand as RiskBand].officer;
   const calendar = calendarPriceBook[calendarCategory];
   const calendarMultiplier = input.engagementModel === "flex"
     ? calendar.flexOfficerMultiplier
     : calendar.fixedOfficerMultiplier;
-  const ordinaryWageCents = Math.round(service.officerShiftCents * risk);
-  const officerOfferCents = Math.round(service.officerShiftCents * risk * calendarMultiplier);
+  const ordinaryWageCents = Math.round(officerShiftCents * risk);
+  const officerOfferCents = Math.round(officerShiftCents * risk * calendarMultiplier);
   return {
     serviceDate,
     serviceDateMatchesStart: input.serviceDate === serviceDate,
@@ -371,6 +386,16 @@ export function quoteBooking(request: BookingQuoteRequest) {
     throw new Error(`${risk.recommendedService} is the minimum service recommended by this assessment.`);
   }
   const service = servicePriceBook[serviceType];
+  const initialSpecialistConfiguration = normalizeSpecialistConfiguration(
+    serviceType,
+    request.specialistConfiguration,
+  );
+  const specialist = specialistProfiles[initialSpecialistConfiguration.serviceCode];
+  const specialistConfiguration = normalizeSpecialistConfiguration(serviceType, {
+    ...initialSpecialistConfiguration,
+    teamSize: Math.max(initialSpecialistConfiguration.teamSize, risk.headcount),
+  });
+  const headcount = specialistConfiguration.teamSize;
   const noticeWindow = engagementModel === "flex" ? deriveNoticeWindow(startDate, shift, request.now) : "standard";
   const notice = noticePriceBook[noticeWindow];
   const dates = scheduledServiceDates(startDate, term, engagementModel, rosterPattern);
@@ -386,40 +411,51 @@ export function quoteBooking(request: BookingQuoteRequest) {
 
   dates.forEach((dateValue, index) => {
     const category = calendarCategoryForDate(dateValue);
-    categories[category] += risk.headcount;
+    categories[category] += headcount;
     const calendar = calendarPriceBook[category];
     const clientCalendarMultiplier = engagementModel === "fixed" ? calendar.fixedClientMultiplier : calendar.flexClientMultiplier;
     const officerCalendarMultiplier = engagementModel === "fixed" ? calendar.fixedOfficerMultiplier : calendar.flexOfficerMultiplier;
-    const baseClient = service.clientShiftCents;
+    const baseClient = specialist.listShiftCents;
     const afterCalendar = Math.round(baseClient * clientCalendarMultiplier);
     const afterDispatch = Math.round(afterCalendar * (engagementModel === "flex" ? notice.clientMultiplier : 1));
     const finalClient = Math.round(afterDispatch * risk.clientMultiplier);
-    const officerBase = service.officerShiftCents;
+    const officerBase = specialist.officerShiftCents;
     const finalOfficer = Math.round(officerBase * officerCalendarMultiplier * risk.officerMultiplier);
-    baseClientCents += baseClient * risk.headcount;
-    calendarPremiumCents += (afterCalendar - baseClient) * risk.headcount;
-    dispatchPremiumCents += (afterDispatch - afterCalendar) * risk.headcount;
-    riskPremiumCents += (finalClient - afterDispatch) * risk.headcount;
-    officerBaseTotalCents += officerBase * risk.headcount;
-    officerTotalCents += finalOfficer * risk.headcount;
+    baseClientCents += baseClient * headcount;
+    calendarPremiumCents += (afterCalendar - baseClient) * headcount;
+    dispatchPremiumCents += (afterDispatch - afterCalendar) * headcount;
+    riskPremiumCents += (finalClient - afterDispatch) * headcount;
+    officerBaseTotalCents += officerBase * headcount;
+    officerTotalCents += finalOfficer * headcount;
     if (index === 0) {
       firstClientShiftCents = finalClient;
       firstOfficerShiftCents = finalOfficer;
     }
   });
 
-  const clientPriceCents = baseClientCents + calendarPremiumCents + dispatchPremiumCents + riskPremiumCents;
+  const listSubtotalCents = baseClientCents + calendarPremiumCents + dispatchPremiumCents + riskPremiumCents;
+  const pricingDecision = priceSpecialistCostFloor({
+    serviceCode: specialistConfiguration.serviceCode,
+    serviceDayCount: dates.length,
+    shiftCount: dates.length * headcount,
+    officerTotalCents,
+    calendarAdjustedListSubtotalCents: listSubtotalCents,
+    configuration: specialistConfiguration,
+  });
+  const clientPriceCents = pricingDecision.totalCents;
   const firstServiceDate = dates[0] ?? startDate;
   const firstCalendarCategory = calendarCategoryForDate(firstServiceDate);
-  const manualReview = risk.manualReview || (engagementModel === "flex" && serviceType !== "Unarmed") || (engagementModel === "fixed" && Number(term) > 3);
+  const manualReview = risk.manualReview || serviceType !== "Unarmed"
+    || pricingDecision.pricingStatus !== "authoritative"
+    || (engagementModel === "fixed" && Number(term) > 3);
 
   return {
     version: PRICE_BOOK_VERSION,
     engagementModel,
-    shiftCount: dates.length * risk.headcount,
+    shiftCount: dates.length * headcount,
     serviceDayCount: dates.length,
     serviceDates: dates,
-    headcount: risk.headcount,
+    headcount,
     contractMonths: engagementModel === "flex" ? 0 : Number(term),
     requestedStartDate: startDate,
     startDate: firstServiceDate,
@@ -429,11 +465,26 @@ export function quoteBooking(request: BookingQuoteRequest) {
     officerRateCents: firstOfficerShiftCents,
     officerTotalCents,
     officerBaseTotalCents,
-    grossPlatformContributionCents: clientPriceCents - officerTotalCents,
+    grossPlatformContributionCents: pricingDecision.subtotalCents - officerTotalCents,
     baseClientCents,
     calendarPremiumCents,
     dispatchPremiumCents,
     riskPremiumCents,
+    marginFloorAdjustmentCents: pricingDecision.subtotalCents - listSubtotalCents,
+    subtotalCents: pricingDecision.subtotalCents,
+    vatCents: pricingDecision.vatCents,
+    vatRateBasisPoints: pricingDecision.vatRateBasisPoints,
+    costFloorCents: pricingDecision.costFloorCents,
+    marginCents: pricingDecision.marginCents,
+    marginBasisPoints: pricingDecision.marginBasisPoints,
+    minimumMarginBasisPoints: pricingDecision.minimumMarginBasisPoints,
+    pricingStatus: pricingDecision.pricingStatus,
+    pricingReviewReasons: pricingDecision.reviewReasons,
+    pricingDecision,
+    specialistServiceCode: specialistConfiguration.serviceCode,
+    specialistServiceLabel: specialist.label,
+    specialistConfiguration,
+    requiredSpecialistControls: specialist.requiredControls,
     minimumGrade: risk.minimumGrade,
     releaseCadence: cadenceForTerm(term),
     serviceLabel: service.label,

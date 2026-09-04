@@ -6,6 +6,8 @@ export const OPERATIONS_PORTAL_URL = "https://operations.lokd.co.za";
 export const PUBLIC_SITEMAP_PATHS = [
   "",
   "/security-services",
+  "/armed-security",
+  "/vip-protection",
   "/industries",
   "/locations/johannesburg",
   "/clients",

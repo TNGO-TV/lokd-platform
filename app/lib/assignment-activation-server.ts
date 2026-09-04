@@ -44,6 +44,7 @@ type CandidateRow = {
   clientPriceCents: number;
   officerRateCents: number;
   pricingVersion: string;
+  specialistServiceCode: string;
   calendarCategory: CalendarCategory;
   riskBand: string;
   engagementModel: EngagementModel;
@@ -168,6 +169,7 @@ async function readCandidate(db: D1Database, rosterSlotId: string, environment: 
     rs.starts_at AS startsAt, rs.ends_at AS endsAt, rs.check_in_due_at AS checkInDueAt, rs.service_date AS serviceDate,
     b.client_id AS clientId, c.approval_status AS clientApprovalStatus, b.client_price_cents AS clientPriceCents,
     rs.officer_offer_cents AS officerRateCents, b.pricing_version AS pricingVersion,
+    b.specialist_service_code AS specialistServiceCode,
     rs.calendar_category AS calendarCategory, b.engagement_model AS engagementModel, b.risk_band AS riskBand,
     os.id AS siteId, os.status AS siteStatus, os.version AS siteVersion,
     sp.id AS postId, sp.status AS postStatus, sp.post_orders_version AS postOrdersVersion,
@@ -372,6 +374,7 @@ async function loadAssignmentActivationFacts(
 
   const shiftEconomics = risk ? officerShiftEconomicsForRoster({
     serviceType: candidate.serviceType,
+    specialistServiceCode: candidate.specialistServiceCode,
     riskBand: risk.riskBand,
     engagementModel: candidate.engagementModel,
     serviceDate: candidate.serviceDate,

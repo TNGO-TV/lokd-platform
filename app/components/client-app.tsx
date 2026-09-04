@@ -18,6 +18,15 @@ import {
   type RiskInput,
   type RosterPattern,
 } from "../lib/pilot-pricing";
+import {
+  defaultSpecialistConfiguration,
+  normalizeSpecialistConfiguration,
+  specialistOptionsForService,
+  specialistProfiles,
+  type SpecialistConfiguration,
+  type SpecialistServiceCode,
+  type SpecialistVehicleClass,
+} from "../lib/specialist-pricing";
 import { usePilot } from "../lib/use-pilot";
 import {
   CLIENT_PORTAL_URL,
@@ -60,6 +69,8 @@ export default function ClientApp() {
   const [requestOpen, setRequestOpen] = useState(false);
   const [minimumStartDate] = useState(johannesburgToday);
   const [service, setService] = useState<ServiceType>("Unarmed");
+  const [specialistConfiguration, setSpecialistConfiguration] =
+    useState<SpecialistConfiguration>(defaultSpecialistConfiguration.Unarmed);
   const [engagementModel, setEngagementModel] =
     useState<EngagementModel>("fixed");
   const [term, setTerm] = useState<ContractTerm>("1");
@@ -112,6 +123,14 @@ export default function ClientApp() {
   )
     ? service
     : risk.recommendedService;
+  const effectiveSpecialistConfiguration =
+    specialistProfiles[specialistConfiguration.serviceCode].serviceType ===
+    effectiveService
+      ? normalizeSpecialistConfiguration(
+          effectiveService,
+          specialistConfiguration,
+        )
+      : defaultSpecialistConfiguration[effectiveService];
   const quote = quoteBooking({
     serviceType: effectiveService,
     engagementModel,
@@ -121,6 +140,7 @@ export default function ClientApp() {
     shift,
     rosterPattern,
     riskInput,
+    specialistConfiguration: effectiveSpecialistConfiguration,
   });
   const calendarSummary = Object.entries(quote.calendarBreakdown)
     .filter(([, count]) => count > 0)
@@ -204,6 +224,7 @@ export default function ClientApp() {
       rosterPattern,
       purposeCode,
       riskInput,
+      specialistConfiguration: effectiveSpecialistConfiguration,
       startDate,
       shift,
       postName,
@@ -960,7 +981,7 @@ export default function ClientApp() {
               <fieldset className="risk-assessment">
                 <legend>LOKD assisted risk assessment</legend>
                 <p>
-                  Rules-based Phase 1 recommendation · reviewed by Operations
+                  Rules-based service recommendation · reviewed by Operations
                   for High or Critical requests.
                 </p>
                 <div className="risk-input-grid">
@@ -1089,7 +1110,12 @@ export default function ClientApp() {
                       key={item.name}
                       disabled={!allowed}
                       className={`${effectiveService === item.name ? "selected" : ""} ${allowed ? "" : "blocked"}`}
-                      onClick={() => setService(item.name)}
+                      onClick={() => {
+                        setService(item.name);
+                        setSpecialistConfiguration(
+                          defaultSpecialistConfiguration[item.name],
+                        );
+                      }}
                     >
                       <span
                         className={`service-badge service-${item.name.toLowerCase()}`}
@@ -1112,6 +1138,181 @@ export default function ClientApp() {
                   );
                 })}
               </fieldset>
+              {effectiveService !== "Unarmed" && (
+                <fieldset className="specialist-configurator">
+                  <legend>{effectiveService} service configuration</legend>
+                  <p>
+                    Static protection, movement work, driving and protective
+                    teams have different labour, planning, vehicle and command
+                    costs. Operations confirms the final scope before payment.
+                  </p>
+                  <div className="risk-input-grid">
+                    <label>
+                      Service model
+                      <select
+                        value={effectiveSpecialistConfiguration.serviceCode}
+                        onChange={(event) => {
+                          const serviceCode = event.target
+                            .value as SpecialistServiceCode;
+                          const profile = specialistProfiles[serviceCode];
+                          setSpecialistConfiguration(
+                            normalizeSpecialistConfiguration(effectiveService, {
+                              ...defaultSpecialistConfiguration[effectiveService],
+                              serviceCode,
+                              teamSize: profile.minimumTeamSize,
+                              planningHours: profile.minimumPlanningHours,
+                              vehicleClass: profile.allowedVehicles.includes(
+                                "none",
+                              )
+                                ? "none"
+                                : "client_vehicle",
+                            }),
+                          );
+                        }}
+                      >
+                        {specialistOptionsForService(effectiveService).map(
+                          (profile) => (
+                            <option value={profile.code} key={profile.code}>
+                              {profile.label}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </label>
+                    <label>
+                      Team size
+                      <input
+                        type="number"
+                        min={
+                          specialistProfiles[
+                            effectiveSpecialistConfiguration.serviceCode
+                          ].minimumTeamSize
+                        }
+                        max={
+                          specialistProfiles[
+                            effectiveSpecialistConfiguration.serviceCode
+                          ].maximumTeamSize
+                        }
+                        value={effectiveSpecialistConfiguration.teamSize}
+                        onChange={(event) => {
+                          const profile =
+                            specialistProfiles[
+                              effectiveSpecialistConfiguration.serviceCode
+                            ];
+                          setSpecialistConfiguration({
+                            ...effectiveSpecialistConfiguration,
+                            teamSize: Math.min(
+                              profile.maximumTeamSize,
+                              Math.max(
+                                profile.minimumTeamSize,
+                                Number(event.target.value) ||
+                                  profile.minimumTeamSize,
+                              ),
+                            ),
+                          });
+                        }}
+                      />
+                    </label>
+                    <label>
+                      Vehicle
+                      <select
+                        value={effectiveSpecialistConfiguration.vehicleClass}
+                        onChange={(event) =>
+                          setSpecialistConfiguration({
+                            ...effectiveSpecialistConfiguration,
+                            vehicleClass: event.target
+                              .value as SpecialistVehicleClass,
+                          })
+                        }
+                      >
+                        {specialistProfiles[
+                          effectiveSpecialistConfiguration.serviceCode
+                        ].allowedVehicles.map((vehicle) => (
+                          <option value={vehicle} key={vehicle}>
+                            {vehicle === "none"
+                              ? "No vehicle"
+                              : vehicle === "client_vehicle"
+                                ? "Client vehicle"
+                                : vehicle === "standard_suv"
+                                  ? "LOKD standard SUV"
+                                  : "Armoured partner vehicle"}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Travel km / service day
+                      <input
+                        type="number"
+                        min="0"
+                        max="1500"
+                        value={
+                          effectiveSpecialistConfiguration.travelKmPerServiceDay
+                        }
+                        onChange={(event) =>
+                          setSpecialistConfiguration({
+                            ...effectiveSpecialistConfiguration,
+                            travelKmPerServiceDay: Math.min(
+                              1500,
+                              Math.max(0, Number(event.target.value) || 0),
+                            ),
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Planning hours
+                      <input
+                        type="number"
+                        min={
+                          specialistProfiles[
+                            effectiveSpecialistConfiguration.serviceCode
+                          ].minimumPlanningHours
+                        }
+                        max="80"
+                        value={effectiveSpecialistConfiguration.planningHours}
+                        onChange={(event) =>
+                          setSpecialistConfiguration({
+                            ...effectiveSpecialistConfiguration,
+                            planningHours: Math.min(
+                              80,
+                              Math.max(
+                                specialistProfiles[
+                                  effectiveSpecialistConfiguration.serviceCode
+                                ].minimumPlanningHours,
+                                Number(event.target.value) || 0,
+                              ),
+                            ),
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Overnight person-days
+                      <input
+                        type="number"
+                        min="0"
+                        max="60"
+                        value={effectiveSpecialistConfiguration.overnightDays}
+                        onChange={(event) =>
+                          setSpecialistConfiguration({
+                            ...effectiveSpecialistConfiguration,
+                            overnightDays: Math.min(
+                              60,
+                              Math.max(0, Number(event.target.value) || 0),
+                            ),
+                          })
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div className="specialist-control-list">
+                    {quote.requiredSpecialistControls.map((control) => (
+                      <span key={control}>✓ {control}</span>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
               <label>
                 Post
                 <select
@@ -1162,11 +1363,30 @@ export default function ClientApp() {
                   <dt>Risk / specialist adjustment</dt>
                   <dd>{money(quote.riskPremiumCents)}</dd>
                 </div>
+                <div>
+                  <dt>Cost-floor adjustment</dt>
+                  <dd>{money(quote.marginFloorAdjustmentCents)}</dd>
+                </div>
+                <div>
+                  <dt>Subtotal</dt>
+                  <dd>{money(quote.subtotalCents)}</dd>
+                </div>
+                <div>
+                  <dt>VAT · 15%</dt>
+                  <dd>{money(quote.vatCents)}</dd>
+                </div>
               </dl>
               <small>
-                {calendarSummary || quote.firstCalendarLabel} · Pilot estimate;
-                VAT treatment is not yet applied.
+                {calendarSummary || quote.firstCalendarLabel} · VAT-inclusive
+                pilot estimate · pricing policy {quote.version}.
               </small>
+              {quote.pricingStatus === "partner_review_required" && (
+                <p className="pricing-review-note">
+                  Armoured partner pricing is a conservative placeholder. A
+                  current supplier quote must replace it before payment can be
+                  accepted.
+                </p>
+              )}
             </div>
             <div className="payment-gate">
               <span>i</span>
