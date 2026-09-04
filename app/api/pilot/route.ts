@@ -897,7 +897,7 @@ async function ensurePilotData(db: D1Database) {
       engagement_model = 'fixed', notice_window = 'standard', roster_pattern = 'monday_saturday',
       calendar_category = ?, calendar_label = ?, risk_band = ?, risk_score = ?, risk_reasons = ?, required_endorsements = ?,
       manual_review = ?, shift_count = ?, client_price_cents = ?, officer_rate_cents = ?, officer_total_cents = ?,
-      gross_platform_contribution_cents = ?, pricing_version = ?, pricing_breakdown = ?
+      gross_platform_contribution_cents = ?, pricing_breakdown = ?
       WHERE id IN ('BK-2081', 'BK-2080') AND environment = 'demo' AND integrity_state = 'synthetic'`,
       )
       .bind(
@@ -913,7 +913,6 @@ async function ensurePilotData(db: D1Database) {
         primaryQuote.officerRateCents,
         primaryQuote.officerTotalCents,
         primaryQuote.grossPlatformContributionCents,
-        primaryQuote.version,
         JSON.stringify({
           baseClientCents: primaryQuote.baseClientCents,
           calendarPremiumCents: primaryQuote.calendarPremiumCents,
@@ -927,7 +926,7 @@ async function ensurePilotData(db: D1Database) {
       engagement_model = 'fixed', notice_window = 'standard', roster_pattern = 'monday_saturday',
       calendar_category = ?, calendar_label = ?, risk_band = ?, risk_score = ?, risk_reasons = ?, required_endorsements = ?,
       manual_review = ?, shift_count = ?, client_price_cents = ?, officer_rate_cents = ?, officer_total_cents = ?,
-      gross_platform_contribution_cents = ?, pricing_version = ?, pricing_breakdown = ? WHERE id = 'BK-2084'
+      gross_platform_contribution_cents = ?, pricing_breakdown = ? WHERE id = 'BK-2084'
         AND environment = 'demo' AND integrity_state = 'synthetic'`,
       )
       .bind(
@@ -943,7 +942,6 @@ async function ensurePilotData(db: D1Database) {
         depotQuote.officerRateCents,
         depotQuote.officerTotalCents,
         depotQuote.grossPlatformContributionCents,
-        depotQuote.version,
         JSON.stringify({
           baseClientCents: depotQuote.baseClientCents,
           calendarPremiumCents: depotQuote.calendarPremiumCents,
@@ -963,7 +961,7 @@ async function ensurePilotData(db: D1Database) {
       engagement_model = 'fixed', notice_window = 'standard', roster_pattern = 'weekdays', calendar_category = ?, calendar_label = ?,
       risk_band = ?, risk_score = ?, risk_reasons = ?, required_endorsements = ?, manual_review = 1, shift_count = ?,
       client_price_cents = ?, officer_rate_cents = ?, officer_total_cents = ?, gross_platform_contribution_cents = ?,
-      pricing_version = ?, pricing_breakdown = ?, minimum_grade = 'Grade B' WHERE id = 'BK-2078'
+      pricing_breakdown = ?, minimum_grade = 'Grade B' WHERE id = 'BK-2078'
         AND environment = 'demo' AND integrity_state = 'synthetic'`,
       )
       .bind(
@@ -978,7 +976,6 @@ async function ensurePilotData(db: D1Database) {
         vipQuote.officerRateCents,
         vipQuote.officerTotalCents,
         vipQuote.grossPlatformContributionCents,
-        vipQuote.version,
         JSON.stringify({
           baseClientCents: vipQuote.baseClientCents,
           calendarPremiumCents: vipQuote.calendarPremiumCents,
@@ -2606,7 +2603,10 @@ async function applyAction(
   }
 
   if (payload.action === "approve_risk_plan") {
-    const now = new Date().toISOString();
+    // SQLite CURRENT_TIMESTAMP has second precision. Floor approval evidence to
+    // that same precision so a legitimate approval is not misread as being a
+    // fraction of a second in the future by the database guard.
+    const now = new Date(Math.floor(Date.now() / 1000) * 1000).toISOString();
     try {
       await db.batch([
       db

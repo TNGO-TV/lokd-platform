@@ -72,9 +72,11 @@ function seedDomain(database) {
     (id,client_id,booking_id,name,area,address_label,latitude_e6,longitude_e6,environment,integrity_state)
     VALUES ('SITE-INT','CL-INT','BK-INT','Integration Site','Rosebank','1 Integration Avenue',-26145900,28041400,'demo','synthetic')`);
   run(database, `INSERT INTO client_invoices
-    (id,booking_id,client_id,service_period_start,service_period_end,subtotal_cents,pricing_version,
+    (id,booking_id,client_id,service_period_start,service_period_end,subtotal_cents,tax_cents,total_cents,
+     balance_cents,tax_treatment,pricing_version,
      environment,integrity_state,created_at,updated_at)
-    VALUES ('INV-INT','BK-INT','CL-INT','2039-08-29','2039-09-28',140000,'V21-TEST',
+    VALUES ('INV-INT','BK-INT','CL-INT','2039-08-29','2039-09-28',140000,0,140000,
+     140000,'legacy_unspecified','V21-TEST',
      'demo','synthetic',?,?)`, now, now);
   run(database, `INSERT INTO site_posts
     (id,site_id,booking_id,name,service_type,purpose_code,minimum_grade,environment,integrity_state)

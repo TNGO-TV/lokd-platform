@@ -63,6 +63,9 @@ test("client request reaches funded offer and connected synthetic roster assignm
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
   const pilotRoute = await import("../app/api/pilot/route.ts");
 
+  const startDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
   const createAction = {
     action: "create_booking",
     commandId: "test-booking-command-0001",
@@ -82,7 +85,7 @@ test("client request reaches funded offer and connected synthetic roster assignm
       nightOperation: false,
       vulnerablePeople: false,
     },
-    startDate: "2026-09-02",
+    startDate,
     shift: "day",
     postName: "Connected north gate",
     instructions: "Verify visitors against the authorised access list.",

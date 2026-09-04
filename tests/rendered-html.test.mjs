@@ -27,7 +27,7 @@ test("renders the canonical public LOKD launch identity and illustrative officer
     /^text\/html\b/i,
   );
   const html = await response.text();
-  assert.match(html, /<title>LOKD Security \| Verified Guarding in Johannesburg<\/title>/i);
+  assert.match(html, /<title>LOKD Security \| Guarding, Armed Security and VIP Protection<\/title>/i);
   assert.match(html, /<link rel="canonical" href="https:\/\/lokd\.co\.za\/"\/>/i);
   assert.match(html, /No credit terms/i);
   assert.match(html, /<dd>R800<\/dd>/i);

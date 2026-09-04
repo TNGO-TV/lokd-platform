@@ -9,6 +9,7 @@ import {
   type DatedEvidence,
 } from "./assignment-activation-core";
 import {
+  LEGACY_UNARMED_PRICE_BOOK_VERSION,
   PRICE_BOOK_VERSION,
   officerShiftEconomicsForRoster,
   type CalendarCategory,
@@ -372,15 +373,22 @@ async function loadAssignmentActivationFacts(
     }
   }
 
-  const shiftEconomics = risk ? officerShiftEconomicsForRoster({
+  const currentSpecialistPricing = candidate.pricingVersion === PRICE_BOOK_VERSION;
+  const legacyUnarmedPricing = candidate.pricingVersion === LEGACY_UNARMED_PRICE_BOOK_VERSION
+    && candidate.serviceType === "Unarmed";
+  const shiftEconomics = risk && (currentSpecialistPricing || legacyUnarmedPricing)
+    ? officerShiftEconomicsForRoster({
     serviceType: candidate.serviceType,
-    specialistServiceCode: candidate.specialistServiceCode,
+    // Version 32 had no specialist subtype. Ignoring the migration default here
+    // preserves only its existing Unarmed economics; Armed and VIP cannot use
+    // the legacy price book to bypass Version 33 controls.
+    specialistServiceCode: currentSpecialistPricing ? candidate.specialistServiceCode : undefined,
     riskBand: risk.riskBand,
     engagementModel: candidate.engagementModel,
     serviceDate: candidate.serviceDate,
     startsAt: candidate.startsAt,
   }) : null;
-  const authoritativePricing = candidate.pricingVersion === PRICE_BOOK_VERSION && Boolean(shiftEconomics);
+  const authoritativePricing = (currentSpecialistPricing || legacyUnarmedPricing) && Boolean(shiftEconomics);
   const officerOfferCents = shiftEconomics?.officerOfferCents ?? 0;
   const statutoryCostCents = workforce?.model === "partner" ? 0 : Math.round(officerOfferCents * 0.15);
 

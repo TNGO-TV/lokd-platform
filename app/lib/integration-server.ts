@@ -130,7 +130,9 @@ async function loadActivePayrollPolicy(db: D1Database, serviceDate: string) {
 }
 
 export async function ensureIntegrationDemoData(db: D1Database) {
-  const now = new Date().toISOString();
+  // Keep evidence time at the same precision as SQLite CURRENT_TIMESTAMP so
+  // the funding guard never mistakes the current receipt for future evidence.
+  const now = new Date(Math.floor(Date.now() / 1000) * 1000).toISOString();
   const approvalExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1_000).toISOString();
   const syntheticRulesJson = JSON.stringify(SYNTHETIC_ENGINE_TEST_POLICY);
   const candidateRulesJson = JSON.stringify(ZA_2027_SARS_POLICY_CANDIDATE);
@@ -490,7 +492,10 @@ export async function reconcileDemoPayment(db: D1Database, bookingId: string, cl
     throw new PlatformWorkflowError("This synthetic payment cannot be reconciled from its current state.", 409);
   }
 
-  const now = new Date().toISOString();
+  // The database checks this evidence against SQLite CURRENT_TIMESTAMP, which
+  // has second precision. Matching that precision prevents a valid receipt in
+  // the current second from appearing fractionally future-dated.
+  const now = new Date(Math.floor(Date.now() / 1000) * 1000).toISOString();
   const eventIdValue = `sandbox.payment.reconciled:${order.id}`;
   const rawHash = await sha256(`${eventIdValue}|${order.amountCents}|ZAR`);
   const reconciliationId = `FUND-${bookingId}`;

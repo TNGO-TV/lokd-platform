@@ -55,6 +55,10 @@ export type BookingQuoteRequest = {
   now?: Date;
 };
 
+// Retained only so already-approved Version 32 Unarmed bookings can complete
+// their existing activation path after the specialist price book is introduced.
+// New quotes always use PRICE_BOOK_VERSION below.
+export const LEGACY_UNARMED_PRICE_BOOK_VERSION = "LOKD-PREMIUM-2026.09";
 export const PRICE_BOOK_VERSION = SPECIALIST_PRICING_VERSION;
 export const RISK_RULES_VERSION = "LOKD-RISK-RULES-2026.09";
 
