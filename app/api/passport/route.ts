@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   try {
     if (!liveShiftScanEnabled()) return response({ error: "Shift arrival recording is locked until the controlled pilot is activated." }, 423);
     requireSameOriginJson(request);
-    const principal = requirePilotApiRole(request, "client");
+    const principal = await requirePilotApiRole(request, "client");
     const raw = await request.text();
     if (raw.length > 8_192) return response({ error: "The verification request is too large." }, 413);
     const payload = JSON.parse(raw) as { token?: string; bookingId?: string; shiftId?: string };

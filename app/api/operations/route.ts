@@ -21,7 +21,7 @@ function response(payload: unknown, status = 200) {
       "cache-control": "no-store, private",
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
-      vary: "oai-authenticated-user-email",
+      vary: "Cookie, Authorization",
     },
   });
 }
@@ -35,7 +35,7 @@ function failure(cause: unknown) {
 
 export async function GET(request: Request) {
   try {
-    requirePilotApiRole(request, "operations");
+    await requirePilotApiRole(request, "operations");
     requireSyntheticDemo();
     const db = database();
     await ensureOperationsDemoData(db);
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     requireSameOriginJson(request);
-    const actor = requirePilotApiRole(request, "operations");
+    const actor = await requirePilotApiRole(request, "operations");
     requireSyntheticDemo();
     const raw = await request.text();
     if (raw.length > 8_192) throw new OperationsError("The request is too large.", 413);

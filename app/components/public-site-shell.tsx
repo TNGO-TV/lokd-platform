@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AccountControls } from "./account-controls";
 import {
   CLIENT_PORTAL_URL,
   OFFICER_PORTAL_URL,
@@ -31,7 +32,7 @@ export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
       {navigation.map((item) => <Link aria-current={active === item.section ? "page" : undefined} href={item.href} key={item.href}>{item.label}</Link>)}
     </nav>
     <div className="public-header-actions">
-      <a className="public-login" href={CLIENT_PORTAL_URL}>Client login</a>
+      <AccountControls />
       <Link className="public-button public-button--dark" href="/contact">Get a security plan</Link>
     </div>
   </header>;

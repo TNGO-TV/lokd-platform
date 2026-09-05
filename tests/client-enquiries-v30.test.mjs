@@ -1,3 +1,4 @@
+import { ClerkTestRequest } from "./clerk-request.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -43,7 +44,7 @@ function migratedDatabase() {
 }
 
 function publicRequest(body) {
-  return new Request("https://lokd.co.za/api/enquiries", {
+  return new ClerkTestRequest("https://lokd.co.za/api/enquiries", {
     method: "POST",
     headers: { "content-type": "application/json", origin: "https://lokd.co.za", "sec-fetch-site": "same-origin" },
     body: JSON.stringify(body),
@@ -51,7 +52,7 @@ function publicRequest(body) {
 }
 
 function operationsRequest(method, body) {
-  return new Request("https://operations.lokd.co.za/api/enquiries", {
+  return new ClerkTestRequest("https://operations.lokd.co.za/api/enquiries", {
     method,
     headers: {
       ...(body ? { "content-type": "application/json" } : {}),
@@ -120,7 +121,7 @@ test("only signed-in Operations can own and close a client enquiry", async () =>
   const submitted = await enquiries.POST(publicRequest({ ...validEnquiry, email: "second@example.test" }));
   const { reference } = await submitted.json();
 
-  const anonymous = await enquiries.GET(new Request("https://operations.lokd.co.za/api/enquiries"));
+  const anonymous = await enquiries.GET(new ClerkTestRequest("https://operations.lokd.co.za/api/enquiries"));
   assert.equal(anonymous.status, 401);
   const queue = await enquiries.GET(operationsRequest("GET"));
   assert.equal(queue.status, 200, await queue.clone().text());

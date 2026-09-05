@@ -1,25 +1,20 @@
 import { env } from "cloudflare:workers";
-import { PilotAccessError, pilotStage, principalForEmail, principalHasRole, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
+import { PilotAccessError, pilotStage, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 import { applySpecialistAction, readSpecialistState, specialistDocument, SpecialistWorkflowError } from "../../lib/specialist-operations-server";
 import { specialistTerms } from "../../lib/specialist-operations-core";
 import type { SpecialistAction, SpecialistEnvironment } from "../../lib/specialist-operations-types";
 
 export const dynamic="force-dynamic";
-function reply(payload:unknown,status=200) {return Response.json(payload,{status,headers:{"cache-control":"no-store, private","x-content-type-options":"nosniff","referrer-policy":"no-referrer",vary:"oai-authenticated-user-email"}});}
+function reply(payload:unknown,status=200) {return Response.json(payload,{status,headers:{"cache-control":"no-store, private","x-content-type-options":"nosniff","referrer-policy":"no-referrer",vary:"Cookie, Authorization"}});}
 function failure(cause:unknown) {
   if(cause instanceof SpecialistWorkflowError||cause instanceof PilotAccessError) return reply({error:cause.message},cause.status);
   console.error("specialist_workflow_failed",cause instanceof Error?cause.message:"unknown");
   return reply({error:"The specialist workflow could not complete. Your unsaved inputs are still available; refresh the record and try again."},500);
 }
-function context(request:Request) {
+async function context(request:Request) {
   const url=new URL(request.url),scope=url.searchParams.get("scope")??"operations";
   if(scope!=="operations"&&scope!=="client"&&scope!=="officer") throw new SpecialistWorkflowError("Choose a valid workspace.");
-  const principal=requirePilotApiRole(request,scope);
-  // This new workflow never accepts the legacy public-demo fallback as a named reviewer.
-  const email=request.headers.get("oai-authenticated-user-email");
-  if(!email) throw new PilotAccessError("Sign in to access specialist assignment records.",401);
-  const assigned=principalForEmail(email);
-  if(!principalHasRole(assigned,scope)) throw new PilotAccessError("This account is not assigned to this workspace.",403);
+  const principal=await requirePilotApiRole(request,scope,{allowPublicDemo:false});
   if(!env.DB) throw new SpecialistWorkflowError("The specialist record store is unavailable.",503);
   const environment:SpecialistEnvironment=pilotStage()==="demo"?"demo":"production";
   return {url,scope:scope as "operations"|"client"|"officer",principal,environment,db:env.DB};
@@ -27,7 +22,7 @@ function context(request:Request) {
 
 export async function GET(request:Request) {
   try {
-    const {url,scope,principal,environment,db}=context(request);
+    const {url,scope,principal,environment,db}=await context(request);
     const state=await readSpecialistState(db,environment,principal.email);
     if(scope==="operations" && !url.searchParams.has("pack")) return reply({state});
     const accessible=state.packs.filter(pack=>{
@@ -54,7 +49,7 @@ export async function GET(request:Request) {
 export async function POST(request:Request) {
   try {
     requireSameOriginJson(request);
-    const {scope,principal,environment,db}=context(request);
+    const {scope,principal,environment,db}=await context(request);
     if(scope!=="operations") throw new PilotAccessError("Only Operations can change specialist records.",403);
     const raw=await request.text(); if(raw.length>100000) throw new SpecialistWorkflowError("The request is too large.",413);
     let action:SpecialistAction; try{action=JSON.parse(raw);}catch{throw new SpecialistWorkflowError("The request must contain valid JSON.");}

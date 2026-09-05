@@ -2594,3 +2594,25 @@ button { color: inherit; }
  .specialist-evidence-list fieldset {grid-template-columns:1fr;}
  .specialist-terms>div {grid-template-columns:1fr;gap:.3rem;}
 }
+/* LOKD-owned account access, shared by the public site and role workspaces. */
+.lokd-account-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.lokd-sign-in, .lokd-sign-up { font: inherit; font-size: 0.875rem; font-weight: 700; text-decoration: none; cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; border-radius: 8px; }
+.lokd-sign-in { color: #151718; background: transparent; border: 1px solid transparent; }
+.lokd-sign-up { color: #151718; background: #dbff4d; border: 1px solid #bacf55; }
+.lokd-account-controls :focus-visible { outline: 3px solid #678800; outline-offset: 3px; }
+.lokd-workspace-account-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 24px; background: #fff; border-bottom: 1px solid #dfe4dc; }
+.lokd-workspace-account-bar > a { color: #151718; font-size: 0.875rem; font-weight: 700; text-decoration: none; }
+.lokd-auth-screen { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 40px 20px; background: #f3f5f3; color: #151718; }
+.lokd-auth-logo img { width: 120px; height: auto; }
+.lokd-auth-message { width: min(100%, 480px); padding: 32px; border: 1px solid #dfe4dc; border-radius: 16px; background: #fff; }
+.lokd-auth-message h1 { margin: 0 0 20px; font-size: clamp(1.625rem, 5vw, 2rem); line-height: 1.2; letter-spacing: -0.03em; }
+.lokd-auth-message p { margin: 20px 0; font-size: 1rem; line-height: 1.6; }
+.lokd-auth-help { max-width: 420px; margin: 0; color: #545c56; font-size: 0.875rem; line-height: 1.6; text-align: center; }
+.lokd-auth-help a { color: inherit; text-decoration: underline; }
+.lokd-workspace-links { display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 600px) {
+  .public-header-actions .lokd-account-controls { gap: 4px; }
+  .public-header-actions .lokd-sign-in, .public-header-actions .lokd-sign-up { padding: 0 8px; }
+  .lokd-workspace-account-bar { padding: 8px 16px; }
+  .lokd-auth-message { padding: 24px; }
+}

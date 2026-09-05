@@ -8,6 +8,9 @@ type PilotAccessConfig = {
   reviewers?: string[];
   clients?: Record<string, string>;
   officers?: Record<string, string>;
+  // Explicitly bind a stable Clerk user ID to the existing LOKD principal.
+  // These links are server-managed; signup/email matches cannot create them.
+  clerkUsers?: Record<string, { principalEmail: string; displayName?: string }>;
 };
 
 export type PilotPrincipal = {
@@ -17,6 +20,7 @@ export type PilotPrincipal = {
   roles: PilotRole[];
   clientId: string | null;
   officerId: string | null;
+  authUserId?: string;
 };
 
 export class PilotAccessError extends Error {
@@ -108,6 +112,20 @@ export function principalForEmailFromConfig(
 
 export function principalHasRole(principal: PilotPrincipal, role: PilotRole) {
   return principal.owner || principal.roles.includes(role);
+}
+
+export function principalForClerkUserFromConfig(userId: string, rawConfig: string): PilotPrincipal {
+  const config = parseConfig(rawConfig);
+  const links = config.clerkUsers;
+  const link = links && typeof links === "object" && !Array.isArray(links)
+    && Object.hasOwn(links, userId) ? links[userId] : undefined;
+  if (!userId.startsWith("user_") || !link || typeof link !== "object"
+    || typeof link.principalEmail !== "string" || !link.principalEmail.trim()) {
+    return { email: "", displayName: "LOKD account", owner: false, roles: [], clientId: null, officerId: null, authUserId: userId };
+  }
+  const email = normaliseEmail(link.principalEmail);
+  const displayName = typeof link.displayName === "string" && link.displayName.trim() ? link.displayName.trim() : email;
+  return { ...principalForEmailFromConfig(email, displayName, rawConfig), authUserId: userId };
 }
 
 export function requireSameOriginJson(request: Request) {

@@ -79,7 +79,7 @@ async function loadRun(db: D1Database, payrollRunId: string): Promise<ShadowPayr
 
 export async function GET(request: Request) {
   try {
-    const actor = requirePilotApiRole(request, "operations");
+    const actor = await requirePilotApiRole(request, "operations");
     if (pilotStage() !== "demo") throw new PlatformWorkflowError("Shadow exports are disabled outside the controlled test environment.", 423);
     const url = new URL(request.url);
     const payrollRunId = url.searchParams.get("run")?.trim() ?? "";
@@ -122,7 +122,7 @@ export async function GET(request: Request) {
         "x-content-type-options": "nosniff",
         "x-lokd-payroll-mode": "shadow-settlement-locked",
         "referrer-policy": "no-referrer",
-        vary: "oai-authenticated-user-email",
+        vary: "Cookie, Authorization",
       },
     });
   } catch (cause) {

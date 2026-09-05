@@ -1,14 +1,15 @@
+import { ClerkTestRequest } from "./clerk-request.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { env } from "cloudflare:workers";
 
 const runtime = await import("../app/lib/pilot-runtime.ts");
 
-test("anonymous visitors receive the synthetic principal only in demo", () => {
+test("anonymous visitors receive the synthetic principal only in demo", async () => {
   env.LOKD_APP_STAGE = "demo";
   env.LOKD_PILOT_ACCESS_JSON = "";
-  const principal = runtime.requirePilotApiRole(
-    new Request("https://demo.lokd.co.za/api/pilot?scope=client"),
+  const principal = await runtime.requirePilotApiRole(
+    new ClerkTestRequest("https://demo.lokd.co.za/api/pilot?scope=client"),
     "client",
   );
   assert.equal(principal.email, "public-demo@lokd.invalid");
@@ -16,20 +17,20 @@ test("anonymous visitors receive the synthetic principal only in demo", () => {
   assert.equal(principal.owner, false);
 
   env.LOKD_APP_STAGE = "pilot";
-  assert.throws(
+  await assert.rejects(
     () => runtime.requirePilotApiRole(
-      new Request("https://demo.lokd.co.za/api/pilot?scope=client"),
+      new ClerkTestRequest("https://demo.lokd.co.za/api/pilot?scope=client"),
       "client",
     ),
     /Sign in/i,
   );
 });
 
-test("unassigned signed-in visitors fall back to public demo without gaining production access", () => {
+test("unassigned signed-in visitors fall back to public demo without gaining production access", async () => {
   env.LOKD_APP_STAGE = "demo";
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
-  const publicPrincipal = runtime.requirePilotApiRole(
-    new Request("https://demo.lokd.co.za/api/operations", {
+  const publicPrincipal = await runtime.requirePilotApiRole(
+    new ClerkTestRequest("https://demo.lokd.co.za/api/operations", {
       headers: { "oai-authenticated-user-email": "visitor@example.test" },
     }),
     "operations",
@@ -38,9 +39,9 @@ test("unassigned signed-in visitors fall back to public demo without gaining pro
   assert.equal(publicPrincipal.owner, false);
 
   env.LOKD_APP_STAGE = "pilot";
-  assert.throws(
+  await assert.rejects(
     () => runtime.requirePilotApiRole(
-      new Request("https://demo.lokd.co.za/api/operations", {
+      new ClerkTestRequest("https://demo.lokd.co.za/api/operations", {
         headers: { "oai-authenticated-user-email": "visitor@example.test" },
       }),
       "operations",
@@ -49,7 +50,7 @@ test("unassigned signed-in visitors fall back to public demo without gaining pro
   );
 });
 
-test("the client, officer and Operations hosts require real sign-in and configured roles", () => {
+test("the client, officer and Operations hosts require real sign-in and configured roles", async () => {
   env.LOKD_APP_STAGE = "demo";
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({
     owners: ["owner@lokd.example"],
@@ -57,36 +58,36 @@ test("the client, officer and Operations hosts require real sign-in and configur
     officers: { "officer@lokd.example": "OFF-001" },
   });
 
-  assert.throws(
-    () => runtime.requirePilotApiRole(new Request("https://portal.lokd.co.za/api/pilot?scope=client"), "client"),
+  await assert.rejects(
+    () => runtime.requirePilotApiRole(new ClerkTestRequest("https://portal.lokd.co.za/api/pilot?scope=client"), "client"),
     /Sign in/i,
   );
-  assert.throws(
-    () => runtime.requirePilotApiRole(new Request("https://operations.lokd.co.za/api/operations", {
+  await assert.rejects(
+    () => runtime.requirePilotApiRole(new ClerkTestRequest("https://operations.lokd.co.za/api/operations", {
       headers: { "oai-authenticated-user-email": "client@lokd.example" },
     }), "operations"),
     /does not have access/i,
   );
-  assert.throws(
-    () => runtime.requirePilotApiRole(new Request("https://officers.lokd.co.za/api/pilot?scope=officer"), "officer"),
+  await assert.rejects(
+    () => runtime.requirePilotApiRole(new ClerkTestRequest("https://officers.lokd.co.za/api/pilot?scope=officer"), "officer"),
     /Sign in/i,
   );
-  assert.throws(
-    () => runtime.requirePilotApiRole(new Request("https://officers.lokd.co.za/api/pilot?scope=client", {
+  await assert.rejects(
+    () => runtime.requirePilotApiRole(new ClerkTestRequest("https://officers.lokd.co.za/api/pilot?scope=client", {
       headers: { "oai-authenticated-user-email": "client@lokd.example" },
     }), "client"),
     /correct LOKD workspace/i,
   );
 
-  const client = runtime.requirePilotApiRole(new Request("https://portal.lokd.co.za/api/pilot?scope=client", {
+  const client = await runtime.requirePilotApiRole(new ClerkTestRequest("https://portal.lokd.co.za/api/pilot?scope=client", {
     headers: { "oai-authenticated-user-email": "client@lokd.example" },
   }), "client");
   assert.equal(client.clientId, "CL-001");
-  const owner = runtime.requirePilotApiRole(new Request("https://operations.lokd.co.za/api/operations", {
+  const owner = await runtime.requirePilotApiRole(new ClerkTestRequest("https://operations.lokd.co.za/api/operations", {
     headers: { "oai-authenticated-user-email": "owner@lokd.example" },
   }), "operations");
   assert.equal(owner.owner, true);
-  const officer = runtime.requirePilotApiRole(new Request("https://officers.lokd.co.za/api/pilot?scope=officer", {
+  const officer = await runtime.requirePilotApiRole(new ClerkTestRequest("https://officers.lokd.co.za/api/pilot?scope=officer", {
     headers: { "oai-authenticated-user-email": "officer@lokd.example" },
   }), "officer");
   assert.equal(officer.officerId, "OFF-001");

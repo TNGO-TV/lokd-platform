@@ -1,3 +1,4 @@
+import { ClerkTestRequest } from "./clerk-request.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -44,7 +45,7 @@ function migratedDatabase() {
 }
 
 function request(path, init = {}) {
-  return new Request(`https://demo.lokd.co.za${path}`, {
+  return new ClerkTestRequest(`https://demo.lokd.co.za${path}`, {
     ...init,
     headers: {
       "oai-authenticated-user-email": "ops@lokd.example",

@@ -87,7 +87,7 @@ function response(payload: unknown, status = 200) {
     "cache-control": "no-store, private",
     "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer",
-    vary: "oai-authenticated-user-email",
+    vary: "Cookie, Authorization",
   } });
 }
 
@@ -123,7 +123,7 @@ async function ensureDemoApplications(db: D1Database) {
 
 export async function GET(request: Request) {
   try {
-    requirePilotApiRole(request, "operations");
+    await requirePilotApiRole(request, "operations");
     const db = getDb();
     if (pilotStage() === "demo") await ensureDemoApplications(db);
     const result = await db.prepare(`SELECT id, pathway, full_name AS fullName, mobile_normalized AS mobile,
@@ -152,7 +152,7 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     requireSameOriginJson(request);
-    const actor = requirePilotApiRole(request, "operations");
+    const actor = await requirePilotApiRole(request, "operations");
     if (pilotStage() !== "demo") throw new ApplicationError("Demo application transitions are disabled outside the isolated demo environment.", 423);
     const raw = await request.text();
     if (raw.length > 16_000) throw new ApplicationError("The request is too large.", 413);

@@ -1,3 +1,4 @@
+import { ClerkTestRequest } from "./clerk-request.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -44,7 +45,7 @@ function migratedDatabase() {
 function row(database, sql, ...values) { return database.prepare(sql).get(...values); }
 
 function actionRequest(scope, action) {
-  return new Request(`https://demo.lokd.co.za/api/pilot?scope=${scope}`, {
+  return new ClerkTestRequest(`https://demo.lokd.co.za/api/pilot?scope=${scope}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",

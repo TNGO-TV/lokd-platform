@@ -14,7 +14,7 @@ class ServiceRecordError extends Error {
 
 export async function GET(request: Request) {
   try {
-    const principal = requirePilotApiRole(request, "client");
+    const principal = await requirePilotApiRole(request, "client");
     const clientId = principal.clientId ?? (principal.owner ? "CL-001" : null);
     if (!clientId) throw new ServiceRecordError("This account is not assigned to a pilot client.", 403);
     if (!env.DB) throw new ServiceRecordError("The service record backend is unavailable.", 503);
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
         "content-disposition": `attachment; filename="lokd-demo-service-record-${generatedAt.slice(0, 10)}.json"`,
         "cache-control": "no-store, private",
         "x-content-type-options": "nosniff",
-        vary: "oai-authenticated-user-email",
+        vary: "Cookie, Authorization",
       },
     });
   } catch (cause) {

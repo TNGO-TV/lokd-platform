@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import {
   PilotAccessError,
-  principalForEmailFromConfig,
+  principalForClerkUserFromConfig,
   principalHasRole,
   publicDemoPrincipal,
   requireSameOriginJson,
@@ -14,6 +14,7 @@ import {
   requestHostname,
   workspaceRoleForHost,
 } from "./public-site";
+import { verifiedClerkSession } from "./clerk-session";
 
 export {
   PilotAccessError,
@@ -30,12 +31,11 @@ function runtimeValue(key: string): string {
   return typeof runtime[key] === "string" ? String(runtime[key]) : "";
 }
 
-export function principalForEmail(email: string, displayName = email): PilotPrincipal {
-  return principalForEmailFromConfig(email, displayName, runtimeValue("LOKD_PILOT_ACCESS_JSON"));
+export function principalForClerkUser(userId: string): PilotPrincipal {
+  return principalForClerkUserFromConfig(userId, runtimeValue("LOKD_PILOT_ACCESS_JSON"));
 }
 
-export function requirePilotApiRole(request: Request, allowed: PilotRole | PilotRole[]) {
-  const email = request.headers.get("oai-authenticated-user-email");
+export async function requirePilotApiRole(request: Request, allowed: PilotRole | PilotRole[], options: { allowPublicDemo?: boolean } = {}) {
   const roles = Array.isArray(allowed) ? allowed : [allowed];
   const hostname = requestHostname(new URL(request.url).hostname);
   const hostnameRole = workspaceRoleForHost(hostname);
@@ -45,13 +45,14 @@ export function requirePilotApiRole(request: Request, allowed: PilotRole | Pilot
       403,
     );
   }
-  const publicDemoFallback = pilotStage() === "demo"
+  const publicDemoFallback = options.allowPublicDemo !== false && pilotStage() === "demo"
     && (isLegacyPublicDemoHost(hostname) || hostname.endsWith(".chatgpt.site") || hostname === "app.local");
-  if (!email) {
+  const session = await verifiedClerkSession(request);
+  if (!session) {
     if (publicDemoFallback) return publicDemoPrincipal();
     throw new PilotAccessError("Sign in to continue.", 401);
   }
-  const principal = principalForEmail(email, email);
+  const principal = principalForClerkUser(session.userId);
   if (!roles.some((role) => principalHasRole(principal, role))) {
     if (publicDemoFallback) return publicDemoPrincipal();
     throw new PilotAccessError("This account does not have access to that LOKD workspace.", 403);

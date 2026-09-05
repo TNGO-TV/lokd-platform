@@ -27,7 +27,7 @@ function response(payload: unknown, status = 200) {
       "cache-control": "no-store, private",
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
-      vary: "oai-authenticated-user-email",
+      vary: "Cookie, Authorization",
     },
   });
 }
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
   let storageKey: string | null = null;
   try {
     requireSameOriginJson(request);
-    const actor = requirePilotApiRole(request, "operations");
+    const actor = await requirePilotApiRole(request, "operations");
     const stage = requirePrivateRuntime();
     const { db, bucket } = backend();
     const raw = await request.text();
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    requirePilotApiRole(request, "operations");
+    await requirePilotApiRole(request, "operations");
     const stage = requirePrivateRuntime();
     const { db, bucket } = backend();
     const url = new URL(request.url);
@@ -162,7 +162,7 @@ export async function GET(request: Request) {
         "content-disposition": `attachment; filename="${artifact.id}"`,
         "x-content-type-options": "nosniff",
         "x-evidence-sha256": artifact.contentHash,
-        vary: "oai-authenticated-user-email",
+        vary: "Cookie, Authorization",
       },
     });
   } catch (cause) {
@@ -173,7 +173,7 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     requireSameOriginJson(request);
-    const actor = requirePilotApiRole(request, "operations");
+    const actor = await requirePilotApiRole(request, "operations");
     const stage = requirePrivateRuntime();
     const { db, bucket } = backend();
     const raw = await request.text();

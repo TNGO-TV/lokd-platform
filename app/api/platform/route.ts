@@ -17,7 +17,7 @@ function response(payload: unknown, status = 200) {
       "cache-control": "no-store, private",
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
-      vary: "oai-authenticated-user-email",
+      vary: "Cookie, Authorization",
     },
   });
 }
@@ -37,7 +37,7 @@ function requireDemo() {
 
 export async function GET(request: Request) {
   try {
-    const actor = requirePilotApiRole(request, "operations");
+    const actor = await requirePilotApiRole(request, "operations");
     requireDemo();
     const db = getDb();
     await ensureIntegrationDemoData(db);
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     requireSameOriginJson(request);
-    const actor = requirePilotApiRole(request, "operations");
+    const actor = await requirePilotApiRole(request, "operations");
     requireDemo();
     const raw = await request.text();
     if (raw.length > 16_000) throw new PlatformWorkflowError("The request is too large.", 413);

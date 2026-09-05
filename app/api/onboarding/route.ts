@@ -34,7 +34,7 @@ function response(payload: unknown, status = 200) {
       "cache-control": "no-store, private",
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
-      vary: "oai-authenticated-user-email",
+      vary: "Cookie, Authorization",
     },
   });
 }
@@ -70,7 +70,7 @@ function requireDemo() {
 export async function GET(request: Request) {
   try {
     const scope = scopeFromRequest(request);
-    const principal = requirePilotApiRole(request, scope);
+    const principal = await requirePilotApiRole(request, scope);
     requireDemo();
     const db = getDb();
     await ensureOnboardingDemoData(db);
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
         "Only Operations can run onboarding control rehearsals.",
         403,
       );
-    const principal = requirePilotApiRole(request, "operations");
+    const principal = await requirePilotApiRole(request, "operations");
     requireDemo();
     const raw = await request.text();
     if (raw.length > 8_000)

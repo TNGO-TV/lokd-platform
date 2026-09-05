@@ -1,3 +1,4 @@
+import { ClerkTestRequest } from "./clerk-request.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -66,7 +67,7 @@ function migratedDatabase() {
 }
 
 function request(host, path, method = "GET", body, email = "owner@lokd.example") {
-  return new Request(`https://${host}${path}`, {
+  return new ClerkTestRequest(`https://${host}${path}`, {
     method,
     headers: {
       ...(body ? { "content-type": "application/json" } : {}),

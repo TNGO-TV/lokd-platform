@@ -1,3 +1,4 @@
+import { ClerkTestRequest } from "./clerk-request.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -43,7 +44,7 @@ function migratedDatabase() {
 }
 
 function ownerRequest(method, body) {
-  return new Request("https://demo.lokd.co.za/api/applications", {
+  return new ClerkTestRequest("https://demo.lokd.co.za/api/applications", {
     method,
     headers: {
       ...(body ? { "content-type": "application/json" } : {}),
@@ -85,7 +86,7 @@ test("public interest stays prelaunch, consent-pending and outside the synthetic
   env.LOKD_APP_STAGE = "demo";
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
   const applications = await import("../app/api/applications/route.ts");
-  const publicRequest = new Request("https://demo.lokd.co.za/api/applications", {
+  const publicRequest = new ClerkTestRequest("https://demo.lokd.co.za/api/applications", {
     method: "POST",
     headers: { "content-type": "application/json", origin: "https://demo.lokd.co.za", "sec-fetch-site": "same-origin" },
     body: JSON.stringify({

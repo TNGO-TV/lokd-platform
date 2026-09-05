@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { chatGPTSignOutPath } from "../chatgpt-auth";
+import { AccountControls } from "./account-controls";
 import type { PilotRole } from "../lib/pilot-access-core";
 
 const labels: Record<PilotRole, string> = {
@@ -15,10 +15,10 @@ export default function PilotAccessDenied({ email, role }: { email: string; role
       <Link href="/" aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></Link>
       <p className="public-kicker">Controlled pre-launch access</p>
       <h1>{labels[role]} access is not assigned.</h1>
-      <p>You are signed in as <strong>{email}</strong>. LOKD has not linked this account to the requested pilot role.</p>
+      <p>{email ? <>You are signed in as <strong>{email}</strong>. </> : "You are signed in to your LOKD account. "}LOKD has not linked this account to the requested pilot role.</p>
       <div>
         <Link className="public-button public-button--dark" href="/">Return to LOKD</Link>
-        <a className="public-button public-button--outline-dark" href={chatGPTSignOutPath("/")}>Use another account</a>
+        <AccountControls switchAccount />
       </div>
       <small>No operational or personal data has been disclosed.</small>
     </section>

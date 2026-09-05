@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { getChatGPTUser } from "./chatgpt-auth";
+import { ClerkProvider } from "@clerk/nextjs";
+import { getLOKDUser } from "./lokd-auth";
+import { clerkSettings } from "./lib/clerk-config";
 import PilotFeedback from "./components/pilot-feedback";
 import { OrganisationJsonLd } from "./components/seo-json-ld";
 import { PUBLIC_SITE_URL } from "./lib/public-site";
@@ -36,10 +38,12 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const user = await getChatGPTUser();
+  const settings = clerkSettings();
+  const user = await getLOKDUser();
+  const content = <>{children}<OrganisationJsonLd />{user && <PilotFeedback />}</>;
   return (
     <html lang="en">
-      <body>{children}<OrganisationJsonLd />{user && <PilotFeedback />}</body>
+      <body>{settings.ready ? <ClerkProvider dynamic publishableKey={settings.publishableKey} signInUrl="/sign-in" signUpUrl="/sign-up" signInFallbackRedirectUrl="/account" signUpFallbackRedirectUrl="/account" afterSignOutUrl="/" telemetry={false} appearance={{ variables: { colorPrimary: "#151718", borderRadius: "0.75rem", fontFamily: "inherit" } }}>{content}</ClerkProvider> : content}</body>
     </html>
   );
 }

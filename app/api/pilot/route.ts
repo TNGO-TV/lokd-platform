@@ -3865,7 +3865,7 @@ function response(payload: unknown, status = 200) {
       "cache-control": "no-store, private",
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
-      vary: "oai-authenticated-user-email",
+      vary: "Cookie, Authorization",
     },
   });
 }
@@ -3893,7 +3893,7 @@ function requireDemoTransactionModel() {
 export async function GET(request: Request) {
   try {
     const scope = scopeFromRequest(request);
-    const viewer = requirePilotApiRole(request, scope);
+    const viewer = await requirePilotApiRole(request, scope);
     requireScopedPilotEntity(viewer, scope);
     requireDemoTransactionModel();
     const db = getPilotDb();
@@ -3928,7 +3928,7 @@ export async function GET(request: Request) {
           "cache-control": "no-store, private",
           "x-content-type-options": "nosniff",
           "referrer-policy": "no-referrer",
-          vary: "oai-authenticated-user-email",
+          vary: "Cookie, Authorization",
         },
       });
     }
@@ -3942,7 +3942,7 @@ export async function POST(request: Request) {
   try {
     requireSameOriginJson(request);
     const scope = scopeFromRequest(request);
-    const viewer = requirePilotApiRole(request, scope);
+    const viewer = await requirePilotApiRole(request, scope);
     requireScopedPilotEntity(viewer, scope);
     const raw = await request.text();
     if (raw.length > 32_768)
@@ -3960,7 +3960,7 @@ export async function POST(request: Request) {
     )
       throw new PilotError("Choose a valid pilot action.", 400);
     const actionRole = roleForPilotAction(payload.action);
-    const actor = requirePilotApiRole(request, actionRole);
+    const actor = await requirePilotApiRole(request, actionRole);
     if (actionRole === "client" || actionRole === "officer")
       requireScopedPilotEntity(actor, actionRole);
     requireDemoTransactionModel();

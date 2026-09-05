@@ -45,7 +45,7 @@ function reply(payload: unknown, status = 200) {
     "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer",
     "x-robots-tag": "noindex, nofollow",
-    vary: "oai-authenticated-user-email",
+    vary: "Cookie, Authorization",
   } });
 }
 
@@ -55,9 +55,8 @@ function failure(cause: unknown) {
   return reply({ error: error.message }, error.status);
 }
 
-function requireSignedInOperations(request: Request) {
-  if (!request.headers.get("oai-authenticated-user-email")) throw new EnquiryError("Sign in to Operations to continue.", 401);
-  return requirePilotApiRole(request, "operations");
+async function requireSignedInOperations(request: Request) {
+  return await requirePilotApiRole(request, "operations", { allowPublicDemo: false });
 }
 
 export async function POST(request: Request) {
@@ -122,7 +121,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    requireSignedInOperations(request);
+    await requireSignedInOperations(request);
     const result = await getDb().prepare(`SELECT id, organisation_name AS organisationName,
       contact_name AS contactName, email_normalized AS email, mobile_normalized AS mobile,
       site_area AS siteArea, site_type AS siteType, required_start AS requiredStart,
@@ -138,7 +137,7 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     requireSameOriginJson(request);
-    const actor = requireSignedInOperations(request);
+    const actor = await requireSignedInOperations(request);
     const raw = await request.text();
     if (raw.length > 4_000) throw new EnquiryError("The update is too large.", 413);
     let input: Record<string, unknown>;

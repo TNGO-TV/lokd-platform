@@ -13,7 +13,7 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
 const localBindingConfig = {
   main: "./worker/index.ts",
-  compatibility_flags: ["nodejs_compat"],
+  compatibility_flags: ["nodejs_compat", "nodejs_compat_populate_process_env"],
   // Revalidation windows are evaluated every minute. The service is
   // idempotent, so duplicate scheduler delivery cannot create duplicate
   // decisions or move an assignment twice.

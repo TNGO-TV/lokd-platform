@@ -14,7 +14,7 @@ function getDb() {
 
 export async function GET(request: Request) {
   try {
-    requirePilotApiRole(request, "operations");
+    await requirePilotApiRole(request, "operations");
     const result = await getDb().prepare(`SELECT id, reviewer_email AS reviewerEmail, route, role,
       category, score, note, status, created_at AS createdAt FROM pilot_feedback
       ORDER BY created_at DESC LIMIT 100`).all();
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     requireSameOriginJson(request);
-    const principal = requirePilotApiRole(request, ["operations", "client", "officer", "reviewer"]);
+    const principal = await requirePilotApiRole(request, ["operations", "client", "officer", "reviewer"]);
     const raw = await request.text();
     if (raw.length > 8_192) return response({ error: "Feedback is too large." }, 413);
     const body = JSON.parse(raw) as { route?: string; category?: string; score?: number; note?: string };
