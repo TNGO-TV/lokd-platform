@@ -30,9 +30,14 @@ it preserves the server/client restriction and changes no token verification.
 
 Missing keys leave the public site available and protected access closed.
 The sign-in and sign-up routes show an unavailable message until configuration
-is complete. Production stage also rejects development keys. The last verified
-Clerk Dashboard state had a development instance and no production environment;
-creating/configuring production is a separate unfinished activation step.
+is complete. Production stage also rejects development keys. The production
+instance was created on 5 September 2026 after the user
+explicitly approved copying the existing development settings. It is
+`ins_3IuqByfuozQZDguv7iJ3qPqd47b`, with primary domain `lokd.co.za` and Frontend
+API `https://clerk.lokd.co.za`. Its keys are saved in hosting environment
+revision 3; the server key is marked secret. This revision is not applied to
+the live site until a saved version is deployed. DNS verification and actual
+account acceptance remain incomplete.
 
 Before any live switch, confirm the selected instance, configure production
 domains and the client/officer/Operations subdomains, run real sign-in, signup,
@@ -113,22 +118,78 @@ Latest verification recorded on 5 September 2026:
   startup attempts. No passing browser or Worker smoke result is claimed.
 - All 22 emitted client JavaScript files passed the server-key pattern check.
 
-Automatic approval review rejected the **Continue** action in Clerk's
-**Create production instance** dialog with **Clone development instance**
-selected. The stated reason was that this creates a persistent production
-instance and requires specific approval at action time. It was not executed
-or retried through another route. Ask specifically for permission to create
-the production instance inside the existing LOKD Security application by
-copying its development settings. This is separate from the still-unapproved
-workspace-wide CLI OAuth grant.
+## Production setup status — 5 September 2026
 
-This remains a draft. No production Clerk keys or user-role links have been
-installed, no production Clerk instance has been created, and the live Version
-35 authentication remains unchanged. After production creation is approved,
-complete configuration and actual runtime/browser verification before merging
-or deploying this migration.
+The user specifically approved creating production inside the existing LOKD
+Security application by cloning development. Creation succeeded. No broad
+workspace CLI grant or paid plan was approved or used.
+
+The production email/password settings were verified in the dashboard: email
+signup and required email are on; signup email verification and email-code
+sign-in are on; password signup and adding a password are on; Device Trust
+and compromised-password rejection are on; minimum password length is 15.
+
+Google is present as an enabled but unconfigured social connection. The
+production page explicitly says it cannot work until custom credentials are
+added. Automatic approval review rejected the final Disable connection action
+because the user had not specifically authorised that production authentication
+change. The confirmation was cancelled, and Google was left unchanged. Ask
+specifically to disable this unconfigured Google connection and use the already
+enabled email/password options. Do not substitute a different mutation route.
+
+The application's two production keys were transferred directly from its
+visible dashboard configuration into the existing Site's runtime settings.
+The secret key is stored as a secret. Existing runtime entries were preserved,
+and no existing environment file was read or printed. There are no actual
+keys or user-role links in Git. The active business stage and payment locks
+were not changed.
+
+The production Paths page retains Clerk's default account-portal URLs for
+sign-in, sign-up and sign-out; Home URL is blank, meaning the root. LOKD's
+provider and proxy explicitly configure its application routes in code. No
+dashboard path setting was changed; actual route/return-flow verification is
+part of the unfinished browser acceptance.
+
+Clerk generated the following CNAME records for the `lokd.co.za` DNS zone:
+
+| Name | Target |
+| --- | --- |
+| `clerk` | `frontend-api.clerk.services` |
+| `accounts` | `accounts.clerk.services` |
+| `clkmail` | `mail.41o7yt86mrf7.clerk.services` |
+| `clk._domainkey` | `dkim1.41o7yt86mrf7.clerk.services` |
+| `clk2._domainkey` | `dkim2.41o7yt86mrf7.clerk.services` |
+
+The production domain ID is `dmn_3IuqBzocbgxwTA1NUWhFX35xprf`. The actual
+Clerk verification returned 0/2 application records and 0/3 email records
+verified. The first three hosts resolved to the wrong target, `lokd.co.za`;
+Clerk could not determine the two DKIM hosts. Certificates are not issued
+until verification succeeds. The DNS account is not connected here, and
+plugin discovery found no suitable cPanel DNS integration. The owner must
+apply these specific records in the existing zone; existing website, portal
+and ordinary mail records must be preserved.
+
+An attempt to enable an explicit subdomain allowlist was interrupted by
+automatic approval review when adding the first `www.lokd.co.za` entry. The
+reviewer said that a partial list would exclude the other LOKD subdomains and
+was not specifically approved. The earlier toggle was immediately restored
+to its original disabled state, and that restoration was verified. No partial
+allowlist remains. The code's explicit authorized origins remain in place.
+A future complete dashboard restriction should include all confirmed LOKD
+subdomains and be approved together, not added as an incomplete live policy.
+
+This remains a draft. The live Site is active and still on Version 35. No
+merge, deployment, real signup/sign-in pass, named user-role link or production
+business activation occurred. Complete DNS/certificates and any outstanding
+Google connection decision, actual Worker/browser acceptance and named role
+checks before merging and deploying. The two bounded preview startup attempts
+were not repeated; the preview is stopped. The production build, type check
+and 213 regression results above remain the latest passing software checks.
 
 Official references:
 - [Next.js setup](https://clerk.com/docs/nextjs/getting-started/quickstart)
 - [Clerk middleware](https://clerk.com/docs/reference/nextjs/clerk-middleware)
 - [Cloudflare server environment](https://developers.cloudflare.com/workers/runtime-apis/nodejs/process/)
+
+- [Production setup and DNS](https://clerk.com/docs/guides/development/deployment/production)
+- [Subdomain controls](https://clerk.com/docs/guides/dashboard/dns-domains/subdomain-allowlist)
