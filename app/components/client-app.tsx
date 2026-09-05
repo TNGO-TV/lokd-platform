@@ -35,6 +35,7 @@ import {
   PUBLIC_SITE_URL,
 } from "../lib/public-site";
 import { PortalOnboardingSummary } from "./portal-onboarding-summary";
+import { PortalSpecialistPacks } from "./portal-specialist-packs";
 
 const serviceOptions = (Object.keys(servicePriceBook) as ServiceType[]).map(
   (name) => ({ name, ...servicePriceBook[name] }),
@@ -341,6 +342,7 @@ export default function ClientApp() {
           </button>
         </div>
         <PortalOnboardingSummary scope="client" />
+        <PortalSpecialistPacks scope="client" />
         <section className="client-status-card">
           <div className="client-status-main">
             <span

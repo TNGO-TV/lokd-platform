@@ -18,6 +18,7 @@ import WorkspaceView from "./workspace-view";
 import { PlatformReadiness } from "./platform-readiness";
 import ClientEnquiriesView from "./client-enquiries-view";
 import { OnboardingControl } from "./onboarding-control";
+import { SpecialistOperationsControl } from "./specialist-operations-control";
 import {
   indicativeSingleShiftPrice,
   specialistProfiles,
@@ -30,7 +31,7 @@ import {
   PUBLIC_SITE_URL,
 } from "../lib/public-site";
 
-const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Specialist pricing", "Offers", "Applications", "Workforce", "Officer conversions", "Officers", "Clients", "Client enquiries", "Onboarding", "Service requests", "Timesheets", "Payroll", "Billing", "Operator controls", "Integrations", "Feedback", "Launch readiness"];
+const navItems = ["Control", "Coverage", "Assignment activation", "Incidents", "Bookings", "Specialist operations", "Specialist pricing", "Offers", "Applications", "Workforce", "Officer conversions", "Officers", "Clients", "Client enquiries", "Onboarding", "Service requests", "Timesheets", "Payroll", "Billing", "Operator controls", "Integrations", "Feedback", "Launch readiness"];
 
 function Icon({ name }: { name: "search" | "bell" | "refresh" | "incident" | "close" | "chevron" | "map" }) {
   const paths: Record<typeof name, React.ReactNode> = {
@@ -111,12 +112,13 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
   const isOfficerConversion = activeNav === "Officer conversions";
   const isClientEnquiries = activeNav === "Client enquiries";
   const isSpecialistPricing = activeNav === "Specialist pricing";
+  const isSpecialistOperations = activeNav === "Specialist operations";
   const isOnboarding = activeNav === "Onboarding";
   const isLaunchReadiness = activeNav === "Launch readiness";
   const isPlatform = activeNav === "Integrations" || activeNav === "Service requests"
     || activeNav === "Timesheets" || activeNav === "Payroll" || activeNav === "Billing"
     || activeNav === "Operator controls";
-  const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isOfficerConversion || isClientEnquiries || isSpecialistPricing || isOnboarding || isLaunchReadiness || isPlatform;
+  const isOperationalSurface = isCommand || isCoverage || isActivation || isWorkforce || isOfficerConversion || isClientEnquiries || isSpecialistPricing || isSpecialistOperations || isOnboarding || isLaunchReadiness || isPlatform;
   const pendingPayments = pilot.state?.bookings.filter((booking) => booking.fundingStatus !== "paid_in_full").length ?? 0;
   const searchResults = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -196,6 +198,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
               : isOfficerConversion ? <OfficerConversionControl operations={operations} flash={flash} />
                 : isClientEnquiries ? <ClientEnquiriesView flash={flash} />
                   : isSpecialistPricing ? <SpecialistPricingControl state={pilot.state} />
+                  : isSpecialistOperations ? <SpecialistOperationsControl />
                   : isOnboarding ? <OnboardingControl flash={flash} />
               : isLaunchReadiness ? <LaunchReadinessControl operations={operations} />
                 : isPlatform ? <PlatformReadiness view={activeNav as "Integrations" | "Service requests" | "Timesheets" | "Payroll" | "Billing" | "Operator controls"} flash={flash} />

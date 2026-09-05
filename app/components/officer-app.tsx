@@ -15,6 +15,7 @@ import {
 } from "../lib/public-site";
 import { usePilot } from "../lib/use-pilot";
 import { PortalOnboardingSummary } from "./portal-onboarding-summary";
+import { PortalSpecialistPacks } from "./portal-specialist-packs";
 
 type OfficerTab = "Home" | "Work" | "Earnings" | "Profile";
 type WorkView = "Offers" | "My shifts";
@@ -630,6 +631,7 @@ function ApprovedOfficer({
       {tab === "Profile" && (
         <>
           <PortalOnboardingSummary scope="officer" />
+          <PortalSpecialistPacks scope="officer" />
           <OfficerProfile
             state={state}
             pilot={pilot}

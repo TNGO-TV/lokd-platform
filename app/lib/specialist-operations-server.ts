@@ -45,7 +45,7 @@ export async function readSpecialistBookings(db:D1Database,environment:Specialis
     (SELECT MAX(ends_at) FROM roster_slots WHERE booking_id=b.id) AS endsAt
     FROM bookings b LEFT JOIN specialist_pricing_validation_v33 p ON p.id=b.id
     LEFT JOIN specialist_booking_control_validation_v33 c ON c.id=b.id
-    WHERE b.environment=? AND b.specialist_service_code<>'standard_unarmed' ORDER BY b.created_at DESC LIMIT 200`,environment);
+    WHERE b.environment=? AND b.specialist_service_code<>'standard_unarmed' ORDER BY b.rowid DESC LIMIT 200`,environment);
 }
 
 export async function readSpecialistState(db:D1Database,environment:SpecialistEnvironment,actorEmail:string):Promise<SpecialistOperationsState> {
@@ -105,7 +105,7 @@ function normaliseContent(value:SpecialistPackContent,booking:SpecialistBooking,
   for(const check of value.checks) {
     if(!check||!allowed.has(check.code)||!check.reference) continue;
     if(content.checks.some(x=>x.code===check.code)) throw new SpecialistWorkflowError("Duplicate evidence entry.");
-    content.checks.push({code:check.code,reference:evidenceRef(check.reference,environment),validFrom:date(check.validFrom,"Evidence start"),expiresAt:date(check.expiresAt,"Evidence expiry")});
+    content.checks.push({code:check.code,reference:evidenceRef(check.reference,environment),validFrom:check.validFrom?date(check.validFrom,"Evidence start"):"",expiresAt:check.expiresAt?date(check.expiresAt,"Evidence expiry"):""});
   }
   return content;
 }
@@ -179,6 +179,9 @@ export async function applySpecialistAction(db:D1Database,environment:Specialist
     await db.prepare(`INSERT INTO specialist_rehearsal_runs (id,environment,integrity_state,scenarios,run_by,created_at) VALUES (?,'demo','synthetic',?,?,?)`)
       .bind(id("SR"),JSON.stringify(scenarios),actor,now).run();
   } else throw new SpecialistWorkflowError("Choose a supported specialist action.");
+  await db.prepare(`INSERT INTO audit_events (id,actor_type,actor_id,event_type,entity_type,entity_id,detail,created_at)
+    VALUES (?,'operations',?,'specialist_workflow_action','specialist_workflow',?,?,?)`)
+    .bind(id("SA"),actor,"id" in action?action.id:"bookingId" in action?action.bookingId:environment,JSON.stringify({action:action.action,environment}),now).run();
 }
 
 export function specialistDocument(state:SpecialistOperationsState,pack:SpecialistPack,scope:"operations"|"client"|"officer") {

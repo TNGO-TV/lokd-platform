@@ -1,6 +1,9 @@
 import { calendarPriceBook, defaultRiskInput, quoteBooking } from "./pilot-pricing";
 import { indicativeSingleShiftPrice, SPECIALIST_PRICING_VERSION, specialistProfiles, type SpecialistServiceCode } from "./specialist-pricing";
 import { PRODUCTION_ONBOARDING_BLOCKERS } from "./onboarding-core";
+import { ZA_2027_SARS_POLICY_CANDIDATE } from "./payroll-engine";
+import { runPayrollShadowValidation } from "./payroll-shadow";
+import { advanceFundingDecision } from "./operator-controls";
 import type { SpecialistBooking, SpecialistPackContent, SpecialistPartner, SpecialistScenarioResult } from "./specialist-operations-types";
 
 export const SPECIALIST_TERMS_VERSION = "LOKD-SPECIALIST-TERMS-2026.09-v1";
@@ -109,6 +112,7 @@ export function evaluateSpecialistPack(booking: SpecialistBooking, content: Spec
 }
 
 export function runSpecialistRehearsals(now = new Date()): SpecialistScenarioResult[] {
+  const payroll=runPayrollShadowValidation(ZA_2027_SARS_POLICY_CANDIDATE);
   const future = new Date(now.getTime()+14*86400000); while(future.getUTCDay()!==2) future.setUTCDate(future.getUTCDate()+1);
   const date=future.toISOString().slice(0,10);
   return (["armed_static","armed_movement","vip_unarmed","vip_armed"] as SpecialistServiceCode[]).map(code=>{
@@ -119,14 +123,17 @@ export function runSpecialistRehearsals(now = new Date()): SpecialistScenarioRes
     const validFrom=new Date(now.getTime()-86400000).toISOString(); const expiresAt=new Date(future.getTime()+86400000*3).toISOString();
     content.checks=requiredSpecialistChecks(booking,content.officerIds).map(x=>({code:x.code,reference:`demo://${x.code}`,validFrom,expiresAt}));
     const ready=evaluateSpecialistPack(booking,content,{commercialCurrent:true,now});
+    const shortFunding=advanceFundingDecision({creditTermsDays:0,fundingModel:"advance_only",bookingAmountCents:booking.totalCents,expectedAmountCents:booking.totalCents,clearedAmountCents:booking.totalCents-1,status:"cleared_reconciled",evidenceReference:"demo://underfunded-test"});
     const expired={...content,checks:content.checks.map((x,i)=>i===0?{...x,expiresAt:validFrom}:x)};
     const steps=[
       {label:"Configured quote and cost floor",passed:quote.marginBasisPoints>=quote.minimumMarginBasisPoints,detail:"Risk, team, planning, employer reserve and minimum margin calculated by the booking engine."},
-      {label:"VAT-inclusive advance funding",passed:quote.clientPriceCents===quote.subtotalCents+quote.vatCents && !evaluateSpecialistPack({...booking,fundingCurrent:0},content,{commercialCurrent:true,now}).ready,detail:"An uncleared or underfunded booking cannot become pack-ready."},
+      {label:"VAT-inclusive advance funding",passed:quote.clientPriceCents===quote.subtotalCents+quote.vatCents && !shortFunding.ready && !evaluateSpecialistPack({...booking,fundingCurrent:0},content,{commercialCurrent:true,now}).ready,detail:"A one-cent shortfall is rejected by the advance-funding engine; an uncleared booking cannot become pack-ready."},
       {label:"Evidence and assignment pack",passed:ready.ready,detail:ready.ready?"Complete synthetic scope, contract references, personnel and readiness evidence pass.":ready.blockers.join(" ")},
       {label:"Expired evidence blocks review",passed:!evaluateSpecialistPack(booking,expired,{commercialCurrent:true,now}).ready,detail:"A single expired document makes the pack unavailable for approval."},
       {label:"Quote change invalidates approval",passed:!evaluateSpecialistPack({...booking,totalCents:booking.totalCents+1},content,{commercialCurrent:true,quoteSnapshot:quoteFingerprint(booking),now}).ready,detail:"The approved snapshot must match the current quote and roster."},
       {label:"Authority withdrawal blocks release",passed:!evaluateSpecialistPack({...booking,authorityCurrent:0},content,{commercialCurrent:true,now}).ready,detail:"Specialist authority is checked again at use time."},
+      {label:"Attendance and payroll validation",passed:payroll.status==="passed"&&payroll.failedCount===0,detail:`${payroll.passedCount}/${payroll.scenarioCount} existing shadow-payroll cases pass. Available for withdrawal and Awaiting approval remain separate; no real attendance is asserted.`},
+      {label:"Settlement remains locked",passed:payroll.settlementLocked&&!payroll.activationEligible,detail:"The shadow payroll cannot authorise a payslip, payment or production activation."},
     ];
     return {serviceCode:code,label:profile.label,status:steps.every(s=>s.passed)?"passed":"failed",totalCents:quote.clientPriceCents,steps};
   });

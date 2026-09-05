@@ -362,7 +362,7 @@ async function readCases(
       expires_at AS expiresAt, sort_order AS sortOrder
       FROM onboarding_checklist_items WHERE case_id = ? AND environment = 'demo'
        AND integrity_state = 'synthetic' ORDER BY sort_order, code`)
-      .bind(row.id).all<OnboardingChecklistItem & { required: number }>();
+      .bind(row.id).all<Omit<OnboardingChecklistItem,"required"> & { required: number }>();
     cases.push({
       ...row,
       checklist: (checklist.results ?? []).map((item) => ({

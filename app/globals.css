@@ -2530,3 +2530,67 @@ button { color: inherit; }
   .specialist-pricing-summary { grid-template-columns: 1fr; }
   .specialist-configurator > div { grid-template-columns: 1fr; }
 }
+
+/* Specialist operations extends the existing LOKD command surface. */
+.specialist-control { display:grid; gap:1.25rem; min-width:0; color:#222c2b; font-size:1rem; line-height:1.55; }
+.specialist-control h1 {font-size:2rem;line-height:1.15;}
+.specialist-control h2 {font-size:1.35rem;line-height:1.3;margin:0 0 .75rem;}
+.specialist-control h3 {font-size:1.05rem;margin:1.1rem 0 .5rem;}
+.specialist-control p {font-size:1rem;line-height:1.55;color:#53615e;}
+.specialist-control .eyebrow {font-size:.875rem;letter-spacing:.06em;}
+.specialist-control button,.specialist-control a.secondary-button {font:inherit;font-size:.875rem;min-height:44px;padding:.65rem 1rem;border-radius:8px;border:1px solid #b9c5c0;background:#fff;color:#263b32;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;white-space:normal;}
+.specialist-control button.primary-button,.specialist-control .specialist-tabs button.active {background:#233c31;color:#fff;border-color:#233c31;}
+.specialist-control button:disabled {opacity:.48;cursor:not-allowed;}
+.specialist-control :focus-visible {outline:3px solid #7c9833;outline-offset:3px;}
+.specialist-tabs {display:flex;flex-wrap:wrap;gap:.5rem;}
+.specialist-panel {border:1px solid #d9e0dc;border-radius:16px;background:#fff;padding:1.5rem;min-width:0;}
+.specialist-panel>header {display:flex;gap:1.5rem;justify-content:space-between;align-items:flex-start;}
+.specialist-panel>header>div {flex:1;}
+.specialist-kpis {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem;margin:1rem 0;}
+.specialist-kpis article {padding:1rem;background:#f0f4f1;border-radius:10px;display:flex;flex-direction:column;gap:.4rem;min-width:0;}
+.specialist-kpis span {font-size:.875rem;color:#54665c;}
+.specialist-kpis strong {font-size:1.15rem;overflow-wrap:anywhere;}
+.specialist-form-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin:1rem 0;}
+.specialist-control label {font-size:.875rem;font-weight:600;display:flex;flex-direction:column;gap:.35rem;min-width:0;}
+.specialist-control input:not([type=checkbox]),.specialist-control select,.specialist-control textarea {width:100%;min-width:0;min-height:44px;border:1px solid #bfcac4;border-radius:7px;padding:.6rem .7rem;background:#fff;color:#26362d;font:inherit;font-weight:400;font-size:1rem;}
+.specialist-control textarea {resize:vertical;}
+.specialist-booking-picker {max-width:100%;}
+.specialist-officer-picker {border:1px solid #d8e1da;padding:1rem;border-radius:10px;display:flex;flex-wrap:wrap;gap:.8rem 1.5rem;margin:1rem 0;}
+.specialist-officer-picker legend,.specialist-evidence-list legend {font-size:.875rem;font-weight:700;}
+.specialist-officer-picker label {display:flex;flex-direction:row;align-items:center;font-weight:400;gap:.5rem;}
+.specialist-officer-picker input {width:20px;height:20px;accent-color:#476442;}
+.specialist-officer-picker small {display:block;color:#677368;font-size:.8rem;}
+.specialist-evidence-list {display:grid;gap:.8rem;}
+.specialist-evidence-list fieldset {display:grid;grid-template-columns:minmax(180px,2fr) repeat(2,minmax(140px,1fr));gap:.8rem;padding:1rem;border:1px solid #d9e2da;border-radius:9px;}
+.specialist-actions {display:flex;gap:.7rem;flex-wrap:wrap;align-items:center;margin:1rem 0;}
+.specialist-table-wrap {overflow-x:auto;max-width:100%;margin:1rem 0;}
+.specialist-table-wrap table {width:100%;border-collapse:collapse;font-size:.875rem;text-align:left;}
+.specialist-table-wrap th,.specialist-table-wrap td {padding:.8rem;border-bottom:1px solid #dfe6df;min-width:110px;vertical-align:top;}
+.specialist-table-wrap th {color:#2b4132;font-weight:700;background:#f0f4ee;}
+.specialist-table-wrap tbody th {min-width:175px;background:#fff;}
+.specialist-terms {margin:1rem 0;}
+.specialist-terms>div {display:grid;grid-template-columns:minmax(140px,1fr) 4fr;gap:1rem;padding:.85rem 0;border-bottom:1px solid #e2e8e2;}
+.specialist-terms dt {font-weight:700;font-size:.9rem;}
+.specialist-terms dd {margin:0;}
+.specialist-panel li {margin:.5rem 0;}
+.specialist-error {padding:1rem;border:1px solid #ce8b82;background:#fff1ee;color:#852c25;border-radius:8px;}
+.specialist-production-blockers {margin-top:1.2rem;padding:1rem;background:#fff5de;border:1px solid #e8d39e;border-radius:10px;}
+.specialist-production-blockers summary {font-weight:700;cursor:pointer;}
+.specialist-scenarios {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;}
+.specialist-scenarios>article {border:1px solid #d6e1d6;padding:1.2rem;border-radius:12px;}
+.specialist-scenarios ul {list-style:none;padding:0;}
+.specialist-scenarios li {border-top:1px solid #e3e9e1;padding:.8rem 0;}
+.specialist-scenarios li span {display:block;font-size:.875rem;color:#5b6b5e;}
+.specialist-partner-row {display:flex;gap:1rem;justify-content:space-between;flex-wrap:wrap;padding:1rem 0;border-bottom:1px solid #dce4dc;overflow-wrap:anywhere;}
+.portal-specialist-packs {padding:1.2rem;margin:1rem 0;background:#fff;border:1px solid #d5dfd5;border-radius:12px;grid-column:1/-1;font-size:1rem;}
+.portal-specialist-packs h2 {font-size:1.25rem;}
+.portal-specialist-packs article {padding:.8rem 0;overflow-wrap:anywhere;}
+.portal-specialist-packs a {color:#395834;font-size:.95rem;}
+@media(max-width:760px){
+ .specialist-panel {padding:1rem;}
+ .specialist-panel>header,.specialist-partner-row {flex-direction:column;}
+ .specialist-form-grid,.specialist-scenarios {grid-template-columns:1fr;}
+ .specialist-kpis {grid-template-columns:1fr;}
+ .specialist-evidence-list fieldset {grid-template-columns:1fr;}
+ .specialist-terms>div {grid-template-columns:1fr;gap:.3rem;}
+}

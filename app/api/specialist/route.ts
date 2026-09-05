@@ -22,7 +22,7 @@ function context(request:Request) {
   if(!principalHasRole(assigned,scope)) throw new PilotAccessError("This account is not assigned to this workspace.",403);
   if(!env.DB) throw new SpecialistWorkflowError("The specialist record store is unavailable.",503);
   const environment:SpecialistEnvironment=pilotStage()==="demo"?"demo":"production";
-  return {url,scope,principal,environment,db:env.DB};
+  return {url,scope:scope as "operations"|"client"|"officer",principal,environment,db:env.DB};
 }
 
 export async function GET(request:Request) {

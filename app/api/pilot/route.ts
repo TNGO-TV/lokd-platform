@@ -1431,8 +1431,8 @@ async function readPilotState(db: D1Database): Promise<PilotState> {
         ),
         pricingStatus:
           bookingFields.pricingStatus === "partner_review_required"
-            ? "partner_review_required"
-            : "authoritative",
+            ? ("partner_review_required" as const)
+            : ("authoritative" as const),
         pricingInternal: {
           costFloorCents: bookingFields.costFloorCents,
           marginCents: bookingFields.marginCents,
@@ -3920,7 +3920,7 @@ export async function GET(request: Request) {
       } catch (cause) {
         throw new PilotAccessError(cause instanceof Error ? cause.message : "That payroll preview is unavailable.", 409);
       }
-      return new Response(bytes, {
+      return new Response(new Uint8Array(bytes), {
         status: 200,
         headers: {
           "content-type": "application/pdf",

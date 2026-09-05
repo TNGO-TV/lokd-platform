@@ -279,3 +279,19 @@ AND EXISTS(SELECT 1 FROM roster_slots s JOIN bookings b ON b.id=s.booking_id WHE
 BEGIN SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM roster_slots s JOIN specialist_deployment_packs p ON p.booking_id=s.booking_id JOIN specialist_pack_validation_v34 v ON v.id=p.id
 WHERE s.id=NEW.roster_slot_id AND p.status='approved' AND v.valid=1 AND EXISTS(SELECT 1 FROM json_each(p.content,'$.officerIds') WHERE value=NEW.officer_id))
 THEN RAISE(ABORT,'specialist_approved_pack_required') END; END;
+
+--> statement-breakpoint
+CREATE TRIGGER specialist_revalidation_pack_v34 BEFORE UPDATE OF status ON assignment_revalidations
+WHEN NEW.status='passed' AND EXISTS(
+ SELECT 1 FROM assignment_activation_snapshots snap JOIN bookings b ON b.id=snap.booking_id
+ WHERE snap.id=NEW.snapshot_id AND b.environment='production' AND b.specialist_service_code<>'standard_unarmed')
+BEGIN
+ SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM assignment_activation_snapshots snap
+ JOIN specialist_deployment_packs p ON p.booking_id=snap.booking_id JOIN specialist_pack_validation_v34 v ON v.id=p.id
+ WHERE snap.id=NEW.snapshot_id AND p.status='approved' AND v.valid=1
+ AND EXISTS(SELECT 1 FROM json_each(p.content,'$.officerIds') WHERE value=snap.officer_id))
+ THEN RAISE(ABORT,'specialist_approved_pack_required') END;
+END;
+--> statement-breakpoint
+CREATE TRIGGER specialist_pack_delete_epoch_v34 AFTER DELETE ON specialist_deployment_packs
+BEGIN UPDATE activation_evidence_epoch SET revision=revision+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1; END;
