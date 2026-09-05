@@ -23,7 +23,10 @@ Clerk key is included in this commit.
 The Cloudflare `nodejs_compat_populate_process_env` flag makes the server
 secret available to Clerk's normal server-side environment access. The proxy
 does not pass a secret through dynamic request options. The public provider
-receives only the publishable key.
+receives only the publishable key. The Vite configuration selects Clerk's own
+non-filesystem helper for Workers. `build/clerk-worker-compat.ts` converts the
+SDK's two server-module CommonJS guards into a real `server-only` ESM import;
+it preserves the server/client restriction and changes no token verification.
 
 Missing keys leave the public site available and protected access closed.
 The sign-in and sign-up routes show an unavailable message until configuration
@@ -84,7 +87,7 @@ workflow fixtures to signed test sessions and explicit subject links; it is
 never imported by production code. These tests do not substitute for a real
 account completing the browser authentication flow.
 
-Verification recorded on 5 September 2026:
+Latest verification recorded on 5 September 2026:
 
 - The production build passed with the existing Vinext/Cloudflare build script.
 - TypeScript checking passed.
@@ -94,13 +97,36 @@ Verification recorded on 5 September 2026:
   network approval was cancelled before either returned a result. Neither is
   recorded as passing. The smoke check is available in
   `tests/clerk-worker-smoke.mjs` for completion when execution is available.
-- The authenticated browser connection became unavailable before application
-  keys could be configured. No real Clerk sign-in/sign-up flow was tested.
+- The browser connection subsequently recovered. The existing development
+  instance's keys were securely prepared in an ignored, mode-0600 development
+  configuration file in the cloud checkout. They are not in Git, the client
+  output or the production hosting settings. Existing environment files were
+  not read or printed.
+- The Clerk dashboard confirms email and password signup are enabled, with
+  email verification, compromised-password rejection and Device Trust. No
+  account authentication policy was changed.
+- The first supervised preview failed on the SDK's Node/CommonJS helper.
+  A broad CommonJS conversion was tried once and failed on duplicate exports;
+  it was removed. The final targeted Worker helper/guard repair builds without
+  those errors and all 213 checks still pass. Its actual preview and real
+  signup/sign-in verification remain unfinished after the two bounded preview
+  startup attempts. No passing browser or Worker smoke result is claimed.
+- All 22 emitted client JavaScript files passed the server-key pattern check.
 
-This remains a draft. No real Clerk keys or user-role links have been installed,
-no production Clerk environment has been configured, and the live Version 35
-authentication remains unchanged. Complete configuration and actual runtime
-and browser verification before merging or deploying this migration.
+Automatic approval review rejected the **Continue** action in Clerk's
+**Create production instance** dialog with **Clone development instance**
+selected. The stated reason was that this creates a persistent production
+instance and requires specific approval at action time. It was not executed
+or retried through another route. Ask specifically for permission to create
+the production instance inside the existing LOKD Security application by
+copying its development settings. This is separate from the still-unapproved
+workspace-wide CLI OAuth grant.
+
+This remains a draft. No production Clerk keys or user-role links have been
+installed, no production Clerk instance has been created, and the live Version
+35 authentication remains unchanged. After production creation is approved,
+complete configuration and actual runtime/browser verification before merging
+or deploying this migration.
 
 Official references:
 - [Next.js setup](https://clerk.com/docs/nextjs/getting-started/quickstart)

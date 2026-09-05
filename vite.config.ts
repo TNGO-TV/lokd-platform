@@ -1,5 +1,7 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
+import { fileURLToPath } from "node:url";
+import { clerkWorkerGuards } from "./build/clerk-worker-compat";
 import hostingConfig from "./.openai/hosting.json";
 import { sites } from "./build/sites-vite-plugin";
 
@@ -50,6 +52,16 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    resolve: {
+      alias: {
+        // Workers must use Clerk's supplied non-filesystem implementation.
+        // Vinext's Node condition otherwise selects the CLI/keyless helper.
+        "#safe-node-apis": fileURLToPath(new URL(
+          "./node_modules/@clerk/nextjs/dist/esm/runtime/browser/safe-node-apis.js",
+          import.meta.url,
+        )),
+      },
+    },
     server: {
       host: "0.0.0.0",
       allowedHosts: ["terminal.local"],
@@ -59,6 +71,7 @@ export default defineConfig(async () => {
     },
     plugins: [
       vinext(),
+      clerkWorkerGuards(),
       sites(),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
