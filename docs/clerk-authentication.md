@@ -36,8 +36,9 @@ explicitly approved copying the existing development settings. It is
 `ins_3IuqByfuozQZDguv7iJ3qPqd47b`, with primary domain `lokd.co.za` and Frontend
 API `https://clerk.lokd.co.za`. Its keys are saved in hosting environment
 revision 3; the server key is marked secret. This revision is not applied to
-the live site until a saved version is deployed. DNS verification and actual
-account acceptance remain incomplete.
+the live site until a saved version is deployed. All five DNS records are now
+verified and both SSL certificates are issued. Actual application account
+acceptance remains incomplete.
 
 Before any live switch, confirm the selected instance, configure production
 domains and the client/officer/Operations subdomains, run real sign-in, signup,
@@ -109,7 +110,7 @@ Latest verification recorded on 5 September 2026:
   not read or printed.
 - The Clerk dashboard confirms email and password signup are enabled, with
   email verification, compromised-password rejection and Device Trust. No
-  account authentication policy was changed.
+  account authentication policy was changed at that earlier configuration step.
 - The first supervised preview failed on the SDK's Node/CommonJS helper.
   A broad CommonJS conversion was tried once and failed on duplicate exports;
   it was removed. The final targeted Worker helper/guard repair builds without
@@ -129,13 +130,13 @@ signup and required email are on; signup email verification and email-code
 sign-in are on; password signup and adding a password are on; Device Trust
 and compromised-password rejection are on; minimum password length is 15.
 
-Google is present as an enabled but unconfigured social connection. The
-production page explicitly says it cannot work until custom credentials are
-added. Automatic approval review rejected the final Disable connection action
-because the user had not specifically authorised that production authentication
-change. The confirmation was cancelled, and Google was left unchanged. Ask
-specifically to disable this unconfigured Google connection and use the already
-enabled email/password options. Do not substitute a different mutation route.
+The user specifically approved disabling the unconfigured Google connection
+while retaining email/password login. The final Disable connection action then
+succeeded, and the production dashboard explicitly shows Google as Disabled.
+Fresh checks confirmed that email signup, required email, email verification,
+email sign-in and password signup remain enabled. This resolves the earlier
+automatic-review approval blocker; do not ask for Google-disable approval again.
+No other social provider or authentication policy was changed.
 
 The application's two production keys were transferred directly from its
 visible dashboard configuration into the existing Site's runtime settings.
@@ -160,14 +161,20 @@ Clerk generated the following CNAME records for the `lokd.co.za` DNS zone:
 | `clk._domainkey` | `dkim1.41o7yt86mrf7.clerk.services` |
 | `clk2._domainkey` | `dkim2.41o7yt86mrf7.clerk.services` |
 
-The production domain ID is `dmn_3IuqBzocbgxwTA1NUWhFX35xprf`. The actual
-Clerk verification returned 0/2 application records and 0/3 email records
-verified. The first three hosts resolved to the wrong target, `lokd.co.za`;
-Clerk could not determine the two DKIM hosts. Certificates are not issued
-until verification succeeds. The DNS account is not connected here, and
-plugin discovery found no suitable cPanel DNS integration. The owner must
-apply these specific records in the existing zone; existing website, portal
-and ordinary mail records must be preserved.
+The production domain ID is `dmn_3IuqBzocbgxwTA1NUWhFX35xprf`. After the
+owner added the records, Clerk's actual verification returned **2/2 Application
+and 3/3 Email verified**. The subsequent domain page shows **SSL Certificates:
+Issued** for the Frontend API and account portal. This supersedes the earlier
+failed DNS check; no further DNS correction is currently required by Clerk.
+
+The hosted `https://accounts.lokd.co.za/sign-in` page was opened for a browser
+check after certificate issuance. Cloudflare presented a visible Verify you
+are human checkbox before the login form. No CAPTCHA was attempted, no
+credentials were requested or submitted, and no production test account was
+created. The Browser skill requires explicit permission before completing that
+human-verification check. This is a current check on the hosted Clerk account
+page, not a passing integration test of the undeployed LOKD authentication
+change. Do not include the challenge's session-bound URL in the handover.
 
 An attempt to enable an explicit subdomain allowlist was interrupted by
 automatic approval review when adding the first `www.lokd.co.za` entry. The
@@ -180,9 +187,9 @@ subdomains and be approved together, not added as an incomplete live policy.
 
 This remains a draft. The live Site is active and still on Version 35. No
 merge, deployment, real signup/sign-in pass, named user-role link or production
-business activation occurred. Complete DNS/certificates and any outstanding
-Google connection decision, actual Worker/browser acceptance and named role
-checks before merging and deploying. The two bounded preview startup attempts
+business activation occurred. Complete the permitted hosted-account check,
+actual Worker/browser acceptance and verified named role checks before merging
+and deploying. The two bounded preview startup attempts
 were not repeated; the preview is stopped. The production build, type check
 and 213 regression results above remain the latest passing software checks.
 
@@ -190,6 +197,5 @@ Official references:
 - [Next.js setup](https://clerk.com/docs/nextjs/getting-started/quickstart)
 - [Clerk middleware](https://clerk.com/docs/reference/nextjs/clerk-middleware)
 - [Cloudflare server environment](https://developers.cloudflare.com/workers/runtime-apis/nodejs/process/)
-
 - [Production setup and DNS](https://clerk.com/docs/guides/development/deployment/production)
 - [Subdomain controls](https://clerk.com/docs/guides/dashboard/dns-domains/subdomain-allowlist)
