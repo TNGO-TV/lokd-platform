@@ -70,17 +70,22 @@ CREATE INDEX `specialist_rehearsal_date_idx` ON `specialist_rehearsal_runs` (`en
 
 --> statement-breakpoint
 CREATE VIEW specialist_required_checks_v34 AS
-SELECT p.id AS pack_id,r.value AS code FROM specialist_deployment_packs p,
-json_each('["client_contract","client_onboarding","risk_assessment","post_orders","insurance","command_relief","cost_evidence"]') r
-UNION ALL SELECT p.id,'armed_authority' FROM specialist_deployment_packs p JOIN bookings b ON b.id=p.booking_id WHERE b.specialist_service_code IN ('armed_static','armed_movement','vip_armed')
-UNION ALL SELECT p.id,'principal_consent' FROM specialist_deployment_packs p JOIN bookings b ON b.id=p.booking_id WHERE b.specialist_service_code LIKE 'vip_%'
-UNION ALL SELECT p.id,'vehicle' FROM specialist_deployment_packs p JOIN bookings b ON b.id=p.booking_id WHERE json_extract(b.specialist_configuration,'$.vehicleClass') <> 'none'
-UNION ALL SELECT p.id,'overnight' FROM specialist_deployment_packs p JOIN bookings b ON b.id=p.booking_id WHERE json_extract(b.specialist_configuration,'$.overnightDays') > 0
-UNION ALL SELECT p.id,'officer:'||o.value||':'||r.value FROM specialist_deployment_packs p,
-json_each(p.content,'$.officerIds') o,json_each('["onboarding","psira","induction","readiness"]') r
-UNION ALL SELECT p.id,'officer:'||o.value||':firearm' FROM specialist_deployment_packs p JOIN bookings b ON b.id=p.booking_id,json_each(p.content,'$.officerIds') o WHERE b.specialist_service_code IN ('armed_static','armed_movement','vip_armed')
-UNION ALL SELECT p.id,'officer:'||o.value||':protection' FROM specialist_deployment_packs p JOIN bookings b ON b.id=p.booking_id,json_each(p.content,'$.officerIds') o WHERE b.specialist_service_code LIKE 'vip_%'
-UNION ALL SELECT p.id,'officer:'||o.value||':driving' FROM specialist_deployment_packs p JOIN bookings b ON b.id=p.booking_id,json_each(p.content,'$.officerIds') o WHERE b.specialist_service_code IN ('armed_movement','vip_protective_driver');
+SELECT p.id AS pack_id,r.value AS code
+FROM specialist_deployment_packs p JOIN bookings b ON b.id=p.booking_id,
+json_each('["client_contract","client_onboarding","risk_assessment","post_orders","insurance","command_relief","cost_evidence","armed_authority","principal_consent","vehicle","overnight"]') r
+WHERE r.value IN ('client_contract','client_onboarding','risk_assessment','post_orders','insurance','command_relief','cost_evidence')
+ OR (r.value='armed_authority' AND b.specialist_service_code IN ('armed_static','armed_movement','vip_armed'))
+ OR (r.value='principal_consent' AND b.specialist_service_code LIKE 'vip_%')
+ OR (r.value='vehicle' AND json_extract(b.specialist_configuration,'$.vehicleClass')<>'none')
+ OR (r.value='overnight' AND json_extract(b.specialist_configuration,'$.overnightDays')>0)
+UNION ALL
+SELECT p.id,'officer:'||o.value||':'||r.value
+FROM specialist_deployment_packs p JOIN bookings b ON b.id=p.booking_id,
+json_each(p.content,'$.officerIds') o,json_each('["onboarding","psira","induction","readiness","firearm","protection","driving"]') r
+WHERE r.value IN ('onboarding','psira','induction','readiness')
+ OR (r.value='firearm' AND b.specialist_service_code IN ('armed_static','armed_movement','vip_armed'))
+ OR (r.value='protection' AND b.specialist_service_code LIKE 'vip_%')
+ OR (r.value='driving' AND b.specialist_service_code IN ('armed_movement','vip_protective_driver'));
 --> statement-breakpoint
 
 CREATE VIEW specialist_pack_validation_v34 AS
@@ -131,35 +136,35 @@ LEFT JOIN specialist_partners partner ON partner.id=p.partner_id;
 --> statement-breakpoint
 CREATE TRIGGER specialist_commercial_reviews_insert_shape_v34 BEFORE INSERT ON specialist_commercial_reviews
  BEGIN
- SELECT CASE WHEN NOT COALESCE(NEW.environment IN ('demo','production') AND NEW.integrity_state=CASE NEW.environment WHEN 'demo' THEN 'synthetic' ELSE 'recorded' END
+ SELECT (CASE WHEN NOT COALESCE(NEW.environment IN ('demo','production') AND NEW.integrity_state=CASE NEW.environment WHEN 'demo' THEN 'synthetic' ELSE 'recorded' END
  AND NEW.status IN ('draft','review','approved','revoked') AND length(trim(NEW.prepared_by))>0 AND (NEW.pricing_version='LOKD-SPECIALIST-2026.09-v1' AND NEW.terms_version='LOKD-SPECIALIST-TERMS-2026.09-v1' AND julianday(NEW.expires_at) IS NOT NULL AND length(trim(NEW.evidence_reference))>0),0)
- THEN RAISE(ABORT,'specialist_record_shape_invalid') END;
- SELECT CASE WHEN NEW.status<>'review' OR NEW.approved_by IS NOT NULL OR NEW.version<>1 THEN RAISE(ABORT,'specialist_initial_review_required') END;
+ THEN RAISE(ABORT,'specialist_record_shape_invalid') END);
+ SELECT (CASE WHEN NEW.status<>'review' OR NEW.approved_by IS NOT NULL OR NEW.version<>1 THEN RAISE(ABORT,'specialist_initial_review_required') END);
  END;
 --> statement-breakpoint
 CREATE TRIGGER specialist_commercial_reviews_update_shape_v34 BEFORE UPDATE ON specialist_commercial_reviews
  BEGIN
- SELECT CASE WHEN NOT COALESCE(NEW.environment IN ('demo','production') AND NEW.integrity_state=CASE NEW.environment WHEN 'demo' THEN 'synthetic' ELSE 'recorded' END
+ SELECT (CASE WHEN NOT COALESCE(NEW.environment IN ('demo','production') AND NEW.integrity_state=CASE NEW.environment WHEN 'demo' THEN 'synthetic' ELSE 'recorded' END
  AND NEW.status IN ('draft','review','approved','revoked') AND length(trim(NEW.prepared_by))>0 AND (NEW.pricing_version='LOKD-SPECIALIST-2026.09-v1' AND NEW.terms_version='LOKD-SPECIALIST-TERMS-2026.09-v1' AND julianday(NEW.expires_at) IS NOT NULL AND length(trim(NEW.evidence_reference))>0),0)
- THEN RAISE(ABORT,'specialist_record_shape_invalid') END;
- SELECT CASE WHEN NEW.id<>OLD.id OR NEW.environment<>OLD.environment OR NEW.integrity_state<>OLD.integrity_state OR NEW.version<>OLD.version+1 
- THEN RAISE(ABORT,'specialist_revision_conflict') END;
+ THEN RAISE(ABORT,'specialist_record_shape_invalid') END);
+ SELECT (CASE WHEN NEW.id<>OLD.id OR NEW.environment<>OLD.environment OR NEW.integrity_state<>OLD.integrity_state OR NEW.version<>OLD.version+1
+ THEN RAISE(ABORT,'specialist_revision_conflict') END);
  END;
 --> statement-breakpoint
 CREATE TRIGGER specialist_commercial_reviews_approval_v34 AFTER UPDATE ON specialist_commercial_reviews WHEN NEW.status='approved'
  BEGIN
- SELECT CASE WHEN OLD.status<>'review' OR lower(NEW.prepared_by)=lower(COALESCE(NEW.approved_by,'')) OR NEW.approved_by IS NULL
+ SELECT (CASE WHEN OLD.status<>'review' OR lower(NEW.prepared_by)=lower(COALESCE(NEW.approved_by,'')) OR NEW.approved_by IS NULL
  OR NEW.prepared_by<>OLD.prepared_by OR NEW.approved_at IS NULL OR julianday(NEW.approved_at)>julianday(CURRENT_TIMESTAMP)
  OR NEW.evidence_reference<>OLD.evidence_reference OR NEW.expires_at<>OLD.expires_at
- THEN RAISE(ABORT,'specialist_independent_review_required') END;
- SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM operator_accounts a JOIN operator_role_assignments r ON r.operator_id=a.id AND r.environment=a.environment
+ THEN RAISE(ABORT,'specialist_independent_review_required') END);
+ SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM operator_accounts a JOIN operator_role_assignments r ON r.operator_id=a.id AND r.environment=a.environment
  WHERE lower(a.email)=lower(NEW.approved_by) AND a.environment=NEW.environment AND a.status='active'
  AND r.role IN ('operations_owner','compliance_reviewer') AND r.status='active' AND r.revoked_at IS NULL
  AND (NEW.environment='demo' OR (a.mfa_status='verified' AND julianday(a.mfa_verified_at)<=julianday(CURRENT_TIMESTAMP)
  AND julianday(a.mfa_verified_at)>=julianday(CURRENT_TIMESTAMP,'-15 minutes')
  )))
- THEN RAISE(ABORT,'specialist_reviewer_role_or_mfa_required') END;
- SELECT CASE WHEN julianday(NEW.expires_at)<=julianday(CURRENT_TIMESTAMP) OR (NEW.environment='production' AND (lower(NEW.evidence_reference) LIKE '%demo:%' OR lower(NEW.evidence_reference) LIKE '%synthetic%' OR lower(NEW.evidence_reference) LIKE '%.invalid%' OR lower(NEW.evidence_reference) LIKE '%.example%')) THEN RAISE(ABORT,'specialist_current_verified_evidence_required') END;
+ THEN RAISE(ABORT,'specialist_reviewer_role_or_mfa_required') END);
+ SELECT (CASE WHEN julianday(NEW.expires_at)<=julianday(CURRENT_TIMESTAMP) OR (NEW.environment='production' AND (lower(NEW.evidence_reference) LIKE '%demo:%' OR lower(NEW.evidence_reference) LIKE '%synthetic%' OR lower(NEW.evidence_reference) LIKE '%.invalid%' OR lower(NEW.evidence_reference) LIKE '%.example%')) THEN RAISE(ABORT,'specialist_current_verified_evidence_required') END);
  END;
 --> statement-breakpoint
 CREATE TRIGGER specialist_commercial_reviews_history_v34 AFTER UPDATE ON specialist_commercial_reviews
@@ -173,35 +178,35 @@ CREATE TRIGGER specialist_commercial_reviews_history_v34 AFTER UPDATE ON special
 --> statement-breakpoint
 CREATE TRIGGER specialist_partners_insert_shape_v34 BEFORE INSERT ON specialist_partners
  BEGIN
- SELECT CASE WHEN NOT COALESCE(NEW.environment IN ('demo','production') AND NEW.integrity_state=CASE NEW.environment WHEN 'demo' THEN 'synthetic' ELSE 'recorded' END
+ SELECT (CASE WHEN NOT COALESCE(NEW.environment IN ('demo','production') AND NEW.integrity_state=CASE NEW.environment WHEN 'demo' THEN 'synthetic' ELSE 'recorded' END
  AND NEW.status IN ('draft','review','approved','revoked') AND length(trim(NEW.prepared_by))>0 AND (json_valid(NEW.service_codes) AND json_type(NEW.service_codes)='array' AND json_array_length(NEW.service_codes)>0 AND julianday(NEW.valid_from) IS NOT NULL AND julianday(NEW.expires_at) IS NOT NULL AND length(trim(NEW.evidence_reference))>0),0)
- THEN RAISE(ABORT,'specialist_record_shape_invalid') END;
- SELECT CASE WHEN NEW.status<>'review' OR NEW.approved_by IS NOT NULL OR NEW.version<>1 THEN RAISE(ABORT,'specialist_initial_review_required') END;
+ THEN RAISE(ABORT,'specialist_record_shape_invalid') END);
+ SELECT (CASE WHEN NEW.status<>'review' OR NEW.approved_by IS NOT NULL OR NEW.version<>1 THEN RAISE(ABORT,'specialist_initial_review_required') END);
  END;
 --> statement-breakpoint
 CREATE TRIGGER specialist_partners_update_shape_v34 BEFORE UPDATE ON specialist_partners
  BEGIN
- SELECT CASE WHEN NOT COALESCE(NEW.environment IN ('demo','production') AND NEW.integrity_state=CASE NEW.environment WHEN 'demo' THEN 'synthetic' ELSE 'recorded' END
+ SELECT (CASE WHEN NOT COALESCE(NEW.environment IN ('demo','production') AND NEW.integrity_state=CASE NEW.environment WHEN 'demo' THEN 'synthetic' ELSE 'recorded' END
  AND NEW.status IN ('draft','review','approved','revoked') AND length(trim(NEW.prepared_by))>0 AND (json_valid(NEW.service_codes) AND json_type(NEW.service_codes)='array' AND json_array_length(NEW.service_codes)>0 AND julianday(NEW.valid_from) IS NOT NULL AND julianday(NEW.expires_at) IS NOT NULL AND length(trim(NEW.evidence_reference))>0),0)
- THEN RAISE(ABORT,'specialist_record_shape_invalid') END;
- SELECT CASE WHEN NEW.id<>OLD.id OR NEW.environment<>OLD.environment OR NEW.integrity_state<>OLD.integrity_state OR NEW.version<>OLD.version+1 
- THEN RAISE(ABORT,'specialist_revision_conflict') END;
+ THEN RAISE(ABORT,'specialist_record_shape_invalid') END);
+ SELECT (CASE WHEN NEW.id<>OLD.id OR NEW.environment<>OLD.environment OR NEW.integrity_state<>OLD.integrity_state OR NEW.version<>OLD.version+1
+ THEN RAISE(ABORT,'specialist_revision_conflict') END);
  END;
 --> statement-breakpoint
 CREATE TRIGGER specialist_partners_approval_v34 AFTER UPDATE ON specialist_partners WHEN NEW.status='approved'
  BEGIN
- SELECT CASE WHEN OLD.status<>'review' OR lower(NEW.prepared_by)=lower(COALESCE(NEW.approved_by,'')) OR NEW.approved_by IS NULL
+ SELECT (CASE WHEN OLD.status<>'review' OR lower(NEW.prepared_by)=lower(COALESCE(NEW.approved_by,'')) OR NEW.approved_by IS NULL
  OR NEW.prepared_by<>OLD.prepared_by OR NEW.approved_at IS NULL OR julianday(NEW.approved_at)>julianday(CURRENT_TIMESTAMP)
  OR NEW.service_codes<>OLD.service_codes OR NEW.evidence_reference<>OLD.evidence_reference OR NEW.expires_at<>OLD.expires_at OR NEW.valid_from<>OLD.valid_from
- THEN RAISE(ABORT,'specialist_independent_review_required') END;
- SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM operator_accounts a JOIN operator_role_assignments r ON r.operator_id=a.id AND r.environment=a.environment
+ THEN RAISE(ABORT,'specialist_independent_review_required') END);
+ SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM operator_accounts a JOIN operator_role_assignments r ON r.operator_id=a.id AND r.environment=a.environment
  WHERE lower(a.email)=lower(NEW.approved_by) AND a.environment=NEW.environment AND a.status='active'
  AND r.role IN ('operations_owner','compliance_reviewer') AND r.status='active' AND r.revoked_at IS NULL
  AND (NEW.environment='demo' OR (a.mfa_status='verified' AND julianday(a.mfa_verified_at)<=julianday(CURRENT_TIMESTAMP)
  AND julianday(a.mfa_verified_at)>=julianday(CURRENT_TIMESTAMP,'-15 minutes')
  )))
- THEN RAISE(ABORT,'specialist_reviewer_role_or_mfa_required') END;
- SELECT CASE WHEN julianday(NEW.expires_at)<=julianday(CURRENT_TIMESTAMP) OR (NEW.environment='production' AND (lower(NEW.evidence_reference) LIKE '%demo:%' OR lower(NEW.evidence_reference) LIKE '%synthetic%' OR lower(NEW.evidence_reference) LIKE '%.invalid%' OR lower(NEW.evidence_reference) LIKE '%.example%')) THEN RAISE(ABORT,'specialist_current_verified_evidence_required') END;
+ THEN RAISE(ABORT,'specialist_reviewer_role_or_mfa_required') END);
+ SELECT (CASE WHEN julianday(NEW.expires_at)<=julianday(CURRENT_TIMESTAMP) OR (NEW.environment='production' AND (lower(NEW.evidence_reference) LIKE '%demo:%' OR lower(NEW.evidence_reference) LIKE '%synthetic%' OR lower(NEW.evidence_reference) LIKE '%.invalid%' OR lower(NEW.evidence_reference) LIKE '%.example%')) THEN RAISE(ABORT,'specialist_current_verified_evidence_required') END);
  END;
 --> statement-breakpoint
 CREATE TRIGGER specialist_partners_history_v34 AFTER UPDATE ON specialist_partners
@@ -215,35 +220,35 @@ CREATE TRIGGER specialist_partners_history_v34 AFTER UPDATE ON specialist_partne
 --> statement-breakpoint
 CREATE TRIGGER specialist_deployment_packs_insert_shape_v34 BEFORE INSERT ON specialist_deployment_packs
  BEGIN
- SELECT CASE WHEN NOT COALESCE(NEW.environment IN ('demo','production') AND NEW.integrity_state=CASE NEW.environment WHEN 'demo' THEN 'synthetic' ELSE 'recorded' END
+ SELECT (CASE WHEN NOT COALESCE(NEW.environment IN ('demo','production') AND NEW.integrity_state=CASE NEW.environment WHEN 'demo' THEN 'synthetic' ELSE 'recorded' END
  AND NEW.status IN ('draft','review','approved','revoked') AND length(trim(NEW.prepared_by))>0 AND (json_valid(NEW.content) AND json_type(NEW.content)='object' AND json_type(NEW.content,'$.checks')='array' AND json_type(NEW.content,'$.officerIds')='array' AND json_valid(NEW.quote_snapshot)),0)
- THEN RAISE(ABORT,'specialist_record_shape_invalid') END;
- SELECT CASE WHEN NEW.status<>'draft' OR NEW.approved_by IS NOT NULL OR NEW.version<>1 THEN RAISE(ABORT,'specialist_initial_review_required') END;
+ THEN RAISE(ABORT,'specialist_record_shape_invalid') END);
+ SELECT (CASE WHEN NEW.status<>'draft' OR NEW.approved_by IS NOT NULL OR NEW.version<>1 THEN RAISE(ABORT,'specialist_initial_review_required') END);
  END;
 --> statement-breakpoint
 CREATE TRIGGER specialist_deployment_packs_update_shape_v34 BEFORE UPDATE ON specialist_deployment_packs
  BEGIN
- SELECT CASE WHEN NOT COALESCE(NEW.environment IN ('demo','production') AND NEW.integrity_state=CASE NEW.environment WHEN 'demo' THEN 'synthetic' ELSE 'recorded' END
+ SELECT (CASE WHEN NOT COALESCE(NEW.environment IN ('demo','production') AND NEW.integrity_state=CASE NEW.environment WHEN 'demo' THEN 'synthetic' ELSE 'recorded' END
  AND NEW.status IN ('draft','review','approved','revoked') AND length(trim(NEW.prepared_by))>0 AND (json_valid(NEW.content) AND json_type(NEW.content)='object' AND json_type(NEW.content,'$.checks')='array' AND json_type(NEW.content,'$.officerIds')='array' AND json_valid(NEW.quote_snapshot)),0)
- THEN RAISE(ABORT,'specialist_record_shape_invalid') END;
- SELECT CASE WHEN NEW.id<>OLD.id OR NEW.environment<>OLD.environment OR NEW.integrity_state<>OLD.integrity_state OR NEW.version<>OLD.version+1 OR NEW.booking_id<>OLD.booking_id
- THEN RAISE(ABORT,'specialist_revision_conflict') END;
+ THEN RAISE(ABORT,'specialist_record_shape_invalid') END);
+ SELECT (CASE WHEN NEW.id<>OLD.id OR NEW.environment<>OLD.environment OR NEW.integrity_state<>OLD.integrity_state OR NEW.version<>OLD.version+1 OR NEW.booking_id<>OLD.booking_id
+ THEN RAISE(ABORT,'specialist_revision_conflict') END);
  END;
 --> statement-breakpoint
 CREATE TRIGGER specialist_deployment_packs_approval_v34 AFTER UPDATE ON specialist_deployment_packs WHEN NEW.status='approved'
  BEGIN
- SELECT CASE WHEN OLD.status<>'review' OR lower(NEW.prepared_by)=lower(COALESCE(NEW.approved_by,'')) OR NEW.approved_by IS NULL
+ SELECT (CASE WHEN OLD.status<>'review' OR lower(NEW.prepared_by)=lower(COALESCE(NEW.approved_by,'')) OR NEW.approved_by IS NULL
  OR NEW.prepared_by<>OLD.prepared_by OR NEW.approved_at IS NULL OR julianday(NEW.approved_at)>julianday(CURRENT_TIMESTAMP)
  OR NEW.content<>OLD.content OR NEW.quote_snapshot<>OLD.quote_snapshot
- THEN RAISE(ABORT,'specialist_independent_review_required') END;
- SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM operator_accounts a JOIN operator_role_assignments r ON r.operator_id=a.id AND r.environment=a.environment
+ THEN RAISE(ABORT,'specialist_independent_review_required') END);
+ SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM operator_accounts a JOIN operator_role_assignments r ON r.operator_id=a.id AND r.environment=a.environment
  WHERE lower(a.email)=lower(NEW.approved_by) AND a.environment=NEW.environment AND a.status='active'
  AND r.role IN ('operations_owner','compliance_reviewer') AND r.status='active' AND r.revoked_at IS NULL
  AND (NEW.environment='demo' OR (a.mfa_status='verified' AND julianday(a.mfa_verified_at)<=julianday(CURRENT_TIMESTAMP)
  AND julianday(a.mfa_verified_at)>=julianday(CURRENT_TIMESTAMP,'-15 minutes')
  AND a.approval_limit_cents>=(SELECT client_price_cents FROM bookings WHERE id=NEW.booking_id))))
- THEN RAISE(ABORT,'specialist_reviewer_role_or_mfa_required') END;
- SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM specialist_pack_validation_v34 WHERE id=NEW.id AND valid=1) THEN RAISE(ABORT,'specialist_pack_controls_not_current') END;
+ THEN RAISE(ABORT,'specialist_reviewer_role_or_mfa_required') END);
+ SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM specialist_pack_validation_v34 WHERE id=NEW.id AND valid=1) THEN RAISE(ABORT,'specialist_pack_controls_not_current') END);
  END;
 --> statement-breakpoint
 CREATE TRIGGER specialist_deployment_packs_history_v34 AFTER UPDATE ON specialist_deployment_packs
@@ -261,24 +266,24 @@ BEGIN SELECT RAISE(ABORT,'specialist_rehearsal_demo_only'); END;
 --> statement-breakpoint
 CREATE TRIGGER specialist_offer_pack_insert_v34 BEFORE INSERT ON offers
  WHEN NEW.status IN ('open','accepted') AND EXISTS(SELECT 1 FROM bookings b WHERE b.id=NEW.booking_id AND b.environment='production' AND b.specialist_service_code<>'standard_unarmed')
- BEGIN SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM specialist_deployment_packs p JOIN specialist_pack_validation_v34 v ON v.id=p.id
+ BEGIN SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM specialist_deployment_packs p JOIN specialist_pack_validation_v34 v ON v.id=p.id
  WHERE p.booking_id=NEW.booking_id AND p.status='approved' AND v.valid=1
  AND EXISTS(SELECT 1 FROM json_each(p.content,'$.officerIds') WHERE value=NEW.officer_id))
- THEN RAISE(ABORT,'specialist_approved_pack_required') END; END;
+ THEN RAISE(ABORT,'specialist_approved_pack_required') END); END;
 --> statement-breakpoint
 CREATE TRIGGER specialist_offer_pack_update_v34 BEFORE UPDATE OF status ON offers
  WHEN NEW.status IN ('open','accepted') AND EXISTS(SELECT 1 FROM bookings b WHERE b.id=NEW.booking_id AND b.environment='production' AND b.specialist_service_code<>'standard_unarmed')
- BEGIN SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM specialist_deployment_packs p JOIN specialist_pack_validation_v34 v ON v.id=p.id
+ BEGIN SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM specialist_deployment_packs p JOIN specialist_pack_validation_v34 v ON v.id=p.id
  WHERE p.booking_id=NEW.booking_id AND p.status='approved' AND v.valid=1
  AND EXISTS(SELECT 1 FROM json_each(p.content,'$.officerIds') WHERE value=NEW.officer_id))
- THEN RAISE(ABORT,'specialist_approved_pack_required') END; END;
+ THEN RAISE(ABORT,'specialist_approved_pack_required') END); END;
 --> statement-breakpoint
 CREATE TRIGGER specialist_activation_pack_v34 BEFORE UPDATE OF state ON assignment_activation_commands
 WHEN NEW.state='activated' AND NEW.environment='production'
 AND EXISTS(SELECT 1 FROM roster_slots s JOIN bookings b ON b.id=s.booking_id WHERE s.id=NEW.roster_slot_id AND b.specialist_service_code<>'standard_unarmed')
-BEGIN SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM roster_slots s JOIN specialist_deployment_packs p ON p.booking_id=s.booking_id JOIN specialist_pack_validation_v34 v ON v.id=p.id
+BEGIN SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM roster_slots s JOIN specialist_deployment_packs p ON p.booking_id=s.booking_id JOIN specialist_pack_validation_v34 v ON v.id=p.id
 WHERE s.id=NEW.roster_slot_id AND p.status='approved' AND v.valid=1 AND EXISTS(SELECT 1 FROM json_each(p.content,'$.officerIds') WHERE value=NEW.officer_id))
-THEN RAISE(ABORT,'specialist_approved_pack_required') END; END;
+THEN RAISE(ABORT,'specialist_approved_pack_required') END); END;
 
 --> statement-breakpoint
 CREATE TRIGGER specialist_revalidation_pack_v34 BEFORE UPDATE OF status ON assignment_revalidations
@@ -286,11 +291,11 @@ WHEN NEW.status='passed' AND EXISTS(
  SELECT 1 FROM assignment_activation_snapshots snap JOIN bookings b ON b.id=snap.booking_id
  WHERE snap.id=NEW.snapshot_id AND b.environment='production' AND b.specialist_service_code<>'standard_unarmed')
 BEGIN
- SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM assignment_activation_snapshots snap
+ SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM assignment_activation_snapshots snap
  JOIN specialist_deployment_packs p ON p.booking_id=snap.booking_id JOIN specialist_pack_validation_v34 v ON v.id=p.id
  WHERE snap.id=NEW.snapshot_id AND p.status='approved' AND v.valid=1
  AND EXISTS(SELECT 1 FROM json_each(p.content,'$.officerIds') WHERE value=snap.officer_id))
- THEN RAISE(ABORT,'specialist_approved_pack_required') END;
+ THEN RAISE(ABORT,'specialist_approved_pack_required') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER specialist_pack_delete_epoch_v34 AFTER DELETE ON specialist_deployment_packs

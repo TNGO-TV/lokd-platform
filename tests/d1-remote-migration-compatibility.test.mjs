@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
@@ -7,7 +8,7 @@ const migrationsDirectory = new URL("../drizzle/", import.meta.url);
 const migrationFiles = fs.readdirSync(migrationsDirectory)
   .filter((name) => /^\d{4}_.*\.sql$/.test(name))
   .sort();
-const targetSequences = Array.from({ length: 21 }, (_, index) => String(index + 7).padStart(4, "0"));
+const targetSequences = Array.from({ length: 22 }, (_, index) => String(index + 7).padStart(4, "0"));
 const targetFiles = migrationFiles.filter((name) => targetSequences.includes(name.slice(0, 4)));
 const statementBreakpoint = "--> statement-breakpoint";
 
@@ -24,7 +25,7 @@ function migrationChunks(file) {
 
 test("activation and integration migrations preserve the D1 remote SQL formatting contract", () => {
   assert.deepEqual(targetFiles.map((name) => name.slice(0, 4)), targetSequences,
-    "migrations 0007 through 0027 must each be present exactly once");
+    "migrations 0007 through 0028 must each be present exactly once");
 
   for (const file of targetFiles) {
     const source = readMigration(file);
@@ -66,4 +67,24 @@ test("every guarded statement-breakpoint chunk applies after the existing schema
   } finally {
     database.close();
   }
+});
+
+
+test("migrations and specialist views fit restricted hosted SQLite limits", () => {
+  execFileSync("python3", ["-c", `
+import json, sqlite3, sys
+connection=sqlite3.connect(':memory:')
+connection.setlimit(sqlite3.SQLITE_LIMIT_COMPOUND_SELECT,5)
+connection.setlimit(sqlite3.SQLITE_LIMIT_FUNCTION_ARG,32)
+connection.setlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER,100)
+connection.setlimit(sqlite3.SQLITE_LIMIT_COLUMN,100)
+connection.setlimit(sqlite3.SQLITE_LIMIT_SQL_LENGTH,100000)
+for file in json.load(sys.stdin):
+  for index,chunk in enumerate(file['sql'].split('--> statement-breakpoint')):
+    if chunk.strip():
+      try: connection.executescript(chunk)
+      except Exception as error: raise RuntimeError(f"{file['name']} chunk {index+1}: {error}") from error
+for name in ('specialist_required_checks_v34','specialist_pack_validation_v34'):
+  connection.execute('SELECT COUNT(*) FROM '+name).fetchone()
+`], { input: JSON.stringify(migrationFiles.map(name => ({name, sql: readMigration(name).toString("utf8")}))), encoding: "utf8" });
 });

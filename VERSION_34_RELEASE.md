@@ -15,8 +15,8 @@
 
 - Production build succeeded with the Sites build helper.
 - TypeScript no-emit check succeeded.
-- Full regression suite: 205 passed, 0 failed, 0 skipped.
-- D1 statement-breakpoint migration compatibility passed.
+- Full regression suite: 206 passed, 0 failed, 0 skipped.
+- D1 statement-breakpoint migration compatibility passed, including the new migration. A Python 3.11+ SQLite check also compiles every migration and specialist view with restricted query limits.
 - Focused coverage includes tenant-scoped documents, anonymous/wrong-host denial, independent review, stale revisions, expiry, revocation, production MFA freshness and missing-pack offer rejection.
 - Migration 0028 is additive. Earlier migrations are unchanged.
 
@@ -41,4 +41,4 @@ Source references for review:
 
 ## Recovery and publishing
 
-The V34 source is kept in the bound Sites repository; the recovery branch is version-34-specialist-operations. Save the exact pushed main commit with its built archive as the Site version. An archive-backed save does not replace the live V33 deployment.
+The V34 source is kept in the bound Sites repository; the recovery branch is version-34-specialist-operations. Save the exact pushed main commit with its built archive as the Site version. The first saved release hit the host compound-SELECT limit during migration. The corrected validation view uses two branches, retains every evidence requirement, and is covered by a regression test. The failed migration left no specialist tables in the live database. Publish the corrected archive-backed release using the user’s existing public-publishing instruction; rely on the Sites deployment record for the final saved version number and publication status.
