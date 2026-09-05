@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2192" height="665" viewBox="0 0 2192 665" role="img" aria-labelledby="title desc">
+  <title id="title">LOKD</title>
+  <desc id="desc">LOKD shield and custom wordmark in Signal Green and white.</desc>
+  <g transform="translate(72 72)">
+    <g fill="#7EDB04"><path d="M0 0H518V32L262 180 0 29Z"/><path d="M518 116V201L262 349 147 283V198L262 264Z"/><path d="M0 283 261 434 371 371V456L260 521 0 371Z"/><path d="M0 113 73 155V240L0 198Z"/><path d="M518 286V371L444 413V329Z"/></g>
+    <path fill="#FFFFFF" d="m661 37a36 36 0 0 0-36 36v318a36.0036 36.0036 0 0 0 36 36h187a36 36 0 0 0 36-36 36 36 0 0 0-36-36H697V73a36 36 0 0 0-36-36Z"/>
+    <path fill="#FFFFFF" fill-rule="evenodd" d="M1119 45a195 195 0 1 1 0 390 195 195 0 1 1 0-390Zm0 73a122 122 0 1 0 0 244 122 122 0 1 0 0-244Z"/>
+    <g fill="#7EDB04"><path d="m1569.908 32.225a34 34 0 0 0-25.027 7.128l-135 107a34 34 0 0 0-5.527 47.766 34 34 0 0 0 47.765 5.527l135-107a34 34 0 0 0 5.527-47.765 34 34 0 0 0-22.738-12.656Z"/><path d="m1421.617 249.168a34 34 0 0 0-22.932 12.303 34 34 0 0 0 4.786 47.843l132 108a34 34 0 0 0 47.843-4.785 34 34 0 0 0-4.785-47.843l-132-108a34 34 0 0 0-24.912-7.518Z"/></g>
+    <path fill="#FFFFFF" fill-rule="evenodd" d="M1751 45h103c107 0 193 87 193 195s-86 195-193 195h-103c-18 0-32-14-32-32V77c0-18 14-32 32-32Zm40 72v245h77c57 0 106-54 106-122s-49-123-110-123h-73Z"/>
+  </g>
+</svg>
