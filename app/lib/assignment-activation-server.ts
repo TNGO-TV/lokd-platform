@@ -553,9 +553,20 @@ export async function evaluateAssignmentActivation(db: D1Database, request: Assi
     const revisionBefore = await readActivationEvidenceRevision(db);
     const evaluatedAt = new Date().toISOString();
     const facts = await loadAssignmentActivationFacts(db, request, evaluatedAt);
+    const specialistPack = facts.environment === "production"
+      ? await db.prepare(`SELECT b.specialist_service_code AS serviceCode, EXISTS(
+          SELECT 1 FROM specialist_deployment_packs p JOIN specialist_pack_validation_v34 v ON v.id=p.id
+          WHERE p.booking_id=b.id AND p.status='approved' AND v.valid=1
+          AND EXISTS(SELECT 1 FROM json_each(p.content,'$.officerIds') WHERE value=?)) AS ready
+          FROM bookings b WHERE b.id=?`).bind(request.officerId,facts.shift.bookingId).first<{serviceCode:string;ready:number}>()
+      : null;
     const revisionAfter = await readActivationEvidenceRevision(db);
     if (revisionBefore !== revisionAfter) continue;
     const result = evaluateActivationFacts(facts);
+    if (specialistPack && specialistPack.serviceCode !== "standard_unarmed" && specialistPack.ready !== 1) {
+      result.blockers.push({code:"SPECIALIST_APPROVED_PACK_REQUIRED",category:"site",detail:"A current independently approved specialist pack must name this officer and cover the quote, roster, evidence and full cleared funding."});
+      result.ready=false;
+    }
     const hashFacts = { ...facts, evaluatedAt: undefined };
     return {
       facts,

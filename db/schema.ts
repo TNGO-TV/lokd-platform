@@ -1,6 +1,42 @@
 import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
+export const specialistCommercialReviews = sqliteTable("specialist_commercial_reviews", {
+  id: text("id").primaryKey(),
+  environment: text("environment").notNull(), integrityState: text("integrity_state").notNull(),
+  pricingVersion: text("pricing_version").notNull(), termsVersion: text("terms_version").notNull(),
+  status: text("status").notNull().default("review"), version: integer("version").notNull().default(1),
+  evidenceReference: text("evidence_reference").notNull(), expiresAt: text("expires_at").notNull(),
+  preparedBy: text("prepared_by").notNull(), approvedBy: text("approved_by"), approvedAt: text("approved_at"),
+  updatedAt: text("updated_at").notNull(),
+}, table => [uniqueIndex("specialist_commercial_env_version_idx").on(table.environment, table.pricingVersion, table.termsVersion)]);
+
+export const specialistPartners = sqliteTable("specialist_partners", {
+  id: text("id").primaryKey(), name: text("name").notNull(), serviceCodes: text("service_codes").notNull(),
+  environment: text("environment").notNull(), integrityState: text("integrity_state").notNull(),
+  evidenceReference: text("evidence_reference").notNull(), validFrom: text("valid_from").notNull(), expiresAt: text("expires_at").notNull(),
+  status: text("status").notNull().default("review"), version: integer("version").notNull().default(1),
+  preparedBy: text("prepared_by").notNull(), approvedBy: text("approved_by"), approvedAt: text("approved_at"), updatedAt: text("updated_at").notNull(),
+}, table => [index("specialist_partner_env_idx").on(table.environment, table.status)]);
+
+export const specialistDeploymentPacks = sqliteTable("specialist_deployment_packs", {
+  id: text("id").primaryKey(), bookingId: text("booking_id").notNull().references(() => bookings.id, {onDelete:"cascade"}),
+  environment: text("environment").notNull(), integrityState: text("integrity_state").notNull(),
+  status: text("status").notNull().default("draft"), version: integer("version").notNull().default(1),
+  content: text("content").notNull(), quoteSnapshot: text("quote_snapshot").notNull(),
+  commercialReviewId: text("commercial_review_id").references(() => specialistCommercialReviews.id),
+  commercialReviewVersion: integer("commercial_review_version").notNull().default(0),
+  partnerId: text("partner_id").references(() => specialistPartners.id), partnerVersion: integer("partner_version").notNull().default(0),
+  preparedBy: text("prepared_by").notNull(), approvedBy: text("approved_by"), approvedAt: text("approved_at"),
+  updatedAt: text("updated_at").notNull(),
+}, table => [uniqueIndex("specialist_pack_booking_idx").on(table.bookingId),index("specialist_pack_queue_idx").on(table.environment,table.status)]);
+
+export const specialistRehearsalRuns = sqliteTable("specialist_rehearsal_runs", {
+  id: text("id").primaryKey(), environment: text("environment").notNull().default("demo"),
+  integrityState: text("integrity_state").notNull().default("synthetic"),
+  scenarios: text("scenarios").notNull(), runBy: text("run_by").notNull(), createdAt: text("created_at").notNull(),
+}, table => [index("specialist_rehearsal_date_idx").on(table.environment,table.createdAt)]);
+
 export const officerApplications = sqliteTable(
   "officer_applications",
   {
