@@ -73,7 +73,7 @@ export async function readSpecialistState(db:D1Database,environment:SpecialistEn
   });
   // The database is authoritative for snapshot versions and revoked approvals too.
   const validations=await rows<{id:string;valid:number}>(db,`SELECT id,valid FROM specialist_pack_validation_v34 WHERE environment=?`,environment);
-  for(const pack of packs) if(pack.status==="approved" && !validations.some(v=>v.id===pack.id&&v.valid===1) && !pack.blockers.length) pack.blockers.push("An approval, supplier version or roster changed; review this pack again.");
+  for(const pack of packs) if(!validations.some(v=>v.id===pack.id&&v.valid===1) && !pack.blockers.length) pack.blockers.push("An approval, supplier version, officer readiness or roster changed. Save and review this pack again.");
   return {environment,actorEmail,bookings,packs,partners,officers,commercialReview,
     rehearsals:rehearsals.map(r=>({...r,scenarios:JSON.parse(r.scenarios) as SpecialistScenarioResult[]})),productionBlockers:[...specialistProductionBlockers]};
 }

@@ -8,7 +8,7 @@ const headers = {
   "x-robots-tag": "noindex, nofollow",
 };
 
-type ReadinessChecks = { requiredTables: number; requiredTriggers: number; evidenceStoreBound: boolean };
+type ReadinessChecks = { requiredTables: number; requiredTriggers: number; requiredViews: number; evidenceStoreBound: boolean };
 
 function reply(status: "ready" | "unavailable", code: number, checks?: ReadinessChecks) {
   return Response.json(
@@ -40,7 +40,9 @@ export async function GET() {
         'operator_action_policies','operator_approval_requests','payroll_shadow_validation_runs',
         'payroll_export_previews','payroll_exceptions','client_enquiries',
         'onboarding_cases','onboarding_checklist_items','contract_template_versions',
-        'contract_envelopes','workspace_access_invitations','controlled_pilot_rehearsals') THEN 1 ELSE 0 END) AS required_tables,
+        'contract_envelopes','workspace_access_invitations','controlled_pilot_rehearsals',
+        'specialist_commercial_reviews','specialist_partners','specialist_deployment_packs',
+        'specialist_rehearsal_runs') THEN 1 ELSE 0 END) AS required_tables,
       SUM(CASE WHEN type = 'trigger' AND name IN (
         'officer_application_provenance_insert_v21','identity_case_transition_guard_v21',
         'payment_order_evidence_guard_v21','integration_operation_transition_guard_v21',
@@ -69,14 +71,46 @@ export async function GET() {
         'workspace_access_update_guard_v32','workspace_access_delete_guard_v32',
         'controlled_pilot_rehearsal_insert_guard_v32',
         'controlled_pilot_rehearsal_update_guard_v32',
-        'controlled_pilot_rehearsal_delete_guard_v32') THEN 1 ELSE 0 END) AS required_triggers
-      FROM sqlite_master`).first<{ required_tables: number; required_triggers: number }>();
+        'controlled_pilot_rehearsal_delete_guard_v32',
+        'specialist_pricing_insert_guard_v33',
+        'specialist_pricing_update_guard_v33',
+        'specialist_pricing_version_immutable_v33',
+        'specialist_booking_progress_guard_v33',
+        'specialist_offer_insert_guard_v33',
+        'specialist_offer_update_guard_v33',
+        'specialist_activation_guard_v33',
+        'specialist_activated_booking_immutable_v33',
+        'specialist_commercial_reviews_insert_shape_v34',
+        'specialist_commercial_reviews_update_shape_v34',
+        'specialist_commercial_reviews_approval_v34',
+        'specialist_commercial_reviews_history_v34',
+        'specialist_partners_insert_shape_v34',
+        'specialist_partners_update_shape_v34',
+        'specialist_partners_approval_v34',
+        'specialist_partners_history_v34',
+        'specialist_deployment_packs_insert_shape_v34',
+        'specialist_deployment_packs_update_shape_v34',
+        'specialist_deployment_packs_approval_v34',
+        'specialist_deployment_packs_history_v34',
+        'specialist_rehearsal_demo_only_v34',
+        'specialist_offer_pack_insert_v34',
+        'specialist_offer_pack_update_v34',
+        'specialist_activation_pack_v34',
+        'specialist_revalidation_pack_v34',
+        'specialist_pack_delete_epoch_v34') THEN 1 ELSE 0 END) AS required_triggers,
+      SUM(CASE WHEN type = 'view' AND name IN (
+        'specialist_pricing_validation_v33',
+        'specialist_booking_control_validation_v33',
+        'specialist_required_checks_v34',
+        'specialist_pack_validation_v34') THEN 1 ELSE 0 END) AS required_views
+      FROM sqlite_master`).first<{ required_tables: number; required_triggers: number; required_views: number }>();
     const checks = {
       requiredTables: Number(schema?.required_tables ?? 0),
       requiredTriggers: Number(schema?.required_triggers ?? 0),
+      requiredViews: Number(schema?.required_views ?? 0),
       evidenceStoreBound: Boolean(env.BUCKET),
     };
-    if (checks.requiredTables !== 28 || checks.requiredTriggers !== 53 || !checks.evidenceStoreBound) {
+    if (checks.requiredTables !== 32 || checks.requiredTriggers !== 79 || checks.requiredViews !== 4 || !checks.evidenceStoreBound) {
       return reply("unavailable", 503, checks);
     }
     return reply("ready", 200, checks);

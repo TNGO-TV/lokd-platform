@@ -125,3 +125,42 @@ test("one expired required reference blocks independent approval at the database
     assert.throws(()=>db.prepare("UPDATE specialist_deployment_packs SET status='approved',version=version+1,approved_by='checker@lokd.example',approved_at=strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id=?").run(p.id),/specialist_pack_controls_not_current/);
   }finally{db.close();}
 });
+
+test("production commercial approval requires recent MFA and cannot use simulation evidence",async()=>{
+  const db=setup();try{
+    env.LOKD_APP_STAGE="production";
+    for(const [id,email] of [["prod-maker","maker@lokd.example"],["prod-checker","checker@lokd.example"]]) {
+      db.prepare(`INSERT INTO operator_accounts
+        (id,email,display_name,status,mfa_status,mfa_verified_at,approval_limit_cents,environment,integrity_state,version,created_at,updated_at)
+        VALUES (?,?,'Test operator','active','verified',strftime('%Y-%m-%dT%H:%M:%SZ','now'),99999999,'production','authoritative',1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`).run(id,email);
+      db.prepare(`INSERT INTO operator_role_assignments (id,operator_id,role,status,environment,integrity_state,granted_by,granted_at)
+        VALUES (?,?,'operations_owner','active','production','authoritative','test-fixture',CURRENT_TIMESTAMP)`).run(id+"-role",id);
+    }
+    await call({action:"submit_commercial",version:0,evidenceReference:"demo://review",expiresAt:future(60)},"maker@lokd.example",400);
+    const s=await call({action:"submit_commercial",version:0,evidenceReference:"approval-record:cost-and-terms-001",expiresAt:future(60)});
+    const cr=s.commercialReview;
+    db.exec("UPDATE operator_accounts SET mfa_verified_at=datetime('now','-16 minutes') WHERE id='prod-checker'");
+    await call({action:"approve_commercial",id:cr.id,version:cr.version},"checker@lokd.example",403);
+    assert.throws(()=>db.prepare(`UPDATE specialist_commercial_reviews SET status='approved',version=version+1,
+      approved_by='checker@lokd.example',approved_at=strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id=?`).run(cr.id),/specialist_reviewer_role_or_mfa_required/);
+    db.exec("UPDATE operator_accounts SET mfa_verified_at=strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id='prod-checker'");
+    const approved=await call({action:"approve_commercial",id:cr.id,version:cr.version},"checker@lokd.example");
+    assert.equal(approved.commercialReview.status,"approved");
+    await call({action:"run_rehearsals"},"maker@lokd.example",423);
+  }finally{db.close();}
+});
+
+test("a production specialist offer cannot open without a current named deployment pack",async()=>{
+  const db=setup();try{
+    const b=await createArmed(db);
+    const row=db.prepare("SELECT * FROM bookings WHERE id=?").get(b.id);
+    db.exec(`INSERT INTO clients (id,organisation_name,contact_name,contact_email,approval_status,environment,integrity_state)
+      VALUES ('CL-PROD-V34','Test client','Contact','contact@example.test','approved','production','production_verified')`);
+    Object.assign(row,{id:"BK-PROD-V34",client_id:"CL-PROD-V34",environment:"production",integrity_state:"production_verified",status:"site_review",funding_status:"site_review"});
+    const fields=Object.keys(row);
+    db.prepare(`INSERT INTO bookings (${fields.join(",")}) VALUES (${fields.map(()=>"?").join(",")})`).run(...Object.values(row));
+    assert.throws(()=>db.exec(`INSERT INTO offers (id,booking_id,officer_id,amount_cents,expires_at,status)
+      VALUES ('OFFER-PROD-V34','BK-PROD-V34','OFF-001',200000,'2040-01-01','open')`),/specialist_approved_pack_required/);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM offers WHERE id='OFFER-PROD-V34'").get().n,0);
+  }finally{db.close();}
+});
