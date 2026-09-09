@@ -29,3 +29,11 @@ Installed/authenticated CLI access is not entitlement visibility. A 402 feature 
 - Live https://lokd.co.za and Operations security pages returned 307 to sign-in; forged identity/MFA API requests returned 401. No live acceptance records created.
 - Final build/228 tests, TypeScript and changed-source lint passed. The 20-check offline checklist passed. New schema migration contains only receipt storage and immutable-record triggers; no draft/approved document data is seeded.
 - Available browser tool discovery exposed a panel opener, not a connected authenticated dashboard-session reader. Existing Playwright checks use isolated contexts. Do not claim access to the owner's Clerk Billing screen through these tools.
+
+## Receipt of repeated central coordination assignment
+
+Received the owner's authorized central re-delivery and reread `06-lokd.md` in this existing task. Reconciled its version-40 starting point to the already completed version-41 receipt; confirmed the recorded deployment remains succeeded. Did not repeat the MFA preview, PSiRA lookup, provider calls, development account runs or release.
+
+New work identified by source-hash comparison: privacy and workforce Legal drafts advanced to v0.2. Read/reconciled those additions and saved factual integration corrections and a dated hash recheck. Client/website drafts unchanged. Companion employment, partner and DPA drafts are now identified as available but unapproved; legal model selection, approved collection schedules and implementation/acceptance gates remain open. No new website release is warranted for this documentation-only reconciliation.
+
+Remaining dependencies are unchanged: actual Clerk billing/entitlement status and named production accounts; iiDENTIFii/Paystack credentials/contracts; approved legal/business decisions and production signature integration. No owner response has supplied those facts since the previous milestone. Receipt and new-draft review are recorded without marking these blocked acceptance items complete.

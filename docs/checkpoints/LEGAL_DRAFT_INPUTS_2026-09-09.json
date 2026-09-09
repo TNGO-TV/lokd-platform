@@ -21,5 +21,41 @@
       "sha256": "26cb1c39c129e902214681b4b23ee0bcb52357189279114af858d0004229b811",
       "status": "v0.1 unapproved; reviewed not published"
     }
+  ],
+  "rechecks": [
+    {
+      "checkedAt": "2026-09-09T17:23:29.457572+00:00",
+      "reason": "Repeated central assignment reconciled against completed version 41",
+      "drafts": [
+        {
+          "path": "/srv/ammosync/workspaces/legal/drafts/lokd/client-service-pack.md",
+          "sha256": "dbb769b34ca8ebf9481d79e924bdc4368ad974c8c3771f98af6872b0c9f96cd4",
+          "changedFromInitialReview": false,
+          "version": "v0.1",
+          "status": "unapproved; not published"
+        },
+        {
+          "path": "/srv/ammosync/workspaces/legal/drafts/lokd/privacy-verification-notice.md",
+          "sha256": "185b64a93c1093736772fa6506901a335030a0e416628867a1b8836465e8784c",
+          "changedFromInitialReview": true,
+          "version": "v0.2",
+          "status": "unapproved; not published"
+        },
+        {
+          "path": "/srv/ammosync/workspaces/legal/drafts/lokd/website-terms.md",
+          "sha256": "945ab865741287e00fed8e3661cf96db07965c5f059e8e82c5eda46ef08a35c1",
+          "changedFromInitialReview": false,
+          "version": "v0.1",
+          "status": "unapproved; not published"
+        },
+        {
+          "path": "/srv/ammosync/workspaces/legal/drafts/lokd/workforce-payroll-framework.md",
+          "sha256": "0d52087c0fcfadbbc2d083df6d7704b2e6a1c7be9e035676659df078af48c355",
+          "changedFromInitialReview": true,
+          "version": "v0.2",
+          "status": "unapproved; not published"
+        }
+      ]
+    }
   ]
 }

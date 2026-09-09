@@ -25,3 +25,14 @@ Migration 0031 adds append-only receipt storage with idempotency keys; changed e
 - Existing identity, funding, PSiRA, statutory/payroll, MFA and maker/checker gates remain additional requirements.
 
 Business/legal decisions preserved: contracting entity; actual employer/partner role; approved signatory mandates; lawful pay/deduction schedule; cancellation/refund rules; insurance/liability; staffed rights/complaints contacts; provider data flows/countries/retention; signature method and exact signed-order activation gate. None were filled by assumption.
+
+## Central re-delivery reconciliation — privacy/workforce v0.2
+
+The repeated START-ENGINES assignment was received in the existing owner task after version 41 completion. Hash comparison found client service pack and website terms unchanged; privacy/verification and workforce framework are now v0.2. Both updated documents and the shared handoff were read. Original input hashes remain preserved with a dated recheck rather than overwritten.
+
+- Privacy v0.2 adds collection-purpose/lawful-ground/provider-data schedules and request-channel procedures. Capture those approved decisions alongside the collection context; an `identity_consent` receipt alone must not be treated as a lawful-ground or prior-authorisation determination. Account-free requests, telephone recording/access, staffed routing and retention are not implemented or promised by version 41. Legal's warning against a universal privacy-request response deadline is retained; no automated statutory timer was introduced.
+- Workforce v0.2 points to new direct-employment and partner alternatives and requires actual assignment facts before route selection. Preserve hiring, paying, supervision and discipline entities, continuity/substitution, site, grade, roster and gross-pay basis with the classification review and agreement version. Do not choose both routes by default or infer a model from provider readiness. No payroll rate, threshold or formula was changed from the draft's research references.
+- Newly referenced officer-employment, partner-personnel and operator-DPA files exist as unapproved companion drafts. Their presence supersedes saying those documents have not been drafted; it does not establish selected/completed contracts or executed provider agreements. Detailed integration remains subject to the actual route and approvals.
+- The common implementation handoff still describes v0.1 globally, while the two inspected product files say v0.2. Use the per-document version/hash and approval state, not that overview label, when preparing an acceptance package.
+
+No website code changed for this reconciliation. Version 41 remains the implementation baseline. Drafts are not approved by receipt of the central coordination message.
