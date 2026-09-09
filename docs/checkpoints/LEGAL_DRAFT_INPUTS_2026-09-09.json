@@ -1,0 +1,25 @@
+{
+  "checkedAt": "2026-09-09T17:17:22.849508+00:00",
+  "drafts": [
+    {
+      "path": "/srv/ammosync/workspaces/legal/drafts/lokd/client-service-pack.md",
+      "sha256": "dbb769b34ca8ebf9481d79e924bdc4368ad974c8c3771f98af6872b0c9f96cd4",
+      "status": "v0.1 unapproved; reviewed not published"
+    },
+    {
+      "path": "/srv/ammosync/workspaces/legal/drafts/lokd/privacy-verification-notice.md",
+      "sha256": "13e76484d9bb346958cef53dcf5d8edd9a054a2046ce1bf7da2481b480a93cd7",
+      "status": "v0.1 unapproved; reviewed not published"
+    },
+    {
+      "path": "/srv/ammosync/workspaces/legal/drafts/lokd/website-terms.md",
+      "sha256": "945ab865741287e00fed8e3661cf96db07965c5f059e8e82c5eda46ef08a35c1",
+      "status": "v0.1 unapproved; reviewed not published"
+    },
+    {
+      "path": "/srv/ammosync/workspaces/legal/drafts/lokd/workforce-payroll-framework.md",
+      "sha256": "26cb1c39c129e902214681b4b23ee0bcb52357189279114af858d0004229b811",
+      "status": "v0.1 unapproved; reviewed not published"
+    }
+  ]
+}

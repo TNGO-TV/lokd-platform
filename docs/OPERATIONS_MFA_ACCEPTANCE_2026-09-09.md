@@ -32,3 +32,13 @@ No real money moved, production approvals were not created, and no live MFA acce
 - The first browser attempt accessed Clerk before the newly navigated page had loaded it. The test now waits explicitly, and the verification button stays disabled until Clerk loads. Retry passed. This is a readiness lesson, not evidence of a provider outage.
 - TypeScript and changed-source lint passed (two existing image warnings). Final production build passed after the loading-state correction.
 - Production enrollment preview failed with HTTP 402; development success does not resolve that restriction. Repeat production enrollment and real-account acceptance only after entitlement resolution.
+
+## START-ENGINES entitlement recheck
+
+Authenticated CLI doctor and production config reads succeeded. Production still has authenticator/backup codes disabled and zero users; no named production acceptance is possible yet. The fresh configuration preview again returned HTTP 402 for `app:mfa_totp` and `app:mfa_backup_code`.
+
+The Platform catalog exposes 51 application/configuration/user endpoints but no dashboard subscription/entitlement read. GET application returns only application ID, name and instances. The separate Backend subscription catalog concerns app customers and is not proof of the owner's Clerk subscription; that catalog fetch also returned HTTP 503. The CLI is authenticated; this is not a missing-installation diagnosis. No authenticated dashboard browser session is established in this task.
+
+Clerk's [5 February 2026 plan announcement](https://clerk.com/changelog/2026-02-05-new-plans-more-value) says MFA is included in Pro and the former Enhanced Authentication add-on was eliminated. Therefore the 402 proves unavailable entitlement, **not which plan the owner bought**. Remaining input is the active billed plan for the workspace containing LOKD, or a Clerk support entitlement correction if it already includes MFA. No upgrade is recommended until that fact is known, and nothing here concerns ChatGPT billing.
+
+Reusable decision procedure: verify app/production instance → read current MFA flags → run the exact no-write feature preview → inspect actual plan through an available authoritative account route → compare included features → enable existing entitlement or identify a concrete mismatch. If metadata cannot expose the billed plan, report that limit; do not infer Hobby/Pro or buy a new plan. If enablement succeeds, separately enroll named accounts and test denial, expiry, recovery and authority. Preserve negative responses and exact instance/date with each receipt.

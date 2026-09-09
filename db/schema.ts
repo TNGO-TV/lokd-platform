@@ -2384,3 +2384,11 @@ export const psiraVerificationEvents = sqliteTable("psira_verification_events", 
   recordedAt: text("recorded_at").notNull(),
   recheckAt: text("recheck_at"),
 }, table => [uniqueIndex("psira_event_case_version_idx").on(table.caseId, table.version)]);
+
+// Prepared signing integration; no public acceptance endpoint until legal approval.
+export const agreementAcceptanceReceipts = sqliteTable('agreement_acceptance_receipts', {
+  id: text('id').primaryKey(),
+  receiptJson: text('receipt_json').notNull(),
+  receiptHash: text('receipt_hash').notNull(),
+  contextHash: text('context_hash').notNull(),
+});
