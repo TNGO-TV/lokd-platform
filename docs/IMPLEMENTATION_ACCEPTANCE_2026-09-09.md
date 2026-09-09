@@ -1,6 +1,6 @@
 # LOKD implementation acceptance — 9 September 2026
 
-Status: Clerk implementation and synthetic operating acceptance prepared; production login and external-provider acceptance remain incomplete. This work belongs to the implementation task. No health-monitor automation was changed.
+Status: Version 36 deployed successfully; live Clerk entry routes verified. Full real-account login, Google, privileged MFA and external-provider acceptance remain incomplete. This work belongs to the implementation task. No health-monitor automation was changed.
 
 ## Current decision — Google sign-in deferred, still required
 
@@ -13,16 +13,18 @@ Status: Clerk implementation and synthetic operating acceptance prepared; produc
 - Required action when resumed: configure LOKD's Google OAuth application and production callback, connect its credentials in Clerk, enable Google, and verify sign-in, account linking and role-correct destinations for all three portals.
 - Acceptance: record successful Google journeys and denied cross-role access. Until then, report Google explicitly as unavailable and overall authentication acceptance as incomplete.
 
-## Continuation status after Google deferral
+## Current deployment — explicitly approved and verified
 
-- Version 36 is saved and tested (213 passing tests); publication is not confirmed.
-- Read-only checks using a standard browser User-Agent now reach the live hosts: `/api/health/live` returns 200 on the demo host. The earlier HTTP 403/1010 result was tied to the probing client and must not be presented as an application outage.
-- The Client `/client`, Officer `/officer` and Operations `/ops` routes each return 307 to their same-host `/signin-with-chatgpt` path. This proves that the live portal journey still uses the previous authentication implementation; the saved Clerk release is not yet verified live.
-- The first publication call returned no usable deployment result. After read-only checks, automatic approval review explicitly rejected the retry because it did not find explicit approval for public publication and Google authentication is still incomplete.
-- A specific approval request now names Version 36, the public audience, the configured email sign-in and the deferred required Google issue. Do not bypass the rejection or claim a successful deployment without a terminal success result and live checks.
-- Next after approval: publish the saved version, retain its deployment ID, verify terminal success and all three redirects, then perform real account/MFA acceptance. AUTH-001 stays open throughout.
+- User authorization: “continue to deploy”. The prior approval rejection was resolved by this explicit publication instruction.
+- Version 36 (source `58821642172f984b8b5f5b3376ee5052a138ab37`) deployed successfully on 9 September 2026 at 09:32:26 UTC.
+- Deployment ID: `appgdep_6aa127989b688191b0cfe96842e90a03`; terminal status `succeeded`; applied environment revision **5**.
+- Published URL: https://lokd-security.zenas-capetown.chatgpt.site
+- Live Client `/client`, Officer `/officer` and Operations `/ops` now each return HTTP 307 to their own `/sign-in` route, preserving `/client`, `/officer` and `/ops` respectively as `return_to`. They no longer redirect to the old ChatGPT sign-in.
+- `/sign-in` returns HTTP 200 HTML on all three portal hosts. The demo `/api/health/live` returns HTTP 200 JSON.
+- These are live HTTP entry-route checks, not successful account sign-in or MFA acceptance. Google AUTH-001 remains required, deferred and open. Provider acceptance and financial settlement remain incomplete/locked.
+- The published build passed 213 tests before deployment. This documentation update does not change the deployed application code.
 
-## Source, deployment and actual configuration
+## Initial reconciliation history (before the deployment above)
 
 - The starting checkout, `962850c`, has exactly the same tracked file content as `0ac50b677d302d748fc3d29eebcbf42ba5bd3e2b`, the source recorded for Sites Version 35. The intervening commits preserve imported history.
 - Sites reports the public LOKD project and current live URL `https://demo.lokd.co.za`; Version 35 was the latest saved version at inspection. A saved-version number alone is not proof of the currently executing deployment. Production logs report Worker script version `60c28113-22c4-4126-bc33-f6cc5355a327`; no deployment-to-source mapping was returned by the inspected tools.
@@ -31,11 +33,11 @@ Status: Clerk implementation and synthetic operating acceptance prepared; produc
 - Production instance `ins_3IuqByfuozQZDguv7iJ3qPqd47b` has zero users. Email verification/code sign-in is configured; Google OAuth is disabled/unconfigured. MFA enrollment methods and mandatory MFA are currently disabled. No real Operations MFA journey has been accepted.
 - Sites originally had only stage, live-scan and role-map variables. The existing production Clerk publishable key and secret have now been stored in Sites environment revision 5. The existing secret role map was preserved, not overwritten or exposed. These new values require deployment to take effect.
 - Source now uses Clerk authentication with existing D1/R2 data and server-controlled account roles. README supersedes obsolete Supabase and ChatGPT authentication instructions. No Supabase dependency or active Supabase instruction was found in this checkout.
-- No live deployment was performed as part of this acceptance record. Do not interpret code, saved environment values or synthetic tests as an active Clerk rollout.
+- At the initial inspection no live deployment had been performed. The explicitly approved Version 36 deployment above supersedes that status.
 
-## Clerk production blockers
+## Clerk domain setup history and remaining Google issue
 
-Clerk still returns `domain_pending`, with DNS, SSL and mail checks pending. Confirm these exact CNAME records in the authoritative DNS service, then re-run Clerk deployment status:
+The initial inspection returned `domain_pending`. After the registrar records were updated, Clerk confirmed DNS, SSL and mail complete. The verified CNAME configuration is:
 
 | Host | Target |
 | --- | --- |
@@ -117,7 +119,7 @@ Existing onboarding tests separately validate four watermarked template/envelope
 | Fast enquiry triage/close could fail the monotonic timestamp guard | Fixed and regression-tested at one clock instant. |
 | Old synthetic evidence dates can prevent new sample bookings from matching | Test dates made deterministic. Product evidence is not silently renewed; Operations must review actual expired evidence. |
 | Real Clerk sign-in and privileged MFA | DNS/SSL/mail now complete. Real accounts, role assignment, step-up acceptance and deferred Google issue AUTH-001 remain open. |
-| Live-site probe denied at Cloudflare edge | Resolve the legitimate testing/access path, then verify all portal journeys against the executing deployment. |
+| Live-site probe denied at Cloudflare edge | Resolved for HTTP probes using a standard browser User-Agent. Deployed Clerk entry routes now verified; full account journeys still pending. |
 | Provider credentials and callback contracts | User awaiting iiDENTIFii and Paystack. No provider acceptance claimed. |
 | Payment unknown outcomes, refunds/reversals and officer-transfer recovery | Must be tested with provider references before enabling live rails. |
 | Signed order linkage to booking activation | Not wired into the combined rehearsal; require authoritative signed version/evidence before production activation. |
