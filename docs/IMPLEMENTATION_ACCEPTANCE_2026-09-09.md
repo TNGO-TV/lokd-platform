@@ -144,3 +144,13 @@ Version 37 (`appgprj_6a88a08505548191b266e9b711562ae3~appgver_861e8b5bb220819197
 A real headless browser visited `/client`, `/officer`, and `/ops` on their respective production portal domains. All three redirected anonymous visitors to sign-in, displayed the correct role heading and visible email-address form, and reported Clerk loaded. No production accounts were created and no verification emails were requested. AUTH-002 is fixed and verified deployed. This is form-rendering and anonymous-routing acceptance, not a claim of completed production account/MFA journeys.
 
 The final single-command development account run passed all six browser tests in 33 seconds. Clerk development-user count was verified as zero afterward. Release build and 214 regression tests passed; TypeScript and changed-source lint passed. The existing unrelated full-lint issue remains as previously recorded.
+
+## PSiRA workflow — version 38
+
+An authorised partner-supplied number was checked twice using PSiRA’s official number-only form. One matching registration row was returned; this establishes a successful registration lookup, not that the registration belongs to the onboarding subject. Private dated evidence and the returned identity are retained in ignored restricted workspace files, excluded from the release.
+
+Deployed account-bound Officer submission, Operations review, immutable dated evidence, separate identity decisions, due-date handling and recheck resets. Unavailable/ambiguous/unchecked/stale cases remain unverified. The repeatable browser observer does not grant approval or represent a documented public API. Current operational eligibility gates remain in place.
+
+Version 38 succeeded at 2026-09-09T13:11:26.567788Z using source `965669b98effb87e01592451b95be1148a36f653`, deployment `appgdep_6aa15aedbd408191a9dcfbe99e71cec8`, environment revision 5. Validation: 216 regression tests, seven browser journeys, TypeScript and changed-source lint passed. Live new-page sign-in redirects and API rejection of anonymous/forged requests passed for both portals. A Clerk POST-body preservation defect found during browser testing was fixed without changing identity or role policy.
+
+Working method and acceptance limits: `docs/PSIRA_VERIFICATION_WORKFLOW.md`. Resume checkpoint: `docs/checkpoints/PSIRA_2026-09-09.md`. Production account linkage/identity match and provider failure examples remain outstanding. AUTH-001 Google and Operations MFA retain their previously recorded open status.
