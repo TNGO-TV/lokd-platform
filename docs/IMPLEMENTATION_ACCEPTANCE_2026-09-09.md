@@ -136,3 +136,11 @@ Added `npm run test:accounts`: temporary development Clerk identities, automated
 **AUTH-002 — Clerk blocked by Content-Security-Policy:** browser testing reproduced the blocked external script and the same header was confirmed on the live Operations sign-in page. The source correction permits only the appropriate Clerk frontend plus documented authentication resources, with a regression check excluding the development frontend from release headers. This supersedes interpreting a successful HTTP response from `/sign-in` as proof that its sign-in form works. Deployment/live browser verification of this correction is recorded separately below when complete.
 
 AUTH-001 Google remains required, deferred and open. Real Operations MFA and real production account role assignments remain incomplete. These authentication tests do not verify portal data completeness, iiDENTIFii/Paystack acceptance, actual email delivery, or agreement execution.
+
+### Version 37 deployment and live browser verification
+
+Version 37 (`appgprj_6a88a08505548191b266e9b711562ae3~appgver_861e8b5bb220819197ba58170d210e04`) deployed successfully at 2026-09-09 10:46:33 UTC, deployment `appgdep_6aa138f94adc8191bb6c7caa9d541bf4`, source `a0c5bd547bc2e2a01e98a2ea8ec8c687a980a7bc`, existing environment revision 5.
+
+A real headless browser visited `/client`, `/officer`, and `/ops` on their respective production portal domains. All three redirected anonymous visitors to sign-in, displayed the correct role heading and visible email-address form, and reported Clerk loaded. No production accounts were created and no verification emails were requested. AUTH-002 is fixed and verified deployed. This is form-rendering and anonymous-routing acceptance, not a claim of completed production account/MFA journeys.
+
+The final single-command development account run passed all six browser tests in 33 seconds. Clerk development-user count was verified as zero afterward. Release build and 214 regression tests passed; TypeScript and changed-source lint passed. The existing unrelated full-lint issue remains as previously recorded.
