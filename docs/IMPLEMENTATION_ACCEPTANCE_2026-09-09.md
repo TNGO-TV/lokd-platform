@@ -128,3 +128,11 @@ Existing onboarding tests separately validate four watermarked template/envelope
 ## Validation record
 
 Final `npm test`: **213 passed, 0 failed**, including the production Worker build. TypeScript and changed-source lint also pass. Checks include the Worker production build, TypeScript, changed-source lint, Clerk verifier tests, role/tenant isolation, identity outcomes, all SQLite migrations, onboarding, assignment eligibility, financial controls and the extended operating cycle. No provider callback, browser login or real money movement is implied by those checks.
+
+## Automated account workflow follow-up
+
+Added `npm run test:accounts`: temporary development Clerk identities, automated email-code sign-in, portal return destinations, cross-role page/API denials, owner/unassigned policies, and sign-out. No real inboxes or production test users are needed. Six browser tests passed; full regression suite passed 214 tests. See `docs/AUTOMATED_ACCOUNT_TESTING.md` for operation and acceptance limits.
+
+**AUTH-002 — Clerk blocked by Content-Security-Policy:** browser testing reproduced the blocked external script and the same header was confirmed on the live Operations sign-in page. The source correction permits only the appropriate Clerk frontend plus documented authentication resources, with a regression check excluding the development frontend from release headers. This supersedes interpreting a successful HTTP response from `/sign-in` as proof that its sign-in form works. Deployment/live browser verification of this correction is recorded separately below when complete.
+
+AUTH-001 Google remains required, deferred and open. Real Operations MFA and real production account role assignments remain incomplete. These authentication tests do not verify portal data completeness, iiDENTIFii/Paystack acceptance, actual email delivery, or agreement execution.

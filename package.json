@@ -12,7 +12,8 @@
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --experimental-loader=./tests/cloudflare-loader.mjs --test tests/*.test.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
+    "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
+    "test:accounts": "node scripts/test-accounts.mjs"
   },
   "dependencies": {
     "@clerk/backend": "^3.17.1",
@@ -23,8 +24,10 @@
     "react-dom": "19.2.6"
   },
   "devDependencies": {
+    "@clerk/testing": "^2.2.33",
     "@cloudflare/vite-plugin": "1.37.1",
     "@cloudflare/workers-types": "^4.20260702.1",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",

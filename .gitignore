@@ -44,3 +44,9 @@ next-env.d.ts
 # Local Worker secrets and Clerk project link
 .dev.vars*
 .clerk/
+
+# Automated account test reports (may contain test identities)
+/test-results/
+/playwright-report/
+
+/tests/accounts/test-results/
