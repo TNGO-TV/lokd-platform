@@ -1,6 +1,6 @@
 // Server-side preparation for the existing contract envelope flow. No public
 // signing endpoint is enabled until legal wording and signer mandates are approved.
-export type AgreementPurpose = 'client_service' | 'officer_employment' | 'bank_instruction' | 'deduction_authorisation' | 'identity_consent' | 'privacy_acknowledgement' | 'marketing_consent';
+export type AgreementPurpose = 'client_service' | 'partner_service' | 'officer_employment' | 'bank_instruction' | 'deduction_authorisation' | 'identity_consent' | 'privacy_acknowledgement' | 'marketing_consent';
 export type AgreementVersion = {
   id: string; version: string; purpose: AgreementPurpose; entityId: string; locale: string;
   status: 'draft' | 'approved' | 'withdrawn'; approvedBy: string | null; approvedAt: string | null;
@@ -32,7 +32,7 @@ export async function prepareAgreementReceipt(input: {
   if(!doc.entityId.trim() || !doc.locale.trim() || doc.purpose!==input.expectedPurpose || doc.entityId!==input.expectedEntityId || doc.locale!==input.expectedLocale) throw new Error('Document purpose, entity or locale does not match this step.');
   if(!Number.isFinite(Date.parse(doc.effectiveFrom)) || Date.parse(doc.effectiveFrom)>now || doc.effectiveTo!==null && (!Number.isFinite(Date.parse(doc.effectiveTo)) || Date.parse(doc.effectiveTo)<=now)) throw new Error('The document version is not currently effective.');
   if(!input.affirmative || !input.actorUserId || !input.identityEvidence.trim()) throw new Error('An affirmative action and independently verified actor are required.');
-  if(doc.purpose==='client_service' && !input.authorityEvidence?.trim()) throw new Error('Client representative authority must be verified separately.');
+  if((doc.purpose==='client_service'||doc.purpose==='partner_service') && !input.authorityEvidence?.trim()) throw new Error('Client representative authority must be verified separately.');
   if(input.action!==(doc.purpose==='privacy_acknowledgement'?'acknowledge':'agree')) throw new Error('Privacy acknowledgement and affirmative agreement/consent are separate actions.');
   const contextJson=canonicalAgreementContext(input.context);
   const contextHash=await agreementHash(contextJson);

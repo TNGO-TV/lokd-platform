@@ -1,3 +1,5 @@
+import { activationAgreementContext, requiredActivationAgreements } from '../app/lib/agreement-activation.ts';
+import { agreementHash, canonicalAgreementContext, prepareAgreementReceipt, storeAgreementReceipt } from '../app/lib/agreement-acceptance.ts';
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -207,7 +209,7 @@ function seedOfficer(database, id, engagementId, termsId) {
     VALUES (?,?,'SITE-1','feasible','production','verified',30,'route_matrix','travel:evidence',?,?,1,?,?)`, `TRAVEL-${id}`, id, now, expiry, `${id}:SITE-1`, now);
 }
 
-function seedValid(database, secondOfficer = false) {
+async function seedValid(database, secondOfficer = false) {
   for (const [index, code] of REQUIRED_LAUNCH_GATE_CODES.entries()) run(database, `INSERT INTO launch_controls
     (code,label,category,status,evidence_level,evidence_reference,detail,hard_gate,sort_order,verified_by,verified_at,expires_at,version,updated_at)
     VALUES (?,?,'fixture','passed','independently_verified',?,'Fixture evidence',1,?,'Verifier',?,?,1,?)
@@ -273,6 +275,8 @@ function seedValid(database, secondOfficer = false) {
     VALUES (?,'EMP-1',?,'current','production','verified',?,?,?,1,?,?)`, `ECE-${control}`, control, `evidence:${control}`, now, expiry, `EMP-1:${control}`, now);
   seedOfficer(database, "OFF-1", "WE-1", "WTA-1");
   if (secondOfficer) seedOfficer(database, "OFF-2", "WE-2", "WTA-2");
+  run(database, "UPDATE bookings SET contracting_entity_id='LOKD-CONTRACTOR-TEST'");
+  await signFixtureAgreements(database);
 }
 
 function seedReliefReservation(database, {
@@ -301,7 +305,7 @@ function seedReliefReservation(database, {
   return { reliefId, slotId, minutes };
 }
 
-function moveCandidateToCheckInWindow(database) {
+async function moveCandidateToCheckInWindow(database) {
   const base = Math.ceil(Date.now() / 60_000) * 60_000;
   const starts = new Date(base + 10 * 60_000).toISOString();
   const ends = new Date(base + (12 * 60 + 10) * 60_000).toISOString();
@@ -320,6 +324,7 @@ function moveCandidateToCheckInWindow(database) {
     economics.serviceDate, starts, ends, starts, starts, economics.calendarCategory, economics.officerOfferCents);
   run(database, `UPDATE officer_availability_windows SET starts_at=?,ends_at=? WHERE officer_id='OFF-1'`,
     new Date(base - 24 * 60 * 60_000).toISOString(), new Date(base + 48 * 60 * 60_000).toISOString());
+  await signFixtureAgreements(database);
   return { starts, ends };
 }
 
@@ -364,8 +369,9 @@ const request = (key = "activation:test:one", officerId = "OFF-1") => ({
 
 test("evaluation retries a torn fact read and returns the current source revision", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
   const initialRevision = evidenceRevision(database);
+  await signFixtureAgreements(database);
   const db = new FactReadMutationAdapter(database, 1);
 
   const evaluation = await evaluateAssignmentActivation(
@@ -385,7 +391,8 @@ test("evaluation retries a torn fact read and returns the current source revisio
 
 test("evaluation fails closed after three unstable fact reads without creating a command", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new FactReadMutationAdapter(database, 3);
 
   await assert.rejects(
@@ -405,7 +412,8 @@ test("evaluation fails closed after three unstable fact reads without creating a
 
 test("successful activation creates every final record exactly once and is idempotent", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const first = await activateAssignment(db, request(), "ops@example.test");
   assert.equal(first.state, "activated");
@@ -417,6 +425,10 @@ test("successful activation creates every final record exactly once and is idemp
   assert.equal(count(database, "assignment_activation_snapshots"), 1);
   assert.equal(count(database, "assignment_workforce_snapshots"), 1);
   assert.equal(count(database, "assignment_evidence_tokens"), 1);
+  const signedSnapshot=JSON.parse(database.prepare('SELECT site_evidence FROM assignment_evidence_tokens LIMIT 1').get().site_evidence).agreements;
+  assert.equal(signedSnapshot.ready,true);
+  assert.equal(signedSnapshot.receipts.length,3);
+  assert.ok(signedSnapshot.receipts.every(r=>r.id && r.hash.length===64 && r.documentVersion));
   assert.equal(count(database, "workforce_hour_reservations"), 2);
   assert.equal(count(database, "assignment_revalidations"), 3);
   assert.deepEqual({ ...database.prepare(`SELECT workforce_model AS workforceModel,employer_legal_name AS employerName,
@@ -468,8 +480,9 @@ test("successful activation creates every final record exactly once and is idemp
 
 test("Christmas work stored as ordinary is blocked and server-prices the Christmas wage", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
   run(database, `UPDATE roster_slots SET calendar_category='ordinary',officer_offer_cents=80000 WHERE id='SLOT-1'`);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const evaluation = await evaluateAssignmentActivation(db, request("activation:calendar-christmas-as-ordinary"));
   assert.equal(evaluation.facts.compensation.storedCalendarCategory, "ordinary");
@@ -487,10 +500,11 @@ test("Christmas work stored as ordinary is blocked and server-prices the Christm
 
 test("ordinary work stored as Christmas is blocked and server-prices the ordinary wage", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
   run(database, `UPDATE roster_slots SET service_date='2040-01-03',starts_at='2040-01-03T06:00:00.000Z',
     ends_at='2040-01-03T18:00:00.000Z',arrival_due_at='2040-01-03T05:45:00.000Z',
     check_in_due_at='2040-01-03T06:10:00.000Z' WHERE id='SLOT-1'`);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const evaluation = await evaluateAssignmentActivation(db, request("activation:calendar-ordinary-as-christmas"));
   assert.equal(evaluation.facts.compensation.storedCalendarCategory, "christmas");
@@ -506,9 +520,9 @@ test("ordinary work stored as Christmas is blocked and server-prices the ordinar
   database.close();
 });
 
-test("the database rejects a roster service date differing from the Johannesburg start date", () => {
+test("the database rejects a roster service date differing from the Johannesburg start date", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
   assert.throws(() => run(database, `UPDATE roster_slots SET service_date='2039-12-24' WHERE id='SLOT-1'`),
     /production_roster_service_date_invalid/);
   assert.equal(database.prepare(`SELECT service_date AS serviceDate FROM roster_slots WHERE id='SLOT-1'`).get().serviceDate,
@@ -518,7 +532,8 @@ test("the database rejects a roster service date differing from the Johannesburg
 
 test("a saved Ready evaluation activates with the same idempotency key exactly once", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const activationRequest = request("activation:evaluated-ready");
   const evaluated = await recordAssignmentActivationEvaluation(db, activationRequest, "ops@example.test");
@@ -534,7 +549,8 @@ test("a saved Ready evaluation activates with the same idempotency key exactly o
 
 test("concurrent duplicate activation keys converge on one complete activation", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new SameKeyEvaluationBarrierAdapter(database);
   const activationRequest = request("activation:concurrent-same-key");
   const results = await Promise.all([
@@ -555,7 +571,8 @@ test("concurrent duplicate activation keys converge on one complete activation",
 
 test("same idempotency key with a different request is rejected without new records", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   await activateAssignment(db, request(), "ops@example.test");
   await assert.rejects(() => activateAssignment(db, { ...request(), officerId: "OFF-X" }, "ops@example.test"), /different request/i);
@@ -565,7 +582,8 @@ test("same idempotency key with a different request is rejected without new reco
 
 test("a TOCTOU gate change aborts the entire activation batch", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database, () => {
     database.prepare(`UPDATE launch_controls SET status='pending' WHERE code='G2_CONTROL_ROOM_INSPECTION'`).run();
   });
@@ -583,7 +601,8 @@ test("a TOCTOU gate change aborts the entire activation batch", async () => {
 
 test("concurrent claims for one slot produce exactly one activated assignment", async () => {
   const database = migratedDatabase();
-  seedValid(database, true);
+  await seedValid(database, true);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const results = await Promise.allSettled([
     activateAssignment(db, request("activation:race:one", "OFF-1"), "ops@example.test"),
@@ -597,13 +616,14 @@ test("concurrent claims for one slot produce exactly one activated assignment", 
 
 test("simultaneous different-slot claims cannot violate one officer's rest window", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
   run(database, `INSERT INTO roster_slots
     (id,site_id,post_id,booking_id,service_date,starts_at,ends_at,arrival_due_at,check_in_due_at,
      position_index,calendar_category,officer_offer_cents,environment,integrity_state,status,version,created_at,updated_at)
     SELECT 'SLOT-2',site_id,post_id,booking_id,service_date,starts_at,ends_at,arrival_due_at,check_in_due_at,
       2,calendar_category,officer_offer_cents,environment,integrity_state,'uncovered',1,created_at,updated_at
     FROM roster_slots WHERE id='SLOT-1'`);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const results = await Promise.allSettled([
     activateAssignment(db, request("activation:officer-race:one"), "ops@example.test"),
@@ -617,7 +637,7 @@ test("simultaneous different-slot claims cannot violate one officer's rest windo
 
 test("stale concurrent Direct Flex activations cannot exceed the same-week ceiling", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
   run(database, `UPDATE workforce_engagements SET weekly_hour_cap=10 WHERE id='WE-1'`);
   run(database, `UPDATE bookings SET start_date='2040-01-03',end_date='2040-01-05',
     shift_start='08:00',shift_end='14:00',calendar_category='ordinary',calendar_label='Ordinary Monday-Saturday',
@@ -635,6 +655,8 @@ test("stale concurrent Direct Flex activations cannot exceed the same-week ceili
     VALUES ('SLOT-2','SITE-1','POST-1','BK-1','2040-01-05','2040-01-05T06:00:00.000Z',
      '2040-01-05T12:00:00.000Z','2040-01-05T05:45:00.000Z','2040-01-05T06:10:00.000Z',
      1,'ordinary',80000,'production','production_verified','uncovered',1,?,?)`, now, now);
+
+  await signFixtureAgreements(database);
 
   const db = new TwoActivationBarrierAdapter(database);
   const results = await Promise.allSettled([
@@ -668,7 +690,7 @@ test("stale concurrent Direct Flex activations cannot exceed the same-week ceili
 for (const route of ["managed", "partner"]) {
   test(`${route} activation freezes the correct employer and payroll route`, async () => {
     const database = migratedDatabase();
-    seedValid(database);
+    await seedValid(database);
     if (route === "managed") {
       run(database, `UPDATE workforce_engagements SET model='managed',weekly_hour_cap=NULL WHERE id='WE-1'`);
     } else {
@@ -676,6 +698,7 @@ for (const route of ["managed", "partner"]) {
         payroll_status='partner_confirmed',benefits_status='partner_confirmed' WHERE id='WE-1'`);
       run(database, `UPDATE workforce_employers SET employer_type='partner_company',legal_name='Approved Partner Security' WHERE id='EMP-1'`);
     }
+    await signFixtureAgreements(database);
     const db = new D1Adapter(database);
     const activated = await activateAssignment(db, request(`activation:${route}`), "ops@example.test");
     assert.equal(activated.state, "activated");
@@ -691,7 +714,8 @@ for (const route of ["managed", "partner"]) {
 
 test("synthetic commands cannot invoke production activation", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   await assert.rejects(() => activateAssignment(db, { ...request("activation:demo-rejected"), environment: "demo_synthetic" }, "ops@example.test"), /synthetic demo/i);
   assert.equal(count(database, "assignment_activation_commands"), 0);
@@ -699,9 +723,9 @@ test("synthetic commands cannot invoke production activation", async () => {
   database.close();
 });
 
-test("a production candidate command cannot reference synthetic client, booking, site, post or slot records", () => {
+test("a production candidate command cannot reference synthetic client, booking, site, post or slot records", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
   run(database, `INSERT INTO clients
     (id,organisation_name,contact_name,contact_email,approval_status,environment,integrity_state)
     VALUES ('CL-DEMO-CANDIDATE','Synthetic Client','Demo Contact','demo@example.test','approved','demo','synthetic')`);
@@ -750,7 +774,8 @@ for (const [label, mutation] of [
 ]) {
   test(`commit-time ${label} mutation rolls the activation back completely`, async () => {
     const database = migratedDatabase();
-    seedValid(database);
+    await seedValid(database);
+    await signFixtureAgreements(database);
     const db = new D1Adapter(database, () => run(database, mutation));
     await assert.rejects(() => activateAssignment(db, request(`activation:toctou:${label.replaceAll(" ", "-")}`), "ops@example.test"), /rolled back/i);
     for (const table of ["roster_assignments", "shifts", "assignment_activation_snapshots",
@@ -766,8 +791,9 @@ for (const [label, mutation] of [
 
 test("relief reservations are included in the weekly ceiling", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
   seedReliefReservation(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   await assert.rejects(() => activateAssignment(db, request("activation:relief-cap"), "ops@example.test"), /weekly|ceiling|reserve/i);
   assert.equal(Number(database.prepare(`SELECT SUM(reserved_minutes) AS minutes FROM workforce_hour_reservations WHERE status='active'`).get().minutes), 1020);
@@ -775,9 +801,9 @@ test("relief reservations are included in the weekly ceiling", async () => {
   database.close();
 });
 
-test("completed relief stays counted while cancelled relief releases hours", () => {
+test("completed relief stays counted while cancelled relief releases hours", async () => {
   const completed = migratedDatabase();
-  seedValid(completed);
+  await seedValid(completed);
   seedReliefReservation(completed, { reliefId: "REL-CLOSED", slotId: "SLOT-REL-CLOSED",
     starts: "2039-12-26T14:00:00.000Z", ends: "2039-12-26T18:00:00.000Z" });
   run(completed, `UPDATE relief_dispatches SET status='closed',active_key=NULL,closed_at=?,version=version+1 WHERE id='REL-CLOSED'`, now);
@@ -785,7 +811,7 @@ test("completed relief stays counted while cancelled relief releases hours", () 
   completed.close();
 
   const cancelled = migratedDatabase();
-  seedValid(cancelled);
+  await seedValid(cancelled);
   seedReliefReservation(cancelled, { reliefId: "REL-CANCEL", slotId: "SLOT-REL-CANCEL",
     starts: "2039-12-26T14:00:00.000Z", ends: "2039-12-26T18:00:00.000Z" });
   run(cancelled, `UPDATE relief_dispatches SET status='cancelled',active_key=NULL,closed_at=?,version=version+1 WHERE id='REL-CANCEL'`, now);
@@ -796,7 +822,8 @@ test("completed relief stays counted while cancelled relief releases hours", () 
 
 test("cancellation releases reservations without deleting their history", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const activated = await activateAssignment(db, request("activation:cancel"), "ops@example.test");
   await releaseAssignmentHourReservations(db, activated.rosterAssignmentId, "cancelled", "ops@example.test");
@@ -811,7 +838,8 @@ test("cancellation releases reservations without deleting their history", async 
 
 test("replacement releases reservations without deleting their history", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const activated = await activateAssignment(db, request("activation:replace"), "ops@example.test");
   await releaseAssignmentHourReservations(db, activated.rosterAssignmentId, "replaced", "ops@example.test");
@@ -828,8 +856,9 @@ test("replacement releases reservations without deleting their history", async (
 
 test("on-post, completed and verified work cannot be released or lose reserved hours", async () => {
   const database = migratedDatabase();
-  seedValid(database);
-  moveCandidateToCheckInWindow(database);
+  await seedValid(database);
+  await moveCandidateToCheckInWindow(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const activated = await activateAssignment(db, request("activation:late-release"), "ops@example.test");
   const activeReservationCount = Number(database.prepare(`SELECT COUNT(*) AS count FROM workforce_hour_reservations
@@ -879,7 +908,8 @@ test("on-post, completed and verified work cannot be released or lose reserved h
 
 test("active reservations cannot be released while their assignment source remains active", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const activated = await activateAssignment(db, request("activation:raw-hour-release"), "ops@example.test");
   const reservationId = database.prepare(`SELECT id FROM workforce_hour_reservations
@@ -895,7 +925,8 @@ test("active reservations cannot be released while their assignment source remai
 
 test("a terminal activated assignment cannot be resurrected after its hours are released", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const activated = await activateAssignment(db, request("activation:no-resurrection"), "ops@example.test");
   await releaseAssignmentHourReservations(db, activated.rosterAssignmentId, "cancelled", "ops@example.test");
@@ -912,7 +943,8 @@ test("a terminal activated assignment cannot be resurrected after its hours are 
 
 test("final snapshots and decisions reject updates and deletes", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   await activateAssignment(db, request("activation:immutable"), "ops@example.test");
   assert.throws(() => run(database, `UPDATE assignment_activation_snapshots SET employer_legal_name='Changed'`), /activation_snapshots_immutable/);
@@ -924,7 +956,8 @@ test("final snapshots and decisions reject updates and deletes", async () => {
 
 test("evidence tokens reject updates and deletes", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   await activateAssignment(db, request("activation:immutable-evidence-token"), "ops@example.test");
 
@@ -945,8 +978,9 @@ for (const [checkpoint, transitionCheckIn] of [
 ]) {
   test(`${checkpoint} rejects a stale evidence token and records the authoritative blocker on retry`, async () => {
     const database = migratedDatabase();
-    seedValid(database);
-    moveCandidateToCheckInWindow(database);
+    await seedValid(database);
+    await moveCandidateToCheckInWindow(database);
+    await signFixtureAgreements(database);
     const db = new D1Adapter(database);
     const activated = await activateAssignment(
       db,
@@ -1020,17 +1054,18 @@ for (const [checkpoint, transitionCheckIn] of [
 
 test("revalidations reject early execution and the due runner processes T-24 and T-2 once", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
   run(database, `UPDATE workforce_engagements SET weekly_hour_cap=12 WHERE id='WE-1'`);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const activated = await activateAssignment(db, request("activation:revalidation"), "ops@example.test");
   await assert.rejects(() => revalidateAssignment(db, activated.shiftId, "t_minus_24", "ops@example.test"), /not due/i);
   database.close();
 
   const dueDatabase = migratedDatabase();
-  seedValid(dueDatabase);
+  await seedValid(dueDatabase);
   run(dueDatabase, `UPDATE workforce_engagements SET weekly_hour_cap=12 WHERE id='WE-1'`);
-  moveCandidateToCheckInWindow(dueDatabase);
+  await moveCandidateToCheckInWindow(dueDatabase);
   const dueDb = new D1Adapter(dueDatabase);
   const dueActivation = await activateAssignment(dueDb, request("activation:due-runner"), "ops@example.test");
   await passDueScheduledCheckpoints(dueDb);
@@ -1047,8 +1082,9 @@ test("revalidations reject early execution and the due runner processes T-24 and
 
 test("T-2 and check-in fail closed while their scheduled prerequisites remain pending", async () => {
   const database = migratedDatabase();
-  seedValid(database);
-  moveCandidateToCheckInWindow(database);
+  await seedValid(database);
+  await moveCandidateToCheckInWindow(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const activated = await activateAssignment(db, request("activation:pending-prerequisites"), "ops@example.test");
   const before = {
@@ -1086,10 +1122,11 @@ test("T-2 and check-in fail closed while their scheduled prerequisites remain pe
 
 test("check-in closes at the roster deadline in both the server and database guards", async () => {
   const database = migratedDatabase();
-  seedValid(database);
-  moveCandidateToCheckInWindow(database);
+  await seedValid(database);
+  await moveCandidateToCheckInWindow(database);
   const missedDeadline = new Date(Date.now() - 60_000).toISOString();
   run(database, `UPDATE roster_slots SET check_in_due_at=? WHERE id='SLOT-1'`, missedDeadline);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const activated = await activateAssignment(db, request("activation:missed-check-in-deadline"), "ops@example.test");
   await passDueScheduledCheckpoints(db);
@@ -1111,7 +1148,8 @@ test("check-in closes at the roster deadline in both the server and database gua
 
 test("primary activation cannot cross the scheduled start boundary", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const activationRequest = request("activation:start-boundary");
   const evaluated = await recordAssignmentActivationEvaluation(db, activationRequest, "ops@example.test");
@@ -1151,8 +1189,8 @@ test("primary activation cannot cross the scheduled start boundary", async () =>
 
 test("a revalidation cannot borrow a passed decision from another activation command", async () => {
   const database = migratedDatabase();
-  seedValid(database, true);
-  moveCandidateToCheckInWindow(database);
+  await seedValid(database, true);
+  await moveCandidateToCheckInWindow(database);
   run(database, `UPDATE officer_availability_windows SET starts_at=(SELECT starts_at FROM officer_availability_windows WHERE officer_id='OFF-1'),
     ends_at=(SELECT ends_at FROM officer_availability_windows WHERE officer_id='OFF-1') WHERE officer_id='OFF-2'`);
   run(database, `INSERT INTO roster_slots
@@ -1160,6 +1198,7 @@ test("a revalidation cannot borrow a passed decision from another activation com
      position_index,calendar_category,officer_offer_cents,environment,integrity_state,status,version,created_at,updated_at)
     SELECT 'SLOT-2',site_id,post_id,booking_id,service_date,starts_at,ends_at,arrival_due_at,check_in_due_at,
       2,calendar_category,officer_offer_cents,environment,integrity_state,'uncovered',1,created_at,updated_at FROM roster_slots WHERE id='SLOT-1'`);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const first = await activateAssignment(db, request("activation:decision-owner", "OFF-1"), "ops@example.test");
   const second = await activateAssignment(db, {
@@ -1187,8 +1226,9 @@ test("a revalidation cannot borrow a passed decision from another activation com
 
 test("successful check-in revalidation and shift transition commit atomically", async () => {
   const database = migratedDatabase();
-  seedValid(database);
-  moveCandidateToCheckInWindow(database);
+  await seedValid(database);
+  await moveCandidateToCheckInWindow(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const activated = await activateAssignment(db, request("activation:check-in-success"), "ops@example.test");
   await passDueScheduledCheckpoints(db);
@@ -1226,7 +1266,8 @@ function insertWorkCommitment(database, {
 
 test("a production work commitment added after activation enforces the exact eight-hour rest boundary", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   await activateAssignment(db, request("activation:commitment-rest-boundary"), "ops@example.test");
 
@@ -1254,7 +1295,8 @@ test("a production work commitment added after activation enforces the exact eig
 
 test("a production work commitment conflicting with relief work is rejected", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   await activateAssignment(db, request("activation:commitment-relief-conflict"), "ops@example.test");
   seedReliefReservation(database, {
@@ -1276,7 +1318,8 @@ test("a production work commitment conflicting with relief work is rejected", as
 
 test("a production work commitment cannot push Direct Flex work above the weekly ceiling", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   await activateAssignment(db, request("activation:commitment-weekly-cap"), "ops@example.test");
 
@@ -1290,9 +1333,9 @@ test("a production work commitment cannot push Direct Flex work above the weekly
   database.close();
 });
 
-test("production work commitments reject mutation, invalid provenance and deletion", () => {
+test("production work commitments reject mutation, invalid provenance and deletion", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
 
   assert.throws(() => insertWorkCommitment(database, {
     id: "OWC-BAD-PROVENANCE",
@@ -1322,13 +1365,15 @@ test("production work commitments reject mutation, invalid provenance and deleti
 
 test("cancelled production work commitments are excluded from activation conflicts and hours", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
   insertWorkCommitment(database, {
     id: "OWC-CANCELLED",
     starts: startsAt,
     ends: endsAt,
   });
   run(database, `UPDATE officer_work_commitments SET status='cancelled' WHERE id='OWC-CANCELLED'`);
+
+  await signFixtureAgreements(database);
 
   const db = new D1Adapter(database);
   const activated = await activateAssignment(db, request("activation:cancelled-commitment"), "ops@example.test");
@@ -1342,7 +1387,7 @@ test("cancelled production work commitments are excluded from activation conflic
 
 test("synthetic demo commitments do not block a production activation", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
   insertWorkCommitment(database, {
     id: "OWC-DEMO-SYNTHETIC",
     starts: startsAt,
@@ -1354,6 +1399,8 @@ test("synthetic demo commitments do not block a production activation", async ()
     expiresAt: null,
   });
 
+  await signFixtureAgreements(database);
+
   const db = new D1Adapter(database);
   const activated = await activateAssignment(db, request("activation:ignore-demo-commitment"), "ops@example.test");
   assert.equal(activated.state, "activated");
@@ -1362,9 +1409,9 @@ test("synthetic demo commitments do not block a production activation", async ()
   database.close();
 });
 
-test("demo and production schedule declarations keep independent append-only version chains", () => {
+test("demo and production schedule declarations keep independent append-only version chains", async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
   run(database, `INSERT INTO officer_schedule_declarations
     (id,officer_id,version,status,environment,integrity_state,evidence_reference,declared_at,expires_at,supersedes_id,created_at)
     VALUES ('OSD-DEMO-OFF-1','OFF-1',1,'current','demo','synthetic','demo:schedule:OFF-1',?,?,NULL,?)`,
@@ -1380,12 +1427,72 @@ test("demo and production schedule declarations keep independent append-only ver
 
 for (const duringCommit of [false, true]) test(`PSiRA pathway withdrawal blocks production activation${duringCommit ? ' during commit' : ''}`, async () => {
   const database = migratedDatabase();
-  seedValid(database);
+  await seedValid(database);
   const withdraw = () => database.prepare("UPDATE psira_verification_cases SET declaration='training'").run();
   if (!duringCommit) withdraw();
+  await signFixtureAgreements(database);
   const db = new D1Adapter(database, duringCommit ? withdraw : null);
   await assert.rejects(() => activateAssignment(db, request('psira:withdraw'), 'ops@example.test'), /PSiRA|rolled back/i);
   assert.equal(count(database, 'roster_assignments'), 0);
   assert.equal(count(database, 'shifts'), 0);
+  database.close();
+});
+
+async function signFixtureAgreements(database) {
+  const adapter = new D1Adapter(database);
+  run(database, `INSERT OR IGNORE INTO operator_accounts
+    (id,email,display_name,status,environment,integrity_state,created_at,updated_at)
+    VALUES ('LEGAL-FIXTURE','legal@example.test','Synthetic Legal Reviewer','active','production','production_verified',?,?)`,now,now);
+  for (const slot of database.prepare("SELECT id,version FROM roster_slots WHERE status IN ('scheduled','uncovered')").all()) {
+    for (const officer of database.prepare("SELECT officer_id AS id FROM workforce_engagements WHERE environment='production' AND status='active'").all()) {
+      const {facts} = await evaluateAssignmentActivation(adapter,{...request('fixture:sign',officer.id),rosterSlotId:slot.id,expectedSlotVersion:slot.version});
+      for (const role of requiredActivationAgreements(facts)) {
+        const wording=`Fixture ${role} wording for automated checks only; no actual contract.`;
+        const hash=await agreementHash(wording),docId=`DOC-${role}`;
+
+        const context=activationAgreementContext(facts,role),contextHash=await agreementHash(canonicalAgreementContext(context));
+        const client=['CLIENT_MSA','SERVICE_ORDER'].includes(role);
+        const entityId=client?facts.client.contractingEntityId:facts.workforce.employer.id;
+        const purpose=client?'client_service':role==='PARTNER_SERVICE'?'partner_service':'officer_employment';
+        run(database, `INSERT OR IGNORE INTO agreement_document_versions
+          (id,document_code,document_version,entity_id,locale,content_hash,document_reference,status,approved_by,approved_at,effective_from,environment,integrity_state)
+          VALUES (?,?,'1',?,'en-ZA',?,'fixture:body','approved','LEGAL-FIXTURE',?,?,'production','production_verified')`,docId,role,entityId,hash,now,now);
+        const prepared=await prepareAgreementReceipt({document:{id:docId,version:'1',purpose,entityId,locale:'en-ZA',status:'approved',approvedBy:'LEGAL-FIXTURE',approvedAt:now,effectiveFrom:now,effectiveTo:null,wording,contentHash:hash},context,presentedContentHash:hash,presentedContextHash:contextHash,expectedPurpose:purpose,expectedEntityId:entityId,expectedLocale:'en-ZA',actorUserId:'user_signer_fixture',identityEvidence:'Synthetic identity evidence',authorityEvidence:'Synthetic representative mandate',action:'agree',affirmative:true,now:Date.parse(now)});
+        await storeAgreementReceipt(adapter,`SIG-${contextHash}`,prepared);
+      }
+    }
+  }
+}
+
+for (const mutation of ['contracting_entity','order_scope','shift_time','employer','receipt_revoked']) {
+  test(`signed agreement gate rejects changed ${mutation} without rewriting accepted evidence`,async()=>{
+    const database=migratedDatabase();await seedValid(database);
+    const db=new D1Adapter(database);
+    const before=await evaluateAssignmentActivation(db,request('agreement:before'));
+    assert.equal(before.facts.agreements.ready,true);
+    const receipt=before.facts.agreements.receipts[0];
+    const original=database.prepare('SELECT receipt_json FROM agreement_acceptance_receipts WHERE id=?').get(receipt.id).receipt_json;
+    if(mutation==='contracting_entity')run(database,"UPDATE bookings SET contracting_entity_id=NULL WHERE id='BK-1'");
+    if(mutation==='order_scope')run(database,"UPDATE bookings SET agreement_version=agreement_version+1 WHERE id='BK-1'");
+    if(mutation==='shift_time')run(database,"UPDATE roster_slots SET ends_at='2039-12-26T07:00:00.000Z' WHERE id='SLOT-1'");
+    if(mutation==='employer')run(database,"UPDATE workforce_employers SET legal_name='Changed Employer' WHERE id='EMP-1'");
+    if(mutation==='receipt_revoked')run(database,'INSERT INTO agreement_receipt_revocations VALUES (?,?,?,?)',receipt.id,'Fixture withdrawal','reviewer@example.test',new Date().toISOString());
+    const after=await evaluateAssignmentActivation(db,request('agreement:after'));
+    assert.equal(after.facts.agreements.ready,false);
+    assert.ok(after.result.blockers.some(b=>b.code==='SIGNED_AGREEMENTS_REQUIRED'));
+    assert.equal(database.prepare('SELECT receipt_json FROM agreement_acceptance_receipts WHERE id=?').get(receipt.id).receipt_json,original);
+    assert.equal(count(database,'roster_assignments'),0);database.close();
+  });
+}
+test('agreement revocation during commit rolls back activation and is immutable',async()=>{
+  const database=migratedDatabase();await seedValid(database);
+  const evaluation=await evaluateAssignmentActivation(new D1Adapter(database),request('agreement:race'));
+  const receipt=evaluation.facts.agreements.receipts[0];
+  const db=new D1Adapter(database,()=>run(database,'INSERT INTO agreement_receipt_revocations VALUES (?,?,?,?)',receipt.id,'Fixture withdrawal','reviewer@example.test',new Date().toISOString()));
+  await assert.rejects(()=>activateAssignment(db,request('agreement:race'),'ops@example.test'),/rolled back|signed|agreement/i);
+  assert.equal(count(database,'roster_assignments'),0);assert.equal(count(database,'shifts'),0);
+  assert.throws(()=>database.exec("UPDATE agreement_receipt_revocations SET reason='changed'"),/append-only/);
+  assert.throws(()=>database.exec('DELETE FROM agreement_receipt_revocations'),/append-only/);
+  assert.throws(()=>database.exec("UPDATE agreement_document_versions SET status='approved'"),/append-only/);
   database.close();
 });

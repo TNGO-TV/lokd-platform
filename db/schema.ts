@@ -638,6 +638,8 @@ export const bookings = sqliteTable(
   "bookings",
   {
     id: text("id").primaryKey(),
+    contractingEntityId: text('contracting_entity_id'),
+    agreementVersion: integer('agreement_version').notNull().default(1),
     clientId: text("client_id").notNull().references(() => clients.id),
     siteName: text("site_name").notNull(),
     siteArea: text("site_area").notNull(),
@@ -2391,4 +2393,29 @@ export const agreementAcceptanceReceipts = sqliteTable('agreement_acceptance_rec
   receiptJson: text('receipt_json').notNull(),
   receiptHash: text('receipt_hash').notNull(),
   contextHash: text('context_hash').notNull(),
+}, table => [index('agreement_receipt_context_idx').on(table.contextHash)]);
+
+export const agreementReceiptRevocations = sqliteTable('agreement_receipt_revocations', {
+  receiptId: text('receipt_id').primaryKey().references(() => agreementAcceptanceReceipts.id),
+  reason: text('reason').notNull(),
+  revokedBy: text('revoked_by').notNull(),
+  revokedAt: text('revoked_at').notNull(),
 });
+
+// Production legal versions are separate from the intentionally demo-only envelopes.
+export const agreementDocumentVersions = sqliteTable('agreement_document_versions', {
+  id: text('id').primaryKey(),
+  documentCode: text('document_code').notNull(),
+  documentVersion: text('document_version').notNull(),
+  entityId: text('entity_id').notNull(),
+  locale: text('locale').notNull(),
+  contentHash: text('content_hash').notNull(),
+  documentReference: text('document_reference').notNull(),
+  status: text('status').notNull(),
+  approvedBy: text('approved_by').notNull(),
+  approvedAt: text('approved_at').notNull(),
+  effectiveFrom: text('effective_from').notNull(),
+  effectiveTo: text('effective_to'),
+  environment: text('environment').notNull(),
+  integrityState: text('integrity_state').notNull(),
+}, table => [uniqueIndex('agreement_document_version_idx').on(table.documentCode,table.documentVersion,table.entityId,table.locale)]);

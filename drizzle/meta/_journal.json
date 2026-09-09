@@ -225,6 +225,27 @@
       "when": 1788974113354,
       "tag": "0031_sloppy_nocturne",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1788974900093,
+      "tag": "0032_freezing_black_tom",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1788975102277,
+      "tag": "0033_nervous_logan",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1788975260629,
+      "tag": "0034_petite_ezekiel_stane",
+      "breakpoints": true
     }
   ]
 }
