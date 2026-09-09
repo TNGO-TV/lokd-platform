@@ -20,3 +20,12 @@ Source handover: `/srv/ammosync/checkpoints/START-ENGINES-20260909/06-lokd.md`, 
 ## Reusable lesson
 
 Installed/authenticated CLI access is not entitlement visibility. A 402 feature preview proves effective denial; it does not identify the billed plan. Inspect the exact production configuration and available account read operations, preserve the provider response, then ask only for the missing billing fact. A CLI catalog HTTP 503 is a service/catalog failure, not proof that the connection or account needs reinstalling. Draft receipt tests use synthetic approved fixtures solely to test mechanics; they do not confer legal approval.
+
+## Completed release receipt
+
+- Source `be582a85b29665c9491854b61180fa8df2cc88d9` uploaded to the existing Sites repository.
+- Version 41: `appgprj_6a88a08505548191b266e9b711562ae3~appgver_9b87f25c00ac81918e88e4518b24ebf9`.
+- Deployment `appgdep_6aa1955b49648191bf7f2f57b31f20a7` succeeded 2026-09-09T17:20:44.077120Z; environment revision 5 preserved.
+- Live https://lokd.co.za and Operations security pages returned 307 to sign-in; forged identity/MFA API requests returned 401. No live acceptance records created.
+- Final build/228 tests, TypeScript and changed-source lint passed. The 20-check offline checklist passed. New schema migration contains only receipt storage and immutable-record triggers; no draft/approved document data is seeded.
+- Available browser tool discovery exposed a panel opener, not a connected authenticated dashboard-session reader. Existing Playwright checks use isolated contexts. Do not claim access to the owner's Clerk Billing screen through these tools.

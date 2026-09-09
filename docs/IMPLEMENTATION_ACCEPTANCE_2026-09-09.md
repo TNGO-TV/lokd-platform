@@ -1,6 +1,6 @@
 # LOKD implementation acceptance — 9 September 2026
 
-Status: Version 40 is deployed, adding Operations request-bound MFA and an account-security page. The chronological receipts below retain earlier results. Production MFA is blocked by Clerk plan entitlements (AUTH-003); Google remains deferred (AUTH-001). Real account assignments, external-provider acceptance and executed legal agreements remain incomplete.
+Status: Version 41 is deployed, retaining Operations MFA enforcement and adding tested preparation/storage for versioned agreement receipts. No signing endpoint or preliminary Legal wording is published. The chronological receipts below retain earlier results. Production MFA is blocked by Clerk plan entitlements (AUTH-003); Google remains deferred (AUTH-001). Real account assignments, external-provider acceptance and executed legal agreements remain incomplete.
 
 ## Current decision — Google sign-in deferred, still required
 
@@ -170,3 +170,7 @@ The task list is not marked fully accepted while these external and real-account
 ## Operations MFA release — version 40
 
 User explicitly approved the source upload and LOKD publication. Version 40 deployed successfully at 2026-09-09T14:13:06.760472Z, source `a7ae90d11540261cf4dc7f89e2916c41d0124db0`, deployment `appgdep_6aa1696062e48191a15f8a1ce0408a37`, environment revision 5. The source-upload approval blocker is resolved. Existing validation: 224 regression tests and nine browser journeys, including real development authenticator enrollment/verification. Production enrollment remains blocked by Clerk subscription entitlements under AUTH-003. See `checkpoints/OPERATIONS_MFA_2026-09-09.md` for the release receipt.
+
+## START-ENGINES milestone — version 41
+
+Production MFA entitlement denial reconfirmed, billed plan unavailable through the exposed account metadata; no upgrade assumed. Four Legal v0.1 drafts reviewed with factual corrections and input hashes. Exact-version agreement/consent preparation rejects drafts, changed wording/order scope and missing actor/representative proof; database receipts are append-only. Production signing remains unenabled. Full build and 228 tests passed; 20-check runnable acceptance checklist passed. Deployed at 2026-09-09T17:20:44.077120Z; see `checkpoints/START_ENGINES_LOKD_2026-09-09.md`.
