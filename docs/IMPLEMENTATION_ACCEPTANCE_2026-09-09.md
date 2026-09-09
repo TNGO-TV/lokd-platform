@@ -1,6 +1,6 @@
 # LOKD implementation acceptance — 9 September 2026
 
-Status: Version 39 is the latest completed release; current follow-up adds Operations request-bound MFA and an account-security page. The chronological receipts below retain earlier results. Production MFA is blocked by Clerk plan entitlements (AUTH-003); Google remains deferred (AUTH-001). Real account assignments, external-provider acceptance and executed legal agreements remain incomplete.
+Status: Version 40 is deployed, adding Operations request-bound MFA and an account-security page. The chronological receipts below retain earlier results. Production MFA is blocked by Clerk plan entitlements (AUTH-003); Google remains deferred (AUTH-001). Real account assignments, external-provider acceptance and executed legal agreements remain incomplete.
 
 ## Current decision — Google sign-in deferred, still required
 
@@ -166,3 +166,7 @@ Working method and acceptance limits: `docs/PSIRA_VERIFICATION_WORKFLOW.md`. Res
 - Legal document handover: prepared `LEGAL_DOCUMENT_HANDOVER_2026-09-09.md` for central collection. No external message or legal publication sent.
 
 The task list is not marked fully accepted while these external and real-account gates remain open.
+
+## Operations MFA release — version 40
+
+User explicitly approved the source upload and LOKD publication. Version 40 deployed successfully at 2026-09-09T14:13:06.760472Z, source `a7ae90d11540261cf4dc7f89e2916c41d0124db0`, deployment `appgdep_6aa1696062e48191a15f8a1ce0408a37`, environment revision 5. The source-upload approval blocker is resolved. Existing validation: 224 regression tests and nine browser journeys, including real development authenticator enrollment/verification. Production enrollment remains blocked by Clerk subscription entitlements under AUTH-003. See `checkpoints/OPERATIONS_MFA_2026-09-09.md` for the release receipt.
