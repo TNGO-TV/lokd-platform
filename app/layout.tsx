@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { getChatGPTUser } from "./chatgpt-auth";
+import { env } from "cloudflare:workers";
+import { LokdClerkProvider } from "./components/clerk-login";
+import { getLokdUser } from "./lokd-auth";
 import PilotFeedback from "./components/pilot-feedback";
 import { OrganisationJsonLd } from "./components/seo-json-ld";
 import { PUBLIC_SITE_URL } from "./lib/public-site";
@@ -36,10 +38,12 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const user = await getChatGPTUser();
+  const user = await getLokdUser();
+  const runtime = env as unknown as Record<string, string | undefined>;
+  const publishableKey = runtime.CLERK_PUBLISHABLE_KEY || runtime.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   return (
     <html lang="en">
-      <body>{children}<OrganisationJsonLd />{user && <PilotFeedback />}</body>
+      <body><LokdClerkProvider publishableKey={publishableKey}>{children}<OrganisationJsonLd />{user && <PilotFeedback />}</LokdClerkProvider></body>
     </html>
   );
 }

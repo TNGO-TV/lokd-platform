@@ -1,22 +1,22 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-export type ChatGPTUser = {
+export type LokdUser = {
   displayName: string;
   email: string;
   fullName: string | null;
 };
 
-const USER_EMAIL_HEADER = "oai-authenticated-user-email";
-const USER_FULL_NAME_HEADER = "oai-authenticated-user-full-name";
+const USER_EMAIL_HEADER = "x-lokd-verified-email";
+const USER_FULL_NAME_HEADER = "x-lokd-verified-full-name";
 const USER_FULL_NAME_ENCODING_HEADER =
-  "oai-authenticated-user-full-name-encoding";
+  "x-lokd-verified-full-name-encoding";
 const PERCENT_ENCODED_UTF8 = "percent-encoded-utf-8";
-const SIGN_IN_PATH = "/signin-with-chatgpt";
-const SIGN_OUT_PATH = "/signout-with-chatgpt";
+const SIGN_IN_PATH = "/sign-in";
+const SIGN_OUT_PATH = "/sign-out";
 const CALLBACK_PATH = "/callback";
 
-export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
+export async function getLokdUser(): Promise<LokdUser | null> {
   const requestHeaders = await headers();
   const email = requestHeaders.get(USER_EMAIL_HEADER);
   if (!email) return null;
@@ -35,21 +35,21 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   };
 }
 
-export async function requireChatGPTUser(
+export async function requireLokdUser(
   returnTo: string,
-): Promise<ChatGPTUser> {
-  const user = await getChatGPTUser();
+): Promise<LokdUser> {
+  const user = await getLokdUser();
   if (user) return user;
 
-  redirect(chatGPTSignInPath(returnTo));
+  redirect(lokdSignInPath(returnTo));
 }
 
-export function chatGPTSignInPath(returnTo: string): string {
+export function lokdSignInPath(returnTo: string): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
   return `${SIGN_IN_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
 
-export function chatGPTSignOutPath(returnTo = "/"): string {
+export function lokdSignOutPath(returnTo = "/"): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
   return `${SIGN_OUT_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }

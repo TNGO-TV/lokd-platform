@@ -12,6 +12,7 @@ import {
   readPlatformState,
   reconcileDemoPayment,
   startDemoIdentityVerification,
+  recordDemoIdentityOutcome,
 } from "../app/lib/integration-server.ts";
 import { runPlatformMaintenance } from "../app/lib/platform-jobs.ts";
 import { calculatePayrollItem, SYNTHETIC_ENGINE_TEST_POLICY } from "../app/lib/payroll-engine.ts";
@@ -121,6 +122,40 @@ test("identity workflow is idempotent and projects one replay-safe sandbox event
     { status: "verified", decision: "sandbox_verified" });
   assert.equal(one(database, `SELECT COUNT(*) AS total FROM provider_webhook_inbox WHERE provider_key='INT-DEMO-IDENTITY'`).total, 1);
   assert.equal(one(database, `SELECT identity_verification_status AS status FROM officer_applications WHERE id='APP-INT'`).status, "demo_verified");
+  database.close();
+});
+
+test("identity rejection, manual review, expiry and retry preserve eligibility boundaries", async () => {
+  const database = migratedDatabase();
+  const db = new D1Adapter(database);
+  seedDomain(database);
+  await startDemoIdentityVerification(db, "APP-INT", "ops@example.test");
+  await recordDemoIdentityOutcome(db, "APP-INT", "ops@example.test", "rejected");
+  await assert.rejects(() => completeDemoIdentityVerification(db, "APP-INT", "ops@example.test"), /Start the synthetic/);
+  assert.equal(one(database, "SELECT identity_verified_at FROM officer_applications WHERE id='APP-INT'").identity_verified_at, null);
+  await recordDemoIdentityOutcome(db, "APP-INT", "ops@example.test", "manual_review");
+  await recordDemoIdentityOutcome(db, "APP-INT", "ops@example.test", "expired");
+  const retry = await startDemoIdentityVerification(db, "APP-INT", "ops@example.test");
+  assert.equal(retry.status, "processing");
+  assert.equal(one(database, "SELECT COUNT(*) AS total FROM identity_verification_cases WHERE application_id='APP-INT'").total, 2);
+  await recordDemoIdentityOutcome(db, "APP-INT", "ops@example.test", "manual_review");
+  await completeDemoIdentityVerification(db, "APP-INT", "ops@example.test");
+  assert.equal(one(database, "SELECT status FROM officer_applications WHERE id='APP-INT'").status, "credentials_review");
+  assert.equal(one(database, "SELECT officer_id FROM officer_applications WHERE id='APP-INT'").officer_id, null);
+  await assert.rejects(() => recordDemoIdentityOutcome(db, "APP-INT", "ops@example.test", "rejected"), /final/);
+  assert.equal(one(database, "SELECT COUNT(*) AS total FROM roster_assignments").total, 0);
+  database.close();
+});
+
+test("identity requires applicant consent and cannot run against a real intake record", async () => {
+  const database = migratedDatabase();
+  const db = new D1Adapter(database);
+  seedDomain(database);
+  run(database, "UPDATE officer_applications SET identity_consented_at=NULL WHERE id='APP-INT'");
+  await assert.rejects(() => startDemoIdentityVerification(db, "APP-INT", "ops@example.test"), /consent/);
+  assert.throws(() => run(database, "UPDATE officer_applications SET environment='prelaunch',integrity_state='user_submitted' WHERE id='APP-INT'"), /provenance_immutable/);
+  await assert.rejects(() => startDemoIdentityVerification(db, "APP-REAL-NOT-SYNTHETIC", "ops@example.test"), /could not be found/);
+  assert.equal(one(database, "SELECT COUNT(*) AS total FROM identity_verification_cases").total, 0);
   database.close();
 });
 

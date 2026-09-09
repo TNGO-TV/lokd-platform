@@ -3,8 +3,9 @@ import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } fr
 import handler from "vinext/server/app-router-entry";
 import { runDueAssignmentRevalidations } from "../app/lib/assignment-activation-server";
 import { runPlatformMaintenance } from "../app/lib/platform-jobs";
+import { authenticateClerkRequest, type ClerkEnv } from "./clerk-auth";
 
-interface Env {
+interface Env extends ClerkEnv {
   ASSETS: Fetcher;
   DB: D1Database;
   BUCKET: R2Bucket;
@@ -50,7 +51,21 @@ const worker = {
       }, allowedWidths);
     }
 
-    return handler.fetch(request, env, ctx);
+    try {
+      const auth = await authenticateClerkRequest(request, env);
+      if (auth.response) return auth.response;
+      const response = await handler.fetch(auth.request, env, ctx);
+      const forwarded = new Response(response.body, response);
+      auth.headers.forEach((value, key) => forwarded.headers.append(key, value));
+      if (auth.request.headers.has("x-lokd-verified-email") || url.pathname.startsWith("/sign-")) {
+        forwarded.headers.set("cache-control", "private, no-store");
+      }
+      return forwarded;
+    } catch {
+      return new Response("Sign-in is temporarily unavailable. Please try again.", {
+        status: 503, headers: { "cache-control": "no-store", "content-type": "text/plain; charset=utf-8" },
+      });
+    }
   },
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const configuredStage = env.LOKD_APP_STAGE?.trim().toLowerCase();

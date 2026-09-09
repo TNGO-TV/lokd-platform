@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { completeDemoIdentityVerification, startDemoIdentityVerification } from "../../lib/integration-server";
+import { completeDemoIdentityVerification, PlatformWorkflowError, recordDemoIdentityOutcome, startDemoIdentityVerification } from "../../lib/integration-server";
 import { tokenHash } from "../../lib/passport-server";
 import { PilotAccessError, pilotStage, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 
@@ -76,7 +76,7 @@ function allowedList(value: unknown, allowed: Set<string>, field: string, maximu
 }
 
 function responseError(cause: unknown) {
-  const error = cause instanceof ApplicationError || cause instanceof PilotAccessError
+  const error = cause instanceof ApplicationError || cause instanceof PilotAccessError || cause instanceof PlatformWorkflowError
     ? cause
     : new ApplicationError("We could not complete that application request.", 500);
   return response({ error: error.message }, error.status);
@@ -87,7 +87,7 @@ function response(payload: unknown, status = 200) {
     "cache-control": "no-store, private",
     "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer",
-    vary: "oai-authenticated-user-email",
+    vary: "x-lokd-verified-email",
   } });
 }
 
@@ -168,6 +168,11 @@ export async function PATCH(request: Request) {
     }
     if (action === "complete_demo_identity") {
       await completeDemoIdentityVerification(db, id, actor.email);
+      return response({ ok: true });
+    }
+    if (["demo_identity_manual_review", "demo_identity_rejected", "demo_identity_expired"].includes(action)) {
+      const outcome = action.replace("demo_identity_", "") as "manual_review" | "rejected" | "expired";
+      await recordDemoIdentityOutcome(db, id, actor.email, outcome);
       return response({ ok: true });
     }
     if (action === "issue_demo_network_profile") {

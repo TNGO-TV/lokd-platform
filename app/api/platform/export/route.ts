@@ -122,7 +122,7 @@ export async function GET(request: Request) {
         "x-content-type-options": "nosniff",
         "x-lokd-payroll-mode": "shadow-settlement-locked",
         "referrer-policy": "no-referrer",
-        vary: "oai-authenticated-user-email",
+        vary: "x-lokd-verified-email",
       },
     });
   } catch (cause) {

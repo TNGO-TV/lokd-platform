@@ -49,7 +49,7 @@ function ownerRequest(method, body) {
       ...(body ? { "content-type": "application/json" } : {}),
       origin: "https://demo.lokd.co.za",
       "sec-fetch-site": "same-origin",
-      "oai-authenticated-user-email": "owner@lokd.example",
+      "x-lokd-verified-email": "owner@lokd.example",
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -108,5 +108,29 @@ test("public interest stays prelaunch, consent-pending and outside the synthetic
   const queueResponse = await applications.GET(ownerRequest("GET"));
   const queue = await queueResponse.json();
   assert.equal(queue.applications.some((item) => item.id === record.id), false);
+  database.close();
+});
+
+
+test("Operations identity failure and review actions never bypass assessment eligibility", async () => {
+  const database = migratedDatabase();
+  env.DB = new D1Adapter(database);
+  env.LOKD_APP_STAGE = "demo";
+  env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
+  const applications = await import("../app/api/applications/route.ts");
+  await applications.GET(ownerRequest("GET"));
+  const act = (action) => applications.PATCH(ownerRequest("PATCH", { id: "APP-DEMO-001", action }));
+  assert.equal((await act("start_demo_identity")).status, 200);
+  assert.equal((await act("demo_identity_rejected")).status, 200);
+  assert.equal((await act("complete_demo_identity")).status, 409);
+  assert.equal((await act("approve_assessment")).status, 404);
+  assert.equal((await act("issue_demo_network_profile")).status, 409);
+  assert.equal((await act("demo_identity_manual_review")).status, 200);
+  assert.equal((await act("demo_identity_expired")).status, 200);
+  assert.equal((await act("start_demo_identity")).status, 200);
+  assert.equal((await act("complete_demo_identity")).status, 200);
+  assert.equal(database.prepare("SELECT status FROM officer_applications WHERE id='APP-DEMO-001'").get().status, "credentials_review");
+  env.LOKD_APP_STAGE = "production";
+  assert.equal((await act("demo_identity_manual_review")).status, 423);
   database.close();
 });

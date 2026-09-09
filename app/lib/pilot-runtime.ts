@@ -35,7 +35,7 @@ export function principalForEmail(email: string, displayName = email): PilotPrin
 }
 
 export function requirePilotApiRole(request: Request, allowed: PilotRole | PilotRole[]) {
-  const email = request.headers.get("oai-authenticated-user-email");
+  const email = request.headers.get("x-lokd-verified-email");
   const roles = Array.isArray(allowed) ? allowed : [allowed];
   const hostname = requestHostname(new URL(request.url).hostname);
   const hostnameRole = workspaceRoleForHost(hostname);

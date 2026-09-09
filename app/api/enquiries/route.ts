@@ -45,7 +45,7 @@ function reply(payload: unknown, status = 200) {
     "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer",
     "x-robots-tag": "noindex, nofollow",
-    vary: "oai-authenticated-user-email",
+    vary: "x-lokd-verified-email",
   } });
 }
 
@@ -56,7 +56,7 @@ function failure(cause: unknown) {
 }
 
 function requireSignedInOperations(request: Request) {
-  if (!request.headers.get("oai-authenticated-user-email")) throw new EnquiryError("Sign in to Operations to continue.", 401);
+  if (!request.headers.get("x-lokd-verified-email")) throw new EnquiryError("Sign in to Operations to continue.", 401);
   return requirePilotApiRole(request, "operations");
 }
 
@@ -148,7 +148,13 @@ export async function PATCH(request: Request) {
     const action = clean(input.action, "Action", 4, 20);
     const version = typeof input.version === "number" && Number.isSafeInteger(input.version) ? input.version : 0;
     if (version < 1) throw new EnquiryError("Refresh the enquiry before updating it.", 409);
-    const now = new Date().toISOString();
+    const current = await getDb().prepare(`SELECT updated_at AS updatedAt FROM client_enquiries
+      WHERE id=? AND version=? AND environment='prelaunch' AND integrity_state='user_submitted'`)
+      .bind(id, version).first<{ updatedAt: string }>();
+    if (!current) throw new EnquiryError("That enquiry changed. Refresh before trying again.", 409);
+    // Consecutive valid reviews may share a clock millisecond. Preserve the
+    // database's strictly increasing audit timestamp without asking for a retry.
+    const now = new Date(Math.max(Date.now(), Date.parse(current.updatedAt) + 1)).toISOString();
     let result: D1Result<unknown>;
     if (action === "triage") {
       result = await getDb().prepare(`UPDATE client_enquiries SET status='triaged', owner_id=?,

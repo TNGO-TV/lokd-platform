@@ -5,7 +5,7 @@ import { PublicFooter, PublicHeader, PublicLaunchBar } from "../components/publi
 export const metadata: Metadata = { title: "Privacy Notice", description: "How LOKD handles public enquiries, officer interest, authenticated workspace activity and controlled evidence during its launch programme.", alternates: { canonical: "/privacy" } };
 
 const sections = [
-  ["What we collect", "Public enquiry and officer-interest forms collect the contact and planning information shown on the form. Authenticated workspaces also record the user identity supplied by ChatGPT sign-in and the actions attributed to that account."],
+  ["What we collect", "Public enquiry and officer-interest forms collect the contact and planning information shown on the form. Authenticated workspaces also record the user identity supplied by Clerk sign-in and the actions attributed to that account."],
   ["What stays out of public forms", "Do not submit identity documents, certificates, banking details, passwords or unnecessary sensitive information through public forms. Secure evidence workflows are separate and access-controlled."],
   ["Why we use it", "LOKD uses submitted information to respond, assess launch fit, route an officer or training pathway, operate authorised workspaces, prevent abuse and retain an accountable audit record."],
   ["Who can access it", "Access is limited by purpose and role. Clients, officers and Operations users have different server-enforced views. LOKD does not expose private officer documents through public Passport verification."],

@@ -1692,6 +1692,8 @@ function OfficerEarnings({
             </p>
             <dl>
               <div>
+                <dt>Sign-in</dt><dd><a href="/sign-out">Sign out</a></dd>
+              </div><div>
                 <dt>Payout account</dt>
                 <dd>{state.officer.bankingStatus}</dd>
               </div>

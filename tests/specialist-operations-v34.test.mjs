@@ -29,7 +29,7 @@ function setup(){
 }
 function request({scope="operations",email="maker@lokd.example",action,pack,host,download=false}={}){
   host??=scope==="operations"?"operations.lokd.co.za":scope==="client"?"portal.lokd.co.za":"officers.lokd.co.za";
-  return new Request(`https://${host}/api/specialist?scope=${scope}${pack?`&pack=${pack}`:""}${download?"&download=1":""}`,{method:action?"POST":"GET",headers:{origin:`https://${host}`,"sec-fetch-site":"same-origin",...(email?{"oai-authenticated-user-email":email}:{}),...(action?{"content-type":"application/json"}:{})},body:action?JSON.stringify(action):undefined});
+  return new Request(`https://${host}/api/specialist?scope=${scope}${pack?`&pack=${pack}`:""}${download?"&download=1":""}`,{method:action?"POST":"GET",headers:{origin:`https://${host}`,"sec-fetch-site":"same-origin",...(email?{"x-lokd-verified-email":email}:{}),...(action?{"content-type":"application/json"}:{})},body:action?JSON.stringify(action):undefined});
 }
 async function call(action,email="maker@lokd.example",status=200){const r=await POST(request({action,email}));const data=await r.json();assert.equal(r.status,status,JSON.stringify(data));return data.state??data;}
 async function current(){const r=await GET(request());assert.equal(r.status,200,await r.clone().text());return (await r.json()).state;}
@@ -40,7 +40,7 @@ async function commercial(){
 }
 async function createArmed(db){
   const now=future(-1),until=future(90),startDate=future(14).slice(0,10);
-  const makeRequest=(scope,action)=>new Request(`https://demo.lokd.co.za/api/pilot?scope=${scope}`,{method:"POST",headers:{"content-type":"application/json",origin:"https://demo.lokd.co.za","oai-authenticated-user-email":"maker@lokd.example"},body:JSON.stringify(action)});
+  const makeRequest=(scope,action)=>new Request(`https://demo.lokd.co.za/api/pilot?scope=${scope}`,{method:"POST",headers:{"content-type":"application/json",origin:"https://demo.lokd.co.za","x-lokd-verified-email":"maker@lokd.example"},body:JSON.stringify(action)});
   let r=await pilot.POST(makeRequest("client",{action:"create_booking",commandId:"v34-specialist-booking-0001",siteName:"V34 Rosebank",siteArea:"Rosebank",addressLabel:"Synthetic site Johannesburg",postName:"Armed post",instructions:"Synthetic approved post instructions.",serviceType:"Armed",engagementModel:"flex",term:"single",rosterPattern:"daily",purposeCode:"high_value_retail",riskInput:defaultRiskInput,startDate,shift:"day",specialistConfiguration:{serviceCode:"armed_static",teamSize:1,vehicleClass:"none",planningHours:1,travelKmPerServiceDay:0,overnightDays:0}}));
   assert.equal(r.status,200,await r.clone().text());
   let b=(await current()).bookings[0];assert.ok(b);

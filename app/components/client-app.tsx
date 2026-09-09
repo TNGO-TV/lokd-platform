@@ -1552,6 +1552,7 @@ export default function ClientApp() {
             >
               Download all service records
             </a>
+            <a href="/sign-out">Sign out</a>
           </aside>
         </div>
       )}

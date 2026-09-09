@@ -34,7 +34,7 @@ function response(payload: unknown, status = 200) {
       "cache-control": "no-store, private",
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
-      vary: "oai-authenticated-user-email",
+      vary: "x-lokd-verified-email",
     },
   });
 }

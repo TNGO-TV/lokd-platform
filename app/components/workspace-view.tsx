@@ -204,7 +204,7 @@ function Applications({ reloadKey }: { reloadKey: number }) {
     return () => controller.abort();
   }, [reloadKey, refreshKey]);
 
-  async function review(id: string, action: "start_demo_identity" | "complete_demo_identity" | "route_training" | "approve_assessment" | "issue_demo_network_profile") {
+  async function review(id: string, action: "demo_identity_manual_review" | "demo_identity_rejected" | "demo_identity_expired" | "start_demo_identity" | "complete_demo_identity" | "route_training" | "approve_assessment" | "issue_demo_network_profile") {
     setBusyId(id);
     setError("");
     try {
@@ -229,7 +229,12 @@ function Applications({ reloadKey }: { reloadKey: number }) {
     <div><strong>{item.psiraGrade ?? "No verified grade"}</strong><small>{item.psiraNumber ?? item.psiraStatus.replaceAll("_", " ")} · {item.services.join(" · ")}</small></div>
     <div><strong>{item.pathway === "training" ? "Academy pathway" : "Qualified officer pathway"}</strong><small>{item.pathway === "training" ? item.training.join(" · ") : item.purposes.join(" · ")}</small></div>
     <div className="application-state"><em className={`pill ${item.identityStatus === "demo_verified" ? "tone-green" : item.identityStatus === "checking" ? "tone-blue" : "tone-amber"}`}>{item.identityStatus.replaceAll("_", " ")}</em><small>{item.status.replaceAll("_", " ")}</small></div>
-    <div className="application-actions">{item.pathway === "training" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "route_training")}>Route to Academy</button> : item.status === "network_profile_created" ? <span className="pill tone-green">Network profile created</span> : item.status === "assessment_ready" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "issue_demo_network_profile")}>Create restricted Network profile</button> : item.identityStatus === "not_started" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "start_demo_identity")}>Start demo check</button> : item.identityStatus === "checking" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "complete_demo_identity")}>Complete demo check</button> : <button disabled={busyId === item.id} onClick={() => void review(item.id, "approve_assessment")}>Approve assessment</button>}</div>
+    <div className="application-actions">{item.pathway === "training" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "route_training")}>Route to Academy</button> : item.status === "network_profile_created" ? <span className="pill tone-green">Network profile created</span> : item.status === "assessment_ready" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "issue_demo_network_profile")}>Create restricted Network profile</button> : ["not_started", "expired"].includes(item.identityStatus) ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "start_demo_identity")}>Start demo check</button> : ["checking", "manual_review"].includes(item.identityStatus) ? <>
+      <button disabled={busyId === item.id} onClick={() => void review(item.id, "complete_demo_identity")}>Pass demo check</button>
+      {item.identityStatus === "checking" && <button disabled={busyId === item.id} onClick={() => void review(item.id, "demo_identity_manual_review")}>Demo manual review</button>}
+      <button disabled={busyId === item.id} onClick={() => void review(item.id, "demo_identity_rejected")}>Reject demo check</button>
+      <button disabled={busyId === item.id} onClick={() => void review(item.id, "demo_identity_expired")}>Expire demo check</button>
+    </> : item.identityStatus === "rejected" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "demo_identity_manual_review")}>Review demo rejection</button> : <button disabled={busyId === item.id} onClick={() => void review(item.id, "approve_assessment")}>Approve assessment</button>}</div>
   </article>)}{error && <p className="pilot-error" role="alert">{error}</p>}</section>;
 }
 

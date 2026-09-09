@@ -27,7 +27,7 @@ function response(payload: unknown, status = 200) {
       "cache-control": "no-store, private",
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
-      vary: "oai-authenticated-user-email",
+      vary: "x-lokd-verified-email",
     },
   });
 }
@@ -162,7 +162,7 @@ export async function GET(request: Request) {
         "content-disposition": `attachment; filename="${artifact.id}"`,
         "x-content-type-options": "nosniff",
         "x-evidence-sha256": artifact.contentHash,
-        vary: "oai-authenticated-user-email",
+        vary: "x-lokd-verified-email",
       },
     });
   } catch (cause) {

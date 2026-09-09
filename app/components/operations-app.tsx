@@ -95,7 +95,7 @@ function MiniMark() {
   return <div className="mini-mark" aria-hidden="true"><span /><span /><span /></div>;
 }
 
-export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "prelaunch" | "pilot" | "production"; actorEmail: string }) {
+export default function OperationsApp({ stage, actorEmail, owner = false }: { owner?: boolean; stage: "demo" | "prelaunch" | "pilot" | "production"; actorEmail: string }) {
   const pilot = usePilot("operations");
   const operations = useOperations();
   const [activeNav, setActiveNav] = useState("Control");
@@ -163,7 +163,7 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
           </button>)}
         </nav>
         <div className="rail-footer"><div className="avatar avatar--dark">Z</div><span><strong>Operations</strong>{actorEmail}</span><button aria-label="Account and access status" aria-expanded={accountOpen} onClick={() => setAccountOpen((value) => !value)}>•••</button></div>
-        {accountOpen && <aside className="ops-account-popover"><header><strong>Operations access</strong><button aria-label="Close account details" onClick={() => setAccountOpen(false)}>×</button></header><dl><div><dt>Signed in as</dt><dd>{actorEmail}</dd></div><div><dt>Current role</dt><dd>Operations owner</dd></div><div><dt>Environment</dt><dd>{stage} · synthetic</dd></div></dl><p>Version 32 preserves role limits, recent MFA, maker/checker controls, controlled onboarding evidence and shadow-payroll settlement locks. Production identity and step-up MFA are still activation gates.</p><nav aria-label="Switch pilot workspace"><a href={CLIENT_PORTAL_URL}>Client workspace</a><a href={OFFICER_PORTAL_URL}>Officer workspace</a></nav></aside>}
+        {accountOpen && <aside className="ops-account-popover"><header><strong>Operations access</strong><button aria-label="Close account details" onClick={() => setAccountOpen(false)}>×</button></header><dl><div><dt>Signed in as</dt><dd>{actorEmail}</dd></div><div><dt>Current role</dt><dd>{owner ? "Operations owner" : "Operations"}</dd></div><div><dt>Environment</dt><dd>{stage} · synthetic</dd></div></dl><p>Version 32 preserves role limits, recent MFA, maker/checker controls, controlled onboarding evidence and shadow-payroll settlement locks. Production identity and step-up MFA are still activation gates.</p><nav aria-label="Switch pilot workspace"><a href={CLIENT_PORTAL_URL}>Client workspace</a><a href={OFFICER_PORTAL_URL}>Officer workspace</a><a href="/sign-out">Sign out</a></nav></aside>}
       </aside>
 
       <section className="main-stage">

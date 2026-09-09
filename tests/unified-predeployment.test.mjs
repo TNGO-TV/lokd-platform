@@ -50,13 +50,14 @@ function actionRequest(scope, action) {
       "content-type": "application/json",
       origin: "https://demo.lokd.co.za",
       "sec-fetch-site": "same-origin",
-      "oai-authenticated-user-email": "owner@lokd.example",
+      "x-lokd-verified-email": "owner@lokd.example",
     },
     body: JSON.stringify(action),
   });
 }
 
-test("client request reaches funded offer and connected synthetic roster assignment", async () => {
+test("controlled booking-to-service-to-payroll cycle preserves settlement locks", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-08-28T08:00:00Z") });
   const database = migratedDatabase();
   env.DB = new D1Adapter(database);
   env.LOKD_APP_STAGE = "demo";
@@ -149,5 +150,28 @@ test("client request reaches funded offer and connected synthetic roster assignm
   const signoffResponse = await pilotRoute.POST(actionRequest("client", { action: "client_signoff", shiftId: assignment.shiftId }));
   assert.equal(signoffResponse.status, 200, await signoffResponse.text());
   assert.equal(row(database, `SELECT status,client_signoff_status AS signoff FROM shifts WHERE id=?`, assignment.shiftId).status, "verified");
+  // Restore wall time for MFA checks, which also use SQLite CURRENT_TIMESTAMP.
+  t.mock.timers.reset();
+  const { applyPlatformAction } = await import("../app/lib/integration-server.ts");
+  const timesheet = row(database, "SELECT * FROM shift_timesheets WHERE shift_id=?", assignment.shiftId);
+  assert.ok(timesheet, "completed service must create its linked timesheet");
+  assert.equal(timesheet.client_evidence_status, "confirmed");
+  await applyPlatformAction(env.DB, { action: "approve_timesheet", timesheetId: timesheet.id, version: timesheet.version }, "owner@lokd.example");
+  const run = row(database, "SELECT run.* FROM payroll_runs run JOIN payroll_items item ON item.payroll_run_id=run.id JOIN pay_item_sources source ON source.payroll_item_id=item.id WHERE source.timesheet_id=?", timesheet.id);
+  assert.ok(run, "approved service must create its linked payroll run");
+  await applyPlatformAction(env.DB, { action: "calculate_payroll_run", payrollRunId: run.id }, "owner@lokd.example");
+  await applyPlatformAction(env.DB, { action: "calculate_payroll_run", payrollRunId: run.id }, "owner@lokd.example");
+  const calculated = row(database, "SELECT * FROM payroll_runs WHERE id=?", run.id);
+  assert.equal(calculated.status, "calculated_for_review");
+  assert.ok(calculated.net_pay_cents > 0);
+  await assert.rejects(() => applyPlatformAction(env.DB, { action: "approve_payroll_run", payrollRunId: run.id, version: calculated.version }, "owner@lokd.example"), /maker|role|account/i);
+  database.prepare("UPDATE operator_accounts SET mfa_verified_at=? WHERE id='payroll-reviewer@demo.lokd.invalid'").run(new Date().toISOString());
+  await applyPlatformAction(env.DB, { action: "approve_payroll_run", payrollRunId: run.id, version: calculated.version }, "payroll-reviewer@demo.lokd.invalid");
+  database.prepare("UPDATE operator_accounts SET mfa_status='verified',mfa_verified_at=? WHERE id='finance-approver@demo.lokd.invalid'").run(new Date().toISOString());
+  await applyPlatformAction(env.DB, { action: "second_approve_payroll_run", payrollRunId: run.id, version: calculated.version + 1 }, "finance-approver@demo.lokd.invalid");
+  assert.equal(row(database, "SELECT status FROM payroll_runs WHERE id=?", run.id).status, "approved_for_export");
+  assert.equal(row(database, "SELECT settlement_reference FROM payroll_runs WHERE id=?", run.id).settlement_reference, null);
+  assert.throws(() => database.prepare("UPDATE payroll_runs SET status='released_for_settlement',settlement_reference='not-real' WHERE id=?").run(run.id), /settlement_locked/);
+  assert.equal(row(database, "SELECT COUNT(*) AS total FROM disbursement_batches").total, 0);
   database.close();
 });

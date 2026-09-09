@@ -21,7 +21,7 @@ test("service-record export scopes its query to the authenticated pilot client",
   };
   try {
     const response = await GET(new Request("https://demo.lokd.co.za/api/service-record", {
-      headers: { "oai-authenticated-user-email": "client-a@lokd.example" },
+      headers: { "x-lokd-verified-email": "client-a@lokd.example" },
     }));
     const body = await response.json();
     assert.equal(response.status, 200);
@@ -37,7 +37,7 @@ test("service-record export denies an authenticated account without a client rol
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ clients: { "client@lokd.example": "CL-A" } });
   try {
     const response = await GET(new Request("https://demo.lokd.co.za/api/service-record", {
-      headers: { "oai-authenticated-user-email": "outsider@lokd.example" },
+      headers: { "x-lokd-verified-email": "outsider@lokd.example" },
     }));
     assert.equal(response.status, 403);
   } finally {

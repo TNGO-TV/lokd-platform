@@ -52,7 +52,7 @@ export async function GET(request: Request) {
         "content-disposition": `attachment; filename="lokd-demo-service-record-${generatedAt.slice(0, 10)}.json"`,
         "cache-control": "no-store, private",
         "x-content-type-options": "nosniff",
-        vary: "oai-authenticated-user-email",
+        vary: "x-lokd-verified-email",
       },
     });
   } catch (cause) {

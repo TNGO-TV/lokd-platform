@@ -308,7 +308,7 @@ export async function startDemoIdentityVerification(db: D1Database, applicationI
   const now = new Date().toISOString();
   const caseId = id("IDV-DEMO");
   const operationId = id("IOP-DEMO");
-  const idempotencyKey = `identity:${applicationId}:v1`;
+  const idempotencyKey = `identity:${applicationId}:${caseId}`;
   const requestHash = await sha256(`${applicationId}|sandbox|${application.consentVersion}|${application.consentedAt}`);
   await db.batch([
     db.prepare(`INSERT INTO identity_verification_cases
@@ -351,6 +351,7 @@ export async function completeDemoIdentityVerification(db: D1Database, applicati
     FROM identity_verification_cases identity
     LEFT JOIN integration_operations operation ON operation.entity_type = 'officer_application'
       AND operation.entity_id = identity.application_id AND operation.provider_key = identity.provider_key
+      AND operation.provider_reference = identity.provider_reference
       AND operation.environment = identity.environment
     WHERE identity.application_id = ? AND identity.environment = 'demo' AND identity.integrity_state = 'synthetic'
       AND identity.status IN ('processing', 'manual_review', 'verified')
@@ -389,6 +390,53 @@ export async function completeDemoIdentityVerification(db: D1Database, applicati
       .bind(id("AUD"), actorId, applicationId, now),
   ]);
   return { id: identityCase.id, status: "verified" };
+}
+
+// Rehearses canonical negative outcomes; it does not accept provider callbacks
+// or assert that iiDENTIFii has checked an applicant.
+export async function recordDemoIdentityOutcome(
+  db: D1Database, applicationId: string, actorId: string,
+  outcome: "manual_review" | "rejected" | "expired",
+) {
+  if (!["manual_review", "rejected", "expired"].includes(outcome)) {
+    throw new PlatformWorkflowError("Unsupported synthetic identity outcome.", 400);
+  }
+  const current = await db.prepare(`SELECT id, status FROM identity_verification_cases
+    WHERE application_id = ? AND environment = 'demo' AND integrity_state = 'synthetic'
+    ORDER BY created_at DESC, rowid DESC LIMIT 1`).bind(applicationId)
+    .first<{ id: string; status: string }>();
+  if (!current) throw new PlatformWorkflowError("Start the synthetic identity workflow first.", 409);
+  if (current.status === outcome) return current;
+  const permitted = outcome === "manual_review" ? ["processing", "rejected"] : ["processing", "manual_review"];
+  if (!permitted.includes(current.status)) {
+    throw new PlatformWorkflowError("This identity decision is final. Start a new check after expiry; verified identities require a separate eligibility review.", 409);
+  }
+  const now = new Date().toISOString();
+  const terminal = outcome !== "manual_review";
+  const results = await db.batch([
+    db.prepare(`UPDATE identity_verification_cases SET status = ?, decision = ?, reason_codes = ?,
+      evidence_reference = ?, updated_at = ?, completed_at = ? WHERE id = ? AND status = ?`)
+      .bind(outcome, `sandbox_${outcome}`, JSON.stringify([`demo_${outcome}`]),
+        `demo-evidence:${current.id}:${outcome}`, now, terminal ? now : null, current.id, current.status),
+    db.prepare(`UPDATE officer_applications SET identity_verification_status = ?, identity_verified_at = NULL,
+      status = 'verification_in_progress', updated_at = ?
+      WHERE id = ? AND environment = 'demo' AND integrity_state = 'synthetic'
+        AND EXISTS (SELECT 1 FROM identity_verification_cases WHERE id = ? AND status = ? AND updated_at = ?)`)
+      .bind(outcome, now, applicationId, current.id, outcome, now),
+    db.prepare(`UPDATE integration_operations SET state = 'terminal_failed', completed_at = ?, updated_at = ?
+      WHERE provider_key = 'INT-DEMO-IDENTITY' AND provider_reference = (
+        SELECT provider_reference FROM identity_verification_cases WHERE id = ? AND status = 'expired')
+        AND state = 'awaiting_webhook' AND environment = 'demo' AND integrity_state = 'synthetic'`)
+      .bind(now, now, current.id),
+    db.prepare(`INSERT INTO audit_events
+      (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
+      SELECT ?, 'operations', ?, 'demo_identity_outcome', 'officer_application', ?, ?, ?
+      FROM identity_verification_cases WHERE id = ? AND status = ? AND updated_at = ?`)
+      .bind(id("AUD"), actorId, applicationId, `SIMULATION ONLY: ${outcome}; no external identity decision or work eligibility granted.`, now,
+        current.id, outcome, now),
+  ]);
+  if (!results[0]?.meta?.changes) throw new PlatformWorkflowError("The identity case changed. Refresh before trying again.", 409);
+  return { id: current.id, status: outcome };
 }
 
 export async function demoPaymentOrderStatements(

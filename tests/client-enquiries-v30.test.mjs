@@ -57,7 +57,7 @@ function operationsRequest(method, body) {
       ...(body ? { "content-type": "application/json" } : {}),
       origin: "https://operations.lokd.co.za",
       "sec-fetch-site": "same-origin",
-      "oai-authenticated-user-email": "owner@lokd.example",
+      "x-lokd-verified-email": "owner@lokd.example",
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -111,7 +111,8 @@ test("public client intake stays prelaunch, zero-credit and separate from bookin
   delete env.DB;
 });
 
-test("only signed-in Operations can own and close a client enquiry", async () => {
+test("only signed-in Operations can own and close a client enquiry, including same-millisecond reviews", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date() });
   const database = migratedDatabase();
   env.DB = new D1Adapter(database);
   env.LOKD_APP_STAGE = "demo";

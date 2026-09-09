@@ -47,7 +47,7 @@ function request(path, init = {}) {
   return new Request(`https://demo.lokd.co.za${path}`, {
     ...init,
     headers: {
-      "oai-authenticated-user-email": "ops@lokd.example",
+      "x-lokd-verified-email": "ops@lokd.example",
       ...init.headers,
     },
   });
@@ -121,7 +121,7 @@ test("authorised prelaunch evidence is privately stored, hashed and downloaded t
       headers: {
         "content-type": "application/json",
         origin: "https://demo.lokd.co.za",
-        "oai-authenticated-user-email": "reviewer@lokd.example",
+        "x-lokd-verified-email": "reviewer@lokd.example",
       },
       body: JSON.stringify({ artifactId: uploaded.artifact.id, expectedHash: uploaded.artifact.contentHash }),
     }));
