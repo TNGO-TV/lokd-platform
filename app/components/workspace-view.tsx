@@ -166,6 +166,7 @@ type ApplicationItem = {
   city: string;
   province: string;
   psiraStatus: string;
+  psiraVerificationRequired: boolean;
   psiraNumber: string | null;
   psiraGrade: string | null;
   services: string[];
@@ -228,8 +229,8 @@ function Applications({ reloadKey }: { reloadKey: number }) {
     <div className="application-person"><span>{item.fullName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)}</span><div><strong>{item.fullName}</strong><small>{item.id} · {item.city}, {item.province}</small></div></div>
     <div><strong>{item.psiraGrade ?? "No verified grade"}</strong><small>{item.psiraNumber ?? item.psiraStatus.replaceAll("_", " ")} · {item.services.join(" · ")}</small></div>
     <div><strong>{item.pathway === "training" ? "Academy pathway" : "Qualified officer pathway"}</strong><small>{item.pathway === "training" ? item.training.join(" · ") : item.purposes.join(" · ")}</small></div>
-    <div className="application-state"><em className={`pill ${item.identityStatus === "demo_verified" ? "tone-green" : item.identityStatus === "checking" ? "tone-blue" : "tone-amber"}`}>{item.identityStatus.replaceAll("_", " ")}</em><small>{item.status.replaceAll("_", " ")}</small></div>
-    <div className="application-actions">{item.pathway === "training" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "route_training")}>Route to Academy</button> : item.status === "network_profile_created" ? <span className="pill tone-green">Network profile created</span> : item.status === "assessment_ready" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "issue_demo_network_profile")}>Create restricted Network profile</button> : ["not_started", "expired"].includes(item.identityStatus) ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "start_demo_identity")}>Start demo check</button> : ["checking", "manual_review"].includes(item.identityStatus) ? <>
+    <div className="application-state"><em className={`pill ${item.identityStatus === "demo_verified" ? "tone-green" : item.identityStatus === "checking" ? "tone-blue" : "tone-amber"}`}>{item.identityStatus.replaceAll("_", " ")}</em><small>{item.status.replaceAll("_", " ")}</small><small>{item.psiraVerificationRequired ? "Mandatory PSiRA verification before work approval" : "Training / registration guidance · no lookup required"}</small></div>
+    <div className="application-actions">{!item.psiraVerificationRequired ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "route_training")}>Route to Academy</button> : item.status === "network_profile_created" ? <span className="pill tone-green">Network profile created</span> : item.status === "assessment_ready" ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "issue_demo_network_profile")}>Create restricted Network profile</button> : ["not_started", "expired"].includes(item.identityStatus) ? <button disabled={busyId === item.id} onClick={() => void review(item.id, "start_demo_identity")}>Start demo check</button> : ["checking", "manual_review"].includes(item.identityStatus) ? <>
       <button disabled={busyId === item.id} onClick={() => void review(item.id, "complete_demo_identity")}>Pass demo check</button>
       {item.identityStatus === "checking" && <button disabled={busyId === item.id} onClick={() => void review(item.id, "demo_identity_manual_review")}>Demo manual review</button>}
       <button disabled={busyId === item.id} onClick={() => void review(item.id, "demo_identity_rejected")}>Reject demo check</button>

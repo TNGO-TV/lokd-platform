@@ -146,6 +146,20 @@ function seedOfficer(database, id, engagementId, termsId) {
      flex_available,external_work_acknowledged,rest_window_confirmed,created_at)
     VALUES (?,?,?,?,?,?,?,?, 'approved','verified',1,1,1,?)`,
     id, `Officer ${id}`, `+2700${id}`, `${id.toLowerCase()}@example.test`, "Johannesburg", `PSIRA-${id}`, "Grade B", "2041-12-31", now);
+  // Synthetic independently reviewed registration, separate from legacy compliance.
+  run(database, `INSERT INTO psira_verification_cases
+    (id,owner_user_id,owner_email,psira_number,version,latest_event_id,updated_at)
+    VALUES (?,?,?,?,1,?,?)`, `PC-${id}`, `user_fixture_${id}`,
+    `${id.toLowerCase()}@example.test`, `PSIRA-${id}`, `PE-${id}`, now);
+  run(database, `INSERT INTO psira_verification_events
+    (id,case_id,version,psira_number,kind,registration_status,identity_match,
+     evidence_json,evidence_hash,recorded_by,recorded_at,recheck_at)
+    VALUES (?,?,1,?,'review','registered','confirmed',?,?,?, ?,?)`,
+    `PE-${id}`, `PC-${id}`, `PSIRA-${id}`,
+    JSON.stringify({ grade: 'B', certificateExpiry: '2041-12-31',
+      source: 'https://digitalservices.psira.co.za/verify-user/4',
+      identityEvidence: 'Synthetic test identity match; no live acceptance.' }),
+    'fixture-only', 'independent-reviewer@example.test', now, expiry);
   run(database, `INSERT INTO officer_passports
     (officer_id,passport_number,public_token_hash,status,readiness_label,environment,integrity_state,
      evidence_reference,issued_at,last_reviewed_at,next_review_at,updated_at)
@@ -1361,5 +1375,17 @@ test("demo and production schedule declarations keep independent append-only ver
     WHERE id='OSD-OFF-1'`), /schedule_declarations_append_only/);
   assert.throws(() => run(database, `DELETE FROM officer_schedule_declarations
     WHERE id='OSD-OFF-1'`), /schedule_declarations_append_only/);
+  database.close();
+});
+
+for (const duringCommit of [false, true]) test(`PSiRA pathway withdrawal blocks production activation${duringCommit ? ' during commit' : ''}`, async () => {
+  const database = migratedDatabase();
+  seedValid(database);
+  const withdraw = () => database.prepare("UPDATE psira_verification_cases SET declaration='training'").run();
+  if (!duringCommit) withdraw();
+  const db = new D1Adapter(database, duringCommit ? withdraw : null);
+  await assert.rejects(() => activateAssignment(db, request('psira:withdraw'), 'ops@example.test'), /PSiRA|rolled back/i);
+  assert.equal(count(database, 'roster_assignments'), 0);
+  assert.equal(count(database, 'shifts'), 0);
   database.close();
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { applicationPsiraDeclaration } from "../lib/psira-pathway";
 import Link from "next/link";
 import { OFFICER_PORTAL_URL } from "../lib/public-site";
 import { useSearchParams } from "next/navigation";
@@ -40,6 +41,7 @@ export default function JoinPage() {
   const [error, setError] = useState("");
   const [reference, setReference] = useState("");
 
+  const psiraRequired = applicationPsiraDeclaration(pathway, details.psiraStatus) === "registered";
   const progress = useMemo(() => `${Math.round((step / 3) * 100)}%`, [step]);
 
   function toggle(value: string, current: string[], update: (next: string[]) => void) {
@@ -53,6 +55,7 @@ export default function JoinPage() {
   function continueForm() {
     setError("");
     if (step === 2) {
+      if (psiraRequired && !/^\d{1,12}$/.test(details.psiraNumber.trim())) { setError("Enter your numeric PSiRA number. Registered officers must complete verification before work approval."); return; }
       if (details.fullName.trim().length < 3 || !details.mobile.trim() || !details.email.includes("@") || details.city.trim().length < 2) {
         setError("Complete your name, mobile number, email address and city before continuing.");
         return;
@@ -96,7 +99,7 @@ export default function JoinPage() {
   }
 
   if (reference) {
-    return <main className="join-shell"><header className="join-header"><Link href="/"><img src="/lokd-logo.png" alt="LOKD" /></Link><span>Officer network</span></header><section className="join-success"><div className="join-success-mark">✓</div><p className="public-kicker">Application received</p><h1>Your LOKD journey has started.</h1><p>We have saved your {pathway === "training" ? "training-pathway interest" : "officer application"}. A LOKD team member will contact you when the relevant pilot intake opens.</p><dl><dt>Your reference</dt><dd>{reference}</dd></dl><div><Link className="public-button public-button--dark" href="/">Return home</Link><a className="public-button public-button--outline-dark" href={OFFICER_PORTAL_URL}>View officer portal</a></div><small>Keep your reference. The authenticated onboarding stage will use a specialist identity provider for secure ID validation, selfie/liveness and face matching. Do not send identity documents, certificates or banking information by email or chat.</small></section></main>;
+    return <main className="join-shell"><header className="join-header"><Link href="/"><img src="/lokd-logo.png" alt="LOKD" /></Link><span>Officer network</span></header><section className="join-success"><div className="join-success-mark">✓</div><p className="public-kicker">Application received</p><h1>Your LOKD journey has started.</h1><p>We have saved your {pathway === "training" ? "training-pathway interest" : "officer application"}. A LOKD team member will contact you when the relevant pilot intake opens.</p><p>{psiraRequired ? "Your application requires PSiRA verification and identity matching before security-work approval." : "Your training or registration-guidance intake will not be sent for a PSiRA registration lookup. You can update your pathway when registered."}</p><dl><dt>Your reference</dt><dd>{reference}</dd></dl><div><Link className="public-button public-button--dark" href="/">Return home</Link><a className="public-button public-button--outline-dark" href={OFFICER_PORTAL_URL}>View officer portal</a></div><small>Keep your reference. The authenticated onboarding stage will use a specialist identity provider for secure ID validation, selfie/liveness and face matching. Do not send identity documents, certificates or banking information by email or chat.</small></section></main>;
   }
 
   return (
@@ -142,9 +145,10 @@ export default function JoinPage() {
                 <label className="join-field"><span>City or nearest town <b>Required</b></span><input name="city" value={details.city} onChange={(event) => updateDetail("city", event.target.value)} autoComplete="address-level2" required maxLength={80} placeholder="e.g. Johannesburg" /></label>
                 <label className="join-field"><span>Province <b>Required</b></span><select name="province" value={details.province} onChange={(event) => updateDetail("province", event.target.value)} required><option>Gauteng</option><option>Western Cape</option><option>Free State</option><option>KwaZulu-Natal</option><option>Eastern Cape</option><option>Mpumalanga</option><option>Limpopo</option><option>North West</option><option>Northern Cape</option></select></label>
                 <label className="join-field join-field--full"><span>Current PSiRA position <b>Required</b></span><select name="psiraStatus" value={details.psiraStatus} onChange={(event) => updateDetail("psiraStatus", event.target.value)} required><option value="active">Registered and current</option><option value="expired">Registered but needs renewal</option><option value="in_training">Currently in training</option><option value="not_registered">Not yet registered</option></select></label>
-                <label className="join-field"><span>PSiRA number <b className="join-optional">Optional</b></span><input name="psiraNumber" value={details.psiraNumber} onChange={(event) => updateDetail("psiraNumber", event.target.value)} maxLength={40} placeholder="Enter it if available" /></label>
-                <label className="join-field"><span>Highest grade <b className="join-optional">Optional</b></span><select name="psiraGrade" value={details.psiraGrade} onChange={(event) => updateDetail("psiraGrade", event.target.value)}><option value="">Not applicable / unsure</option><option>Grade A</option><option>Grade B</option><option>Grade C</option><option>Grade D</option><option>Grade E</option></select></label>
+                {psiraRequired && <label className="join-field"><span>PSiRA number <b>Required</b></span><input name="psiraNumber" value={details.psiraNumber} onChange={(event) => updateDetail("psiraNumber", event.target.value)} inputMode="numeric" pattern="[0-9]{1,12}" required maxLength={12} placeholder="Enter your registration number" /></label>}
+                {psiraRequired && <label className="join-field"><span>Highest grade <b className="join-optional">Optional</b></span><select name="psiraGrade" value={details.psiraGrade} onChange={(event) => updateDetail("psiraGrade", event.target.value)}><option value="">Not applicable / unsure</option><option>Grade A</option><option>Grade B</option><option>Grade C</option><option>Grade D</option><option>Grade E</option></select></label>}
               </div>
+              <p>{psiraRequired ? "PSiRA registration verification and an independent identity match are mandatory before approval for security work." : "No PSiRA registration lookup is required for this intake. We will support your training or registration pathway; this is not a rejection and does not authorise paid security work."}</p>
             </section>
 
             <div className="join-privacy-strip"><span>✓</span><p><strong>Keep sensitive documents out of this form.</strong> Identity, credential and banking checks happen only inside the secure onboarding flow.</p></div>

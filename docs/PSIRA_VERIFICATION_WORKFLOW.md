@@ -39,3 +39,12 @@ The page made a request to `https://psiraapi.sortelearn.com/api/SecurityOfficer/
 ## Resume
 
 See `docs/checkpoints/PSIRA_2026-09-09.md`. The real subject's number and returned identity are retained only in restricted `work/psira/<supplied-number>/` evidence. Do not insert this result into an arbitrary Officer account or any public demo seed. Obtain the intended Clerk account linkage and independent identity-match evidence before recording an approval against a person.
+
+## Mandatory checks and intake exemptions
+
+- Qualified/work applicants declaring current registration or registration needing renewal must supply a numeric PSiRA number. Public intake records `psira_review_required`; registration and an independent identity match are mandatory before work approval.
+- Training intake (including registered officers seeking training), currently-in-training applicants and people not yet registered do not receive a registration lookup or a registration rejection. Their intake is recorded as `training_requested` or `registration_guidance`.
+- Signed-in Officers choose registered, unregistered or training in the PSiRA panel. Non-registered/training declarations produce an explicit `not_required` event, no number requirement, no Operations lookup form and no recheck request. They do not grant verified or paid-work status.
+- Moving to registered requires a number and resets the case to pending review. Moving away from registered revokes the current verification without deleting its history. Older cases default to registered, preserving the mandatory check rather than grandfathering an exemption.
+- Production assignment evaluation and revalidation additionally require a current account-bound PSiRA review matching the officer record's email, registration number and grade, with confirmed identity and certificate/recheck dates covering the shift. Existing compliance records alone are insufficient. Synthetic demos remain isolated rehearsals.
+- Changes to PSiRA declarations and reviews increment the existing activation-evidence epoch. A prepared assignment cannot reuse an evidence token from before such a change.

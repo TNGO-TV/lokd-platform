@@ -91,7 +91,7 @@ test("public interest stays prelaunch, consent-pending and outside the synthetic
     body: JSON.stringify({
       pathway: "qualified", fullName: "Public Applicant", mobile: "082 555 0199",
       email: "public.applicant@example.test", city: "Johannesburg", province: "Gauteng",
-      psiraStatus: "active", psiraNumber: "PSIRA-PUBLIC-1", psiraGrade: "Grade C",
+      psiraStatus: "active", psiraNumber: "1234567", psiraGrade: "Grade C",
       services: ["Unarmed"], purposes: ["Commercial access"], training: [],
       over18Confirmed: true, eligibilityAcknowledged: true, contactConsent: true,
     }),

@@ -1,3 +1,5 @@
+import { applicationPsiraDeclaration, psiraIntakeStatus } from '../../lib/psira-pathway';
+import { psiraNumber as validatePsiraNumber } from '../../lib/psira-verification';
 import { env } from "cloudflare:workers";
 import { completeDemoIdentityVerification, PlatformWorkflowError, recordDemoIdentityOutcome, startDemoIdentityVerification } from "../../lib/integration-server";
 import { tokenHash } from "../../lib/passport-server";
@@ -140,6 +142,7 @@ export async function GET(request: Request) {
       }>();
     return response({ applications: (result.results ?? []).map((item) => ({
       ...item,
+      psiraVerificationRequired: applicationPsiraDeclaration(item.pathway, item.psiraStatus) === "registered",
       services: JSON.parse(item.services) as string[],
       purposes: JSON.parse(item.purposes) as string[],
       training: JSON.parse(item.training) as string[],
@@ -293,10 +296,15 @@ export async function POST(request: Request) {
     if (!provinces.has(province)) throw new ApplicationError("Choose a valid province.");
     const psiraStatus = cleanText(input.psiraStatus, "PSiRA position", 4, 30);
     if (!psiraStatuses.has(psiraStatus)) throw new ApplicationError("Choose a valid PSiRA position.");
-    const psiraNumber = typeof input.psiraNumber === "string" && input.psiraNumber.trim() ? cleanText(input.psiraNumber, "PSiRA number", 3, 40) : null;
-    if ((psiraStatus === "active" || psiraStatus === "expired") && !psiraNumber) throw new ApplicationError("Enter your PSiRA number.");
-    const requestedGrade = typeof input.psiraGrade === "string" ? input.psiraGrade.trim() : "";
-    const psiraGrade = (psiraStatus === "active" || psiraStatus === "expired") && grades.has(requestedGrade) ? requestedGrade : null;
+    const declaration = applicationPsiraDeclaration(pathway, psiraStatus);
+    const psiraRequired = declaration === 'registered';
+    let psiraNumber: string | null = null;
+    if (psiraRequired) {
+      try { psiraNumber = validatePsiraNumber(input.psiraNumber); }
+      catch { throw new ApplicationError('Enter your numeric PSiRA number. Verification is mandatory for registered-officer applications.'); }
+    }
+    const requestedGrade = typeof input.psiraGrade === 'string' ? input.psiraGrade.trim() : '';
+    const psiraGrade = psiraRequired && grades.has(requestedGrade) ? requestedGrade : null;
     const services = allowedList(input.services, serviceOptions, "Work category", 3);
     const purposes = allowedList(input.purposes, purposeOptions, "Work environment", 7);
     const training = pathway === "training" ? allowedList(input.training, trainingOptions, "Training area", 5) : [];
@@ -323,17 +331,17 @@ export async function POST(request: Request) {
        identity_verification_status, identity_consent_version, identity_consented_at,
        environment, integrity_state, status, source, retention_review_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, 'consent_pending', NULL, NULL,
-       'prelaunch', 'user_submitted', 'submitted', 'homepage', ?, ?, ?)`)
+       'prelaunch', 'user_submitted', ?, 'homepage', ?, ?, ?)`)
       .bind(id, pathway, fullName, mobile, email, city, province, psiraStatus, psiraNumber, psiraGrade,
         JSON.stringify(services), JSON.stringify(purposes), JSON.stringify(training), privacyNoticeVersion, nowIso,
-        retentionReview.toISOString(), nowIso, nowIso).run();
+        psiraIntakeStatus(declaration), retentionReview.toISOString(), nowIso, nowIso).run();
 
     await db.prepare(`INSERT INTO audit_events
       (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
       VALUES (?, 'applicant', ?, 'officer_interest_submitted', 'officer_application', ?, ?, ?)`)
       .bind(`AUD-${crypto.randomUUID()}`, id, id, "Homepage work, purpose and training interests received; identity and credentials remain unverified.", nowIso).run();
 
-    return response({ reference: id }, 202);
+    return response({ reference: id, psiraVerificationRequired: psiraRequired, pathwayStatus: psiraIntakeStatus(declaration) }, 202);
   } catch (cause) {
     return responseError(cause);
   }

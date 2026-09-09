@@ -1,3 +1,4 @@
+import { officerHasCurrentPsiraVerification } from './psira-server';
 import {
   ACTIVATION_POLICY_VERSION,
   evaluateAssignmentActivation as evaluateActivationFacts,
@@ -392,6 +393,8 @@ async function loadAssignmentActivationFacts(
   const officerOfferCents = shiftEconomics?.officerOfferCents ?? 0;
   const statutoryCostCents = workforce?.model === "partner" ? 0 : Math.round(officerOfferCents * 0.15);
 
+  const mandatoryPsiraVerified = environment !== 'production'
+    || await officerHasCurrentPsiraVerification(db, request.officerId, candidate.endsAt);
   return {
     environment,
     checkpoint: request.checkpoint ?? "activation",
@@ -458,7 +461,7 @@ async function loadAssignmentActivationFacts(
       identity: evidence({ id: identityRecord?.id ?? null, status: identityRecord?.status ?? null,
         environment: identityRecord?.environment, integrityState: identityRecord?.integrityState,
         evidenceReference: identityRecord?.evidenceReference, verifiedAt: identityRecord?.verifiedAt, expiresAt: identityRecord?.expiresAt }),
-      psira: evidence({ id: psiraRecord?.id ?? null, status: psiraRecord?.status ?? null,
+      psira: evidence({ id: psiraRecord?.id ?? null, status: mandatoryPsiraVerified ? psiraRecord?.status ?? null : "unverified",
         environment: psiraRecord?.environment, integrityState: psiraRecord?.integrityState,
         evidenceReference: psiraRecord?.evidenceReference, verifiedAt: psiraRecord?.verifiedAt, expiresAt: psiraRecord?.expiresAt }),
       core: evidence({ id: core?.id ?? null, status: core?.status ?? null,

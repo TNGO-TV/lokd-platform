@@ -87,3 +87,51 @@ test('source evidence fails closed for mismatched registration, future times, mi
  assert.throws(()=>reviewEvidence({...base,recheckAt:new Date(Date.now()-1).toISOString()},'1234567'));
  const expired=reviewEvidence({...base,evidence:{...evidence(),certificateExpiry:'2020-01-01'}},'1234567');assert.ok(Date.parse(expired.recheckAt)<Date.now());
 });
+
+test('training and unregistered declarations avoid lookup without granting work eligibility; switching to registered requires verification',async()=>{
+ const db=migratedDatabase();env.DB=new D1Adapter(db);env.LOKD_APP_STAGE='demo';env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({operations:[actors.ops.email],officers:{[actors.officer.email]:'OFF-001'}});
+ try{
+  for(const declaration of ['training','not_registered']){
+   const current=(await(await GET(request('officer','officer'))).json()).cases[0];
+   const response=await POST(request('officer','officer',{action:'submit',declaration,psiraNumber:'ignored',expectedVersion:current?.version}));assert.equal(response.status,200);
+   const record=(await response.json()).cases[0];assert.equal(record.declaration,declaration);assert.equal(record.psira_number,'');assert.equal(record.events[0].registration_status,'not_required');assert.equal(record.verified,false);assert.equal(record.recheckDue,false);
+   assert.equal((await POST(request('ops','operations',review(record)))).status,409);
+   assert.equal((await POST(request('officer','officer',{action:'recheck',caseId:record.id,expectedVersion:record.version}))).status,409);
+  }
+  let current=(await(await GET(request('officer','officer'))).json()).cases[0];
+  assert.equal((await POST(request('officer','officer',{action:'submit',declaration:'registered',expectedVersion:current.version}))).status,400);
+  const response=await POST(request('officer','officer',{action:'submit',declaration:'registered',psiraNumber:'1234567',expectedVersion:current.version}));assert.equal(response.status,200);current=(await response.json()).cases[0];assert.equal(current.events[0].registration_status,'pending_review');assert.equal(current.verified,false);assert.equal(current.events[1].registration_status,'not_required');
+ }finally{db.close();delete env.DB;delete env.LOKD_PILOT_ACCESS_JSON;delete env.LOKD_APP_STAGE;}
+});
+
+test('production assignment gate requires matching, current registration and identity evidence',async()=>{
+ const { officerHasCurrentPsiraVerification, writePsiraCase }=await import('../app/lib/psira-server.ts');
+ const db=migratedDatabase();const adapter=new D1Adapter(db);
+ try{
+  db.prepare(`INSERT INTO officers (id,full_name,mobile,email,city,psira_number,psira_grade,psira_expiry) VALUES (?,?,?,?,?,?,?,?)`).run('OFF-TEST','Test Officer','+27820000009',actors.officer.email,'Johannesburg','1234567','A','2099-01-01');
+  const officer={userId:actors.officer.id,email:actors.officer.email,operations:false};const ops={userId:actors.ops.id,email:actors.ops.email,operations:true};
+  const end=new Date(Date.now()+3600000).toISOString();
+  assert.equal(await officerHasCurrentPsiraVerification(adapter,'OFF-TEST',end),false);
+  const id=await writePsiraCase(adapter,officer,{action:'submit',psiraNumber:'1234567',declaration:'registered'});
+  await writePsiraCase(adapter,ops,review({id,version:1},{identityMatch:'confirmed',evidence:{...evidence(),identityEvidence:'Synthetic independent identity record',certificateExpiry:'2099-01-01'}}));
+  assert.equal(await officerHasCurrentPsiraVerification(adapter,'OFF-TEST',end),true);
+  db.prepare('UPDATE officers SET psira_grade = ? WHERE id = ?').run('B','OFF-TEST');assert.equal(await officerHasCurrentPsiraVerification(adapter,'OFF-TEST',end),false);
+  db.prepare('UPDATE officers SET psira_grade = ? WHERE id = ?').run('A','OFF-TEST');
+  assert.equal(await officerHasCurrentPsiraVerification(adapter,'OFF-TEST',new Date(Date.now()+2*86400000).toISOString()),false);
+  await writePsiraCase(adapter,officer,{action:'submit',declaration:'training',expectedVersion:2});
+  assert.equal(await officerHasCurrentPsiraVerification(adapter,'OFF-TEST',end),false);
+ }finally{db.close();}
+});
+
+test('public intake makes registered checks mandatory and routes training without requiring a number',async()=>{
+ const { POST: submit }=await import('../app/api/applications/route.ts');
+ const db=migratedDatabase();env.DB=new D1Adapter(db);
+ const base={fullName:'Synthetic Applicant',email:'applicant@example.test',city:'Johannesburg',province:'Gauteng',services:['Unarmed'],purposes:['Commercial access'],training:['Entry-level security training'],over18Confirmed:true,eligibilityAcknowledged:true,contactConsent:true};
+ const send=(input)=>submit(new Request('https://lokd.co.za/api/applications',{method:'POST',headers:{'content-type':'application/json',origin:'https://lokd.co.za'},body:JSON.stringify({...base,...input})}));
+ try{
+  assert.equal((await send({mobile:'0820000091',pathway:'qualified',psiraStatus:'active'})).status,400);
+  for(const [i,pathway,psiraStatus,expected] of [[1,'qualified','active','psira_review_required'],[2,'qualified','expired','psira_review_required'],[3,'qualified','not_registered','registration_guidance'],[4,'qualified','in_training','training_requested'],[5,'training','active','training_requested']]){
+   const response=await send({mobile:`082000008${i}`,pathway,psiraStatus,...(i<3?{psiraNumber:'1234567'}:{})});assert.equal(response.status,202);const body=await response.json();assert.equal(body.psiraVerificationRequired,i<3);const row=db.prepare('SELECT status,psira_number FROM officer_applications WHERE id = ?').get(body.reference);assert.equal(row.status,expected);assert.equal(row.psira_number,i<3?'1234567':null);
+  }
+ }finally{db.close();delete env.DB;}
+});

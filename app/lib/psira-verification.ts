@@ -1,5 +1,6 @@
+import type { PsiraDeclaration } from './psira-pathway';
 export const PSIRA_SOURCE = 'https://digitalservices.psira.co.za/verify-user/4';
-export const REGISTRATION_STATUSES = ['pending_review', 'registered', 'not_registered', 'unavailable', 'ambiguous'] as const;
+export const REGISTRATION_STATUSES = ['not_required', 'pending_review', 'registered', 'not_registered', 'unavailable', 'ambiguous'] as const;
 export type RegistrationStatus = typeof REGISTRATION_STATUSES[number];
 export type PsiraEvidence = {
   source: string; checkedAt: string; returnedNumber: string; returnedName: string;
@@ -7,14 +8,14 @@ export type PsiraEvidence = {
   employmentStatus: string; excerpt: string; identityEvidence: string;
 };
 export type PsiraEvent = {
-  id: string; version: number; psira_number: string; kind: string;
+  id: string; version: number; psira_number: string; kind: string; declaration: PsiraDeclaration;
   registration_status: RegistrationStatus; identity_match: string;
   evidence_json: string; evidence_hash: string; recorded_by: string;
   recorded_at: string; recheck_at: string | null;
 };
 export type PsiraCase = {
   id: string; owner_user_id: string; owner_email: string; psira_number: string;
-  version: number; latest_event_id: string; updated_at: string;
+  version: number; latest_event_id: string; updated_at: string; declaration: PsiraDeclaration;
   events: PsiraEvent[]; verified: boolean; recheckDue: boolean;
 };
 export class PsiraError extends Error {
@@ -27,12 +28,12 @@ export function psiraNumber(value: unknown) {
 }
 export function verificationState(event: PsiraEvent | undefined, now = Date.now()) {
   const deadline = event?.recheck_at ? Date.parse(event.recheck_at) : NaN;
-  const recheckDue = !Number.isFinite(deadline) || deadline <= now;
+  const recheckDue = event?.registration_status !== 'not_required' && (!Number.isFinite(deadline) || deadline <= now);
   return { verified: !!event && event.registration_status === 'registered' && event.identity_match === 'confirmed' && !recheckDue, recheckDue };
 }
 export function reviewEvidence(body: Record<string, unknown>, number: string, now = Date.now()) {
   const registration = body.registrationStatus;
-  if (!REGISTRATION_STATUSES.includes(registration as RegistrationStatus) || registration === 'pending_review') throw new PsiraError('Choose the observed registration outcome.');
+  if (!REGISTRATION_STATUSES.includes(registration as RegistrationStatus) || (registration === 'pending_review' || registration === 'not_required')) throw new PsiraError('Choose the observed registration outcome.');
   const identity = body.identityMatch;
   if (!['unchecked', 'confirmed', 'mismatch'].includes(String(identity))) throw new PsiraError('Choose the identity-match outcome.');
   const raw = body.evidence;
