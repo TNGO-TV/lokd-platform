@@ -1,6 +1,6 @@
 # LOKD implementation acceptance — 9 September 2026
 
-Status: Version 41 is deployed, retaining Operations MFA enforcement and adding tested preparation/storage for versioned agreement receipts. No signing endpoint or preliminary Legal wording is published. The chronological receipts below retain earlier results. Production MFA is blocked by Clerk plan entitlements (AUTH-003); Google remains deferred (AUTH-001). Real account assignments, external-provider acceptance and executed legal agreements remain incomplete.
+Status: Version 42 is deployed, enforcing exact approved agreement receipts in production activation/revalidation. No signing endpoint or preliminary Legal wording is published. The chronological receipts below retain earlier results. Production MFA is blocked by Clerk plan entitlements (AUTH-003); Google remains deferred (AUTH-001). Real account assignments, external-provider acceptance and executed legal agreements remain incomplete.
 
 ## Current decision — Google sign-in deferred, still required
 
@@ -174,3 +174,7 @@ User explicitly approved the source upload and LOKD publication. Version 40 depl
 ## START-ENGINES milestone — version 41
 
 Production MFA entitlement denial reconfirmed, billed plan unavailable through the exposed account metadata; no upgrade assumed. Four Legal v0.1 drafts reviewed with factual corrections and input hashes. Exact-version agreement/consent preparation rejects drafts, changed wording/order scope and missing actor/representative proof; database receipts are append-only. Production signing remains unenabled. Full build and 228 tests passed; 20-check runnable acceptance checklist passed. Deployed at 2026-09-09T17:20:44.077120Z; see `checkpoints/START_ENGINES_LOKD_2026-09-09.md`.
+
+## Signed-agreement activation — version 42
+
+The former missing activation linkage is now enforced: approved MSA/order and selected workforce receipts must match the current order/entity/route scope; revoked evidence blocks activation, including commit-time races. Signed IDs/hashes/versions are retained in final evidence. All 234 tests passed. Actual agreement approval/execution and production signing/approval endpoints remain outstanding, so this is not legal-signature acceptance. Clerk plan review is with the owner. Release receipt: `checkpoints/SIGNED_ACTIVATION_2026-09-09.md`.
