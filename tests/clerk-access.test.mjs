@@ -52,12 +52,13 @@ test("Clerk verifies signatures, expiry and trusted origins before forwarding id
     CLERK_JWT_KEY: publicKey.export({ type: "spki", format: "pem" }),
   };
   let lookups = 0;
+  let twoFactorEnabled = true;
   const factory = (options) => {
     const client = createClerkClient({ ...options, telemetry: { disabled: true } });
     return { ...client, users: { ...client.users, getUser: async (userId) => {
       assert.equal(userId, "user_fixture");
       lookups++;
-      return { id: "user_fixture", firstName: "Fixture", lastName: "Officer",
+      return { id: "user_fixture", twoFactorEnabled, firstName: "Fixture", lastName: "Officer",
         primaryEmailAddressId: "email_fixture", emailAddresses: [{ id: "email_fixture", emailAddress: "officer@example.test", verification: { status: "verified" } }] };
     } } };
   };
@@ -77,6 +78,14 @@ test("Clerk verifies signatures, expiry and trusted origins before forwarding id
   assert.equal(valid.request.headers.get("x-lokd-verified-email"), "officer@example.test");
   assert.equal(valid.request.headers.get("x-lokd-verified-user-id"), "user_fixture");
   assert.equal(lookups, 1);
+  for (const fva of [[0,0],[0,-1],undefined]) {
+    const proof = await authenticateClerkRequest(request(token({fva})), environment, factory);
+    assert.equal(proof.request.headers.has('x-lokd-verified-second-factor-at'), fva?.[1] === 0);
+  }
+  twoFactorEnabled = false;
+  const unenrolled = await authenticateClerkRequest(request(token({fva:[0,0]})), environment, factory);
+  assert.equal(unenrolled.request.headers.has('x-lokd-verified-second-factor-at'), false);
+  lookups = 1;
   const other = generateKeyPairSync("rsa", { modulusLength: 2048 });
   for (const jwt of [token({ exp: now - 120 }), token({ azp: "https://evil.example" }), token({}, other.privateKey)]) {
     const rejected = await authenticateClerkRequest(request(jwt), environment, factory);

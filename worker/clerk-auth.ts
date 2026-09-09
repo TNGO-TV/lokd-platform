@@ -1,6 +1,8 @@
 import { createClerkClient } from "@clerk/backend";
 import { cleanIdentityHeaders, verifiedPrimaryEmail } from "../app/lib/clerk-access";
 
+import { clerkSecondFactorVerifiedAt } from "../app/lib/operations-mfa";
+
 export interface ClerkEnv {
   CLERK_SECRET_KEY?: string;
   CLERK_PUBLISHABLE_KEY?: string;
@@ -37,6 +39,9 @@ export async function authenticateClerkRequest(request: Request, env: ClerkEnv, 
       if (email) {
         headers.set("x-lokd-verified-email", email);
         headers.set("x-lokd-verified-user-id", user.id);
+        headers.set("x-lokd-verified-mfa-enrolled", String(user.twoFactorEnabled === true));
+        const secondFactorAt = clerkSecondFactorVerifiedAt(auth.factorVerificationAge, auth.sessionClaims.iat, user.twoFactorEnabled === true);
+        if (secondFactorAt) headers.set("x-lokd-verified-second-factor-at", secondFactorAt);
         const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
         if (name) {
           headers.set("x-lokd-verified-full-name", encodeURIComponent(name));

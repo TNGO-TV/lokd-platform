@@ -150,6 +150,7 @@ export default function OperationsApp({ stage, actorEmail, owner = false }: { ow
         </div>
         <nav aria-label="LOKD operations">
           <p className="nav-label">Workspace</p>
+          <a className="nav-item" href="/ops/security">Account security</a>
           <a className="nav-item" href="/ops/psira">PSiRA verification</a>
           {navItems.map((item) => <button className={activeNav === item ? "nav-item nav-item--active" : "nav-item"} key={item} onClick={() => setActiveNav(item)}>
             <span>{item}</span>

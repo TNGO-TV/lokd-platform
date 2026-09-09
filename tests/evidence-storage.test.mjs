@@ -47,6 +47,7 @@ function request(path, init = {}) {
   return new Request(`https://demo.lokd.co.za${path}`, {
     ...init,
     headers: {
+      "x-lokd-verified-user-id":"user_fixture", "x-lokd-verified-mfa-enrolled":"true", "x-lokd-verified-second-factor-at":new Date(Date.now()-60000).toISOString(),
       "x-lokd-verified-email": "ops@lokd.example",
       ...init.headers,
     },

@@ -1,6 +1,6 @@
 # LOKD implementation acceptance — 9 September 2026
 
-Status: Version 36 deployed successfully; live Clerk entry routes verified. Full real-account login, Google, privileged MFA and external-provider acceptance remain incomplete. This work belongs to the implementation task. No health-monitor automation was changed.
+Status: Version 39 is the latest completed release; current follow-up adds Operations request-bound MFA and an account-security page. The chronological receipts below retain earlier results. Production MFA is blocked by Clerk plan entitlements (AUTH-003); Google remains deferred (AUTH-001). Real account assignments, external-provider acceptance and executed legal agreements remain incomplete.
 
 ## Current decision — Google sign-in deferred, still required
 
@@ -154,3 +154,15 @@ Deployed account-bound Officer submission, Operations review, immutable dated ev
 Version 38 succeeded at 2026-09-09T13:11:26.567788Z using source `965669b98effb87e01592451b95be1148a36f653`, deployment `appgdep_6aa15aedbd408191a9dcfbe99e71cec8`, environment revision 5. Validation: 216 regression tests, seven browser journeys, TypeScript and changed-source lint passed. Live new-page sign-in redirects and API rejection of anonymous/forged requests passed for both portals. A Clerk POST-body preservation defect found during browser testing was fixed without changing identity or role policy.
 
 Working method and acceptance limits: `docs/PSIRA_VERIFICATION_WORKFLOW.md`. Resume checkpoint: `docs/checkpoints/PSIRA_2026-09-09.md`. Production account linkage/identity match and provider failure examples remain outstanding. AUTH-001 Google and Operations MFA retain their previously recorded open status.
+
+## Current completion list after mandatory PSiRA
+
+- Source/deployment/Clerk reconciliation: completed through deployed v39; obsolete Supabase instructions superseded.
+- Account automation: temporary development users and role-correct portal tests implemented; real production role assignments remain outstanding. Operations MFA now has a signed-session enforcement path and security screen; production enrollment dry-run rejected by plan entitlements, AUTH-003. See `OPERATIONS_MFA_ACCEPTANCE_2026-09-09.md`.
+- Mandatory PSiRA: v39 deployed; registered work applicants require reviewed registration/identity/grade/certificate evidence; training and unregistered intake stay separate. 221 regression tests and eight browser journeys passed for that release.
+- iiDENTIFii: internal acceptance/failure/retry/manual-review paths tested; real adapter/acceptance awaits credentials and callback contract.
+- Paystack: internal collection/reconciliation/payment-preparation controls tested; no adapter or provider acceptance claimed, credentials pending and live money movement locked.
+- Operating cycle: linked synthetic booking-to-service-to-export cycle and recovery checks passed. Signing is positioned in the flow; exact signed agreement enforcement/execution remains a production acceptance gap pending approved legal documents/signature evidence.
+- Legal document handover: prepared `LEGAL_DOCUMENT_HANDOVER_2026-09-09.md` for central collection. No external message or legal publication sent.
+
+The task list is not marked fully accepted while these external and real-account gates remain open.

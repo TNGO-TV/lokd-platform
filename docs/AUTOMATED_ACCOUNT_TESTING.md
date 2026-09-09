@@ -31,3 +31,5 @@ On this workspace, browser libraries were extracted into ignored `.sites-runtime
 ## PSiRA workflow extension
 
 The suite now includes a seventh browser journey: Officer number submission, Operations recording a synthetic registered result while identity remains unchecked, and an Officer recheck resetting current status. It uses only the local database and synthetic number `1234567`, never a real PSiRA lookup. On a fresh test workspace, apply the generated PSiRA migration to the local D1 database before running this journey; this workspace has migration 0029 applied locally. The real partner lookup is kept separately as private source evidence.
+
+The account suite also covers Operations MFA using a temporary account and real development authenticator enrollment/verification. Enable `auth_multi_factor.authenticator_app.enabled` and `auth_multi_factor.backup_code.enabled` in the development instance first. TOTP secrets stay only in the test process; user cleanup removes enrollment. This does not enable production MFA or satisfy real operator approval acceptance. See `OPERATIONS_MFA_ACCEPTANCE_2026-09-09.md` for the production entitlement blocker.

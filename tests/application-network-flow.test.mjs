@@ -49,6 +49,7 @@ function ownerRequest(method, body) {
       ...(body ? { "content-type": "application/json" } : {}),
       origin: "https://demo.lokd.co.za",
       "sec-fetch-site": "same-origin",
+      "x-lokd-verified-user-id":"user_fixture", "x-lokd-verified-mfa-enrolled":"true", "x-lokd-verified-second-factor-at":new Date(Date.now()-60000).toISOString(),
       "x-lokd-verified-email": "owner@lokd.example",
     },
     body: body ? JSON.stringify(body) : undefined,

@@ -1,3 +1,4 @@
+import { operationsMfaStatus } from "./operations-mfa";
 import { env } from "cloudflare:workers";
 import {
   PilotAccessError,
@@ -55,6 +56,10 @@ export function requirePilotApiRole(request: Request, allowed: PilotRole | Pilot
   if (!roles.some((role) => principalHasRole(principal, role))) {
     if (publicDemoFallback) return publicDemoPrincipal();
     throw new PilotAccessError("This account does not have access to that LOKD workspace.", 403);
+  }
+  if (pilotStage() !== "demo" && roles.includes("operations") && principalHasRole(principal, "operations")
+    && !["GET", "HEAD", "OPTIONS"].includes(request.method) && !operationsMfaStatus(request.headers).fresh) {
+    throw new PilotAccessError("Verify your Operations second factor at /ops/security before changing live records.", 403);
   }
   return principal;
 }

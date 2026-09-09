@@ -29,7 +29,7 @@ function setup(){
 }
 function request({scope="operations",email="maker@lokd.example",action,pack,host,download=false}={}){
   host??=scope==="operations"?"operations.lokd.co.za":scope==="client"?"portal.lokd.co.za":"officers.lokd.co.za";
-  return new Request(`https://${host}/api/specialist?scope=${scope}${pack?`&pack=${pack}`:""}${download?"&download=1":""}`,{method:action?"POST":"GET",headers:{origin:`https://${host}`,"sec-fetch-site":"same-origin",...(email?{"x-lokd-verified-email":email}:{}),...(action?{"content-type":"application/json"}:{})},body:action?JSON.stringify(action):undefined});
+  return new Request(`https://${host}/api/specialist?scope=${scope}${pack?`&pack=${pack}`:""}${download?"&download=1":""}`,{method:action?"POST":"GET",headers:{origin:`https://${host}`,"sec-fetch-site":"same-origin",...(email?{"x-lokd-verified-email":email,"x-lokd-verified-user-id":"user_fixture","x-lokd-verified-mfa-enrolled":"true","x-lokd-verified-second-factor-at":new Date(Date.now()-60000).toISOString()}:{}),...(action?{"content-type":"application/json"}:{})},body:action?JSON.stringify(action):undefined});
 }
 async function call(action,email="maker@lokd.example",status=200){const r=await POST(request({action,email}));const data=await r.json();assert.equal(r.status,status,JSON.stringify(data));return data.state??data;}
 async function current(){const r=await GET(request());assert.equal(r.status,200,await r.clone().text());return (await r.json()).state;}
