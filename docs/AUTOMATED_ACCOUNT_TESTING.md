@@ -27,3 +27,7 @@ The first browser execution reproduced a Content-Security-Policy failure: the si
 The workflow passed six development browser tests, including real email-code authentication for all three roles, unassigned and owner policies, and anonymous forged-header rejection. The strengthened run additionally checks the visible sign-in form, the server's return-to redirect, and HTTP 403 on cross-role APIs. Portal data completeness, provider acceptance, and Operations MFA are not covered by these authentication checks.
 
 On this workspace, browser libraries were extracted into ignored `.sites-runtime/browser-libs` because system package installation is unavailable. The runner uses that local library directory automatically when present. Other machines can use Playwright's standard dependency installation above.
+
+## PSiRA workflow extension
+
+The suite now includes a seventh browser journey: Officer number submission, Operations recording a synthetic registered result while identity remains unchecked, and an Officer recheck resetting current status. It uses only the local database and synthetic number `1234567`, never a real PSiRA lookup. On a fresh test workspace, apply the generated PSiRA migration to the local D1 database before running this journey; this workspace has migration 0029 applied locally. The real partner lookup is kept separately as private source evidence.

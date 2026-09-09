@@ -2356,3 +2356,29 @@ export const controlledPilotRehearsals = sqliteTable(
     index("controlled_pilot_rehearsal_status_idx").on(table.environment, table.status, table.createdAt),
   ],
 );
+
+// Genuine account-bound PSiRA reviews. Never seeded from public demo records.
+export const psiraVerificationCases = sqliteTable("psira_verification_cases", {
+  id: text("id").primaryKey(),
+  ownerUserId: text("owner_user_id").notNull(),
+  ownerEmail: text("owner_email").notNull(),
+  psiraNumber: text("psira_number").notNull(),
+  version: integer("version").notNull(),
+  latestEventId: text("latest_event_id").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, table => [uniqueIndex("psira_case_owner_idx").on(table.ownerUserId)]);
+
+export const psiraVerificationEvents = sqliteTable("psira_verification_events", {
+  id: text("id").primaryKey(),
+  caseId: text("case_id").notNull().references(() => psiraVerificationCases.id),
+  version: integer("version").notNull(),
+  psiraNumber: text("psira_number").notNull(),
+  kind: text("kind").notNull(),
+  registrationStatus: text("registration_status").notNull(),
+  identityMatch: text("identity_match").notNull(),
+  evidenceJson: text("evidence_json").notNull(),
+  evidenceHash: text("evidence_hash").notNull(),
+  recordedBy: text("recorded_by").notNull(),
+  recordedAt: text("recorded_at").notNull(),
+  recheckAt: text("recheck_at"),
+}, table => [uniqueIndex("psira_event_case_version_idx").on(table.caseId, table.version)]);

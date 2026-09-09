@@ -150,6 +150,7 @@ export default function OperationsApp({ stage, actorEmail, owner = false }: { ow
         </div>
         <nav aria-label="LOKD operations">
           <p className="nav-label">Workspace</p>
+          <a className="nav-item" href="/ops/psira">PSiRA verification</a>
           {navItems.map((item) => <button className={activeNav === item ? "nav-item nav-item--active" : "nav-item"} key={item} onClick={() => setActiveNav(item)}>
             <span>{item}</span>
             {item === "Coverage" && (operations.state?.summary.arrivalWatch ?? 0) > 0 && <em className="nav-warning">{operations.state?.summary.arrivalWatch}</em>}

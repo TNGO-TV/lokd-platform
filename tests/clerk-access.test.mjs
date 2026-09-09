@@ -67,6 +67,12 @@ test("Clerk verifies signatures, expiry and trusted origins before forwarding id
     return `${data}.${sign("RSA-SHA256", Buffer.from(data), signingKey).toString("base64url")}`;
   };
   const request = (jwt) => new Request("https://officers.lokd.co.za/api/pilot", { headers: { authorization: `Bearer ${jwt}`, "x-lokd-verified-email": "owner@example.test" } });
+  const postBody = JSON.stringify({ action: "submit", psiraNumber: "1234567" });
+  const post = await authenticateClerkRequest(new Request("https://officers.lokd.co.za/api/psira", {
+    method: "POST", body: postBody, headers: { authorization: `Bearer ${token()}`, "content-type": "application/json" },
+  }), environment, factory);
+  assert.equal(await post.request.text(), postBody, "Clerk verification must preserve the POST body for the route");
+  lookups = 0;
   const valid = await authenticateClerkRequest(request(token()), environment, factory);
   assert.equal(valid.request.headers.get("x-lokd-verified-email"), "officer@example.test");
   assert.equal(valid.request.headers.get("x-lokd-verified-user-id"), "user_fixture");

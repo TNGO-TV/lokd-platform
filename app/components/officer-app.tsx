@@ -100,6 +100,7 @@ export default function OfficerApp() {
         </button>
       </header>
 
+      <a className="secondary-button" href="/officer/psira">PSiRA registration verification</a>
       <section className="portal-page officer-page officer-page-v2">
         <div className="demo-switch officer-demo-switch">
           <span>Public synthetic demo</span>

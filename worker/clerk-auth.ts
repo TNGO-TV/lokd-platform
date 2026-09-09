@@ -16,7 +16,7 @@ export async function authenticateClerkRequest(request: Request, env: ClerkEnv, 
   // Missing configuration never re-enables the previous header-based login.
   if (!publishableKey || !env.CLERK_SECRET_KEY) return { request: anonymous, headers: new Headers() };
   const clerk = createClient({ publishableKey, secretKey: env.CLERK_SECRET_KEY });
-  const state = await clerk.authenticateRequest(anonymous, {
+  const state = await clerk.authenticateRequest(anonymous.clone() as Request, {
     acceptsToken: "session_token",
     jwtKey: env.CLERK_JWT_KEY,
     authorizedParties: [
@@ -45,5 +45,5 @@ export async function authenticateClerkRequest(request: Request, env: ClerkEnv, 
       }
     }
   }
-  return { request: new Request(request, { headers }), headers: state.headers };
+  return { request: new Request(anonymous, { headers }), headers: state.headers };
 }
