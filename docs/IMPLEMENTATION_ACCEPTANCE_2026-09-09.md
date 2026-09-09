@@ -2,6 +2,26 @@
 
 Status: Clerk implementation and synthetic operating acceptance prepared; production login and external-provider acceptance remain incomplete. This work belongs to the implementation task. No health-monitor automation was changed.
 
+## Current decision — Google sign-in deferred, still required
+
+**AUTH-001 — Google sign-in unavailable in production. OPEN; deferred by the user, not optional and not accepted.**
+
+- Impact: Client, Officer and Operations users cannot use Google sign-in. Officer access is a particular concern. Email sign-in does not satisfy Google acceptance.
+- Verified cause: Google is enabled in the development Clerk instance using shared development credentials; production has Google disabled and no Google OAuth Client ID or Client Secret configured.
+- DNS update: Clerk now confirms DNS, SSL and mail verification complete. The earlier DNS-pending findings below describe the initial inspection and are superseded by this result.
+- User decision: record this issue, return to Google later, and continue the remaining implementation/release work. Do not close or downgrade this issue because email sign-in works.
+- Required action when resumed: configure LOKD's Google OAuth application and production callback, connect its credentials in Clerk, enable Google, and verify sign-in, account linking and role-correct destinations for all three portals.
+- Acceptance: record successful Google journeys and denied cross-role access. Until then, report Google explicitly as unavailable and overall authentication acceptance as incomplete.
+
+## Continuation status after Google deferral
+
+- Version 36 is saved and tested (213 passing tests); publication is not confirmed.
+- Read-only checks using a standard browser User-Agent now reach the live hosts: `/api/health/live` returns 200 on the demo host. The earlier HTTP 403/1010 result was tied to the probing client and must not be presented as an application outage.
+- The Client `/client`, Officer `/officer` and Operations `/ops` routes each return 307 to their same-host `/signin-with-chatgpt` path. This proves that the live portal journey still uses the previous authentication implementation; the saved Clerk release is not yet verified live.
+- The first publication call returned no usable deployment result. After read-only checks, automatic approval review explicitly rejected the retry because it did not find explicit approval for public publication and Google authentication is still incomplete.
+- A specific approval request now names Version 36, the public audience, the configured email sign-in and the deferred required Google issue. Do not bypass the rejection or claim a successful deployment without a terminal success result and live checks.
+- Next after approval: publish the saved version, retain its deployment ID, verify terminal success and all three redirects, then perform real account/MFA acceptance. AUTH-001 stays open throughout.
+
 ## Source, deployment and actual configuration
 
 - The starting checkout, `962850c`, has exactly the same tracked file content as `0ac50b677d302d748fc3d29eebcbf42ba5bd3e2b`, the source recorded for Sites Version 35. The intervening commits preserve imported history.
@@ -25,7 +45,7 @@ Clerk still returns `domain_pending`, with DNS, SSL and mail checks pending. Con
 | clk._domainkey.lokd.co.za | dkim1.41o7yt86mrf7.clerk.services |
 | clk2._domainkey.lokd.co.za | dkim2.41o7yt86mrf7.clerk.services |
 
-The current task has no connected authoritative DNS management tool. [Clerk domain configuration](https://dashboard.clerk.com/apps/app_3IuH5PjmaRe1rmJAjwO0g6C6YQw/instances/ins_3IuqByfuozQZDguv7iJ3qPqd47b/domains) must show completion before production login acceptance. Google configuration is required only if that login method is to be enabled.
+The current task has no connected authoritative DNS management tool. [Clerk domain configuration](https://dashboard.clerk.com/apps/app_3IuH5PjmaRe1rmJAjwO0g6C6YQw/instances/ins_3IuqByfuozQZDguv7iJ3qPqd47b/domains) must show completion before production login acceptance. Google configuration is required for final authentication acceptance; the user has explicitly deferred this work under AUTH-001 above.
 
 ## Account journeys and permissions
 
@@ -96,7 +116,7 @@ Existing onboarding tests separately validate four watermarked template/envelope
 | Rejection/manual review/expiry missing from rehearsal controls | Fixed and tested; useful workflow errors now preserve their HTTP status. |
 | Fast enquiry triage/close could fail the monotonic timestamp guard | Fixed and regression-tested at one clock instant. |
 | Old synthetic evidence dates can prevent new sample bookings from matching | Test dates made deterministic. Product evidence is not silently renewed; Operations must review actual expired evidence. |
-| Real Clerk sign-in and privileged MFA | Pending DNS/SSL/mail completion, real accounts, role assignment and step-up acceptance. |
+| Real Clerk sign-in and privileged MFA | DNS/SSL/mail now complete. Real accounts, role assignment, step-up acceptance and deferred Google issue AUTH-001 remain open. |
 | Live-site probe denied at Cloudflare edge | Resolve the legitimate testing/access path, then verify all portal journeys against the executing deployment. |
 | Provider credentials and callback contracts | User awaiting iiDENTIFii and Paystack. No provider acceptance claimed. |
 | Payment unknown outcomes, refunds/reversals and officer-transfer recovery | Must be tested with provider references before enabling live rails. |
