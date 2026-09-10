@@ -43,6 +43,7 @@ export type OperatorControlInput = {
   roles: OperatorRole[];
   accountStatus: string;
   mfaStatus: string;
+  mfaRequired?: boolean;
   mfaVerifiedAt: string | null;
   amountCents: number;
   makerId?: string | null;
@@ -63,12 +64,14 @@ export function operatorControlDecision(input: OperatorControlInput): OperatorCo
   const blockers: string[] = [];
   if (input.accountStatus !== "active") blockers.push("The operator account is not active.");
   if (!input.roles.includes(policy.requiredRole)) blockers.push(`The ${policy.requiredRole.replaceAll("_", " ")} role is required.`);
-  if (input.mfaStatus !== "verified" || !input.mfaVerifiedAt) {
-    blockers.push("A verified Operations MFA challenge is required.");
-  } else {
-    const ageMs = (input.now ?? new Date()).getTime() - new Date(input.mfaVerifiedAt).getTime();
-    if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > policy.mfaMaxAgeMinutes * 60_000) {
-      blockers.push(`Operations MFA must be refreshed within ${policy.mfaMaxAgeMinutes} minutes.`);
+  if (input.mfaRequired !== false) {
+    if (input.mfaStatus !== "verified" || !input.mfaVerifiedAt) {
+      blockers.push("A verified Operations MFA challenge is required.");
+    } else {
+      const ageMs = (input.now ?? new Date()).getTime() - new Date(input.mfaVerifiedAt).getTime();
+      if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > policy.mfaMaxAgeMinutes * 60_000) {
+        blockers.push(`Operations MFA must be refreshed within ${policy.mfaMaxAgeMinutes} minutes.`);
+      }
     }
   }
   if (policy.maxAmountCents !== null && input.amountCents > policy.maxAmountCents) {

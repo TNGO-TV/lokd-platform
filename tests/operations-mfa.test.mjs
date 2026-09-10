@@ -40,3 +40,29 @@ test('security endpoint never uses demo fallback and gives enrollment/reverifica
  assert.match((await (await GET(request(headers))).json()).error,/Enrol/);
  headers.set('x-lokd-verified-email','unassigned@example.test');assert.equal((await GET(request(headers))).status,403);
 });
+
+test('owner MFA suspension uses only server configuration and preserves identity and role denial', async()=>{
+ const previous=env.LOKD_OPERATIONS_MFA_REQUIRED;
+ try {
+  env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({operations:['ops@example.test'],clients:['client@example.test']});
+  env.LOKD_APP_STAGE='production';
+  const headers=new Headers({'x-lokd-verified-user-id':'user_ops','x-lokd-verified-email':'ops@example.test'});
+  const mutation=(h)=>new Request('https://operations.lokd.co.za/api/specialist',{method:'POST',headers:h});
+  const security=(h)=>new Request('https://operations.lokd.co.za/api/operations/security?verify=1',{headers:h});
+  env.LOKD_OPERATIONS_MFA_REQUIRED='false';
+  assert.equal(requirePilotApiRole(mutation(headers),'operations').email,'ops@example.test');
+  const response=await GET(security(headers)); assert.equal(response.status,200);
+  const state=await response.json(); assert.equal(state.required,false);assert.equal(state.fresh,false);assert.equal(state.enrolled,false);
+  assert.throws(()=>requirePilotApiRole(mutation({}),'operations'),/Sign in/);
+  assert.equal((await GET(security({}))).status,401);
+  const unassigned=new Headers(headers);unassigned.set('x-lokd-verified-email','unassigned@example.test');
+  assert.throws(()=>requirePilotApiRole(mutation(unassigned),'operations'),/does not have access/);
+  assert.equal((await GET(security(unassigned))).status,403);
+  for(const value of [undefined,'true','FALSE','0','']) {
+   if(value===undefined)delete env.LOKD_OPERATIONS_MFA_REQUIRED;else env.LOKD_OPERATIONS_MFA_REQUIRED=value;
+   headers.set('x-lokd-operations-mfa-required','false');
+   assert.throws(()=>requirePilotApiRole(mutation(headers),'operations'),/second factor/);
+   assert.equal((await GET(security(headers))).status,403);
+  }
+ } finally {if(previous===undefined)delete env.LOKD_OPERATIONS_MFA_REQUIRED;else env.LOKD_OPERATIONS_MFA_REQUIRED=previous;}
+});

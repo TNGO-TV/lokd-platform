@@ -1,3 +1,4 @@
+import { operationsMfaRequired } from "./operations-mfa-policy";
 import type {
   PlatformAction,
   PlatformIdentityCase,
@@ -101,6 +102,7 @@ export async function requireOperatorControl(
     actorId: facts.id,
     roles: facts.roles,
     accountStatus: facts.status,
+    mfaRequired: operationsMfaRequired(),
     mfaStatus: facts.mfaStatus,
     mfaVerifiedAt: facts.mfaVerifiedAt,
     amountCents: input.amountCents,
@@ -1078,6 +1080,7 @@ export async function readPlatformState(
       exceptions: payrollExceptions,
     },
     operatorControls: {
+      mfaRequired: operationsMfaRequired(),
       currentActorId: resolvedActorId,
       currentActorRoles: currentActor?.roles ?? [],
       currentActorMfaStatus: currentActor?.mfaStatus ?? "not_verified",
