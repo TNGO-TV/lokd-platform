@@ -21,3 +21,13 @@ New tests exercise server-only suspension, absent/malformed setting fail-closed 
 This is a temporary owner-approved exception, not resolution of Clerk AUTH-003. Google production configuration and visible buttons were verified separately; complete OAuth/account acceptance is still pending. No provider purchases, payments, signatures or live approvals are part of this milestone.
 
 Final local validation: production build passed; **237 regression tests passed, zero failed/skipped** (11,903.131234 ms); TypeScript and changed-source lint passed. Full TAP: `/tmp/lokd-mfa-suspension-tests.tap`. No database migration. Existing strict-MFA tests still pass with the default setting; new tests prove the explicit owner suspension and restoration behavior.
+
+## Deployed receipt
+
+- Source `1f3dbd778ea9b3e386e566bf770d1e96f1872e03`; version **44**, `appgprj_6a88a08505548191b266e9b711562ae3~appgver_b0c7959046008191a3053eabb43db0bc`.
+- Deployment `appgdep_6aa33f07d4f08191bce255d8141df8ed` succeeded `2026-09-10T23:36:58.383763+00:00` (11 September South Africa), with environment revision **6** and `LOKD_OPERATIONS_MFA_REQUIRED=false`. Other environment keys and the existing public audience preserved.
+- Live verification `2026-09-10T23:37:52.814076+00:00`: the deployed Sites origin's existing synthetic platform API returned 200 and `operatorControls.mfaRequired:false`. Operations security with forged identity headers returned 401 “Sign in to continue.” No authenticated real-account or financial approval was performed.
+- Initial read via demo.lokd.co.za returned 403; the generated Sites origin confirmed the policy. This alias-read failure is not evidence of MFA enforcement and was not bypassed by changing access controls.
+- Operations security browser handoff queued at https://operations.lokd.co.za/ops/security . Existing site https://lokd.co.za remains deployed; generated URL https://lokd-security.zenas-capetown.chatgpt.site .
+
+Task complete; MFA is temporarily suspended under the owner's instruction. Restore using the procedure above rather than fabricating MFA proof or clearing account factors.

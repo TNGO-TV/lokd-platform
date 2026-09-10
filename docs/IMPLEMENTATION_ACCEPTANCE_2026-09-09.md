@@ -1,3 +1,5 @@
+> Current owner exception: Operations MFA temporarily off, deployed v44 on 11 September 2026. Sign-in, roles and other approval/activation controls remain. See [MFA suspension and restore checkpoint](checkpoints/MFA_TEMPORARILY_OFF_2026-09-11.md). AUTH-003 remains an unresolved provider entitlement, not a current login requirement.
+
 > Latest release: registration tuning deployed 11 September 2026 (v43). See [release and stop checkpoint](checkpoints/REGISTRATION_TUNING_2026-09-11.md). Earlier evidence below remains historical; owner dependencies are unchanged.
 
 # LOKD implementation acceptance — 9 September 2026
