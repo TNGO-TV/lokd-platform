@@ -2,18 +2,17 @@
 
 # LOKD implementation acceptance — 9 September 2026
 
-Status: Version 42 is deployed, enforcing exact approved agreement receipts in production activation/revalidation. No signing endpoint or preliminary Legal wording is published. The chronological receipts below retain earlier results. Production MFA is blocked by Clerk plan entitlements (AUTH-003); Google remains deferred (AUTH-001). Real account assignments, external-provider acceptance and executed legal agreements remain incomplete.
+Status: Version 42 is deployed, enforcing exact approved agreement receipts in production activation/revalidation. No signing endpoint or preliminary Legal wording is published. The chronological receipts below retain earlier results. Production MFA is blocked by Clerk plan entitlements (AUTH-003); Google is configured and visible on all three production login pages; full OAuth/account acceptance remains open (AUTH-001). Real account assignments, external-provider acceptance and executed legal agreements remain incomplete.
 
-## Current decision — Google sign-in deferred, still required
+## Current Google and MFA status — checked 11 September 2026
 
-**AUTH-001 — Google sign-in unavailable in production. OPEN; deferred by the user, not optional and not accepted.**
+**AUTH-001: production Google configuration is now present and enabled. Full account-journey acceptance remains open.** This supersedes earlier disabled/unconfigured findings retained in the history below.
 
-- Impact: Client, Officer and Operations users cannot use Google sign-in. Officer access is a particular concern. Email sign-in does not satisfy Google acceptance.
-- Verified cause: Google is enabled in the development Clerk instance using shared development credentials; production has Google disabled and no Google OAuth Client ID or Client Secret configured.
-- DNS update: Clerk now confirms DNS, SSL and mail verification complete. The earlier DNS-pending findings below describe the initial inspection and are superseded by this result.
-- User decision: record this issue, return to Google later, and continue the remaining implementation/release work. Do not close or downgrade this issue because email sign-in works.
-- Required action when resumed: configure LOKD's Google OAuth application and production callback, connect its credentials in Clerk, enable Google, and verify sign-in, account linking and role-correct destinations for all three portals.
-- Acceptance: record successful Google journeys and denied cross-role access. Until then, report Google explicitly as unavailable and overall authentication acceptance as incomplete.
+- Read production app `app_3IuH5PjmaRe1rmJAjwO0g6C6YQw`, instance `ins_3IuqByfuozQZDguv7iJ3qPqd47b`: Google enabled/authenticatable, OAuth client ID and secret configured (values not retained).
+- At `2026-09-10T23:29:51.203Z` (11 September South Africa), browser checks found an enabled, visible Google sign-in button on Client, Officer and Operations /sign-in pages; all returned HTTP 200.
+- No Google account authentication or callback completion was performed. Account linking and role-correct destinations must still be accepted with real authorised accounts. UI/configuration success is not a completed OAuth journey.
+- **AUTH-003 remains open:** production authenticator and backup-code enrollment are disabled. The fresh no-write preview returned HTTP 402 `unsupported_subscription_plan_features`, naming `app:mfa_totp` and `app:mfa_backup_code`. Actual billed plan remains unknown; this does not prove an upgrade is needed.
+- No Clerk configuration was changed, no account was created and no deployment was required by this read-only check. Browser evidence: ignored `work/psira/google-login-check.json`; method `work/psira/check-google-login.mjs`.
 
 ## Current deployment — explicitly approved and verified
 
