@@ -1,3 +1,5 @@
+> Latest release: registration tuning deployed 11 September 2026 (v43). See [release and stop checkpoint](checkpoints/REGISTRATION_TUNING_2026-09-11.md). Earlier evidence below remains historical; owner dependencies are unchanged.
+
 # LOKD implementation acceptance — 9 September 2026
 
 Status: Version 42 is deployed, enforcing exact approved agreement receipts in production activation/revalidation. No signing endpoint or preliminary Legal wording is published. The chronological receipts below retain earlier results. Production MFA is blocked by Clerk plan entitlements (AUTH-003); Google remains deferred (AUTH-001). Real account assignments, external-provider acceptance and executed legal agreements remain incomplete.

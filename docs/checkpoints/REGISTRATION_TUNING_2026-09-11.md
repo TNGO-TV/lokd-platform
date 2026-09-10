@@ -41,3 +41,16 @@ Readiness component regression verifies mixed checklist states show 50%, exactly
 - First restricted-sandbox suite stalled in a child-process SQLite migration check and was terminated without an acceptance claim. The complete suite then ran successfully with normal local subprocess support. Full successful TAP: `/tmp/lokd-registration-regression-final.tap`; no test expectations were relaxed.
 - TypeScript passed; changed-source lint passed (three existing image warnings); diff whitespace check passed.
 - Browser final accepted coverage: client mobile+desktop passed in the first run, officer registered/training/not-registered mobile+desktop passed after correction. Latest six-scenario JSON remains at `test-results/mobile-journeys.json` (ignored). Form success/failure responses were synthetic and intercepted; server/provider acceptance is separately bounded by the full regression suite.
+
+## Deployed receipt and stop checkpoint
+
+- Source: `28f7f61b3a43276093838cd51c569c0b75cff1ea`, pushed to the existing Sites main branch.
+- Version **43**: `appgprj_6a88a08505548191b266e9b711562ae3~appgver_99496969dfc88191ae27af2d98bd3a7f`.
+- Deployment: `appgdep_6aa3367fe6008191b8aa46cff10a630b`, succeeded `2026-09-10T23:00:34.739198+00:00` (11 September, South Africa). Environment revision **5** retained; existing public audience retained.
+- Generated URL: https://lokd-security.zenas-capetown.chatgpt.site ; public https://lokd.co.za .
+- Live check `2026-09-10T23:01:16.848894+00:00`: /join, /join?path=training, /contact and /clients all 200. Officer PSiRA, Client and Operations security routes redirect 307 to their respective sign-in destinations. Operations security API with forged identity/MFA headers returns 401. No production submissions made.
+- Archive SHA-256: `8ac13dec3cc57390294fb64129611e6a38ab3980c52b3ef35e9441c6e70b0ebd`. Worker, assets and existing migrations validated; no secrets or private PSiRA evidence included.
+- Packaging helper in Sites 0.1.66 carried CRLF shell endings and initially failed. Used a temporary LF-normalized copy of that same helper and its staging dependency; no source/build changes needed. Reuse this known packaging recovery if the installed bundle remains unchanged.
+- Browser handoff queued by Codex to the existing `lokd-site` tab at https://lokd.co.za/join; no claim of an opened foreground tab.
+
+Milestone complete. Stop here. Resume from this receipt rather than repeating release 42 or 43. Next task remains the authenticated application/account linking and progress/recovery flow, requiring a new owner continuation. Named account acceptance, Google/MFA entitlement, live provider and financial acceptance, approved real agreements and secure signing remain outstanding as detailed above.
