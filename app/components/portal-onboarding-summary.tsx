@@ -42,13 +42,14 @@ export function PortalOnboardingSummary({
         <h2>{scope === "client" ? "Organisation readiness" : "Officer readiness"}</h2>
         <p>
           {scope === "client"
-            ? "Your demo entity, agreement variables, advance-funding instruction and workspace access are prepared."
-            : "Your demo identity, PSiRA, payroll destination, agreement variables and workspace access are prepared."}
+            ? "This sample shows the client onboarding checks. Check the status of each rehearsal item below."
+            : "This sample shows the officer onboarding checks. Check the status of each rehearsal item below."}
         </p>
         <span className="portal-onboarding-boundary">
           Simulation only · no live contract or production access
         </span>
       </div>
+      {onboarding.error && <p role="alert">The latest refresh failed. These are the last loaded rehearsal results. <button onClick={() => void onboarding.refresh()}>Try again</button></p>}
       <div className="portal-onboarding-progress-card">
         <span><strong>{percent}%</strong><small>rehearsal complete</small></span>
         <div className="onboarding-progress" aria-label={`${passed} of ${onboardingCase.checklist.length} checks complete`}>
@@ -57,11 +58,17 @@ export function PortalOnboardingSummary({
         <ul>
           {onboardingCase.checklist.map((item) => (
             <li key={item.id}>
-              <i>✓</i>
-              <span>{item.label}</span>
+              <i aria-hidden="true">{item.status === "verified_demo" ? "✓" : "!"}</i>
+              <span>{item.label}<small>{item.status === "verified_demo" ? "Complete in rehearsal" : `Not complete · ${item.status.replaceAll("_", " ")}`}</small></span>
             </li>
           ))}
         </ul>
+      </div>
+      <div className="journey-next agreement-readiness">
+        <h3>Live agreement signing is not open</h3>
+        <p>{scope === "client" ? "Before service starts, an authorised representative must sign the approved client terms and service order for the agreed booking." : "Before work starts, the appropriate approved employment or partner agreement must be complete, alongside the client agreements for that assignment."}</p>
+        <p>Draft documents and completed demo checks do not count as signed agreements. Operations must confirm the approved documents, signer authority and current booking details. Changes can require a fresh review.</p>
+        <p>{scope === "client" ? "Cleared funding, the service plan and officer eligibility must also be confirmed before activation." : "Identity, current PSiRA registration matched to you, and the other assignment requirements must also be confirmed before activation. Training intake alone does not approve security work."}</p>
       </div>
     </section>
   );

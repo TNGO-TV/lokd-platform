@@ -1,15 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 export default function ClientEnquiryForm() {
+  const successRef = useRef<HTMLHeadingElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reference, setReference] = useState("");
 
+  useEffect(() => { if (reference) successRef.current?.focus(); }, [reference]);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
     setBusy(true); setError("");
     const form = new FormData(event.currentTarget);
     try {
@@ -28,7 +32,7 @@ export default function ClientEnquiryForm() {
     finally { setBusy(false); }
   }
 
-  if (reference) return <div className="enquiry-success" role="status"><span>✓</span><p className="public-kicker">Enquiry received</p><h2>We have your operating brief.</h2><p>LOKD will review service fit, risk, mobilisation, workforce capacity, pricing evidence and the required activation controls before making any commitment.</p><dl><dt>Reference</dt><dd>{reference}</dd></dl><Link className="public-button public-button--dark" href="/clients">Read the client guide <b>→</b></Link></div>;
+  if (reference) return <div className="enquiry-success" role="status"><span>✓</span><p className="public-kicker">Enquiry received</p><h2 ref={successRef} tabIndex={-1}>We have your operating brief.</h2><p>LOKD will review service fit, risk, mobilisation, workforce capacity, pricing evidence and the required activation controls before making any commitment.</p><div className="journey-next"><h3>Awaiting Operations review</h3><p>Keep your reference. Operations needs to confirm your organisation, authority to request the service, site requirements and a suitable plan before a quote can be accepted.</p><p>This enquiry does not create a Client account. Portal access must be assigned to your account separately.</p><h3>Agreements and funding still required</h3><p>Approved client terms and the service order must be ready for your authorised representative to review and sign. Live agreement signing is not open yet. Submitting this form signs no service agreement.</p><p>Do not pay against this enquiry reference. Funding instructions follow an approved service plan; cleared funding and the remaining checks are required before service activation.</p></div><dl><dt>Reference</dt><dd>{reference}</dd></dl><Link className="public-button public-button--dark" href="/clients">Read the client guide <b>→</b></Link></div>;
 
   return <form className="enquiry-form" onSubmit={submit}>
     <header><span>CONTROLLED LAUNCH ENQUIRY</span><h2>Tell us about the site.</h2><p>This form opens a review only. It does not create a quote, booking, credit facility or deployment.</p></header>

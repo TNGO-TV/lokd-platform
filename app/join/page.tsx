@@ -4,7 +4,7 @@ import { applicationPsiraDeclaration } from "../lib/psira-pathway";
 import Link from "next/link";
 import { OFFICER_PORTAL_URL } from "../lib/public-site";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { FormEvent } from "react";
 
 type Pathway = "qualified" | "training";
@@ -27,10 +27,15 @@ const trainingChoices = [
   "VIP / close-protection training",
 ] as const;
 
+const subscribeToHydration = () => () => {};
+
 export default function JoinPage() {
+  const ready = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const search = useSearchParams();
   const requestedPath = search.get("path");
   const initialPathway: Pathway = requestedPath === "training" ? "training" : "qualified";
+  const formRef = useRef<HTMLFormElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const [step, setStep] = useState(1);
   const [pathway, setPathway] = useState<Pathway>(initialPathway);
   const [services, setServices] = useState<string[]>(["Unarmed"]);
@@ -44,6 +49,10 @@ export default function JoinPage() {
   const psiraRequired = applicationPsiraDeclaration(pathway, details.psiraStatus) === "registered";
   const progress = useMemo(() => `${Math.round((step / 3) * 100)}%`, [step]);
 
+  useEffect(() => {
+    if (step > 1 || reference) headingRef.current?.focus();
+  }, [step, reference]);
+
   function toggle(value: string, current: string[], update: (next: string[]) => void) {
     update(current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
   }
@@ -55,6 +64,9 @@ export default function JoinPage() {
   function continueForm() {
     setError("");
     if (step === 2) {
+      if (!formRef.current?.reportValidity()) return;
+      if (!/^(0\d{9}|27\d{9})$/.test(details.mobile.replace(/\D/g, ""))) { setError("Enter a South African mobile number, for example 082 123 4567 or +27 82 123 4567."); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.email.trim())) { setError("Enter a complete email address, for example name@example.co.za."); return; }
       if (psiraRequired && !/^\d{1,12}$/.test(details.psiraNumber.trim())) { setError("Enter your numeric PSiRA number. Registered officers must complete verification before work approval."); return; }
       if (details.fullName.trim().length < 3 || !details.mobile.trim() || !details.email.includes("@") || details.city.trim().length < 2) {
         setError("Complete your name, mobile number, email address and city before continuing.");
@@ -66,6 +78,8 @@ export default function JoinPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (step < 3) { continueForm(); return; }
+    if (busy) return;
     setError("");
     if (!services.length) return setError("Choose at least one type of work you would like to hear about.");
     if (!purposes.length) return setError("Choose at least one work environment you would like to prepare for.");
@@ -99,7 +113,7 @@ export default function JoinPage() {
   }
 
   if (reference) {
-    return <main className="join-shell"><header className="join-header"><Link href="/"><img src="/lokd-logo.png" alt="LOKD" /></Link><span>Officer network</span></header><section className="join-success"><div className="join-success-mark">✓</div><p className="public-kicker">Application received</p><h1>Your LOKD journey has started.</h1><p>We have saved your {pathway === "training" ? "training-pathway interest" : "officer application"}. A LOKD team member will contact you when the relevant pilot intake opens.</p><p>{psiraRequired ? "Your application requires PSiRA verification and identity matching before security-work approval." : "Your training or registration-guidance intake will not be sent for a PSiRA registration lookup. You can update your pathway when registered."}</p><dl><dt>Your reference</dt><dd>{reference}</dd></dl><div><Link className="public-button public-button--dark" href="/">Return home</Link><a className="public-button public-button--outline-dark" href={OFFICER_PORTAL_URL}>View officer portal</a></div><small>Keep your reference. The authenticated onboarding stage will use a specialist identity provider for secure ID validation, selfie/liveness and face matching. Do not send identity documents, certificates or banking information by email or chat.</small></section></main>;
+    return <main className="join-shell"><header className="join-header"><Link href="/"><img src="/lokd-logo.png" alt="LOKD" /></Link><span>Officer network</span></header><section className="join-success"><div className="join-success-mark">✓</div><p className="public-kicker">Application received</p><h1 ref={headingRef} tabIndex={-1}>Your LOKD journey has started.</h1><p>We have saved your {pathway === "training" ? "training-pathway interest" : "officer application"}. A LOKD team member will contact you when the relevant pilot intake opens.</p><p>{psiraRequired ? "Your application requires PSiRA verification and identity matching before security-work approval." : "Your training or registration-guidance intake will not be sent for a PSiRA registration lookup. You can update your pathway when registered."}</p><div className="journey-next"><h2>What happens next?</h2><p><strong>{psiraRequired ? "Verification pending" : pathway === "training" ? "Training interest recorded" : "Registration guidance requested"}</strong></p><p>{psiraRequired ? "Operations must check the official registration result and separately confirm it belongs to you. An unavailable, unclear or expired result remains unverified; a review may need more information." : "This intake does not require a PSiRA lookup. Registration and identity checks apply if you later apply for registered security work."}</p><p>Save your reference and wait for intake instructions. This form does not create a portal account or assign Officer access. If you already have an assigned account, use the officer portal.</p><p>Work remains unavailable until the required checks and approved agreements are complete. Live identity verification and agreement signing are not open yet; there is nothing to sign in this form.</p></div><dl><dt>Your reference</dt><dd>{reference}</dd></dl><div><Link className="public-button public-button--dark" href="/">Return home</Link><a className="public-button public-button--outline-dark" href={OFFICER_PORTAL_URL}>View officer portal</a></div><small>Keep your reference. The authenticated onboarding stage will use a specialist identity provider for secure ID validation, selfie/liveness and face matching. Do not send identity documents, certificates or banking information by email or chat.</small></section></main>;
   }
 
   return (
@@ -109,13 +123,13 @@ export default function JoinPage() {
       <section className="join-layout">
         <aside className="join-intro">
           <p className="public-kicker">Step {step} of 3</p>
-          <h1>{step === 1 ? "Start where you are." : step === 2 ? "Tell us about yourself." : "Choose your direction."}</h1>
+          <h1 ref={headingRef} tabIndex={-1}>{step === 1 ? "Start where you are." : step === 2 ? "Tell us about yourself." : "Choose your direction."}</h1>
           <p>{step === 1 ? "Your answer changes the next steps—not your opportunity to join the network." : step === 2 ? "We collect only enough information to place you in the correct pilot intake." : "Choose the work and training information that is relevant to your goals."}</p>
           <div className="join-promise"><span>✓</span><p><strong>No documents or banking details here.</strong> Secure ID validation, liveness and credential checks follow inside the authenticated officer account.</p></div>
         </aside>
 
-        <form className="join-form-card" onSubmit={submit}>
-          {step === 1 && <fieldset className="join-path-picker"><legend>Which describes you best?</legend><button type="button" className={pathway === "qualified" ? "selected" : ""} onClick={() => { setPathway("qualified"); if (details.psiraStatus === "not_registered") updateDetail("psiraStatus", "active"); }}><span>01</span><div><strong>I&apos;m already qualified</strong><p>I am PSiRA registered, trained or already working in security.</p></div><i>{pathway === "qualified" ? "✓" : "→"}</i></button><button type="button" className={pathway === "training" ? "selected" : ""} onClick={() => { setPathway("training"); if (details.psiraStatus === "active") updateDetail("psiraStatus", "not_registered"); }}><span>02</span><div><strong>I need training</strong><p>I am starting out, upgrading or need specialist training.</p></div><i>{pathway === "training" ? "✓" : "→"}</i></button><div className="join-form-note"><strong>{pathway === "qualified" ? "Officer application" : "Training-pathway interest"}</strong><p>{pathway === "qualified" ? "LOKD will later verify your registration and qualifications before activating work categories." : "LOKD will provide intake information only where the course and provider status are confirmed."}</p></div></fieldset>}
+        <form ref={formRef} className="join-form-card" onSubmit={submit}>
+          {step === 1 && <fieldset disabled={!ready} className="join-path-picker"><legend>Which describes you best?</legend><button type="button" className={pathway === "qualified" ? "selected" : ""} onClick={() => { setPathway("qualified"); if (details.psiraStatus === "not_registered") updateDetail("psiraStatus", "active"); }}><span>01</span><div><strong>I&apos;m already qualified</strong><p>I am PSiRA registered, trained or already working in security.</p></div><i>{pathway === "qualified" ? "✓" : "→"}</i></button><button type="button" className={pathway === "training" ? "selected" : ""} onClick={() => { setPathway("training"); if (details.psiraStatus === "active") updateDetail("psiraStatus", "not_registered"); }}><span>02</span><div><strong>I need training</strong><p>I am starting out, upgrading or need specialist training.</p></div><i>{pathway === "training" ? "✓" : "→"}</i></button><div className="join-form-note"><strong>{pathway === "qualified" ? "Officer application" : "Training-pathway interest"}</strong><p>{pathway === "qualified" ? "LOKD will later verify your registration and qualifications before activating work categories." : "LOKD will provide intake information only where the course and provider status are confirmed."}</p></div></fieldset>}
 
           {step === 2 && <div className="join-fields join-contact-step">
             <div className="join-form-title join-contact-heading">
@@ -157,7 +171,7 @@ export default function JoinPage() {
 
           {step === 3 && <div className="join-fields"><div className="join-form-title"><span>YOUR DIRECTION</span><h2>What would you like to work toward?</h2></div><fieldset className="join-check-grid"><legend>Work categories you are interested in</legend>{serviceChoices.map((item) => <label key={item}><input type="checkbox" checked={services.includes(item)} onChange={() => toggle(item, services, setServices)} /><span><strong>{item}</strong><small>{item === "Unarmed" ? "Guarding, access and event work" : item === "Armed" ? "Separate firearm and assignment checks apply" : "Separate close-protection credentials apply"}</small></span><i>✓</i></label>)}</fieldset><fieldset className="join-check-grid join-training-grid"><legend>Work environments you want to prepare for</legend>{purposeChoices.map((item) => <label key={item}><input type="checkbox" checked={purposes.includes(item)} onChange={() => toggle(item, purposes, setPurposes)} /><span><strong>{item}</strong></span><i>✓</i></label>)}<div className="join-form-note" style={{ gridColumn: "1 / -1" }}><strong>Interest is not an endorsement.</strong><p>LOKD training, assessment and approval are required before a purpose is added to your live LOKD Passport or used to match offers.</p></div></fieldset>{pathway === "training" && <fieldset className="join-check-grid join-training-grid"><legend>Training information you need</legend>{trainingChoices.map((item) => <label key={item}><input type="checkbox" checked={training.includes(item)} onChange={() => toggle(item, training, setTraining)} /><span><strong>{item}</strong></span><i>✓</i></label>)}</fieldset>}<div className="join-consent-stack"><label className="join-consent"><input name="over18Confirmed" type="checkbox" required /><span>I confirm that I am at least 18 years old.</span></label><label className="join-consent"><input name="eligibilityAcknowledged" type="checkbox" required /><span>I understand that PSiRA registration and work eligibility remain subject to the applicable statutory, training and fit-and-proper requirements.</span></label><label className="join-consent"><input name="contactConsent" type="checkbox" required /><span>I agree that LOKD may store these details and contact me about officer onboarding or relevant training intake information. I understand that this is not an offer of employment or a guarantee of work.</span></label></div><label className="join-honeypot" aria-hidden="true">Company<input name="company" tabIndex={-1} autoComplete="off" /></label>{error && <p className="join-error" role="alert">{error}</p>}</div>}
 
-          <div className="join-form-actions">{step > 1 && <button type="button" onClick={() => { setError(""); setStep(step - 1); }}>← Back</button>}<span />{step < 3 ? <button className="public-button public-button--dark" type="button" onClick={continueForm}>Continue →</button> : <button className="public-button public-button--lime" type="submit" disabled={busy}>{busy ? "Saving…" : pathway === "training" ? "Find my training pathway →" : "Submit officer application →"}</button>}</div>
+          <div className="join-form-actions">{step > 1 && <button type="button" disabled={busy} onClick={() => { setError(""); setStep(step - 1); }}>← Back</button>}<span />{step < 3 ? <button className="public-button public-button--dark" type="submit" disabled={!ready}>Continue →</button> : <button className="public-button public-button--lime" type="submit" disabled={busy}>{busy ? "Saving…" : pathway === "training" ? "Find my training pathway →" : "Submit officer application →"}</button>}</div>
         </form>
       </section>
       <footer className="join-footer">Qualification, registration, licensing and app approval are separate processes. LOKD verifies the requirements applicable to each work category.</footer>

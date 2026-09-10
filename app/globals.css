@@ -2594,3 +2594,22 @@ button { color: inherit; }
  .specialist-evidence-list fieldset {grid-template-columns:1fr;}
  .specialist-terms>div {grid-template-columns:1fr;gap:.3rem;}
 }
+
+/* Registration follow-up and readable readiness states. */
+.journey-next { text-align: left; padding: 18px; border: 1px solid #d4ddcc; border-radius: 14px; background: #fff; color: #303a30; overflow-wrap: anywhere; }
+.journey-next h2, .journey-next h3 { margin: 0 0 10px; font-size: 18px; }
+.journey-next p { font-size: 16px; line-height: 1.6; margin: 10px 0; }
+.agreement-readiness { grid-column: 1 / -1; }
+.portal-onboarding-progress-card ul { max-height: none; }
+.portal-onboarding-progress-card li { padding: 9px 0; font-size: 14px; align-items: start; }
+.portal-onboarding-progress-card li small { display: block; margin-top: 4px; font-size: 13px; font-weight: 400; }
+.portal-onboarding-copy > p:not(.eyebrow), .portal-onboarding-boundary { font-size: 14px; }
+.portal-onboarding-progress-card > span small { font-size: 13px; }
+.enquiry-form > header p, .enquiry-form label { font-size: 14px; }
+.enquiry-success dd, .join-success dd { overflow-wrap: anywhere; }
+.join-intro h1:focus, .join-success h1:focus, .enquiry-success h2:focus { outline: none; }
+@media (max-width: 480px) {
+  .join-form-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .join-form-actions button { flex: 1 1 auto; min-height: 48px; }
+  .portal-onboarding-card--error { flex-wrap: wrap; }
+}
