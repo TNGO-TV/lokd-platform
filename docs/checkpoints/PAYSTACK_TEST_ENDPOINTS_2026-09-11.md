@@ -28,3 +28,9 @@ Version 46, source `03f69e2f867ecf8574be2c7ca9575b30dbf208eb`. Version ID `appgp
 Paystack /balance authenticated the supplied test secret: HTTP 200, API status true. Balance data was not printed or stored. At 2026-09-11T07:16:03Z deployed callback returned 200; unsigned/invalid webhook returned 401; locally signed labelled `lokd.receiver_probe` test event and identical retry returned 200; signed live-domain event returned 422. The test-only delivery reference is `lokd-local-delivery-probe-20260911`, zero amount. This proves receiver wiring/storage and signature checks, NOT a Paystack-originated checkout or financial acceptance.
 
 Next owner action: save the callback/webhook URLs in Paystack's TEST dashboard. Then run a controlled Paystack test checkout and confirm actual provider delivery and server-side transaction verification. Public key stored for future checkout wiring; hosted checkout is not added by this endpoint milestone.
+
+## Dashboard configured and checkout prepared
+
+Owner confirmed test URLs saved on 11 September. Initialized one real Paystack TEST checkout at 2026-09-11T07:20:41Z: reference `lokd-test-5ff9b3949d8b4f04`, ZAR 100 minor units (R1.00), callback https://lokd.co.za/payments/paystack/test/callback. Hosted checkout: https://checkout.paystack.com/nk5anbpc1rlhrrr. Reserved example.com test address used; .invalid address was rejected before initialization. No live payment created.
+
+Automated browser reached Paystack's Cloudflare security verification (Ray a394e9e0bac1f9b1), so checkout completion requires owner's normal browser; no challenge bypass attempted. Resume by verifying this same transaction reference and reading paystack_test_deliveries for its provider webhook. Do not create another checkout unless this one has expired or a new test case is required. Callback, checkout success, API verification, received webhook and financial reconciliation remain distinct acceptance steps.
