@@ -29,3 +29,13 @@ That legacy dummy predates applicant/package binding and must never be imported 
 - Browser reproduction: back up the existing local D1 SQLite database with SQLite backup, prepare a disposable database from all committed drizzle SQL migrations, run `LOKD_ACCOUNT_TEST_STAGE=production npm run test:accounts -- --grep 'authenticated applicant and Operations retain'`, stop the runner and restore the original database. Never seed production. No private credentials belong in the receipt.
 
 Deployment receipt follows below after publication. Stop this bounded milestone after deployment/smoke; do not start a new implementation task or repeat the manual checkout request.
+
+## Publication and stop receipt — 14:28 UTC
+- Built/tested source: c64a40196dc4fe0f598a540231a0e670d5bfa854, pushed successfully.
+- Published v48: appgprj_6a88a08505548191b266e9b711562ae3~appgver_b4b5a6f5a98c8191a52f5e06c1e9e6dd.
+- Deployment appgdep_6aa40f82ef488191a10324c807b15bfe succeeded 2026-09-11T14:26:28.848355Z; existing environment revision 9 retained.
+- Canonical live site https://lokd.co.za; returned origin https://lokd-security.zenas-capetown.chatgpt.site.
+- At 14:28 UTC production homepage and updated callback returned 200; Officer and Operations enrolment APIs rejected anonymous requests with 401; webhook rejected GET with 405. An initial smoke assertion used an abbreviated callback label; inspecting the published text confirmed the correct Officer link, and the corrected assertion passed. No deployment repair was needed.
+- Local authenticated browser acceptance passed as described above. Production authenticated bound-checkout/provider acceptance remains pending; no claim of live financial acceptance.
+- Central resumed this as a background project task, so no extra user-facing Site tab was opened. Existing site hosting continues.
+- Milestone complete within the first checkpoint window. Resume only at the dependency above; no further provider polling or implementation started. This final documentation-only receipt does not change the deployed runtime source.
