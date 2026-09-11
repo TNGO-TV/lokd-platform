@@ -34,3 +34,15 @@ Next owner action: save the callback/webhook URLs in Paystack's TEST dashboard. 
 Owner confirmed test URLs saved on 11 September. Initialized one real Paystack TEST checkout at 2026-09-11T07:20:41Z: reference `lokd-test-5ff9b3949d8b4f04`, ZAR 100 minor units (R1.00), callback https://lokd.co.za/payments/paystack/test/callback. Hosted checkout: https://checkout.paystack.com/nk5anbpc1rlhrrr. Reserved example.com test address used; .invalid address was rejected before initialization. No live payment created.
 
 Automated browser reached Paystack's Cloudflare security verification (Ray a394e9e0bac1f9b1), so checkout completion requires owner's normal browser; no challenge bypass attempted. Resume by verifying this same transaction reference and reading paystack_test_deliveries for its provider webhook. Do not create another checkout unless this one has expired or a new test case is required. Callback, checkout success, API verification, received webhook and financial reconciliation remain distinct acceptance steps.
+
+## Actual Paystack checkout and webhook verified — 11 September 2026
+
+Owner requested result check after completing checkout. At 2026-09-11T08:23:02.740713Z Paystack's authenticated transaction verification API returned HTTP 200, API status true, domain test, transaction status success, provider ID 6546773902, reference lokd-test-5ff9b3949d8b4f04, amount 100 minor units, currency ZAR, paid_at 2026-09-11T08:21:52.000Z and gateway response Successful. All expected reference/amount/currency/domain values matched the controlled checkout.
+
+Read the deployed DB paystack_test_deliveries table: matching charge.success event stored at 2026-09-11T08:21:55.397Z (3.397 seconds after provider paid_at), same provider ID/reference/status/amount/currency. Payload digest d491ab054fb978a5b0c84ff07fc46ca15945587dca616fcedc7a67f8796b629d. The receiver required the configured test-key HMAC before writing. One matching event exists; the earlier local receiver probe remains distinct.
+
+Accepted: actual provider TEST checkout success, server API verification and signed durable webhook delivery. No live money, booking allocation, service activation, reconciliation or officer payout acceptance is implied. The owner's final browser redirect was not observed; callback page availability was previously checked, but do not claim the complete browser redirect was independently witnessed.
+
+Reusable method: retain initialized reference; verify via server API; compare exact reference/provider ID/amount/currency/domain with durable signed webhook record. Do not rely on callback query strings or checkout screenshots. Database overview returned only the first 50 alphabetic table names without a truncation indication; the migration-confirmed paystack_test_deliveries table was readable directly.
+
+Next acceptance: failed/abandoned checkout and recovery; then expected-payment binding, controlled reconciliation and supported officer-payment tests before any live financial acceptance.
