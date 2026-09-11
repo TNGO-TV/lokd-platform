@@ -1,0 +1,111 @@
+{
+  "id-found": {
+    "path": "/verify",
+    "payload": {
+      "reportType": "said_verification",
+      "idNumber": "8001015009087",
+      "mode": "sandbox"
+    }
+  },
+  "id-no-record": {
+    "path": "/verify",
+    "payload": {
+      "reportType": "said_verification",
+      "idNumber": "8001010000990",
+      "mode": "sandbox"
+    }
+  },
+  "id-unavailable": {
+    "path": "/verify",
+    "payload": {
+      "reportType": "said_verification",
+      "idNumber": "8001010000891",
+      "mode": "sandbox"
+    }
+  },
+  "bank-found": {
+    "path": "/bank-account-verification",
+    "payload": {
+      "type": "Individual",
+      "firstName": "Sandbox",
+      "surname": "Example",
+      "identityNumber": "8001015009087",
+      "identityType": "IDNumber",
+      "bankAccountNumber": "123456789",
+      "bankBranchCode": "250655",
+      "bankAccountType": "Savings",
+      "mode": "sandbox"
+    }
+  },
+  "bank-no-record": {
+    "path": "/bank-account-verification",
+    "payload": {
+      "type": "Individual",
+      "firstName": "Sandbox",
+      "surname": "Example",
+      "identityNumber": "8001015009087",
+      "identityType": "IDNumber",
+      "bankAccountNumber": "123456790",
+      "bankBranchCode": "250655",
+      "bankAccountType": "Savings",
+      "mode": "sandbox"
+    }
+  },
+  "bank-unavailable": {
+    "path": "/bank-account-verification",
+    "payload": {
+      "type": "Individual",
+      "firstName": "Sandbox",
+      "surname": "Example",
+      "identityNumber": "8001015009087",
+      "identityType": "IDNumber",
+      "bankAccountNumber": "123456791",
+      "bankBranchCode": "250655",
+      "bankAccountType": "Savings",
+      "mode": "sandbox"
+    }
+  },
+  "face-reference": {
+    "path": "/facematch",
+    "payload": {
+      "bundle": "facematch",
+      "id_number": "8001015009087",
+      "selfie_image_base64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAARHRFWHRDb21tZW50AFNZTlRIRVRJQyBTQU5EQk9YIEZJWFRVUkUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIMIaMEAAAAB6SURBVHic7c9RCQAgFMDAF82IRjKaIfw4hMEC3Gbt83XDBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY8dgGItQF4VNkZFwAAAABJRU5ErkJggg==",
+      "mode": "sandbox"
+    }
+  },
+  "face-upload": {
+    "path": "/facematch",
+    "payload": {
+      "bundle": "facematch_standard",
+      "selfie_image_base64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAARHRFWHRDb21tZW50AFNZTlRIRVRJQyBTQU5EQk9YIEZJWFRVUkUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIMIaMEAAAAB6SURBVHic7c9RCQAgFMDAF82IRjKaIfw4hMEC3Gbt83XDBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY8dgGItQF4VNkZFwAAAABJRU5ErkJggg==",
+      "reference_image_base64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAARHRFWHRDb21tZW50AFNZTlRIRVRJQyBTQU5EQk9YIEZJWFRVUkUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIMIaMEAAAAB6SURBVHic7c9RCQAgFMDAF82IRjKaIfw4hMEC3Gbt83XDBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY8dgGItQF4VNkZFwAAAABJRU5ErkJggg==",
+      "mode": "sandbox"
+    }
+  },
+  "liveness": {
+    "path": "/passive-liveness",
+    "payload": {
+      "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAARHRFWHRDb21tZW50AFNZTlRIRVRJQyBTQU5EQk9YIEZJWFRVUkUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIMIaMEAAAAB6SURBVHic7c9RCQAgFMDAF82IRjKaIfw4hMEC3Gbt83XDBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY8dgGItQF4VNkZFwAAAABJRU5ErkJggg==",
+      "mode": "sandbox"
+    }
+  },
+  "document-ocr": {
+    "path": "/id-document-verify",
+    "payload": {
+      "bundle": "id_document_verification",
+      "front_image_base64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAARHRFWHRDb21tZW50AFNZTlRIRVRJQyBTQU5EQk9YIEZJWFRVUkUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIMIaMEAAAAB6SURBVHic7c9RCQAgFMDAF82IRjKaIfw4hMEC3Gbt83XDBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY8dgGItQF4VNkZFwAAAABJRU5ErkJggg==",
+      "issuing_country": "ZAF",
+      "mode": "sandbox"
+    }
+  },
+  "drivers-licence": {
+    "path": "/drivers-licence",
+    "payload": {
+      "bundle": "drivers_licence_barcode",
+      "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAARHRFWHRDb21tZW50AFNZTlRIRVRJQyBTQU5EQk9YIEZJWFRVUkUgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIMIaMEAAAAB6SURBVHic7c9RCQAgFMDAF82IRjKaIfw4hMEC3Gbt83XDBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY8dgGItQF4VNkZFwAAAABJRU5ErkJggg==",
+      "authority_confirmed": true,
+      "mode": "sandbox"
+    }
+  }
+}

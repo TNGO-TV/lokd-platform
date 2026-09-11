@@ -1,0 +1,130 @@
+[
+  {
+    "case": "id-found",
+    "http": 200,
+    "fields": {
+      "success": true,
+      "remainingCredits": 0,
+      "mode": "sandbox",
+      "results.said_verification.Status": "Success",
+      "results.said_verification.realTimeResults.Status": "ID Number Valid",
+      "results.said_verification.meta.environment": "sandbox"
+    },
+    "expected": "mock_id_valid"
+  },
+  {
+    "case": "id-no-record",
+    "http": 502,
+    "fields": {
+      "error": "No record found",
+      "code": "NO_RECORD_FOUND",
+      "charged": true,
+      "credits_used": 0
+    },
+    "expected": "no_record"
+  },
+  {
+    "case": "id-unavailable",
+    "http": 502,
+    "fields": {
+      "error": "Processing failed",
+      "code": "VERIFICATION_TEMPORARILY_UNAVAILABLE"
+    },
+    "expected": "provider_unavailable"
+  },
+  {
+    "case": "bank-found",
+    "http": 200,
+    "fields": {
+      "success": true,
+      "mode": "sandbox",
+      "results.verification_results.Status": "VerifiedNoErrors",
+      "response_code": 0,
+      "credits_used": 0
+    },
+    "expected": "mock_bank_verified"
+  },
+  {
+    "case": "bank-no-record",
+    "http": 200,
+    "fields": {
+      "success": false,
+      "mode": "sandbox",
+      "response_code": 4,
+      "credits_used": 0
+    },
+    "expected": "no_record"
+  },
+  {
+    "case": "bank-unavailable",
+    "http": 502,
+    "fields": {
+      "error": "Processing failed"
+    },
+    "expected": "provider_unavailable"
+  },
+  {
+    "case": "face-reference",
+    "http": 200,
+    "fields": {
+      "success": true,
+      "results.face_match.status": "Approved",
+      "results.face_match.score": 75,
+      "results.meta.environment": "sandbox",
+      "remainingCredits": 0
+    },
+    "expected": "mock_approved"
+  },
+  {
+    "case": "face-upload",
+    "http": 429,
+    "fields": {
+      "error": "Too Many Requests"
+    },
+    "expected": "unexpected_response"
+  },
+  {
+    "case": "document-ocr",
+    "http": 200,
+    "fields": {
+      "success": true,
+      "results.id_verification.status": "Approved"
+    },
+    "expected": "mock_approved"
+  },
+  {
+    "case": "drivers-licence",
+    "http": 200,
+    "fields": {
+      "success": true,
+      "mode": "sandbox",
+      "creditsUsed": 0,
+      "data.vehicleCategories[0].code": "EB",
+      "data.vehicleCategories[0].restriction.code": "0"
+    },
+    "expected": "mock_card_decoded"
+  },
+  {
+    "case": "face-upload",
+    "http": 200,
+    "fields": {
+      "success": true,
+      "results.face_match.status": "In Review",
+      "results.face_match.score": 66,
+      "results.meta.environment": "sandbox",
+      "remainingCredits": 0
+    },
+    "expected": "manual_review"
+  },
+  {
+    "case": "liveness",
+    "http": 200,
+    "fields": {
+      "success": true,
+      "results.liveness.status": "Approved",
+      "results.liveness.score": 88,
+      "remainingCredits": 0
+    },
+    "expected": "mock_approved"
+  }
+]

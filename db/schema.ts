@@ -2438,3 +2438,11 @@ export const paystackTestDeliveries = sqliteTable('paystack_test_deliveries', {
  providerId:text('provider_id'), reference:text('reference'), providerStatus:text('provider_status'),
  amountMinor:integer('amount_minor'), currency:text('currency'), receivedAt:text('received_at').notNull(),
 });
+
+export const applicantVerificationChecks=sqliteTable('applicant_verification_checks',{
+ id:text('id').primaryKey(),caseId:text('case_id').notNull(),ownerUserId:text('owner_user_id').notNull(),
+ caseVersion:integer('case_version').notNull(),scenario:text('scenario').notNull(),signal:text('signal').notNull(),
+ mode:text('mode').notNull().default('sandbox'),state:text('state').notNull(),attempts:integer('attempts').notNull().default(1),
+ responseHash:text('response_hash'),httpStatus:integer('http_status'),retryAt:text('retry_at'),
+ createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('applicant_verification_request_idx').on(t.caseId,t.ownerUserId,t.caseVersion,t.scenario)]);
