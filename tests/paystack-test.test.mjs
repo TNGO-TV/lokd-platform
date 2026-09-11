@@ -2,10 +2,10 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import {receivePaystackTest} from '../app/lib/paystack-test.ts';
 const secret='sk_test_local_signature_fixture';
-function fixture(){const sql=new DatabaseSync(':memory:');sql.exec(readFileSync('drizzle/0036_useful_next_avengers.sql','utf8'));return {sql,DB:{prepare(query){return {bind(...values){return {async run(){return sql.prepare(query).run(...values);}};}}}}};}
+function fixture(){const sql=new DatabaseSync(':memory:');for(const f of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())sql.exec(readFileSync('drizzle/'+f,'utf8').replaceAll('--> statement-breakpoint',''));return {sql,DB:{prepare(query){return {bind(...values){return {async run(){return sql.prepare(query).run(...values);}};}}}}};}
 function request(data={domain:'test',id:77,reference:'test-77',status:'success',amount:100,currency:'ZAR'},signatureKey=secret){const body=JSON.stringify({event:'charge.success',data});return new Request('https://lokd.co.za/api/paystack/test/webhook',{method:'POST',body,headers:{'x-paystack-signature':createHmac('sha512',signatureKey).update(body).digest('hex')}});}
 test('Paystack test signatures, live-domain rejection and configuration fail closed',async()=>{
  const f=fixture();const env={DB:f.DB,PAYSTACK_TEST_SECRET_KEY:secret};

@@ -267,6 +267,13 @@
       "when": 1789123065779,
       "tag": "0037_strong_silver_sable",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1789135832882,
+      "tag": "0038_futuristic_justice",
+      "breakpoints": true
     }
   ]
 }

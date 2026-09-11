@@ -2436,13 +2436,26 @@ export const signupEvents = sqliteTable('signup_events', {
 export const paystackTestDeliveries = sqliteTable('paystack_test_deliveries', {
  payloadHash:text('payload_hash').primaryKey(), eventType:text('event_type').notNull(),
  providerId:text('provider_id'), reference:text('reference'), providerStatus:text('provider_status'),
- amountMinor:integer('amount_minor'), currency:text('currency'), receivedAt:text('received_at').notNull(),
+ metadataJson:text('metadata_json').notNull().default('{}'), amountMinor:integer('amount_minor'), currency:text('currency'), receivedAt:text('received_at').notNull(),
 });
 
 export const applicantVerificationChecks=sqliteTable('applicant_verification_checks',{
  id:text('id').primaryKey(),caseId:text('case_id').notNull(),ownerUserId:text('owner_user_id').notNull(),
  caseVersion:integer('case_version').notNull(),scenario:text('scenario').notNull(),signal:text('signal').notNull(),
  mode:text('mode').notNull().default('sandbox'),state:text('state').notNull(),attempts:integer('attempts').notNull().default(1),
- responseHash:text('response_hash'),httpStatus:integer('http_status'),retryAt:text('retry_at'),
+ recoveryNote:text('recovery_note').notNull().default(''),recoveryActor:text('recovery_actor'),responseHash:text('response_hash'),httpStatus:integer('http_status'),retryAt:text('retry_at'),
  createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
 },t=>[uniqueIndex('applicant_verification_request_idx').on(t.caseId,t.ownerUserId,t.caseVersion,t.scenario)]);
+
+export const verificationRecoveryEvents=sqliteTable('verification_recovery_events',{
+ id:text('id').primaryKey(),checkId:text('check_id').notNull(),snapshot:text('snapshot').notNull(),recordedAt:text('recorded_at').notNull(),
+});
+export const testEnrolmentOrders=sqliteTable('test_enrolment_orders',{
+ reference:text('reference').primaryKey(),caseId:text('case_id').notNull(),ownerUserId:text('owner_user_id').notNull(),caseVersion:integer('case_version').notNull(),
+ packageId:text('package_id').notNull(),packageVersion:text('package_version').notNull(),amountMinor:integer('amount_minor').notNull(),currency:text('currency').notNull(),
+ state:text('state').notNull(),checkoutUrl:text('checkout_url'),providerId:text('provider_id'),revision:integer('revision').notNull().default(1),
+ note:text('note').notNull().default(''),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('test_enrolment_case_package_idx').on(t.caseId,t.ownerUserId,t.caseVersion,t.packageId,t.packageVersion)]);
+export const testEnrolmentEvents=sqliteTable('test_enrolment_events',{
+ id:text('id').primaryKey(),reference:text('reference').notNull(),snapshot:text('snapshot').notNull(),recordedAt:text('recorded_at').notNull(),
+});

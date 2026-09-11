@@ -56,3 +56,63 @@ test('unknown dispatch stays unverified and does not retry; anonymous and wrong-
  assert.equal((await GET(new Request('https://portal.lokd.co.za/api/identity?caseId='+caseId,{headers:{'x-lokd-verified-user-id':'user_identity','x-lokd-verified-email':'identity@example.test'}}))).status,403);
  assert.equal((await POST(new Request('https://officers.lokd.co.za/api/identity',{method:'POST',headers:{origin:'https://attacker.test','content-type':'application/json'},body:'{}'}))).status,403);db.sql.close();
 });
+
+test('Operations recovery enforces cooldown, exclusive dispatch, evidence history and review of unknown delivery',async()=>{
+ const {recoverApplicantIdentity}=await import('../app/lib/applicant-identity.ts');
+ const {db,caseId,runtime}=await setup();let calls=0;
+ const rate=async()=>{calls++;return Response.json({},{status:429,headers:{'retry-after':'90'}});};
+ let state=await runApplicantIdentity(runtime,'user_identity',{caseId,caseVersion:1,scenario:'id-found'},rate);
+ const id=state.checks[0].id;const input={caseId,caseVersion:1,checkId:id,expectedAttempts:1,action:'retry',note:'Provider reviewed; retry window confirmed.'};
+ await assert.rejects(()=>recoverApplicantIdentity(runtime,'reviewer',input,rate),/time/);
+ await assert.rejects(()=>recoverApplicantIdentity(runtime,'user_identity',input,rate),/Another Operations/);
+ assert.equal(calls,1);
+ db.sql.prepare('UPDATE applicant_verification_checks SET retry_at=? WHERE id=?').run('2000-01-01T00:00:00.000Z',id);
+ const outcomes=await Promise.allSettled([recoverApplicantIdentity(runtime,'reviewer',input,rate),recoverApplicantIdentity(runtime,'reviewer',input,rate)]);
+ assert.equal(outcomes.filter(r=>r.status==='fulfilled').length,1);assert.equal(calls,2);
+ assert.ok((await readApplicantIdentity(db,'user_identity',caseId)).history.some(h=>JSON.parse(h.snapshot).state==='rate_limited'));
+ assert.throws(()=>db.sql.exec('DELETE FROM verification_recovery_events'),/immutable/i);
+ db.sql.prepare("UPDATE applicant_verification_checks SET state='delivery_unknown' WHERE id=?").run(id);
+ await assert.rejects(()=>recoverApplicantIdentity(runtime,'reviewer',{...input,expectedAttempts:2},rate),/not retryable/);
+ state=await recoverApplicantIdentity(runtime,'reviewer',{...input,expectedAttempts:2,action:'resolve_unknown',noResultConfirmed:true},rate);
+ assert.equal(state.checks[0].state,'retry_authorized');assert.equal(calls,2);
+ await assert.rejects(()=>recoverApplicantIdentity(runtime,'reviewer',{...input,expectedAttempts:2},rate),/time/);db.sql.close();
+});
+
+test('applicant-bound R350 test checkout reuses dispatch and requires exact verified transaction plus signed webhook',async()=>{
+ const {initializeTestEnrolment,reconcileTestEnrolment,expectedMetadata,ENROLMENT_PACKAGE}=await import('../app/lib/test-enrolment.ts');
+ const {receivePaystackTest}=await import('../app/lib/paystack-test.ts');const {createHmac}=await import('node:crypto');
+ const {db,caseId,runtime}=await setup();runtime.PAYSTACK_TEST_SECRET_KEY='sk_test_fixture';
+ await runApplicantIdentity(runtime,'user_identity',{caseId,caseVersion:1,scenario:'id-found'},async()=>Response.json(approved));
+ const input={caseId,caseVersion:1,packageVersion:ENROLMENT_PACKAGE.version};let calls=0;
+ const initialize=async(url,opts)=>{calls++;const body=JSON.parse(opts.body);assert.equal(body.amount,'35000');assert.equal(body.currency,'ZAR');assert.equal(JSON.parse(body.metadata).applicant_id,'user_identity');return Response.json({status:true,data:{reference:body.reference,authorization_url:'https://checkout.paystack.com/test-fixture'}});};
+ await assert.rejects(()=>initializeTestEnrolment(runtime,'intruder','x@example.test',input,initialize));
+ await assert.rejects(()=>initializeTestEnrolment(runtime,'user_identity','x@example.test',{...input,packageVersion:'wrong'},initialize));
+ await Promise.all([initializeTestEnrolment(runtime,'user_identity','identity@example.test',input,initialize),initializeTestEnrolment(runtime,'user_identity','identity@example.test',input,initialize)]);assert.equal(calls,1);
+ let result=await initializeTestEnrolment(runtime,'user_identity','identity@example.test',input,initialize);let order=result.order;
+ const data={domain:'test',id:77,reference:order.reference,status:'success',amount:35000,currency:'ZAR',metadata:expectedMetadata(order)};
+ const verify=async()=>Response.json({status:true,data});
+ const reconcile=()=>reconcileTestEnrolment(runtime,'user_identity',{caseId,reference:order.reference,expectedRevision:order.revision},verify);
+ result=await reconcile();order=result.order;assert.equal(order.state,'awaiting_webhook');
+ const webhook=async event=>{const body=JSON.stringify({event:'charge.success',data:event});return receivePaystackTest(new Request('https://lokd.co.za/api/paystack/test/webhook',{method:'POST',body,headers:{'x-paystack-signature':createHmac('sha512',runtime.PAYSTACK_TEST_SECRET_KEY).update(body).digest('hex')}}),runtime);};
+ assert.equal((await webhook(data)).status,200);assert.equal((await webhook(data)).status,200);
+ result=await reconcile();order=result.order;assert.equal(order.state,'paid_test');assert.equal(result.workEligible,false);
+ const revision=order.revision;result=await reconcile();assert.equal(result.order.revision,revision);
+ for(const [field,value] of [['amount',35001],['currency','USD'],['id',78],['metadata',{...data.metadata,applicant_id:'other'}]]){const original=data[field];data[field]=value;result=await reconcile();order=result.order;assert.equal(order.state,'review_required',field);data[field]=original;}
+ // A conflicting signed event must never grant acceptance, even with a valid signature.
+ await webhook({...data,amount:1});result=await reconcile();order=result.order;assert.equal(order.state,'review_required');
+ assert.throws(()=>db.sql.prepare('UPDATE test_enrolment_orders SET amount_minor=1 WHERE reference=?').run(order.reference),/immutable/i);
+ assert.throws(()=>db.sql.exec('DELETE FROM test_enrolment_events'),/immutable/i);
+ data.status='abandoned';result=await reconcile();order=result.order;assert.equal(order.state,'abandoned');
+ await writeSignup(db,{userId:'user_identity',email:'identity@example.test',operations:false},{action:'correct',kind:'officer',id:caseId,expectedVersion:1,changes:{city:'Sandton'}});
+ db.sql.prepare('UPDATE applicant_verification_checks SET retry_at=?').run('2000-01-01T00:00:00.000Z');
+ await runApplicantIdentity(runtime,'user_identity',{caseId,caseVersion:2,scenario:'id-found'},async()=>Response.json(approved));
+ await assert.rejects(()=>initializeTestEnrolment(runtime,'user_identity','identity@example.test',{...input,caseVersion:2},initialize),/previous application/);assert.equal(calls,1);db.sql.close();
+});
+
+test('training cannot initialize registered enrolment and uncertain initialization never dispatches twice',async()=>{
+ const {initializeTestEnrolment,ENROLMENT_PACKAGE}=await import('../app/lib/test-enrolment.ts');
+ for(const training of [true,false]){const {db,caseId,runtime}=await setup(training?'training':'qualified',training?'not_registered':'active');runtime.PAYSTACK_TEST_SECRET_KEY='sk_test_fixture';
+ await runApplicantIdentity(runtime,'user_identity',{caseId,caseVersion:1,scenario:'id-found'},async()=>Response.json(approved));
+ let calls=0;const transport=async()=>{calls++;throw Error('timeout');};const run=()=>initializeTestEnrolment(runtime,'user_identity','identity@example.test',{caseId,caseVersion:1,packageVersion:ENROLMENT_PACKAGE.version},transport);
+ if(training){await assert.rejects(run,/entry checks/);assert.equal(calls,0);}else{assert.equal((await run()).order.state,'initialization_unknown');await run();assert.equal(calls,1);}db.sql.close();}
+});

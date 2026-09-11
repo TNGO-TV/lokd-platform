@@ -21,11 +21,12 @@ export async function receivePaystackTest(request:Request,runtime:Runtime):Promi
  // Only test-domain events are accepted. Missing/ambiguous domains stay rejected.
  if(payload.data.domain!=='test')return reply('Only explicit test-domain events are accepted here.',422);
  const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw)),b=>b.toString(16).padStart(2,'0')).join('');
+ const metadata:Record<string,unknown>={};let rawMeta=payload.data.metadata;if(typeof rawMeta==='string'){try{rawMeta=JSON.parse(rawMeta);}catch{rawMeta={};}}for(const field of ['application_id','applicant_id','application_version','package_id','package_version','mode']){const value=rawMeta?.[field];if(typeof value==='string'&&value.length<=200||typeof value==='number'&&Number.isSafeInteger(value))metadata[field]=value;}
  const scalar=(value:unknown)=>typeof value==='string'?value.slice(0,200):typeof value==='number'&&Number.isSafeInteger(value)?String(value):null;
  try{
   await runtime.DB.prepare(`INSERT OR IGNORE INTO paystack_test_deliveries
-   (payload_hash,event_type,provider_id,reference,provider_status,amount_minor,currency,received_at)
-   VALUES (?,?,?,?,?,?,?,?)`).bind(hash,payload.event,scalar(payload.data.id),scalar(payload.data.reference),scalar(payload.data.status),Number.isSafeInteger(payload.data.amount)&&payload.data.amount>=0?payload.data.amount:null,scalar(payload.data.currency),new Date().toISOString()).run();
+   (payload_hash,event_type,provider_id,reference,provider_status,amount_minor,currency,received_at,metadata_json)
+   VALUES (?,?,?,?,?,?,?,?,?)`).bind(hash,payload.event,scalar(payload.data.id),scalar(payload.data.reference),scalar(payload.data.status),Number.isSafeInteger(payload.data.amount)&&payload.data.amount>=0?payload.data.amount:null,scalar(payload.data.currency),new Date().toISOString(),JSON.stringify(metadata)).run();
  }catch{return reply('Event storage unavailable. Retry delivery.',503);}
  return Response.json({received:true,mode:'test',financialEffect:false},{headers:{'cache-control':'no-store'}});
 }
