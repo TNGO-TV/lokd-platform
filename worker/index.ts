@@ -1,3 +1,4 @@
+import { receivePaystackTest } from '../app/lib/paystack-test';
 import { liveSurfaceResponse } from "../app/lib/live-surface";
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
@@ -7,6 +8,7 @@ import { runPlatformMaintenance } from "../app/lib/platform-jobs";
 import { authenticateClerkRequest, type ClerkEnv } from "./clerk-auth";
 
 interface Env extends ClerkEnv {
+  PAYSTACK_TEST_SECRET_KEY?: string;
   ASSETS: Fetcher;
   DB: D1Database;
   BUCKET: R2Bucket;
@@ -53,6 +55,8 @@ const worker = {
     }
 
     try {
+      // Provider authentication is HMAC, independent of browser sessions.
+      if (url.pathname === '/api/paystack/test/webhook') return await receivePaystackTest(request, env);
       const auth = await authenticateClerkRequest(request, env);
       if (auth.response) return auth.response;
       const response = liveSurfaceResponse(url.pathname, env.LOKD_APP_STAGE, auth.request.headers.has("x-lokd-verified-user-id"), request.method) ?? await handler.fetch(auth.request, env, ctx);

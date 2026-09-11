@@ -2431,3 +2431,10 @@ export const signupEvents = sqliteTable('signup_events', {
   action:text('action').notNull(),actorUserId:text('actor_user_id').notNull(),publicNote:text('public_note').notNull(),
   detailsJson:text('details_json').notNull(),recordedAt:text('recorded_at').notNull(),
 },table=>[uniqueIndex('signup_event_version_idx').on(table.kind,table.sourceId,table.version)]);
+
+// Signed Paystack test delivery evidence; deliberately separate from live ledgers.
+export const paystackTestDeliveries = sqliteTable('paystack_test_deliveries', {
+ payloadHash:text('payload_hash').primaryKey(), eventType:text('event_type').notNull(),
+ providerId:text('provider_id'), reference:text('reference'), providerStatus:text('provider_status'),
+ amountMinor:integer('amount_minor'), currency:text('currency'), receivedAt:text('received_at').notNull(),
+});
