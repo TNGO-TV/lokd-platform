@@ -24,3 +24,13 @@ Still pending: real browser capture and provider production acceptance; real-ID 
 Resume from this code and saved fixtures. Do not rerun the full provider probe or ask for price approval again. Next implement controlled retry/reconciliation and applicant-bound Paystack test enrolment after package terms are defined, then real verification capture/acceptance. Keep Clerk and PSiRA unchanged.
 
 Predeployment acceptance: all 248 regression tests passed, including four new VerifyNow tests. TypeScript passed. Provider configuration staged in Sites environment revision 9 with the private key protected and sandbox enabled. No provider requests were made during these fixture-based tests.
+
+## Release receipt
+
+Sites version 47, source `6831deaf77bcd7397e329ee4a3ce016c3d5bc37b`.
+Version ID `appgprj_6a88a08505548191b266e9b711562ae3~appgver_670487c8049481918038157c4055b404`.
+Deployment `appgdep_6aa3dc05a5308191939331b4d6dc29a5` succeeded 2026-09-11T10:47:11.440942Z with environment revision 9. VERIFYNOW_API_KEY stored as secret; VERIFYNOW_SANDBOX_ENABLED=true. Previous Clerk, Paystack test and MFA-off configuration retained.
+
+Live smoke checks: LOKD homepage 200; Officer identity and Operations identity pages redirect anonymous visitors to their appropriate sign-in; identity API returns 401 anonymously. Deployed applicant_verification_checks table exists with expected columns and zero rows. No production applicant provider dispatch was attempted. Actual authenticated browser/provider traversal of this new integration remains to be accepted; fixture-based applicant flows and provider transport contracts passed locally.
+
+All 248 regression tests and TypeScript passed. Archive validated to exclude secret keys, environment files and original private provider receipts. Current Sites 0.1.58 skill's referenced package-site.sh was absent; reused the previously validated bundled 0.1.66 packaging helper with the current successful build output. No schema or project recreation.
