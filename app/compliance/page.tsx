@@ -8,7 +8,7 @@ const gates = [
   ["Provider readiness", "Required company, management, insurance and control-room evidence must be current before a production service can activate."],
   ["Officer readiness", "Identity, PSiRA status and grade, applicable training, purpose fit, site induction, schedule, rest and Passport evidence are checked independently."],
   ["Client funding", "Credit terms are fixed at zero. The approved service amount must clear and reconcile before matching, an offer or deployment."],
-  ["Payroll controls", "Approved work is calculated under a versioned policy. Distinct maker, reviewer and finance approval apply; Version 29 settlement is database-locked."],
+  ["Payroll controls", "Approved work is calculated under a versioned policy. Distinct maker, reviewer and finance approval apply; live settlement remains unavailable until the required checks are complete."],
   ["Operational evidence", "Arrival, check-in, incidents, relief, timesheets, disputes and service review remain bound to the authorised site and shift."],
   ["Privacy boundary", "Client verification exposes only the minimum approved readiness result, not private identity, banking or credential documents."],
 ];

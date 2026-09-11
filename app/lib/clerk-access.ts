@@ -11,7 +11,7 @@ export const WORKSPACE_PATHS: Record<WorkspaceRole, string> = {
 export function signInDestination(hostname: string, requested?: string): string {
   const role = workspaceRoleForHost(hostname);
   if (role) return WORKSPACE_PATHS[role];
-  return Object.values(WORKSPACE_PATHS).includes(requested ?? "") ? requested! : "/";
+  return (requested === "/signup" || Object.values(WORKSPACE_PATHS).includes(requested ?? "")) ? requested! : "/";
 }
 
 export function cleanIdentityHeaders(request: Request): Headers {

@@ -2419,3 +2419,15 @@ export const agreementDocumentVersions = sqliteTable('agreement_document_version
   environment: text('environment').notNull(),
   integrityState: text('integrity_state').notNull(),
 }, table => [uniqueIndex('agreement_document_version_idx').on(table.documentCode,table.documentVersion,table.entityId,table.locale)]);
+
+// Signup-only review and account linking; never grants operational roles/eligibility.
+export const signupCases = sqliteTable('signup_cases', {
+  kind:text('kind').notNull(), sourceId:text('source_id').notNull(), ownerUserId:text('owner_user_id'),
+  status:text('status').notNull(), publicNote:text('public_note').notNull(), correctionsJson:text('corrections_json').notNull(),
+  version:integer('version').notNull(), latestEventId:text('latest_event_id').notNull(), updatedAt:text('updated_at').notNull(),
+},table=>[primaryKey({columns:[table.kind,table.sourceId]}),index('signup_owner_idx').on(table.ownerUserId,table.kind)]);
+export const signupEvents = sqliteTable('signup_events', {
+  id:text('id').primaryKey(), kind:text('kind').notNull(), sourceId:text('source_id').notNull(),version:integer('version').notNull(),
+  action:text('action').notNull(),actorUserId:text('actor_user_id').notNull(),publicNote:text('public_note').notNull(),
+  detailsJson:text('details_json').notNull(),recordedAt:text('recorded_at').notNull(),
+},table=>[uniqueIndex('signup_event_version_idx').on(table.kind,table.sourceId,table.version)]);

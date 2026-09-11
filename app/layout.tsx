@@ -1,3 +1,4 @@
+import { pilotStage } from './lib/pilot-runtime';
 import type { Metadata } from "next";
 import { env } from "cloudflare:workers";
 import { LokdClerkProvider } from "./components/clerk-login";
@@ -43,7 +44,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const publishableKey = runtime.CLERK_PUBLISHABLE_KEY || runtime.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   return (
     <html lang="en">
-      <body><LokdClerkProvider publishableKey={publishableKey}>{children}<OrganisationJsonLd />{user && <PilotFeedback />}</LokdClerkProvider></body>
+      <body><LokdClerkProvider publishableKey={publishableKey}>{children}<OrganisationJsonLd />{user && pilotStage() === "demo" && <PilotFeedback />}</LokdClerkProvider></body>
     </html>
   );
 }

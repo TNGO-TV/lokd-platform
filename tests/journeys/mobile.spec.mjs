@@ -47,7 +47,7 @@ test('registered officer: early validation, Enter advances, pending evidence and
   await expect(page.getByRole('heading', {name:'Your LOKD journey has started.'})).toBeFocused();
   await expect(page.getByText('Verification pending', {exact:true})).toBeVisible();
   await expect(page.getByText(/separately confirm it belongs to you/)).toBeVisible();
-  await expect(page.getByText(/does not create a portal account/)).toBeVisible(); await fits(page);
+  await expect(page.getByText(/link this application/)).toBeVisible(); await fits(page);
 });
 for (const path of ['training','not_registered']) test(`${path}: no registration lookup requirement or rejection`, async ({page}) => {
   await page.route('**/api/applications', route => route.fulfill({json:{reference:'APP-TEST-EXEMPT'}}));
@@ -73,7 +73,7 @@ test('client: failed submission preserves details; receipt explains account, agr
   await expect(page.locator('[name=organisationName]')).toHaveValue('Synthetic Test Client');
   await page.getByRole('button',{name:'Submit site enquiry'}).click();
   await expect(page.getByRole('heading',{name:'We have your operating brief.'})).toBeFocused();
-  await expect(page.getByText(/does not create a Client account/)).toBeVisible();
+  await expect(page.getByText(/link this enquiry/)).toBeVisible();
   await expect(page.getByText(/Submitting this form signs no service agreement/)).toBeVisible();
   await expect(page.getByText(/Do not pay against this enquiry reference/)).toBeVisible(); await fits(page);
   await page.getByRole('link',{name:'Read the client guide'}).click();

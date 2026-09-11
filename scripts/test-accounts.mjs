@@ -26,7 +26,8 @@ try {
     `CLERK_PUBLISHABLE_KEY=${JSON.stringify(keys.CLERK_PUBLISHABLE_KEY)}`,
     `CLERK_SECRET_KEY=${JSON.stringify(keys.CLERK_SECRET_KEY)}`,
     'CLERK_AUTHORIZED_PARTIES="http://localhost:4177"',
-    'LOKD_APP_STAGE="demo"',
+    `LOKD_APP_STAGE=${JSON.stringify(process.env.LOKD_ACCOUNT_TEST_STAGE === 'production' ? 'production' : 'demo')}`,
+    ...(process.env.LOKD_ACCOUNT_TEST_STAGE === 'production' ? ['LOKD_OPERATIONS_MFA_REQUIRED="false"'] : []),
     `LOKD_PILOT_ACCESS_JSON='${JSON.stringify(access)}'`,
     'LOKD_LIVE_SHIFT_SCAN="false"',
   ].join('\n'), { flag: 'wx', mode: 0o600 });
@@ -36,7 +37,7 @@ try {
     users.push(user.id);
   }
   console.log('Created isolated Clerk development identities. No inboxes or invitations required.');
-  const child = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', '--config=tests/accounts/playwright.config.mjs'], {
+  const child = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', '--config=tests/accounts/playwright.config.mjs', ...process.argv.slice(2)], {
     stdio: 'inherit', env: { ...process.env, ...keys, ...(localBrowserLibraries ? { LD_LIBRARY_PATH: [browserLibraries, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':') } : {}), LOKD_TEST_EMAILS: JSON.stringify(emails) },
   });
   const code = await new Promise((resolve, reject) => { child.on('error', reject); child.on('exit', resolve); });

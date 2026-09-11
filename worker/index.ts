@@ -1,3 +1,4 @@
+import { liveSurfaceResponse } from "../app/lib/live-surface";
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
@@ -54,7 +55,7 @@ const worker = {
     try {
       const auth = await authenticateClerkRequest(request, env);
       if (auth.response) return auth.response;
-      const response = await handler.fetch(auth.request, env, ctx);
+      const response = liveSurfaceResponse(url.pathname, env.LOKD_APP_STAGE, auth.request.headers.has("x-lokd-verified-user-id"), request.method) ?? await handler.fetch(auth.request, env, ctx);
       const forwarded = new Response(response.body, response);
       auth.headers.forEach((value, key) => forwarded.headers.append(key, value));
       if (auth.request.headers.has("x-lokd-verified-email") || url.pathname.startsWith("/sign-")) {
