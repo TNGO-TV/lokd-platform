@@ -13,7 +13,7 @@ Owner instruction: proceed with working signup/account linking; remove public de
 
 ## Acceptance and recovery
 
-- Full build/regression run: 241 tests passed before the final pilot-feedback visibility adjustment; final verification recorded in release receipt.
+- Final build/regression run: 241 tests passed after the pilot-feedback and intake-tab loading changes.
 - TypeScript passed; changed-file lint passed with image optimisation warnings only.
 - Eight mobile/desktop form journeys passed, including failure/retry preservation, validation and training/unregistered exemptions. These use intercepted form responses; they do not prove provider acceptance.
 - Nine existing Clerk development account/PSiRA/MFA journeys passed. New live-routing browser coverage exercises persisted submissions, account linking, Operations correction requests, applicant resubmission and review. Final outcome recorded below after completion.
@@ -36,3 +36,21 @@ This milestone opens real intake and review. It does not certify readiness to ta
 ## Predeployment acceptance completed
 
 Both live-routing signed-in browser journeys passed with Clerk development identities and persistent local D1: Officer including PSiRA submission (20.7 seconds), Client including Operations review (18.3 seconds). Eight mobile/desktop form journeys passed. Client tab switching is disabled during loading to avoid overlapping initial-list requests. Original local database restored and integrity checked; temporary Clerk users/configuration cleaned up. Production deployment receipt follows after publishing.
+
+## Deployed release receipt
+
+- Sites version: **45**, public; succeeded **2026-09-11 00:59:54 UTC / 02:59:54 SAST**.
+- Source: `8fd1e1dde9f9799bd27f592cce497469002ebf7a`.
+- Project: `appgprj_6a88a08505548191b266e9b711562ae3`.
+- Version ID: `appgprj_6a88a08505548191b266e9b711562ae3~appgver_b1bb3804440881918da5bb2ebafbc78c`.
+- Deployment: `appgdep_6aa35277459c819180db3dcb9585fdf9`.
+- Environment revision **7**: `LOKD_APP_STAGE=production`; `LOKD_OPERATIONS_MFA_REQUIRED=false` and `LOKD_LIVE_SHIFT_SCAN=false` retained. Clerk keys and access configuration preserved.
+- Archive SHA-256: `2fc840b2e0dc26cd34c45cf26824ba121c413b6c7507e45774c9025c8803211d`. Archive includes migration 0035; no environment files, private PSiRA test number or provider secret keys found.
+
+Live checks on 11 September from 01:00 UTC confirmed LOKD.co.za homepage, /join and /contact return 200; homepage contains the real-account presentation and no demo label or invented R800 offer. Client, Officer and Operations domain roots redirect to /client, /officer and /ops respectively; each protected page redirects an anonymous visitor to its own sign-in page, and all three sign-in pages return 200 with the correct role heading. Signup API returns 401 anonymously. Historical pilot/application-list APIs return 401; passport API returns 423 and /verify explicitly states live passport verification is unavailable. Recent error-only Worker log query returned no events.
+
+Default Python user-agent requests received edge 403 responses; identified release-check requests succeeded without configuration or access-policy changes. This is an HTTP smoke check, not a completed Google OAuth or authenticated production intake acceptance. No production synthetic applications or financial records were created by these checks.
+
+Final local evidence: 241 regression tests, TypeScript, changed-file lint (image optimisation warnings only), eight form browser journeys and both Clerk development live-routing signup journeys passed. The prior nine account/PSiRA/MFA checks also passed. Test accounts and temporary local configuration were cleaned up and the original local D1 database restored.
+
+Resume: obtain explicit first Operations owner email and complete that person's production Google sign-in/account assignment. Then finish provider/document acceptance as listed above. Do not restore synthetic portal data, enable transactional endpoints, or represent intake review as service approval.
