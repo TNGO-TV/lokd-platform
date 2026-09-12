@@ -27,4 +27,9 @@ Continues the existing owner-authorised completion build from v52/eff233f. This 
 Named Operations owner, approved legal wording/entities/employer decisions and actual training packages remain owner-supplied. VerifyNow is sandbox; real identity and PSiRA identity matching, Google account acceptance, existing manual R350 checkout completion and live provider financial acceptance remain unconfirmed. The existing dummy checkout must not be recreated or repeatedly requested. Test docs/fixtures remain authorised for development. Do not describe the whole build as finished while the code gaps above remain.
 
 ## Release
-Await terminal deployment receipt before calling this deployed. Source/build/test evidence above is local until that receipt is appended.
+Published v53 from 881f27bff271727c4ad1e30a03017e6c704d5c19.
+Version appgprj_6a88a08505548191b266e9b711562ae3~appgver_33dd09ac32f881919fa5b644112def4d.
+Deployment appgdep_6aa5a1a79a888191ad4ede5bd64637b6 succeeded 2026-09-12T19:02:32.766607Z, environment revision 9 unchanged.
+Returned production URL https://lokd-security.zenas-capetown.chatgpt.site. Existing audience/domain settings retained. Archive verified for worker, project identity, migrations and private-file exclusions. No new provider or live financial acceptance is claimed.
+
+Completion work remains active in this same task; this release is a durable checkpoint before the remaining payroll, workforce acceptance and provider connections.
