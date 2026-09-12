@@ -1,3 +1,4 @@
+import {currentClientReview} from './production-client-review';
 import { readActivationAgreements } from './agreement-activation';
 import { officerHasCurrentPsiraVerification } from './psira-server';
 import {
@@ -226,6 +227,7 @@ async function loadAssignmentActivationFacts(
   const environment = request.environment ?? "production";
   const candidate = await readCandidate(db, request.rosterSlotId, environment);
   if (!candidate) throw new AssignmentActivationError("The roster slot, site or post is unavailable.", 404);
+  if (environment === 'production' && !await currentClientReview(db,candidate.clientId,evaluatedAt)) candidate.clientApprovalStatus='pending';
   if (candidate.slotVersion !== request.expectedSlotVersion) throw new AssignmentActivationError("The roster slot changed before evaluation.", 409);
 
   const dataEnvironment = environment === "production" ? "production" : "demo";

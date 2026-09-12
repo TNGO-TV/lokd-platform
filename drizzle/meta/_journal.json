@@ -316,6 +316,20 @@
       "when": 1789229892334,
       "tag": "0044_abandoned_enchantress",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1789231898558,
+      "tag": "0045_confused_nick_fury",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "6",
+      "when": 1789232207054,
+      "tag": "0046_slow_roland_deschain",
+      "breakpoints": true
     }
   ]
 }

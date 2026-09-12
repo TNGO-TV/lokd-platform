@@ -1,3 +1,5 @@
+import {prepareProductionOrder,readProductionOrders} from './production-orders';
+import {readClientReviews,reviewProductionClient} from './production-client-review';
 import {SignupError} from './signup-server';
 import {agreementHash} from './agreement-acceptance';
 import {operatorControlDecision,OPERATOR_ACTION_POLICIES,type OperatorRole,type OperatorActionCode} from './operator-controls';
@@ -17,10 +19,12 @@ export async function readProductionOperations(db:D1Database,actor:SigningActor)
  const approvals=actor.operations?await db.prepare('SELECT * FROM production_activation_approvals ORDER BY created_at DESC LIMIT 100').all():{results:[]};
  const shifts=await db.prepare(`SELECT s.id,s.officer_id,s.status,s.check_in_at,s.check_out_at,s.client_signoff_status,b.client_id FROM shifts s JOIN bookings b ON b.id=s.booking_id WHERE s.environment='production' AND b.environment='production' ${actor.operations?'':"AND (EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='client' AND l.entity_id=b.client_id AND l.owner_user_id=?) OR EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='officer' AND l.entity_id=s.officer_id AND l.owner_user_id=?))"} ORDER BY s.scheduled_date DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId,actor.userId])).all();
  const operators=actor.owner?await db.prepare("SELECT id,email,status,approval_limit_cents FROM operator_accounts WHERE environment='production'").all():{results:[]};
- return {rosters:rosters.results,approvals:approvals.results,shifts:shifts.results,operators:operators.results,owner:actor.owner};
+ return {...await readClientReviews(db,actor),...await readProductionOrders(db,actor),rosters:rosters.results,approvals:approvals.results,shifts:shifts.results,operators:operators.results,owner:actor.owner};
 }
 export async function operateProduction(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,liveCheckInEnabled=false){
  const now=new Date().toISOString();
+ if(['quote_order','prepare_order','prepare_roster'].includes(String(input.action)))return prepareProductionOrder(db,actor,input);
+ if(['prepare_client_review','decide_client_review','suspend_client'].includes(String(input.action)))return reviewProductionClient(db,actor,input);
  if(input.action==='grant_operator'){
   if(!actor.owner||!actor.operations)throw new SignupError('Only the assigned Operations owner can manage operator roles.',403);
   const email=text(input.email).toLowerCase(),role=text(input.role);if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!OPERATOR_ACTION_POLICIES.some(p=>p.requiredRole===role)||!Number.isSafeInteger(input.limitCents)||Number(input.limitCents)<0)throw new SignupError('Choose an operator email, policy role and non-negative limit in cents.');

@@ -2500,3 +2500,16 @@ export const productionEnvelopeCancellations=sqliteTable('production_envelope_ca
 export const productionActivationApprovals=sqliteTable('production_activation_approvals',{
  id:text('id').primaryKey(),requestJson:text('request_json').notNull(),requestHash:text('request_hash').notNull(),makerId:text('maker_id').notNull(),state:text('state').notNull(),approverId:text('approver_id'),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
 });
+
+export const productionClientReviews=sqliteTable('production_client_reviews',{
+ id:text('id').primaryKey(),clientId:text('client_id').notNull().references(()=>clients.id),caseId:text('case_id').notNull(),caseVersion:integer('case_version').notNull(),ownerUserId:text('owner_user_id').notNull(),snapshotJson:text('snapshot_json').notNull(),snapshotHash:text('snapshot_hash').notNull(),evidenceJson:text('evidence_json').notNull(),preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),expiresAt:text('expires_at').notNull(),
+});
+export const productionClientDecisions=sqliteTable('production_client_decisions',{
+ reviewId:text('review_id').primaryKey().references(()=>productionClientReviews.id),decision:text('decision').notNull(),actorId:text('actor_id').notNull(),reason:text('reason').notNull(),decidedAt:text('decided_at').notNull(),
+});
+export const productionClientSuspensions=sqliteTable('production_client_suspensions',{
+ id:text('id').primaryKey(),clientId:text('client_id').notNull().references(()=>clients.id),actorId:text('actor_id').notNull(),reason:text('reason').notNull(),createdAt:text('created_at').notNull(),
+});
+export const productionOrderSetups=sqliteTable('production_order_setups',{
+ id:text('id').primaryKey(),clientId:text('client_id').notNull().references(()=>clients.id),caseVersion:integer('case_version').notNull(),requestHash:text('request_hash').notNull(),requestJson:text('request_json').notNull(),quoteJson:text('quote_json').notNull(),preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),
+});
