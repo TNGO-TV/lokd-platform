@@ -19,3 +19,6 @@ Read PERIOD_PAYROLL_2026-09-12.md before further work. Payroll calculation profi
 
 ## Booking collection evidence follow-up
 Read BOOKING_COLLECTION_2026-09-12.md for the next source milestone after v55. Durable requests, independent approval, client checkout, API/signed-webhook evidence agreement and mismatch/timeout recovery are implemented. These do not yet project cleared settlement into canonical funding. Provider settlement/refund/dispute recovery and all payout workflows remain open; consult its terminal release receipt before claiming deployment.
+
+## Settlement and custom-domain workflow review follow-up
+Read SETTLEMENT_REVIEW_2026-09-12.md for the next milestone after v56. Exact provider settlement/bank receipt review, independent canonical funding, guarded booking funding application and durable refund/dispute holds are implemented with connected database and authenticated local browser acceptance. Existing LOKD.co.za domains are reused. Payouts, refund execution/resolution, invoice allocation/issuance and remaining payroll/payable deliverables are not complete; retain all financial locks and real acceptance boundaries.

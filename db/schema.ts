@@ -1,6 +1,30 @@
 import { sql } from "drizzle-orm";
 import { index, integer, real, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
+export const bookingProviderRecoveryInbox = sqliteTable('booking_provider_recovery_inbox', {
+ id:text('id').primaryKey(),mode:text('mode').notNull(),providerId:text('provider_id'),
+ transactionReference:text('transaction_reference'),event:text('event').notNull(),
+ payloadHash:text('payload_hash').notNull(),detail:text('detail').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('booking_provider_recovery_hash_idx').on(t.mode,t.payloadHash),index('booking_provider_recovery_transaction_idx').on(t.mode,t.providerId),index('booking_provider_recovery_reference_idx').on(t.mode,t.transactionReference)]);
+
+export const bookingSettlementReviews = sqliteTable('booking_settlement_reviews', {
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>bookingCollectionRequests.reference),
+ collectionRevision:integer('collection_revision').notNull(),mode:text('mode').notNull(),
+ settlementId:text('settlement_id').notNull(),providerId:text('provider_id').notNull(),
+ payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),
+ preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),expiresAt:text('expires_at').notNull(),
+},t=>[uniqueIndex('booking_settlement_reference_revision_idx').on(t.reference,t.collectionRevision)]);
+export const bookingSettlementDecisions = sqliteTable('booking_settlement_decisions', {
+ id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>bookingSettlementReviews.id),
+ decision:text('decision').notNull(),actorId:text('actor_id').notNull(),operatorId:text('operator_id').notNull(),
+ note:text('note').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('booking_settlement_one_decision_idx').on(t.reviewId)]);
+export const bookingCollectionRecoveries = sqliteTable('booking_collection_recoveries', {
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>bookingCollectionRequests.reference),
+ source:text('source').notNull(),event:text('event').notNull(),payloadHash:text('payload_hash').notNull(),
+ detail:text('detail').notNull(),actorId:text('actor_id'),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('booking_recovery_event_idx').on(t.reference,t.source,t.payloadHash)]);
+
 export const bookingCollectionRequests = sqliteTable('booking_collection_requests', {
  reference:text('reference').primaryKey(), orderId:text('order_id').notNull().references(()=>bookings.id),
  clientId:text('client_id').notNull(), applicantId:text('applicant_id').notNull(), caseId:text('case_id').notNull(),

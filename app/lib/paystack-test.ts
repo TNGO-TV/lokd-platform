@@ -19,6 +19,9 @@ export async function receivePaystackTest(request:Request,runtime:Runtime):Promi
  if(!await crypto.subtle.verify('HMAC',key,sig,raw))return reply('Invalid webhook signature.',401);
  let payload;try{payload=JSON.parse(new TextDecoder().decode(raw));}catch{return reply('Invalid event JSON.',400);}
  if(!payload||typeof payload.event!=='string'||payload.event.length>100||!payload.data||typeof payload.data!=='object')return reply('Invalid event.',400);
+ if(payload.event.startsWith('refund.')||payload.event.startsWith('charge.dispute.')){
+  try{return Response.json(await receiveBookingCollectionWebhook(new Request(request.url,{method:'POST',headers:request.headers,body:raw}),runtime.DB,runtime,'test'),{headers:{'cache-control':'no-store'}});}catch{return reply('Recovery event could not be accepted. Retry delivery.',503);}
+ }
  // Only test-domain events are accepted. Missing/ambiguous domains stay rejected.
  if(payload.data.domain!=='test')return reply('Only explicit test-domain events are accepted here.',422);
  const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw)),b=>b.toString(16).padStart(2,'0')).join('');

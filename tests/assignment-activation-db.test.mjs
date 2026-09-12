@@ -1554,7 +1554,8 @@ test('production Operations enforces real grants, maker separation and idempoten
 test('production intake prepares pending records and reconciles reviewed corrections without granting eligibility',async()=>{
  const {prepareProductionEntity}=await import('../app/lib/production-intake.ts');const {POST:enquire}=await import('../app/api/enquiries/route.ts');const {writeSignup}=await import('../app/lib/signup-server.ts');const {env}=await import('cloudflare:workers');
  const database=migratedDatabase(),db=new D1Adapter(database);env.DB=db;
- const applicant={userId:'intake-user',email:'intake-fixture@example.test',operations:false},ops={userId:'intake-ops',email:'intake-ops@example.test',operations:true};
+ const browserUsers=JSON.parse(process.env.LOKD_COLLECTION_BROWSER_USERS??'{}'),browserEmails=JSON.parse(process.env.LOKD_COLLECTION_BROWSER_EMAILS??'{}');
+ const applicant={userId:browserUsers.client??'intake-user',email:browserEmails.client??'intake-fixture@example.test',operations:false},ops={userId:browserUsers.operations??'intake-ops',email:browserEmails.operations??'intake-ops@example.test',operations:true};
  const response=await enquire(new Request('https://lokd.co.za/api/enquiries',{method:'POST',headers:{origin:'https://lokd.co.za','content-type':'application/json'},body:JSON.stringify({organisationName:'Intake Fixture Client',contactName:'Fixture Signer',email:applicant.email,mobile:'0821234567',siteArea:'Sandton',siteType:'commercial_property',requiredStart:'planning',message:'Production intake fixture in isolated memory only.',advanceFundingAcknowledged:true,privacyConsent:true})}));const caseId=(await response.json()).reference;
  await writeSignup(db,applicant,{action:'link',kind:'client',id:caseId,expectedVersion:0});
  await assert.rejects(()=>prepareProductionEntity(db,ops,{kind:'client',caseId,caseVersion:1}),/reviewed/);
@@ -1568,7 +1569,7 @@ test('production intake prepares pending records and reconciles reviewed correct
  assert.throws(()=>database.prepare("UPDATE clients SET integrity_state='production_verified' WHERE id=?").run(prepared.entityId),/immutable/);
  assert.equal(database.prepare("SELECT count(*) AS n FROM audit_events WHERE event_type='production_entity_reconciled'").get().n,1);
  const {reviewProductionClient,currentClientReview}=await import('../app/lib/production-client-review.ts');
- const reviewer={...ops,owner:false},owner={userId:'independent-owner',email:'independent-owner@example.test',operations:true,owner:true};
+ const reviewer={...ops,owner:false},owner={userId:browserUsers.owner??'independent-owner',email:browserEmails.owner??'independent-owner@example.test',operations:true,owner:true};
  const reviewInput={action:'prepare_client_review',clientId:prepared.entityId,caseVersion:4,documentsActuallyReviewed:true,checkedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+86400000).toISOString(),identityReference:'Isolated fixture identity source',companyReference:'Isolated fixture company source',authorityReference:'Isolated fixture representative mandate',note:'Independent fixture document review, no live customer.'};
  await assert.rejects(()=>reviewProductionClient(db,reviewer,{...reviewInput,documentsActuallyReviewed:false}),/Confirm/);
  const review=await reviewProductionClient(db,reviewer,reviewInput);
@@ -1633,6 +1634,23 @@ test('production intake prepares pending records and reconciles reviewed correct
  await act(owner,command('verify_collection'),transport);assert.equal(saved().state,'matched_test');
  assert.equal(database.prepare('SELECT funding_status FROM bookings WHERE id=?').get(setup.orderId).funding_status,'unfunded');
  assert.equal(database.prepare('SELECT count(*) n FROM booking_funding_reconciliations WHERE booking_id=?').get(setup.orderId).n,0);
+
+ const {operateBookingSettlement}=await import('../app/lib/booking-settlements.ts');
+ const settle=(a,input,rt=runtime,fetcher=settlementTransport)=>operateBookingSettlement(db,a,input,headers,rt,fetcher);
+ const settledAt=new Date().toISOString(),settlement={id:901,domain:'test',status:'success',currency:'ZAR',total_processed:r.amount_minor,total_fees:100,total_amount:r.amount_minor-100,effective_amount:r.amount_minor-100,deductions:null,settlement_date:settledAt};
+ const paged=rows=>Response.json({status:true,data:rows,meta:{page:1,pageCount:1,total:rows.length,perPage:100}});
+ const settlementTransport=async url=>url.includes('/transactions')?paged([{...transaction,fees:100,fees_split:null}]):url.includes('/transaction/verify/')?transport():paged([settlement]);
+ const settlementInput={action:'prepare_settlement',reference:r.reference,revision:saved().revision,settlementId:'901',from:settledAt.slice(0,10),to:settledAt.slice(0,10),bankAmountMinor:r.amount_minor-100,bankReference:'Isolated bank receipt fixture',bankReceiptReviewed:true,note:'Fixture receipt reconciles gross less provider fees.'};
+ await assert.rejects(()=>settle(applicant,settlementInput),/Operations/);
+ await assert.rejects(()=>settle(reviewer,{...settlementInput,bankAmountMinor:1}),/do not agree/);
+ const preparedSettlement=await settle(reviewer,settlementInput),reviewRow=database.prepare('SELECT * FROM booking_settlement_reviews WHERE id=?').get(preparedSettlement.settlementReviewId);
+ const approveSettlement={action:'approve_settlement',reference:r.reference,reviewId:reviewRow.id,payloadHash:reviewRow.payload_hash,note:'Independently checked isolated bank and settlement evidence.',evidenceReviewed:true};
+ await assert.rejects(()=>settle(reviewer,approveSettlement),/maker|independent/i);
+ if(process.env.LOKD_COLLECTION_FIXTURE_EXPORT){const path=process.env.LOKD_COLLECTION_FIXTURE_EXPORT;assert.match(path,/^\/tmp\/lokd-[a-z0-9-]+\.sqlite$/);assert.equal(fs.existsSync(path),false);database.prepare('VACUUM INTO ?').run(path);}
+ assert.equal((await settle(owner,approveSettlement)).decision,'confirmed_test');
+ assert.equal((await settle(owner,approveSettlement)).alreadyDecided,true);
+ assert.equal(database.prepare('SELECT count(*) n FROM booking_funding_reconciliations WHERE booking_id=?').get(setup.orderId).n,0);
+ assert.throws(()=>database.exec("UPDATE booking_settlement_reviews SET payload_hash='wrong'"),/immutable/);
  const racing=command('verify_collection');
  await assert.rejects(()=>act(owner,racing,async()=>{await receiveBookingCollectionWebhook(webhook({...transaction,amount:1}),db,runtime,'test');return transport();}),/changed during provider/);
  assert.equal(saved().state,'review_required');
@@ -1641,6 +1659,54 @@ test('production intake prepares pending records and reconciles reviewed correct
  await act(reviewer,{action:'prepare_collection',orderId:setup.orderId,caseVersion:4,mode:'live'});
  const live=database.prepare("SELECT * FROM booking_collection_requests WHERE mode='live'").get();await act(owner,{action:'approve_collection',reference:live.reference,revision:live.revision,evidenceReviewed:true});
  await assert.rejects(()=>act(applicant,{action:'initialize_collection',reference:live.reference,revision:live.revision+1},async()=>{dispatches++;throw Error('No live dispatch');}),/acceptance/);assert.equal(dispatches,1);
+
+
+ // Exact live settlement projection is exercised only through isolated fake transport.
+ const liveRuntime={PAYSTACK_LIVE_SECRET_KEY:'sk_live_isolated_fixture',LOKD_COLLECTION_LIVE_ENABLED:'true'};
+ const getLive=()=>database.prepare("SELECT * FROM booking_collection_requests WHERE mode='live'").get();
+ const liveCommand=action=>({action,reference:live.reference,revision:getLive().revision});
+ await operateBookingCollection(db,applicant,liveCommand('initialize_collection'),headers,liveRuntime,async()=>Response.json({status:true,data:{reference:live.reference,authorization_url:'https://checkout.paystack.com/isolated-fixture'}}));
+ const liveTx={...transaction,id:9002,reference:live.reference,domain:'live',metadata:{...meta,mode:'live'}};
+ const liveVerify=async()=>Response.json({status:true,data:liveTx});
+ await receiveBookingCollectionWebhook(webhook(liveTx,liveRuntime.PAYSTACK_LIVE_SECRET_KEY),db,liveRuntime,'live');
+ await operateBookingCollection(db,owner,liveCommand('verify_collection'),headers,liveRuntime,liveVerify);
+ const liveSettlement={...settlement,id:902,domain:'live'};
+ const liveSettlementTransport=async url=>url.includes('/transactions')?paged([{...liveTx,fees:100,fees_split:null}]):url.includes('/transaction/verify/')?liveVerify():paged([liveSettlement]);
+ const preparedLive=await settle(reviewer,{...settlementInput,reference:live.reference,revision:getLive().revision,settlementId:'902'},liveRuntime,liveSettlementTransport);
+ const liveReview=database.prepare('SELECT * FROM booking_settlement_reviews WHERE id=?').get(preparedLive.settlementReviewId);
+ const liveApproval={...approveSettlement,reference:live.reference,reviewId:liveReview.id,payloadHash:liveReview.payload_hash};
+ assert.equal((await settle(owner,liveApproval,liveRuntime,liveSettlementTransport)).cleared,true);
+ assert.equal(database.prepare('SELECT funding_status FROM bookings WHERE id=?').get(setup.orderId).funding_status,'unfunded');
+ await assert.rejects(()=>settle(owner,{action:'apply_booking_funding',reference:live.reference},liveRuntime),/site, pricing/);
+ assert.equal(database.prepare("SELECT status FROM booking_funding_reconciliations WHERE provider_reference=?").get(live.reference).status,'cleared_reconciled');
+ const {manageProductionEvidence}=await import('../app/lib/production-evidence.ts');
+ const siteReview=await manageProductionEvidence(db,reviewer,{action:'prepare_evidence',kind:'site',fields:{siteId:'SITE-'+setup.orderId,postId:'POST-'+setup.orderId,postOrdersVersion:'SETTLEMENT-SITE-v1',riskReference:'Isolated reviewed risk source',ordersReference:'Isolated reviewed post instructions',findings:'Actual fixture site and order reviewed independently.'},sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+9*86400000).toISOString()});
+ await manageProductionEvidence(db,owner,{action:'decide_evidence',reviewId:siteReview.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Independent fixture site review approved.'});
+ assert.equal((await settle(owner,{action:'apply_booking_funding',reference:live.reference},liveRuntime)).bookingFunded,true);
+ assert.equal(database.prepare('SELECT funding_status FROM bookings WHERE id=?').get(setup.orderId).funding_status,'paid_in_full');
+ const recoveryBody=JSON.stringify({event:'refund.processed',data:{transaction:{id:9002,reference:live.reference},amount:50,currency:'ZAR'}});
+ const recovery=()=>new Request('https://lokd.co.za/api/paystack/booking/webhook?mode=live',{method:'POST',body:recoveryBody,headers:{'x-paystack-signature':createHmac('sha512',liveRuntime.PAYSTACK_LIVE_SECRET_KEY).update(recoveryBody).digest('hex')}});
+ // Disabling new live checkout must not disable receipt of signed recovery events.
+ await receiveBookingCollectionWebhook(recovery(),db,{...liveRuntime,LOKD_COLLECTION_LIVE_ENABLED:'false'},'live');
+ await receiveBookingCollectionWebhook(recovery(),db,liveRuntime,'live');
+ assert.equal(database.prepare('SELECT count(*) n FROM booking_collection_recoveries').get().n,1);
+ assert.equal(database.prepare("SELECT status FROM booking_funding_reconciliations WHERE provider_reference=?").get(live.reference).status,'held');
+ assert.equal(getLive().state,'review_required');
+ assert.throws(()=>database.exec("DELETE FROM booking_collection_recoveries"),/required/);
+ const earlyBody=JSON.stringify({event:'charge.dispute.create',data:{transaction:9003,amount:100}});
+ const earlyEvent=new Request('https://lokd.co.za/api/paystack/booking/webhook?mode=test',{method:'POST',body:earlyBody,headers:{'x-paystack-signature':createHmac('sha512',runtime.PAYSTACK_TEST_SECRET_KEY).update(earlyBody).digest('hex')}});
+ assert.equal((await receiveBookingCollectionWebhook(earlyEvent,db,runtime,'test')).matchedReference,false);
+ const nextOrder=await prepareProductionOrder(db,reviewer,{...order,orderReference:'isolated-early-recovery'});
+ await act(reviewer,{action:'prepare_collection',orderId:nextOrder.orderId,caseVersion:4,mode:'test'});
+ const early=()=>database.prepare('SELECT * FROM booking_collection_requests WHERE order_id=?').get(nextOrder.orderId);
+ const earlyCommand=action=>({action,reference:early().reference,revision:early().revision,evidenceReviewed:true});
+ await act(owner,earlyCommand('approve_collection'));await act(applicant,earlyCommand('initialize_collection'),async()=>Response.json({status:true,data:{reference:early().reference,authorization_url:'https://checkout.paystack.com/early-recovery-fixture'}}));
+ const earlyTx={...transaction,id:9003,reference:early().reference,metadata:{...meta,order_id:nextOrder.orderId,source_hash:early().source_hash}};
+ await receiveBookingCollectionWebhook(webhook(earlyTx),db,runtime,'test');
+ assert.equal((await act(owner,earlyCommand('verify_collection'),async()=>Response.json({status:true,data:earlyTx}))).state,'review_required');
+ assert.equal(database.prepare('SELECT count(*) n FROM booking_collection_recoveries WHERE reference=?').get(early().reference).n,1);
+ assert.throws(()=>database.exec('DELETE FROM booking_provider_recovery_inbox'),/required/);
+
 
  assert.throws(()=>database.exec("UPDATE production_client_decisions SET reason='rewritten'"),/immutable/);
  await reviewProductionClient(db,reviewer,{action:'suspend_client',clientId:prepared.entityId,reason:'New contradictory source information requires review.'});

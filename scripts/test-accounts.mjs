@@ -1,4 +1,5 @@
-import { readFile, writeFile, unlink, mkdir, access as fileAccess } from 'node:fs/promises';
+import { readFile, writeFile, unlink, mkdir, access as fileAccess, readdir, rename, copyFile, mkdtemp, rm } from 'node:fs/promises';
+import { createServer } from 'node:net';
 import { parseEnv } from 'node:util';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
@@ -22,6 +23,9 @@ const emails = Object.fromEntries(['client', 'officer', 'operations', 'unassigne
 const access = { clients: { [emails.client]: 'CL-001' }, officers: { [emails.officer]: 'OFF-001' }, operations: [emails.operations, ...(includeFinance ? [emails.finance] : [])], owners: [emails.owner] };
 let ownsVars = false;
 let failed = false;
+const collectionFixture=process.env.LOKD_ACCOUNT_TEST_COLLECTIONS==='true';
+let collectionDatabase,collectionBackup,collectionInstalled=false,collectionExport;
+const collectionMoved=[];
 try {
   // Exclusive creation avoids overwriting another developer's local environment.
   await writeFile('.dev.vars', [
@@ -40,6 +44,19 @@ try {
     userIds[role] = user.id;
   }
   console.log('Created isolated Clerk development identities. No inboxes or invitations required.');
+  if(collectionFixture){
+    // Refuse to replace local data while the acceptance server is already running.
+    const probe=createServer();await new Promise((resolve,reject)=>{probe.once('error',reject);probe.listen(4177,'127.0.0.1',resolve);});await new Promise(resolve=>probe.close(resolve));
+    const directory=process.cwd()+'/.wrangler/state/v3/d1/miniflare-D1DatabaseObject';
+    const names=(await readdir(directory)).filter(n=>n.endsWith('.sqlite')&&n!=='metadata.sqlite');if(names.length!==1)throw Error('Ambiguous local acceptance database');
+    collectionDatabase=directory+'/'+names[0];collectionExport='/tmp/lokd-collection-'+run+'.sqlite';
+    const fixture=spawn(process.execPath,['--experimental-loader=./tests/cloudflare-loader.mjs','--test-name-pattern=production intake prepares','tests/assignment-activation-db.test.mjs'],{stdio:'inherit',env:{...process.env,LOKD_COLLECTION_FIXTURE_EXPORT:collectionExport,LOKD_COLLECTION_BROWSER_USERS:JSON.stringify(userIds),LOKD_COLLECTION_BROWSER_EMAILS:JSON.stringify(emails)}});
+    if(await new Promise((resolve,reject)=>{fixture.on('error',reject);fixture.on('exit',resolve);})!==0)throw Error('Collection fixture did not pass');
+    collectionBackup=await mkdtemp(directory+'/lokd-collection-original-');
+    for(const suffix of ['','-wal','-shm']){try{await fileAccess(collectionDatabase+suffix);}catch{continue;}await rename(collectionDatabase+suffix,collectionBackup+'/database'+suffix);collectionMoved.push(suffix);}
+    collectionInstalled=true;await copyFile(collectionExport,collectionDatabase);
+    console.log('Installed isolated collection fixture; original local database preserved for restoration.');
+  }
   const child = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', '--config=tests/accounts/playwright.config.mjs', ...process.argv.slice(2)], {
     stdio: 'inherit', env: { ...process.env, ...keys, ...(localBrowserLibraries ? { LD_LIBRARY_PATH: [browserLibraries, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':') } : {}), LOKD_TEST_EMAILS: JSON.stringify(emails), LOKD_TEST_USER_IDS: JSON.stringify(userIds) },
   });
@@ -50,6 +67,13 @@ try {
   console.error('Account workflow failed:', error.code || error.errors?.map(item => item.code).join(', ') || error.name);
   failed = true;
 } finally {
+  if(collectionDatabase){
+    if(collectionInstalled)for(const suffix of ['','-wal','-shm'])await rm(collectionDatabase+suffix,{force:true});
+    for(const suffix of collectionMoved)await rename(collectionBackup+'/database'+suffix,collectionDatabase+suffix);
+    if(collectionBackup)await rm(collectionBackup,{recursive:true,force:true});
+    if(collectionExport)await rm(collectionExport,{force:true});
+    console.log('Original local database restored.');
+  }
   const remaining = [];
   for (const id of users) {
     try { await clerk.users.deleteUser(id); } catch { remaining.push(id); }
