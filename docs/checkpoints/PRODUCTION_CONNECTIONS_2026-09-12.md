@@ -37,3 +37,12 @@ Authenticated Client and assigned-owner development sessions passed the new prod
 ## First publication failure and repair
 - Saved v50 from 38dadc2a70fd2df319ef7ca81c08559be305fefd. Deployment appgdep_6aa57e421ba08191a043b75beb66a898 failed at 2026-09-12T16:31:12.406564Z with `incomplete input: SQLITE_ERROR`, environment revision 9. This is not successful publication.
 - Migration 0042 used bare `SELECT CASE ... END;` inside a trigger, unlike the deployed migrations' parenthesised `SELECT (CASE ... END);` pattern. Changed only that wrapping and replaced a semicolon inside an error string. The suspected failure is the deployment SQL splitter treating CASE END as a trigger terminator; SQLite itself accepted the original SQL. No guard was removed or relaxed. Recheck and release results follow.
+
+## Successful release
+- Migration-only repair: all 56 assignment/signing/control integration tests passed; fresh build passed. The earlier full 257-test result and authenticated browser result remain applicable to unchanged application code. No repeated provider acceptance was claimed.
+- Published v51 from 392a46b7ba6d1c2c9e49890019cf4a0af171873e.
+- Version appgprj_6a88a08505548191b266e9b711562ae3~appgver_08134002409c81918274a5faf1c7f07b.
+- Deployment appgdep_6aa57f2461ec8191a3869a65401485e1 succeeded 2026-09-12T16:35:19.439323Z. Environment revision 9 unchanged.
+- Returned URL https://lokd-security.zenas-capetown.chatgpt.site. Existing canonical LOKD.co.za domains/audience retained. No runtime keys, role assignments, live scan flag or MFA exception changed.
+- The deployment-compatible SQL repair resolved the publication failure. Preserve this failure/recovery lesson when writing further triggers.
+- This accepts the production signing/control connection milestone, not the entire live operational build. The outstanding implementation list above remains authoritative; next work is evidence-backed candidate approval and production service-order setup, followed by service/payroll/provider wiring. Keep ownership in this existing task.
