@@ -1,0 +1,7 @@
+export const productionEvidenceKinds={
+ site:{label:'Site risk and post instructions',fields:{siteId:'Site reference',postId:'Post reference',postOrdersVersion:'Approved instruction version',riskReference:'Independent site risk assessment reference',ordersReference:'Approved post instructions reference',findings:'Site review findings'}},
+ employer:{label:'Employer compliance',fields:{employerId:'Employer reference',legalName:'Registered employer legal name',employerType:'Employer type: lokd_employer or partner_company',psira:'Employer PSiRA evidence',nbcpss:'NBCPSS evidence',psspf:'PSSPF evidence',uif:'UIF evidence',coida:'COIDA evidence',insurance:'Insurance evidence',service_agreement:'Employer/service agreement evidence'}},
+ engagement:{label:'Officer employment or partner engagement',fields:{engagementId:'Engagement reference',officerId:'Officer reference',employerId:'Approved employer reference',model:'Workforce model: direct_flex, managed or partner',termsVersion:'Terms version',engagementReference:'Signed engagement evidence',weeklyHourCap:'Approved weekly hour cap',payrollReference:'Payroll setup evidence',benefitsReference:'Benefits setup evidence'}},
+ induction:{label:'Site induction and travel assessment',fields:{officerId:'Officer reference',siteId:'Site reference',inductionVersion:'Induction version',inductionReference:'Completed induction evidence',travelReference:'Reviewed travel feasibility evidence',travelMinutes:'Assessed travel minutes'}},
+} as const;
+export type ProductionEvidenceKind=keyof typeof productionEvidenceKinds;

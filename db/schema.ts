@@ -2513,3 +2513,9 @@ export const productionClientSuspensions=sqliteTable('production_client_suspensi
 export const productionOrderSetups=sqliteTable('production_order_setups',{
  id:text('id').primaryKey(),clientId:text('client_id').notNull().references(()=>clients.id),caseVersion:integer('case_version').notNull(),requestHash:text('request_hash').notNull(),requestJson:text('request_json').notNull(),quoteJson:text('quote_json').notNull(),preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),
 });
+export const productionEvidenceReviews=sqliteTable('production_evidence_reviews',{
+ id:text('id').primaryKey(),kind:text('kind').notNull(),payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),sourceRevision:integer('source_revision').notNull(),preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),expiresAt:text('expires_at').notNull(),state:text('state').notNull().default('pending'),decidedBy:text('decided_by'),decidedAt:text('decided_at'),reason:text('reason'),
+});
+export const productionServiceEvents=sqliteTable('production_service_events',{
+ id:text('id').primaryKey(),shiftId:text('shift_id').notNull().references(()=>shifts.id),action:text('action').notNull(),actorId:text('actor_id').notNull(),detail:text('detail').notNull(),createdAt:text('created_at').notNull(),
+});

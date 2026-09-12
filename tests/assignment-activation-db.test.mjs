@@ -1608,3 +1608,72 @@ test('production intake prepares pending records and reconciles reviewed correct
 
  database.close();
 });
+
+test('production service records actual checkout and a disputed client journey without financial approval',async()=>{
+ const {recordProductionService,readProductionService}=await import('../app/lib/production-service.ts');
+ const database=migratedDatabase();await seedValid(database);await moveCandidateToCheckInWindow(database);const db=new D1Adapter(database);
+ const activation=await activateAssignment(db,request('service:workflow'),'ops-fixture');await passDueScheduledCheckpoints(db);
+ const officer={userId:'officer-service',email:'officer-service@example.test',operations:false,owner:false},client={userId:'client-service',email:'client-service@example.test',operations:false,owner:false},ops={userId:'ops-service',email:'ops-service@example.test',operations:true,owner:true};
+ run(database,"INSERT INTO production_entity_links VALUES('officer','service-officer-case',1,?,'OFF-1','fixture',?)",officer.userId,new Date().toISOString());
+ const checkInNow=new Date().toISOString();run(database,`INSERT INTO officer_applications(id,pathway,full_name,mobile_normalized,email_normalized,city,province,psira_status,service_interests,training_interests,over_18_confirmed,eligibility_acknowledged,privacy_notice_version,privacy_acknowledged_at,retention_review_at,environment,integrity_state) VALUES('service-officer-case','qualified','Service Fixture','+27820000888',?,'Sandton','Gauteng','registered','[]','[]',1,1,'fixture',?,?,'prelaunch','user_submitted')`,officer.email,checkInNow,checkInNow);
+ run(database,"INSERT INTO signup_cases VALUES('officer','service-officer-case',?,'reviewed','Fixture','{}',1,'fixture',?)",officer.userId,checkInNow);
+ const {operateProduction:checkIn}=await import('../app/lib/production-operations.ts');
+ const checked=await checkIn(db,officer,{action:'check_in',shiftId:activation.shiftId},new Headers(),true);assert.equal(checked.ready,true,JSON.stringify(checked.blockers));
+ assert.equal(database.prepare('SELECT status FROM shifts WHERE id=?').get(activation.shiftId).status,'on_post');
+ run(database,"INSERT INTO production_entity_links VALUES('client','service-client-case',1,?,'CL-1','fixture',?)",client.userId,new Date().toISOString());
+ const completion={action:'complete_service',shiftId:activation.shiftId,note:'Fixture officer reports actual service completion.'};
+ await assert.rejects(()=>recordProductionService(db,client,completion),/assigned officer/);
+ await recordProductionService(db,officer,completion);assert.equal((await recordProductionService(db,officer,completion)).alreadyRecorded,true);
+ let t=(await readProductionService(db,client)).timesheets[0];assert.equal(t.client_evidence_status,'pending');assert.ok(t.recorded_minutes<t.scheduled_minutes);assert.equal(t.operations_status,'awaiting_review');
+ const decision={action:'client_dispute',shiftId:activation.shiftId,version:t.version,note:'Fixture client disputes the recorded service interval.',serviceEvidenceReviewed:true};await recordProductionService(db,client,decision);
+ await assert.rejects(()=>recordProductionService(db,client,{...decision,action:'client_signoff'}),/changed/);
+ t=(await readProductionService(db,ops)).timesheets[0];assert.equal(t.client_evidence_status,'disputed');
+ await recordProductionService(db,ops,{action:'resolve_service_dispute',shiftId:activation.shiftId,version:t.version,outcome:'confirmed',note:'Independent fixture resolution confirms the actual record.'});
+ assert.equal(database.prepare('SELECT status FROM shifts WHERE id=?').get(activation.shiftId).status,'verified');assert.equal(count(database,'payroll_runs'),0);assert.equal(count(database,'production_service_events'),3);
+ const {operateProduction}=await import('../app/lib/production-operations.ts');const {env}=await import('cloudflare:workers');env.LOKD_OPERATIONS_MFA_REQUIRED='false';
+ t=(await readProductionService(db,ops)).timesheets[0];const pay={action:'review_service_pay',shiftId:activation.shiftId,version:t.version,payableMinutes:t.recorded_minutes,grossCents:80000,payEvidenceReviewed:true,note:'Fixture independent review of contracted pay and shortened attendance.'};
+ await assert.rejects(()=>recordProductionService(db,client,pay),/Operations/);
+ await assert.rejects(()=>recordProductionService(db,ops,pay),/operator account/);
+ await operateProduction(db,ops,{action:'grant_operator',email:ops.email,role:'payroll_reviewer',limitCents:1000000},new Headers());
+ await recordProductionService(db,ops,pay);t=(await readProductionService(db,ops)).timesheets[0];assert.equal(t.operations_status,'approved_for_backend');
+ await assert.rejects(()=>recordProductionService(db,ops,{...pay,version:t.version}),/Only client-confirmed/);
+ await recordProductionService(db,ops,{action:'reopen_service_pay',shiftId:activation.shiftId,version:t.version,note:'Fixture pay correction before payroll consumes this evidence.'});
+ t=(await readProductionService(db,ops)).timesheets[0];assert.equal(t.operations_status,'awaiting_review');assert.equal(t.payable_minutes,null);assert.equal(count(database,'payroll_runs'),0);assert.equal(count(database,'production_service_events'),5);
+ assert.throws(()=>database.exec("UPDATE production_service_events SET detail='rewritten'"),/immutable/);database.close();
+});
+
+test('production site evidence requires independent approval and rejects a stale source revision',async()=>{
+ const {manageProductionEvidence}=await import('../app/lib/production-evidence.ts');const database=migratedDatabase();await seedValid(database);const db=new D1Adapter(database);
+ const maker={userId:'site-reviewer',email:'site-reviewer@example.test',operations:true,owner:false},owner={userId:'site-owner',email:'site-owner@example.test',operations:true,owner:true};
+ const site=database.prepare("SELECT site_id,post_id FROM roster_slots WHERE id='SLOT-1'").get();
+ const prepare={action:'prepare_evidence',kind:'site',fields:{siteId:site.site_id,postId:site.post_id,postOrdersVersion:'REVIEW-v2',riskReference:'Fixture inspected site risk report',ordersReference:'Fixture approved post orders',findings:'Fixture review applies to the exact quoted service.'},sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString()};
+ const r=await manageProductionEvidence(db,maker,prepare);await assert.rejects(()=>manageProductionEvidence(db,{...maker,owner:true},{action:'decide_evidence',reviewId:r.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Fixture review'}),/preparer/);
+ run(database,'UPDATE activation_evidence_epoch SET revision=revision+1 WHERE singleton=1');await assert.rejects(()=>manageProductionEvidence(db,owner,{action:'decide_evidence',reviewId:r.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Fixture independent review'}),/changed/);
+ const fresh=await manageProductionEvidence(db,maker,prepare);await manageProductionEvidence(db,owner,{action:'decide_evidence',reviewId:fresh.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Fixture independent review'});
+ assert.equal(database.prepare('SELECT post_orders_version FROM site_posts WHERE id=?').get(site.post_id).post_orders_version,'REVIEW-v2');assert.equal(database.prepare('SELECT count(*) AS n FROM site_risk_assessments WHERE site_id=?').get(site.site_id).n,2);
+ await manageProductionEvidence(db,maker,{action:'suspend_evidence',reviewId:fresh.reviewId,reason:'New contradictory site findings require reinspection.'});
+ assert.equal(database.prepare('SELECT status FROM operational_sites WHERE id=?').get(site.site_id).status,'suspended');
+ assert.equal(database.prepare('SELECT state FROM production_evidence_reviews WHERE id=?').get(fresh.reviewId).state,'approved');
+ assert.equal(database.prepare("SELECT count(*) AS n FROM audit_events WHERE event_type='production_evidence_suspended'").get().n,1);database.close();
+});
+
+test('officer schedule replaces declared work atomically, retains history and rejects stale or conflicting declarations',async()=>{
+ const {declareProductionSchedule,readProductionSchedule}=await import('../app/lib/production-schedule.ts');
+ const database=migratedDatabase();await seedValid(database);const db=new D1Adapter(database),now=new Date().toISOString();
+ const actor={userId:'schedule-officer',email:'schedule-officer@example.test',operations:false,owner:false};
+ run(database,`INSERT INTO officer_applications(id,pathway,full_name,mobile_normalized,email_normalized,city,province,psira_status,service_interests,training_interests,over_18_confirmed,eligibility_acknowledged,privacy_notice_version,privacy_acknowledged_at,retention_review_at,environment,integrity_state) VALUES('schedule-case','qualified','Schedule Fixture','+27820000999',?,'Sandton','Gauteng','registered','[]','[]',1,1,'fixture',?,?,'prelaunch','user_submitted')`,actor.email,now,now);
+ run(database,"INSERT INTO signup_cases(kind,source_id,owner_user_id,status,public_note,corrections_json,version,latest_event_id,updated_at) VALUES('officer','schedule-case',?,'reviewed','Fixture review','{}',1,'fixture-schedule',?)",actor.userId,now);
+ run(database,"INSERT INTO production_entity_links VALUES('officer','schedule-case',1,?,'OFF-1','fixture',?)",actor.userId,now);
+ const prior=database.prepare("SELECT version FROM officer_schedule_declarations WHERE officer_id='OFF-1' AND environment='production' ORDER BY version DESC LIMIT 1").get();
+ const stamp=h=>new Date(Math.floor(Date.now()/60000)*60000+h*3600000).toISOString();
+ const request={action:'declare_schedule',expectedVersion:prior?.version??0,availability:{startsAt:stamp(48),endsAt:stamp(60)},outsideWork:[{startsAt:stamp(12),endsAt:stamp(20)}],allWorkDeclared:true,restConfirmed:true};
+ await assert.rejects(()=>declareProductionSchedule(db,{...actor,userId:'intruder'},request),/linked/);
+ await assert.rejects(()=>declareProductionSchedule(db,actor,{...request,outsideWork:[request.availability]}),/overlaps/);
+ await declareProductionSchedule(db,actor,request);
+ await assert.rejects(()=>declareProductionSchedule(db,actor,request),/changed/);
+ await declareProductionSchedule(db,actor,{...request,expectedVersion:request.expectedVersion+1,outsideWork:[]});
+ const result=await readProductionSchedule(db,actor);assert.equal(result.outsideWork.filter(w=>w.status!=='cancelled').length,0);assert.ok(result.outsideWork.length>0);assert.equal(result.availability.filter(w=>w.source==='officer_declared'&&w.status==='available').length,1);
+ const available=result.availability.find(w=>w.source==='officer_declared'&&w.status==='available');await declareProductionSchedule(db,actor,{action:'withdraw_availability',availabilityId:available.id});
+ assert.equal(database.prepare('SELECT status FROM officer_availability_windows WHERE id=?').get(available.id).status,'withdrawn');
+ assert.equal((await readProductionSchedule(db,{...actor,userId:'intruder'})).availability.length,0);database.close();
+});

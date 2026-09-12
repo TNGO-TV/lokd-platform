@@ -330,6 +330,20 @@
       "when": 1789232207054,
       "tag": "0046_slow_roland_deschain",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1789238006780,
+      "tag": "0047_complete_hedge_knight",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "6",
+      "when": 1789238236387,
+      "tag": "0048_chemical_cardiac",
+      "breakpoints": true
     }
   ]
 }

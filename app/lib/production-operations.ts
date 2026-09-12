@@ -1,28 +1,27 @@
+import {readProductionSchedule,declareProductionSchedule} from './production-schedule';
+import {readProductionService,recordProductionService} from './production-service';
+import {readProductionEvidence,manageProductionEvidence} from './production-evidence';
 import {prepareProductionOrder,readProductionOrders} from './production-orders';
 import {readClientReviews,reviewProductionClient} from './production-client-review';
 import {SignupError} from './signup-server';
 import {agreementHash} from './agreement-acceptance';
-import {operatorControlDecision,OPERATOR_ACTION_POLICIES,type OperatorRole,type OperatorActionCode} from './operator-controls';
-import {operationsMfaStatus} from './operations-mfa';
-import {operationsMfaRequired} from './operations-mfa-policy';
+import {OPERATOR_ACTION_POLICIES} from './operator-controls';
+import {productionOperatorControl as control} from './production-operator-control';
 import {evaluateAssignmentActivation,recordAssignmentActivationEvaluation,activateAssignment,revalidateAssignment,type AssignmentActivationRequest} from './assignment-activation-server';
 import type {SigningActor} from './production-signing';
 const text=(v:unknown)=>{if(typeof v!=='string'||!v.trim()||v.length>200)throw new SignupError('Choose a valid operational reference.');return v.trim();};
-async function control(db:D1Database,actor:SigningActor,headers:Headers,actionCode:OperatorActionCode,amountCents:number,makerId?:string){
- const account=await db.prepare("SELECT * FROM operator_accounts WHERE lower(email)=? AND environment='production' AND integrity_state='production_verified' AND status='active'").bind(actor.email.toLowerCase()).first<{id:string;approval_limit_cents:number}>();if(!account)throw new SignupError('An active production operator account is required.',403);
- const assignments=await db.prepare("SELECT role FROM operator_role_assignments WHERE operator_id=? AND environment='production' AND integrity_state='production_verified' AND status='active'").bind(account.id).all<{role:OperatorRole}>();
- const mfa=operationsMfaStatus(headers);const decision=operatorControlDecision({actionCode,actorId:account.id,roles:assignments.results.map(r=>r.role),accountStatus:'active',mfaRequired:operationsMfaRequired(),mfaStatus:mfa.fresh?'verified':'not_verified',mfaVerifiedAt:headers.get('x-lokd-verified-second-factor-at'),amountCents,makerId});
- if(!decision.allowed||amountCents>account.approval_limit_cents)throw new SignupError(decision.blockers[0]??'Amount exceeds this operator’s approved limit.',403);return account;
-}
 export async function readProductionOperations(db:D1Database,actor:SigningActor){
  const rosters=await db.prepare(`SELECT r.id,r.version,r.status,r.starts_at,r.ends_at,ra.officer_id,b.id AS booking_id,b.client_id,b.client_price_cents FROM roster_slots r JOIN bookings b ON b.id=r.booking_id LEFT JOIN roster_assignments ra ON ra.roster_slot_id=r.id AND ra.status='confirmed' AND ra.active_key IS NOT NULL WHERE r.environment='production' AND b.environment='production' ${actor.operations?'':"AND (EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='client' AND l.entity_id=b.client_id AND l.owner_user_id=?) OR EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='officer' AND l.entity_id=ra.officer_id AND l.owner_user_id=?))"} ORDER BY r.starts_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId,actor.userId])).all();
  const approvals=actor.operations?await db.prepare('SELECT * FROM production_activation_approvals ORDER BY created_at DESC LIMIT 100').all():{results:[]};
  const shifts=await db.prepare(`SELECT s.id,s.officer_id,s.status,s.check_in_at,s.check_out_at,s.client_signoff_status,b.client_id FROM shifts s JOIN bookings b ON b.id=s.booking_id WHERE s.environment='production' AND b.environment='production' ${actor.operations?'':"AND (EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='client' AND l.entity_id=b.client_id AND l.owner_user_id=?) OR EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='officer' AND l.entity_id=s.officer_id AND l.owner_user_id=?))"} ORDER BY s.scheduled_date DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId,actor.userId])).all();
  const operators=actor.owner?await db.prepare("SELECT id,email,status,approval_limit_cents FROM operator_accounts WHERE environment='production'").all():{results:[]};
- return {...await readClientReviews(db,actor),...await readProductionOrders(db,actor),rosters:rosters.results,approvals:approvals.results,shifts:shifts.results,operators:operators.results,owner:actor.owner};
+ return {...await readProductionSchedule(db,actor),...await readProductionService(db,actor),...await readProductionEvidence(db,actor),...await readClientReviews(db,actor),...await readProductionOrders(db,actor),rosters:rosters.results,approvals:approvals.results,shifts:shifts.results,operators:operators.results,owner:actor.owner};
 }
 export async function operateProduction(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,liveCheckInEnabled=false){
  const now=new Date().toISOString();
+ if(['declare_schedule','withdraw_availability'].includes(String(input.action)))return declareProductionSchedule(db,actor,input);
+ if(['complete_service','client_signoff','client_dispute','resolve_service_dispute','review_service_pay','reopen_service_pay'].includes(String(input.action)))return recordProductionService(db,actor,input,headers);
+ if(['prepare_evidence','decide_evidence','suspend_evidence'].includes(String(input.action)))return manageProductionEvidence(db,actor,input);
  if(['quote_order','prepare_order','prepare_roster'].includes(String(input.action)))return prepareProductionOrder(db,actor,input);
  if(['prepare_client_review','decide_client_review','suspend_client'].includes(String(input.action)))return reviewProductionClient(db,actor,input);
  if(input.action==='grant_operator'){
@@ -39,7 +38,7 @@ export async function operateProduction(db:D1Database,actor:SigningActor,input:R
  if(input.action==='check_in'){
   if(!liveCheckInEnabled)throw new SignupError('Production check-in awaits live operating acceptance.',423);
   const shiftId=text(input.shiftId);const owns=await db.prepare("SELECT s.id FROM shifts s JOIN production_entity_links l ON l.kind='officer' AND l.entity_id=s.officer_id JOIN signup_cases c ON c.kind=l.kind AND c.source_id=l.case_id AND c.version=l.case_version AND c.status!='withdrawn' WHERE s.id=? AND s.environment='production' AND l.owner_user_id=?").bind(shiftId,actor.userId).first();if(!owns||actor.operations)throw new SignupError('Only the assigned officer may check in.',403);
-  return revalidateAssignment(db,shiftId,'check_in',actor.userId);
+  return revalidateAssignment(db,shiftId,'check_in',actor.userId,true);
  }
  if(!actor.operations)throw new SignupError('Operations access required.',403);
  if(input.action==='evaluate'||input.action==='prepare_activation'){
