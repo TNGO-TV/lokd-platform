@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, real, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const specialistCommercialReviews = sqliteTable("specialist_commercial_reviews", {
   id: text("id").primaryKey(),
@@ -2459,3 +2459,25 @@ export const testEnrolmentOrders=sqliteTable('test_enrolment_orders',{
 export const testEnrolmentEvents=sqliteTable('test_enrolment_events',{
  id:text('id').primaryKey(),reference:text('reference').notNull(),snapshot:text('snapshot').notNull(),recordedAt:text('recorded_at').notNull(),
 });
+
+export const testAgreementEnvelopes=sqliteTable('test_agreement_envelopes',{
+ id:text('id').primaryKey(),kind:text('kind').notNull(),caseId:text('case_id').notNull(),ownerUserId:text('owner_user_id').notNull(),caseVersion:integer('case_version').notNull(),
+ documentVersion:text('document_version').notNull(),wording:text('wording').notNull(),contentHash:text('content_hash').notNull(),contextHash:text('context_hash').notNull(),
+ state:text('state').notNull(),revision:integer('revision').notNull().default(1),issuedBy:text('issued_by').notNull(),issuedAt:text('issued_at').notNull(),expiresAt:text('expires_at').notNull(),
+ signedBy:text('signed_by'),signerName:text('signer_name'),signedAt:text('signed_at'),reviewedBy:text('reviewed_by'),reviewedAt:text('reviewed_at'),note:text('note').notNull().default(''),updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('test_agreement_case_version_idx').on(t.kind,t.caseId,t.caseVersion,t.documentVersion)]);
+export const testAgreementEvents=sqliteTable('test_agreement_events',{
+ id:text('id').primaryKey(),envelopeId:text('envelope_id').notNull(),snapshot:text('snapshot').notNull(),recordedAt:text('recorded_at').notNull(),
+});
+export const testOperatingCycles=sqliteTable('test_operating_cycles',{
+ id:text('id').primaryKey(),clientCaseId:text('client_case_id').notNull(),officerCaseId:text('officer_case_id').notNull(),clientUserId:text('client_user_id').notNull(),officerUserId:text('officer_user_id').notNull(),
+ clientVersion:integer('client_version').notNull(),officerVersion:integer('officer_version').notNull(),clientEnvelopeId:text('client_envelope_id').notNull(),officerEnvelopeId:text('officer_envelope_id').notNull(),
+ siteBrief:text('site_brief').notNull(),amountMinor:integer('amount_minor').notNull(),officerAmountMinor:integer('officer_amount_minor').notNull(),state:text('state').notNull(),revision:integer('revision').notNull().default(1),
+ createdBy:text('created_by').notNull(),lastActor:text('last_actor').notNull(),note:text('note').notNull(),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+});
+export const testOperatingEvents=sqliteTable('test_operating_events',{
+ id:text('id').primaryKey(),cycleId:text('cycle_id').notNull(),snapshot:text('snapshot').notNull(),recordedAt:text('recorded_at').notNull(),
+});
+export const publicOfficerPresence=sqliteTable('public_officer_presence',{
+ id:text('id').primaryKey(),userId:text('user_id').notNull(),officerId:text('officer_id'),mode:text('mode').notNull(),latitude:real('latitude').notNull(),longitude:real('longitude').notNull(),consentedAt:text('consented_at').notNull(),updatedAt:text('updated_at').notNull(),expiresAt:text('expires_at').notNull(),
+},t=>[uniqueIndex('public_presence_user_mode_idx').on(t.userId,t.mode)]);

@@ -116,3 +116,68 @@ test('training cannot initialize registered enrolment and uncertain initializati
  let calls=0;const transport=async()=>{calls++;throw Error('timeout');};const run=()=>initializeTestEnrolment(runtime,'user_identity','identity@example.test',{caseId,caseVersion:1,packageVersion:ENROLMENT_PACKAGE.version},transport);
  if(training){await assert.rejects(run,/entry checks/);assert.equal(calls,0);}else{assert.equal((await run()).order.state,'initialization_unknown');await run();assert.equal(calls,1);}db.sql.close();}
 });
+
+test('test agreements bind delivery, signature, review and reissue to the current owned application',async()=>{
+ const {writeTestAgreement,readTestAgreements}=await import('../app/lib/test-agreements.ts');const {db,caseId}=await setup();
+ const applicant={userId:'user_identity',email:'identity@example.test',operations:false},ops={userId:'reviewer',email:'reviewer@example.test',operations:true};
+ const input={kind:'officer',caseId,caseVersion:1,action:'issue',note:'Test signing delivery authorised by the owner.'};
+ await assert.rejects(()=>writeTestAgreement(db,applicant,input),/Operations/);
+ let result=await writeTestAgreement(db,ops,input);assert.equal(result.documents.length,1);
+ await Promise.all([writeTestAgreement(db,ops,input),writeTestAgreement(db,ops,input)]);result=await readTestAgreements(db,applicant,'officer',caseId);assert.equal(result.documents.length,1);
+ let e=result.documents[0];const sign={...input,action:'sign',envelopeId:e.id,expectedRevision:e.revision,contentHash:e.content_hash,contextHash:e.context_hash,signerName:'Synthetic Officer',affirmative:true,testAcknowledged:true};
+ await assert.rejects(()=>writeTestAgreement(db,ops,sign),/Only the named/);
+ await assert.rejects(()=>writeTestAgreement(db,applicant,{...sign,contentHash:'wrong'}),/exact/);
+ await assert.rejects(()=>readTestAgreements(db,{...applicant,userId:'other'},'officer',caseId),/not found/);
+ result=await writeTestAgreement(db,applicant,sign);e=result.documents[0];assert.equal(e.state,'signed_test');assert.equal(result.liveAgreement,false);assert.equal(result.workEligible,false);
+ await assert.rejects(()=>writeTestAgreement(db,applicant,sign),/changed/);
+ const review={...input,action:'review',envelopeId:e.id,expectedRevision:e.revision,identityAndAuthorityReviewed:true,note:'Reviewed test identity and representative authority fixture.'};
+ await assert.rejects(()=>writeTestAgreement(db,{...applicant,operations:true},review),/independent/);
+ result=await writeTestAgreement(db,ops,review);e=result.documents[0];assert.equal(e.state,'reviewed_test');
+ result=await writeTestAgreement(db,applicant,{...input,action:'cancel',envelopeId:e.id,expectedRevision:e.revision,note:'Cancel this test agreement for recovery acceptance.'});assert.equal(result.documents[0].state,'cancelled');
+ result=await writeTestAgreement(db,ops,input);assert.equal(result.documents.length,2);assert.equal(result.documents[0].state,'issued');
+ assert.ok(result.events.some(r=>JSON.parse(r.snapshot).state==='signed_test'));
+ assert.throws(()=>db.sql.exec('DELETE FROM test_agreement_events'),/immutable/);
+ assert.throws(()=>db.sql.exec("UPDATE test_agreement_envelopes SET wording='changed'"),/immutable/);
+ await writeSignup(db,applicant,{action:'correct',kind:'officer',id:caseId,expectedVersion:1,changes:{city:'Sandton'}});
+ result=await readTestAgreements(db,applicant,'officer',caseId);assert.ok(result.documents.every(e=>e.stale&&!e.usable));
+ await assert.rejects(()=>writeTestAgreement(db,ops,input),/changed/);db.sql.close();
+});
+
+test('three-party test operating cycle requires exact signatures and handles dispute, refund and stale evidence',async()=>{
+ const {writeTestAgreement}=await import('../app/lib/test-agreements.ts'),{writeTestCycle,readTestCycles}=await import('../app/lib/test-operating-cycle.ts'),{POST:enquire}=await import('../app/api/enquiries/route.ts');
+ const {db,caseId}=await setup();env.DB=db;
+ const officer={userId:'user_identity',email:'identity@example.test',operations:false},client={userId:'client_test',email:'cycle@example.test',operations:false},ops={userId:'ops_test',email:'ops@example.test',operations:true};
+ const res=await enquire(new Request('https://lokd.co.za/api/enquiries',{method:'POST',headers:{origin:'https://lokd.co.za','content-type':'application/json'},body:JSON.stringify({organisationName:'Synthetic Cycle Client',contactName:'Test Client',email:client.email,mobile:'0822345678',siteArea:'Sandton',siteType:'commercial_property',requiredStart:'planning',message:'Controlled test of the complete security service journey.',advanceFundingAcknowledged:true,privacyConsent:true})}));assert.equal(res.status,202);const clientId=(await res.json()).reference;
+ await writeSignup(db,client,{action:'link',kind:'client',id:clientId,expectedVersion:0});
+ for(const [kind,id,party] of [['client',clientId,client],['officer',caseId,officer]]){
+  await writeSignup(db,ops,{action:'review',kind,id,expectedVersion:1,status:'reviewed',note:'Intake reviewed for a synthetic operating cycle.'});
+  const base={kind,caseId:id,caseVersion:2,note:'Controlled test evidence reviewed and recorded.'};let d=await writeTestAgreement(db,ops,{...base,action:'issue'}),e=d.documents[0];
+  d=await writeTestAgreement(db,party,{...base,action:'sign',envelopeId:e.id,expectedRevision:e.revision,signerName:'Synthetic Participant',affirmative:true,testAcknowledged:true,contentHash:e.content_hash,contextHash:e.context_hash});e=d.documents[0];
+  await writeTestAgreement(db,ops,{...base,action:'review',envelopeId:e.id,expectedRevision:e.revision,identityAndAuthorityReviewed:true});
+ }
+ const create={action:'create',id:'test-cycle-'+crypto.randomUUID(),clientCaseId:clientId,officerCaseId:caseId,siteBrief:'Synthetic Sandton gate service, tomorrow 08:00–10:00.',amountMinor:10000,officerAmountMinor:6000,testAcknowledged:true,note:'Synthetic preparation only; no service or live financial effect.'};
+ let result=await writeTestCycle(db,ops,create);assert.equal(result.cycles.length,1);await writeTestCycle(db,ops,create);assert.equal((await readTestCycles(db,ops)).cycles.length,1);
+ let c=result.cycles[0];const act=async(actor,action)=>{const d=await writeTestCycle(db,actor,{id:c.id,expectedRevision:c.revision,action,testAcknowledged:true,note:'Synthetic evidence for '+action+' recorded during acceptance.'});c=d.cycles.find(x=>x.id===c.id);return d;};
+ await assert.rejects(()=>act(officer,'accept_booking'),/other participant/);
+ for(const [actor,action] of [[client,'accept_booking'],[ops,'record_test_collection'],[officer,'start_service'],[officer,'complete_service'],[client,'dispute'],[ops,'resolve_dispute'],[client,'sign_off'],[ops,'prepare_payment'],[ops,'record_test_payment'],[officer,'acknowledge_test_receipt']])result=await act(actor,action);
+ assert.equal(c.state,'completed');assert.equal(result.financialEffect,false);assert.equal(result.workEligible,false);assert.equal(c.events.length,11);
+ assert.equal((await readTestCycles(db,{...client,userId:'intruder'})).cycles.length,0);
+ result=await writeTestCycle(db,ops,{...create,id:'test-cycle-'+crypto.randomUUID()});c=result.cycles.find(x=>x.state==='proposed');
+ await act(client,'accept_booking');await act(ops,'record_test_collection');await act(client,'cancel');assert.equal(c.state,'refund_pending');await act(ops,'record_test_refund');assert.equal(c.state,'cancelled');
+ result=await writeTestCycle(db,ops,{...create,id:'test-cycle-'+crypto.randomUUID()});c=result.cycles.find(x=>x.state==='proposed');
+ await writeSignup(db,officer,{action:'correct',kind:'officer',id:caseId,expectedVersion:2,changes:{city:'Midrand'}});
+ await assert.rejects(()=>act(client,'accept_booking'),/changed/);await act(client,'cancel');assert.equal(c.state,'cancelled');
+ assert.throws(()=>db.sql.exec('DELETE FROM test_operating_events'),/immutable/);db.sql.close();
+});
+
+test('presence requires consent, rejects unassigned live sharing and never exposes private test locations',async()=>{
+ const {publicPresence,writePresence}=await import('../app/lib/officer-presence.ts');const {db}=await setup();
+ const input={action:'share',mode:'test',consent:true,latitude:-26.20412,longitude:28.04733};
+ await assert.rejects(()=>writePresence(db,'user_identity',null,{...input,consent:false}),/consent/);
+ await assert.rejects(()=>writePresence(db,'user_identity',null,{...input,mode:'live'}),/assigned/);
+ await assert.rejects(()=>writePresence(db,'user_identity','OFF-SYNTHETIC',{...input,mode:'live'}),/production assignment/);
+ await assert.rejects(()=>writePresence(db,'user_identity',null,{...input,latitude:Infinity}),/location/);
+ const result=await writePresence(db,'user_identity',null,input);assert.equal(result.latitude,-26.2);assert.equal(result.longitude,28);assert.equal((await publicPresence(db)).areas.length,0);
+ await writePresence(db,'user_identity',null,{...input,longitude:28.25});assert.equal(db.sql.prepare('SELECT count(*) AS n FROM public_officer_presence').get().n,1);
+ await writePresence(db,'user_identity',null,{mode:'test',action:'stop'});assert.equal(db.sql.prepare('SELECT count(*) AS n FROM public_officer_presence').get().n,0);db.sql.close();
+});
