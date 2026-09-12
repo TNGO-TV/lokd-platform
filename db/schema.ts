@@ -2519,3 +2519,9 @@ export const productionEvidenceReviews=sqliteTable('production_evidence_reviews'
 export const productionServiceEvents=sqliteTable('production_service_events',{
  id:text('id').primaryKey(),shiftId:text('shift_id').notNull().references(()=>shifts.id),action:text('action').notNull(),actorId:text('actor_id').notNull(),detail:text('detail').notNull(),createdAt:text('created_at').notNull(),
 });
+export const productionPayrollSnapshots=sqliteTable('production_payroll_snapshots',{
+ runId:text('run_id').primaryKey().references(()=>payrollRuns.id),policyId:text('policy_id').notNull().references(()=>payrollPolicyVersions.id),payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),createdAt:text('created_at').notNull(),
+});
+export const productionPayrollDecisions=sqliteTable('production_payroll_decisions',{
+ id:text('id').primaryKey(),runId:text('run_id').notNull().references(()=>payrollRuns.id),runVersion:integer('run_version').notNull(),action:text('action').notNull(),operatorId:text('operator_id').notNull().references(()=>operatorAccounts.id),actorUserId:text('actor_user_id').notNull(),authBasis:text('auth_basis').notNull(),amountCents:integer('amount_cents').notNull(),calculationHash:text('calculation_hash').notNull(),note:text('note').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('production_payroll_decision_version').on(t.runId,t.runVersion)]);

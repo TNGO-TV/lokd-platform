@@ -1,3 +1,4 @@
+import {readProductionPayroll,prepareProductionPayroll,decideProductionPayroll} from './production-payroll';
 import {readProductionPayrollPolicies,manageProductionPayrollPolicy} from './production-payroll-policy';
 import {readProductionSchedule,declareProductionSchedule} from './production-schedule';
 import {readProductionService,recordProductionService} from './production-service';
@@ -16,10 +17,12 @@ export async function readProductionOperations(db:D1Database,actor:SigningActor)
  const approvals=actor.operations?await db.prepare('SELECT * FROM production_activation_approvals ORDER BY created_at DESC LIMIT 100').all():{results:[]};
  const shifts=await db.prepare(`SELECT s.id,s.officer_id,s.status,s.check_in_at,s.check_out_at,s.client_signoff_status,b.client_id FROM shifts s JOIN bookings b ON b.id=s.booking_id WHERE s.environment='production' AND b.environment='production' ${actor.operations?'':"AND (EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='client' AND l.entity_id=b.client_id AND l.owner_user_id=?) OR EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='officer' AND l.entity_id=s.officer_id AND l.owner_user_id=?))"} ORDER BY s.scheduled_date DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId,actor.userId])).all();
  const operators=actor.owner?await db.prepare("SELECT id,email,status,approval_limit_cents FROM operator_accounts WHERE environment='production'").all():{results:[]};
- return {...await readProductionPayrollPolicies(db,actor),...await readProductionSchedule(db,actor),...await readProductionService(db,actor),...await readProductionEvidence(db,actor),...await readClientReviews(db,actor),...await readProductionOrders(db,actor),rosters:rosters.results,approvals:approvals.results,shifts:shifts.results,operators:operators.results,owner:actor.owner};
+ return {...await readProductionPayroll(db,actor),...await readProductionPayrollPolicies(db,actor),...await readProductionSchedule(db,actor),...await readProductionService(db,actor),...await readProductionEvidence(db,actor),...await readClientReviews(db,actor),...await readProductionOrders(db,actor),rosters:rosters.results,approvals:approvals.results,shifts:shifts.results,operators:operators.results,owner:actor.owner};
 }
 export async function operateProduction(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,liveCheckInEnabled=false){
  const now=new Date().toISOString();
+ if(input.action==='prepare_payroll_period')return prepareProductionPayroll(db,actor,input,headers);
+ if(['first_approve_payroll','second_approve_payroll','void_payroll','export_payroll'].includes(String(input.action)))return decideProductionPayroll(db,actor,input,headers);
  if(['prepare_payroll_policy','review_payroll_policy','activate_payroll_policy','withdraw_payroll_policy'].includes(String(input.action)))return manageProductionPayrollPolicy(db,actor,input,headers);
  if(['declare_schedule','withdraw_availability'].includes(String(input.action)))return declareProductionSchedule(db,actor,input);
  if(['complete_service','client_signoff','client_dispute','resolve_service_dispute','review_service_pay','reopen_service_pay'].includes(String(input.action)))return recordProductionService(db,actor,input,headers);

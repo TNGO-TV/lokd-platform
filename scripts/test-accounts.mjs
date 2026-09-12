@@ -16,8 +16,10 @@ let localBrowserLibraries = false;
 try { await fileAccess(browserLibraries); localBrowserLibraries = true; } catch { /* Use system libraries. */ }
 const run = randomUUID();
 const users = [];
-const emails = Object.fromEntries(['client', 'officer', 'operations', 'unassigned', 'owner'].map(role => [role, `lokd-${role}+clerk_test_${run}@example.com`]));
-const access = { clients: { [emails.client]: 'CL-001' }, officers: { [emails.officer]: 'OFF-001' }, operations: [emails.operations], owners: [emails.owner] };
+const userIds = {};
+const includeFinance = process.env.LOKD_ACCOUNT_TEST_FINANCE === 'true';
+const emails = Object.fromEntries(['client', 'officer', 'operations', 'unassigned', 'owner', ...(includeFinance ? ['finance'] : [])].map(role => [role, `lokd-${role}+clerk_test_${run}@example.com`]));
+const access = { clients: { [emails.client]: 'CL-001' }, officers: { [emails.officer]: 'OFF-001' }, operations: [emails.operations, ...(includeFinance ? [emails.finance] : [])], owners: [emails.owner] };
 let ownsVars = false;
 let failed = false;
 try {
@@ -35,10 +37,11 @@ try {
   for (const [role, email] of Object.entries(emails)) {
     const user = await clerk.users.createUser({ emailAddress: [email], skipPasswordRequirement: true, privateMetadata: { lokdAccountTestRun: run, role } });
     users.push(user.id);
+    userIds[role] = user.id;
   }
   console.log('Created isolated Clerk development identities. No inboxes or invitations required.');
   const child = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', '--config=tests/accounts/playwright.config.mjs', ...process.argv.slice(2)], {
-    stdio: 'inherit', env: { ...process.env, ...keys, ...(localBrowserLibraries ? { LD_LIBRARY_PATH: [browserLibraries, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':') } : {}), LOKD_TEST_EMAILS: JSON.stringify(emails) },
+    stdio: 'inherit', env: { ...process.env, ...keys, ...(localBrowserLibraries ? { LD_LIBRARY_PATH: [browserLibraries, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':') } : {}), LOKD_TEST_EMAILS: JSON.stringify(emails), LOKD_TEST_USER_IDS: JSON.stringify(userIds) },
   });
   const code = await new Promise((resolve, reject) => { child.on('error', reject); child.on('exit', resolve); });
   failed = code !== 0;

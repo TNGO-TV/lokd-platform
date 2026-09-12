@@ -77,6 +77,8 @@ export type PayrollPolicy = {
 };
 
 export type PayrollEarningInput = {
+  // Explicit reviewed service amount; keeps actual minutes for leave accrual.
+  approvedServiceGrossCents?: number;
   code: "ORDINARY" | "OVERTIME" | "SUNDAY" | "PUBLIC_HOLIDAY" | "NIGHT" | "ALLOWANCE" | string;
   description: string;
   minutes: number;
@@ -274,6 +276,11 @@ export function earningLineAmount(input: PayrollEarningInput) {
   safeNonNegativeInteger(input.minutes, "Earning minutes");
   safeNonNegativeInteger(input.baseHourlyRateCents, "Hourly rate");
   if (!integerInRange(input.multiplierBasisPoints, 0, 100_000)) throw new Error("The earning multiplier is outside the permitted range.");
+  if (input.approvedServiceGrossCents !== undefined) {
+    if (input.code !== 'APPROVED_SERVICE' || input.baseHourlyRateCents !== 0 || input.multiplierBasisPoints !== 10000) throw new Error('Approved service gross requires the explicit service amount basis.');
+    safeNonNegativeInteger(input.approvedServiceGrossCents, 'Approved service gross');
+    return input.approvedServiceGrossCents;
+  }
   const numerator = input.baseHourlyRateCents * input.minutes * input.multiplierBasisPoints;
   if (!Number.isSafeInteger(numerator)) throw new Error("The earning line exceeds the safe calculation range.");
   return Math.round(numerator / (60 * 10_000));
