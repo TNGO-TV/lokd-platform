@@ -56,6 +56,7 @@ const worker = {
 
     try {
       // Provider authentication is HMAC, independent of browser sessions.
+      if (url.pathname === '/api/paystack/booking/webhook') return await handler.fetch(request, env, ctx);
       if (url.pathname === '/api/paystack/test/webhook') return await receivePaystackTest(request, env);
       const auth = await authenticateClerkRequest(request, env);
       if (auth.response) return auth.response;

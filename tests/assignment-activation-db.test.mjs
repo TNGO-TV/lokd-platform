@@ -1597,6 +1597,51 @@ test('production intake prepares pending records and reconciles reviewed correct
  assert.equal(database.prepare('SELECT status FROM operational_sites WHERE booking_id=?').get(setup.orderId).status,'pending_review');
  assert.equal(await currentClientReview(db,prepared.entityId,new Date(Date.now()+2*86400000).toISOString()),false);
 
+
+ // Booking collection uses this real intake/order fixture, with transport isolated in memory.
+ const {operateBookingCollection,readBookingCollections,receiveBookingCollectionWebhook}=await import('../app/lib/booking-collections.ts');
+ const {collectionMetadata}=await import('../app/lib/collection-evidence.ts');
+ const {operateProduction}=await import('../app/lib/production-operations.ts');
+ const {createHmac}=await import('node:crypto');
+ const headers=new Headers({'x-lokd-verified-mfa-enrolled':'true','x-lokd-verified-user-id':owner.userId,'x-lokd-verified-second-factor-at':new Date().toISOString()}),runtime={PAYSTACK_TEST_SECRET_KEY:'sk_test_collection_fixture'};
+ for(const a of [reviewer,owner])await operateProduction(db,owner,{action:'grant_operator',email:a.email,role:'funding_reconciler',limitCents:100000000},headers);
+ const act=(a,input,transport)=>operateBookingCollection(db,a,input,headers,runtime,transport);
+ const saved=()=>database.prepare("SELECT * FROM booking_collection_requests WHERE order_id=? AND mode='test'").get(setup.orderId);
+ await assert.rejects(()=>act(applicant,{action:'prepare_collection',orderId:setup.orderId,caseVersion:4,mode:'test'}),/Operations/);
+ await act(reviewer,{action:'prepare_collection',orderId:setup.orderId,caseVersion:4,mode:'test'});
+ assert.equal((await act(reviewer,{action:'prepare_collection',orderId:setup.orderId,caseVersion:4,mode:'test'})).alreadyPrepared,true);
+ const command=action=>({action,reference:saved().reference,revision:saved().revision,evidenceReviewed:true});
+ await assert.rejects(()=>act(reviewer,command('approve_collection')),/maker|independent|Maker/i);
+ await act(owner,command('approve_collection'));
+ let dispatches=0;
+ await act(applicant,command('initialize_collection'),async()=>{dispatches++;assert.equal(saved().state,'initializing');throw Error('timeout after provider accepted request');});
+ assert.equal(saved().state,'initialization_unknown');
+ await act(applicant,command('initialize_collection'),async()=>{dispatches++;throw Error('must never redispatch');});assert.equal(dispatches,1);
+ assert.equal((await readBookingCollections(db,{...applicant,userId:'intruder'})).collections.length,0);
+ assert.throws(()=>database.prepare('UPDATE booking_collection_requests SET amount_minor=1,revision=revision+1').run(),/immutable/);
+ const r=saved(),meta=collectionMetadata({reference:r.reference,orderId:r.order_id,clientId:r.client_id,applicantId:r.applicant_id,caseId:r.case_id,caseVersion:r.case_version,sourceHash:r.source_hash,amountMinor:r.amount_minor,currency:r.currency,mode:r.mode});
+ const transaction={id:9001,reference:r.reference,domain:'test',status:'success',amount:r.amount_minor,currency:'ZAR',paid_at:new Date(Date.now()-1000).toISOString(),metadata:meta};
+ const transport=async()=>Response.json({status:true,data:transaction});
+ await assert.rejects(()=>act(applicant,command('verify_collection'),transport),/Operations/);
+ await act(owner,command('verify_collection'),transport);assert.equal(saved().state,'awaiting_webhook');
+ function webhook(tx=transaction,secret=runtime.PAYSTACK_TEST_SECRET_KEY){const body=JSON.stringify({event:'charge.success',data:tx});return new Request('https://lokd.co.za/api/paystack/booking/webhook?mode=test',{method:'POST',body,headers:{'x-paystack-signature':createHmac('sha512',secret).update(body).digest('hex')}});}
+ await assert.rejects(()=>receiveBookingCollectionWebhook(webhook(transaction,'wrong'),db,runtime,'test'),/signature/);
+ await assert.rejects(()=>receiveBookingCollectionWebhook(webhook({...transaction,domain:'live'}),db,runtime,'test'),/mode/);
+ const {receivePaystackTest}=await import('../app/lib/paystack-test.ts');
+ assert.equal((await receivePaystackTest(webhook(),{...runtime,DB:db})).status,200);assert.equal(saved().state,'review_required');
+ const rev=saved().revision;await receiveBookingCollectionWebhook(webhook(),db,runtime,'test');assert.equal(saved().revision,rev);
+ await act(owner,command('verify_collection'),transport);assert.equal(saved().state,'matched_test');
+ assert.equal(database.prepare('SELECT funding_status FROM bookings WHERE id=?').get(setup.orderId).funding_status,'unfunded');
+ assert.equal(database.prepare('SELECT count(*) n FROM booking_funding_reconciliations WHERE booking_id=?').get(setup.orderId).n,0);
+ const racing=command('verify_collection');
+ await assert.rejects(()=>act(owner,racing,async()=>{await receiveBookingCollectionWebhook(webhook({...transaction,amount:1}),db,runtime,'test');return transport();}),/changed during provider/);
+ assert.equal(saved().state,'review_required');
+ await act(owner,command('verify_collection'),transport);assert.equal(saved().state,'review_required');
+ assert.throws(()=>database.exec('DELETE FROM booking_collection_evidence'),/required/);
+ await act(reviewer,{action:'prepare_collection',orderId:setup.orderId,caseVersion:4,mode:'live'});
+ const live=database.prepare("SELECT * FROM booking_collection_requests WHERE mode='live'").get();await act(owner,{action:'approve_collection',reference:live.reference,revision:live.revision,evidenceReviewed:true});
+ await assert.rejects(()=>act(applicant,{action:'initialize_collection',reference:live.reference,revision:live.revision+1},async()=>{dispatches++;throw Error('No live dispatch');}),/acceptance/);assert.equal(dispatches,1);
+
  assert.throws(()=>database.exec("UPDATE production_client_decisions SET reason='rewritten'"),/immutable/);
  await reviewProductionClient(db,reviewer,{action:'suspend_client',clientId:prepared.entityId,reason:'New contradictory source information requires review.'});
  assert.equal(await currentClientReview(db,prepared.entityId),false);

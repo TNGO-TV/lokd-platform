@@ -16,3 +16,6 @@ Next implementation: payroll profiles/destination verification and period-based 
 
 ## Current checkpoint after v55, 12 September 2026
 Read PERIOD_PAYROLL_2026-09-12.md before further work. Payroll calculation profiles, immutable complete-period calculations, independent approvals, restricted review, controlled CSV export and pre-export correction recovery are now implemented, tested and deployed in v55 (source 130ecc0f67a834c98a0aba47f4f0d7155512be57). Do not rebuild them. Remaining code: provider collection/reconciliation, verified destinations and payment adapters, partner payables, payslips and post-export adjustments. Production financial acceptance remains distinct.
+
+## Booking collection evidence follow-up
+Read BOOKING_COLLECTION_2026-09-12.md for the next source milestone after v55. Durable requests, independent approval, client checkout, API/signed-webhook evidence agreement and mismatch/timeout recovery are implemented. These do not yet project cleared settlement into canonical funding. Provider settlement/refund/dispute recovery and all payout workflows remain open; consult its terminal release receipt before claiming deployment.

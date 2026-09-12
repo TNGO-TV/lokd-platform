@@ -1,5 +1,6 @@
 // This receiver records delivery evidence only. It cannot credit a booking,
 // reconcile live money, activate service or authorise an officer payment.
+import {receiveBookingCollectionWebhook} from './booking-collections';
 type Runtime = { PAYSTACK_TEST_SECRET_KEY?: string; DB?: D1Database };
 const reply=(error:string,status:number)=>Response.json({error},{status,headers:{'cache-control':'no-store'}});
 export async function receivePaystackTest(request:Request,runtime:Runtime):Promise<Response> {
@@ -27,6 +28,11 @@ export async function receivePaystackTest(request:Request,runtime:Runtime):Promi
   await runtime.DB.prepare(`INSERT OR IGNORE INTO paystack_test_deliveries
    (payload_hash,event_type,provider_id,reference,provider_status,amount_minor,currency,received_at,metadata_json)
    VALUES (?,?,?,?,?,?,?,?,?)`).bind(hash,payload.event,scalar(payload.data.id),scalar(payload.data.reference),scalar(payload.data.status),Number.isSafeInteger(payload.data.amount)&&payload.data.amount>=0?payload.data.amount:null,scalar(payload.data.currency),new Date().toISOString(),JSON.stringify(metadata)).run();
+  // Reuse the configured test webhook without changing the saved enrolment checkout.
+  // Reference routing also retains contradictory booking metadata for review.
+  if(typeof payload.data.reference==='string'&&payload.data.reference.startsWith('lokd-booking-')){
+   await receiveBookingCollectionWebhook(new Request(request.url,{method:'POST',headers:request.headers,body:raw}),runtime.DB,runtime,'test');
+  }
  }catch{return reply('Event storage unavailable. Retry delivery.',503);}
  return Response.json({received:true,mode:'test',financialEffect:false},{headers:{'cache-control':'no-store'}});
 }

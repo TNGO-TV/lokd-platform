@@ -1,6 +1,21 @@
 import { sql } from "drizzle-orm";
 import { index, integer, real, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
+export const bookingCollectionRequests = sqliteTable('booking_collection_requests', {
+ reference:text('reference').primaryKey(), orderId:text('order_id').notNull().references(()=>bookings.id),
+ clientId:text('client_id').notNull(), applicantId:text('applicant_id').notNull(), caseId:text('case_id').notNull(),
+ caseVersion:integer('case_version').notNull(), sourceHash:text('source_hash').notNull(),
+ amountMinor:integer('amount_minor').notNull(), currency:text('currency').notNull(), mode:text('mode').notNull(),
+ state:text('state').notNull(), providerId:text('provider_id'), checkoutUrl:text('checkout_url'),
+ preparedBy:text('prepared_by').notNull(), approvedBy:text('approved_by'),
+ revision:integer('revision').notNull().default(1), createdAt:text('created_at').notNull(), updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('booking_collection_order_mode_idx').on(t.orderId,t.mode),uniqueIndex('booking_collection_transaction_idx').on(t.mode,t.providerId)]);
+export const bookingCollectionEvidence = sqliteTable('booking_collection_evidence', {
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>bookingCollectionRequests.reference),
+ source:text('source').notNull(),event:text('event').notNull(),payloadHash:text('payload_hash').notNull(),
+ transactionJson:text('transaction_json').notNull(),actorId:text('actor_id'),recordedAt:text('recorded_at').notNull(),
+},t=>[index('booking_collection_evidence_reference_idx').on(t.reference,t.source),uniqueIndex('booking_collection_evidence_delivery_idx').on(t.reference,t.source,t.payloadHash)]);
+
 export const specialistCommercialReviews = sqliteTable("specialist_commercial_reviews", {
   id: text("id").primaryKey(),
   environment: text("environment").notNull(), integrityState: text("integrity_state").notNull(),
