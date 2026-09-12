@@ -1496,3 +1496,76 @@ test('agreement revocation during commit rolls back activation and is immutable'
   assert.throws(()=>database.exec("UPDATE agreement_document_versions SET status='approved'"),/append-only/);
   database.close();
 });
+
+test('production signing delivers exact approved wording and feeds the existing activation agreement gate',async()=>{
+ const {manageProductionDocument,issueProductionEnvelope,signProductionEnvelope}=await import('../app/lib/production-signing.ts');
+ const {POST:enquire}=await import('../app/api/enquiries/route.ts');const {writeSignup}=await import('../app/lib/signup-server.ts');const {env}=await import('cloudflare:workers');
+ const database=migratedDatabase();await seedValid(database);const db=new D1Adapter(database);env.DB=db;
+ const applicant={userId:'user_client_production',email:'production-signer@example.test',operations:false,owner:false},ops={userId:'user_ops_production',email:'ops@example.test',operations:true,owner:true};
+ const response=await enquire(new Request('https://lokd.co.za/api/enquiries',{method:'POST',headers:{origin:'https://lokd.co.za','content-type':'application/json'},body:JSON.stringify({organisationName:'Signing Fixture Client',contactName:'Fixture Signer',email:applicant.email,mobile:'0821234567',siteArea:'Sandton',siteType:'commercial_property',requiredStart:'planning',message:'Production-path signing fixture, isolated in-memory database.',advanceFundingAcknowledged:true,privacyConsent:true})}));assert.equal(response.status,202);const caseId=(await response.json()).reference;
+ await writeSignup(db,applicant,{action:'link',kind:'client',id:caseId,expectedVersion:0});
+ run(database,"INSERT INTO production_entity_links VALUES('client',?,1,?,'CL-1',?,?)",caseId,applicant.userId,ops.userId,new Date().toISOString());
+ const {facts}=await evaluateAssignmentActivation(db,request('production:signing'));
+ const drafted=await manageProductionDocument(db,ops,{action:'draft',documentCode:'CLIENT_MSA',documentVersion:'fixture-v2',entityId:facts.client.contractingEntityId,locale:'en-ZA',wording:'Controlled fixture wording for exercising the production signing code path in an isolated database.'});
+ const body=database.prepare('SELECT * FROM signing_document_bodies WHERE id=?').get(drafted.documentId);
+ await assert.rejects(()=>manageProductionDocument(db,{...ops,owner:false},{action:'approve',documentId:body.id}),/owner/);
+ await manageProductionDocument(db,ops,{action:'approve',documentId:body.id,contentHash:body.content_hash,legalApprovalConfirmed:true,effectiveFrom:'2026-01-01T00:00:00Z'});
+ const issue={documentId:body.id,rosterSlotId:'SLOT-1',officerId:'OFF-1',slotVersion:1,identityEvidence:'Fixture independent identity review',authorityEvidence:'Fixture corporate signing mandate'};
+ await issueProductionEnvelope(db,ops,issue);await issueProductionEnvelope(db,ops,issue);assert.equal(database.prepare('SELECT count(*) AS n FROM production_signing_envelopes').get().n,1);
+ const e=database.prepare('SELECT * FROM production_signing_envelopes').get();const sign={action:'sign',envelopeId:e.id,affirmative:true,contentHash:e.content_hash,contextHash:e.context_hash};
+ await assert.rejects(()=>signProductionEnvelope(db,{...applicant,userId:'intruder'},sign),/not found/);
+ await assert.rejects(()=>signProductionEnvelope(db,ops,sign),/Only the named/);
+ await assert.rejects(()=>signProductionEnvelope(db,applicant,{...sign,contextHash:'wrong'}),/exact/);
+ const signed=await signProductionEnvelope(db,applicant,sign);assert.equal(signed.workEligible,false);assert.equal((await signProductionEnvelope(db,applicant,sign)).alreadyRecorded,true);
+ // Retain, but revoke the older fixture MSA so only the delivered new signature can satisfy that role.
+ for(const r of database.prepare("SELECT id FROM agreement_acceptance_receipts WHERE json_extract(receipt_json,'$.context.scope.documentRole')='CLIENT_MSA' AND id!=?").all(signed.receiptId))run(database,'INSERT INTO agreement_receipt_revocations VALUES(?,?,?,?)',r.id,'Superseded fixture evidence',ops.userId,new Date().toISOString());
+ assert.equal((await evaluateAssignmentActivation(db,request('signed:production:ready'))).facts.agreements.ready,true);
+ await signProductionEnvelope(db,applicant,{action:'cancel',envelopeId:e.id,reason:'Fixture cancellation for reissue acceptance.'});
+ await issueProductionEnvelope(db,ops,issue);await issueProductionEnvelope(db,ops,issue);assert.equal(database.prepare('SELECT count(*) AS n FROM production_signing_envelopes').get().n,2);
+ await manageProductionDocument(db,ops,{action:'withdraw_document',documentId:body.id,reason:'Withdraw fixture version after the acceptance check.'});
+ assert.equal((await evaluateAssignmentActivation(db,request('signed:production:withdrawn'))).facts.agreements.ready,false);
+ await assert.rejects(()=>signProductionEnvelope(db,applicant,sign),/withdrawn/);
+ assert.equal(database.prepare('SELECT count(*) AS n FROM agreement_acceptance_receipts WHERE id=?').get(signed.receiptId).n,1);database.close();
+});
+
+test('production Operations enforces real grants, maker separation and idempotent activation',async()=>{
+ const {operateProduction,readProductionOperations}=await import('../app/lib/production-operations.ts');const {env}=await import('cloudflare:workers');env.LOKD_OPERATIONS_MFA_REQUIRED='false';
+ const database=migratedDatabase();await seedValid(database);const db=new D1Adapter(database),headers=new Headers();
+ const owner={userId:'owner-real',email:'owner-real@example.test',operations:true,owner:true},maker={userId:'maker-real',email:'maker-real@example.test',operations:true,owner:false},checker={userId:'checker-real',email:'checker-real@example.test',operations:true,owner:false};
+ const command={action:'prepare_activation',rosterSlotId:'SLOT-1',officerId:'OFF-1',slotVersion:1,activationKey:'production-controls'};
+ assert.ok((await readProductionOperations(db,owner)).rosters.length);
+ assert.equal((await readProductionOperations(db,{...maker,operations:false})).rosters.length,0);
+ await assert.rejects(()=>operateProduction(db,maker,command,headers),/operator account/);
+ await assert.rejects(()=>operateProduction(db,maker,{action:'grant_operator',email:maker.email,role:'operations_controller',limitCents:1000000},headers),/owner/);
+ await operateProduction(db,owner,{action:'grant_operator',email:maker.email,role:'operations_controller',limitCents:1000000},headers);
+ await operateProduction(db,owner,{action:'grant_operator',email:maker.email,role:'operations_owner',limitCents:1000000},headers);
+ await operateProduction(db,owner,{action:'grant_operator',email:checker.email,role:'operations_owner',limitCents:1000000},headers);
+ await operateProduction(db,maker,command,headers);
+ await assert.rejects(()=>operateProduction(db,maker,{action:'approve_activation',activationKey:command.activationKey},headers),/maker|independent/i);
+ await operateProduction(db,checker,{action:'approve_activation',activationKey:command.activationKey},headers);
+ assert.equal((await operateProduction(db,checker,{action:'approve_activation',activationKey:command.activationKey},headers)).alreadyActivated,true);
+ assert.equal(count(database,'shifts'),1);
+ await assert.rejects(()=>operateProduction(db,{...maker,operations:false},{action:'check_in',shiftId:'anything'},headers),/acceptance/);
+ await operateProduction(db,owner,{action:'revoke_operator',operatorId:database.prepare('SELECT id FROM operator_accounts WHERE email=?').get(checker.email).id},headers);
+ await assert.rejects(()=>operateProduction(db,checker,{action:'approve_activation',activationKey:command.activationKey},headers),/active production/);
+ database.close();
+});
+
+test('production intake prepares pending records and reconciles reviewed corrections without granting eligibility',async()=>{
+ const {prepareProductionEntity}=await import('../app/lib/production-intake.ts');const {POST:enquire}=await import('../app/api/enquiries/route.ts');const {writeSignup}=await import('../app/lib/signup-server.ts');const {env}=await import('cloudflare:workers');
+ const database=migratedDatabase(),db=new D1Adapter(database);env.DB=db;
+ const applicant={userId:'intake-user',email:'intake-fixture@example.test',operations:false},ops={userId:'intake-ops',email:'intake-ops@example.test',operations:true};
+ const response=await enquire(new Request('https://lokd.co.za/api/enquiries',{method:'POST',headers:{origin:'https://lokd.co.za','content-type':'application/json'},body:JSON.stringify({organisationName:'Intake Fixture Client',contactName:'Fixture Signer',email:applicant.email,mobile:'0821234567',siteArea:'Sandton',siteType:'commercial_property',requiredStart:'planning',message:'Production intake fixture in isolated memory only.',advanceFundingAcknowledged:true,privacyConsent:true})}));const caseId=(await response.json()).reference;
+ await writeSignup(db,applicant,{action:'link',kind:'client',id:caseId,expectedVersion:0});
+ await assert.rejects(()=>prepareProductionEntity(db,ops,{kind:'client',caseId,caseVersion:1}),/reviewed/);
+ await writeSignup(db,ops,{action:'review',kind:'client',id:caseId,expectedVersion:1,status:'reviewed',note:'Fixture intake details independently reviewed.'});
+ const prepared=await prepareProductionEntity(db,ops,{kind:'client',caseId,caseVersion:2});assert.equal(prepared.workEligible,false);assert.equal((await prepareProductionEntity(db,ops,{kind:'client',caseId,caseVersion:2})).entityId,prepared.entityId);
+ await writeSignup(db,applicant,{action:'correct',kind:'client',id:caseId,expectedVersion:2,changes:{organisationName:'Corrected Fixture Client'}});
+ await writeSignup(db,ops,{action:'review',kind:'client',id:caseId,expectedVersion:3,status:'reviewed',note:'Corrected fixture details independently reviewed.'});
+ assert.equal((await prepareProductionEntity(db,ops,{kind:'client',caseId,caseVersion:4})).reconciled,true);
+ const client=database.prepare('SELECT * FROM clients WHERE id=?').get(prepared.entityId);assert.equal(client.organisation_name,'Corrected Fixture Client');assert.equal(client.approval_status,'pending');assert.equal(client.integrity_state,'production_candidate');
+ assert.throws(()=>database.prepare("UPDATE clients SET approval_status='approved' WHERE id=?").run(prepared.entityId),/Candidate intake/);
+ assert.throws(()=>database.prepare("UPDATE clients SET integrity_state='production_verified' WHERE id=?").run(prepared.entityId),/immutable/);
+ assert.equal(database.prepare("SELECT count(*) AS n FROM audit_events WHERE event_type='production_entity_reconciled'").get().n,1);
+ database.close();
+});

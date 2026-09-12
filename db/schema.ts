@@ -2481,3 +2481,22 @@ export const testOperatingEvents=sqliteTable('test_operating_events',{
 export const publicOfficerPresence=sqliteTable('public_officer_presence',{
  id:text('id').primaryKey(),userId:text('user_id').notNull(),officerId:text('officer_id'),mode:text('mode').notNull(),latitude:real('latitude').notNull(),longitude:real('longitude').notNull(),consentedAt:text('consented_at').notNull(),updatedAt:text('updated_at').notNull(),expiresAt:text('expires_at').notNull(),
 },t=>[uniqueIndex('public_presence_user_mode_idx').on(t.userId,t.mode)]);
+
+export const productionEntityLinks=sqliteTable('production_entity_links',{
+ kind:text('kind').notNull(),caseId:text('case_id').notNull(),caseVersion:integer('case_version').notNull(),ownerUserId:text('owner_user_id').notNull(),entityId:text('entity_id').notNull(),preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),
+},t=>[primaryKey({columns:[t.kind,t.caseId]}),uniqueIndex('production_entity_link_idx').on(t.kind,t.entityId)]);
+export const signingDocumentBodies=sqliteTable('signing_document_bodies',{
+ id:text('id').primaryKey(),documentCode:text('document_code').notNull(),documentVersion:text('document_version').notNull(),entityId:text('entity_id').notNull(),locale:text('locale').notNull(),wording:text('wording').notNull(),contentHash:text('content_hash').notNull(),preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),
+});
+export const signingDocumentWithdrawals=sqliteTable('signing_document_withdrawals',{
+ documentId:text('document_id').primaryKey(),withdrawnBy:text('withdrawn_by').notNull(),reason:text('reason').notNull(),withdrawnAt:text('withdrawn_at').notNull(),
+});
+export const productionSigningEnvelopes=sqliteTable('production_signing_envelopes',{
+ id:text('id').primaryKey(),issuanceNumber:integer('issuance_number').notNull().default(1),documentId:text('document_id').notNull(),role:text('role').notNull(),ownerUserId:text('owner_user_id').notNull(),caseKind:text('case_kind').notNull(),caseId:text('case_id').notNull(),caseVersion:integer('case_version').notNull(),rosterSlotId:text('roster_slot_id').notNull(),officerId:text('officer_id').notNull(),slotVersion:integer('slot_version').notNull(),contextJson:text('context_json').notNull(),contextHash:text('context_hash').notNull(),contentHash:text('content_hash').notNull(),identityEvidence:text('identity_evidence').notNull(),authorityEvidence:text('authority_evidence'),issuedBy:text('issued_by').notNull(),issuedAt:text('issued_at').notNull(),expiresAt:text('expires_at').notNull(),
+},t=>[index('production_envelope_owner_idx').on(t.ownerUserId,t.issuedAt),uniqueIndex('production_envelope_binding_idx').on(t.ownerUserId,t.documentId,t.contextHash,t.issuanceNumber)]);
+export const productionEnvelopeCancellations=sqliteTable('production_envelope_cancellations',{
+ envelopeId:text('envelope_id').primaryKey(),actorId:text('actor_id').notNull(),reason:text('reason').notNull(),cancelledAt:text('cancelled_at').notNull(),
+});
+export const productionActivationApprovals=sqliteTable('production_activation_approvals',{
+ id:text('id').primaryKey(),requestJson:text('request_json').notNull(),requestHash:text('request_hash').notNull(),makerId:text('maker_id').notNull(),state:text('state').notNull(),approverId:text('approver_id'),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+});

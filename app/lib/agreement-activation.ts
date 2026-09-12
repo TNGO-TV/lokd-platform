@@ -28,6 +28,11 @@ export async function readActivationAgreements(db: D1Database, facts: Assignment
     const context=activationAgreementContext(facts,role),contextHash=await agreementHash(canonicalAgreementContext(context));
     const candidates=await db.prepare(`SELECT r.id,r.receipt_json,r.receipt_hash FROM agreement_acceptance_receipts r
       WHERE r.context_hash=? AND NOT EXISTS(SELECT 1 FROM agreement_receipt_revocations v WHERE v.receipt_id=r.id)
+      AND (r.id NOT LIKE 'LIVE-SIGN-%' OR EXISTS(
+        SELECT 1 FROM production_signing_envelopes e JOIN signup_cases c ON c.kind=e.case_kind AND c.source_id=e.case_id
+        JOIN production_entity_links l ON l.kind=c.kind AND l.case_id=c.source_id AND l.case_version=c.version
+        WHERE r.id='LIVE-SIGN-'||e.id AND c.version=e.case_version AND c.owner_user_id=e.owner_user_id
+        AND c.status!='withdrawn' AND NOT EXISTS(SELECT 1 FROM production_envelope_cancellations x WHERE x.envelope_id=e.id)))
       ORDER BY r.id`).bind(contextHash).all<{id:string;receipt_json:string;receipt_hash:string}>();
     let matched=false;
     for(const row of candidates.results) {
@@ -45,7 +50,8 @@ export async function readActivationAgreements(db: D1Database, facts: Assignment
           || !Number.isFinite(Date.parse(receipt.acceptedAt)) || Date.parse(receipt.acceptedAt)>Date.parse(facts.evaluatedAt))continue;
         const template=await db.prepare(`SELECT document_version AS template_version,content_hash AS template_hash,approved_at,effective_from,effective_to,entity_id,locale,document_reference
           FROM agreement_document_versions WHERE id=? AND document_code=? AND status='approved'
-          AND environment='production' AND integrity_state='production_verified' AND length(trim(approved_by))>0`)
+          AND environment='production' AND integrity_state='production_verified' AND length(trim(approved_by))>0
+          AND NOT EXISTS(SELECT 1 FROM signing_document_withdrawals w WHERE w.document_id=agreement_document_versions.id)`)
           .bind(receipt.documentId,role).first<{template_version:string;template_hash:string;approved_at:string;effective_from:string;effective_to:string|null;entity_id:string;locale:string;document_reference:string}>();
         if(!template || template.entity_id!==receipt.entityId || template.locale!==receipt.locale || !template.document_reference.trim() || template.document_reference.startsWith('demo:') || template.template_version!==receipt.documentVersion || template.template_hash!==receipt.contentHash)continue;
         const signedAt=Date.parse(receipt.acceptedAt);

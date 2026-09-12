@@ -295,6 +295,27 @@
       "when": 1789224774867,
       "tag": "0041_living_the_leader",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1789228765425,
+      "tag": "0042_cloudy_dazzler",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1789229450452,
+      "tag": "0043_rare_phil_sheldon",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1789229892334,
+      "tag": "0044_abandoned_enchantress",
+      "breakpoints": true
     }
   ]
 }
