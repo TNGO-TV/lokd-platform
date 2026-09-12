@@ -1,0 +1,21 @@
+# Signed workforce terms and production payroll policy — 12 September 2026
+
+Continues v53 in the existing authorised completion task. This is another substantive wiring checkpoint, not completion of all payroll/provider functionality.
+
+## Built and tested
+- A named officer's actual OFFICER_EMPLOYMENT acceptance now projects into the workforce-terms record consumed by activation. Binds the exact engagement, terms version, employer, officer, current intake/account, document and immutable receipt. Database commit guards reject stale/cancelled/withdrawn evidence. Expiry cannot exceed document or employer-engagement review coverage. Operations cannot assert acceptance on the officer's behalf.
+- Replay recovers a stored signature whose projection was interrupted. Cancellation, receipt revocation and legal-document withdrawal deactivate the corresponding terms evidence while retaining history; reissue creates a new acceptance. Existing Client signing and all other work-eligibility gates remain separate.
+- Production payroll policy configuration is available in Operations. Uses the existing payroll policy schema and validator. Actual source references and explicit source review are required; shipped synthetic policy is rejected. A payroll preparer submits immutable rules, a different granted payroll reviewer reviews, and a third finance approver activates. Explicit withdrawal precedes replacement, policy versions are unique, stale decisions fail atomically, and decision history is retained. This configuration does not calculate payroll or release money.
+- Existing owner-approved MFA exception is consumed by the real operator control helper; no MFA success was fabricated, no Clerk setting changed and no synthetic operator was created. Older payroll-run MFA/settlement locks remain untouched for the separate financial-integration milestone.
+- Migrations 0049 and 0050 add signature-projection/withdrawal and payroll-policy guards. Full build and 262 regression tests passed with no skips/failures. TypeScript, targeted ESLint and whitespace checks passed. New integration tests cover signature replay/cancellation/reissue/withdrawal and three separately granted payroll-policy actors, self/stale approval denial, immutable source and withdrawal.
+- No new browser acceptance is claimed for the new policy forms or employment projection; v53 browser acceptance remains applicable only to its documented Client/Operations/site-review journey. No real employment acceptance, statutory policy approval, provider dispatch or money movement occurred.
+
+## Remaining completion work
+Resume from the deployed code and existing fixtures; do not repeat completed service/site/schedule work. Next implement period-based production payroll calculation/import and profile/destination setup, independently approved exports/payslips, post-payroll adjustments and partner payables. Then provider-backed booking collection/reconciliation and officer payments with duplicate/uncertain/reversal recovery, exact transaction/webhook/source binding and explicit test/live separation. Never remove the existing settlement locks merely to pass a test.
+The officer identity/PSiRA readiness bridge must consume genuinely matching evidence and must not promote sandbox identity. Signed workforce terms are now connected; remove that item from earlier receipts' remaining-code lists. Real account/Google, legal/entity/employer inputs, manual saved R350 checkout and live financial/GPS acceptance remain external dependencies. Test documents/fixtures are authorised; no training packages are invented. The complete production build remains open, not just waiting for keys.
+
+## Provider method reference retained
+Paystack official transaction API: https://paystack.com/docs/api/transaction/ — backend initialise/verify, integer currency subunits, unique saved reference and exact metadata binding. Transfers: https://paystack.com/docs/api/transfer/ — future adapter must distinguish initiation from verified settlement. Neither research nor an isolated fixture is provider acceptance. Existing R350 test checkout and signed inbox must be reused without generating another dummy or repeatedly asking for its pending completion.
+
+## Deployment
+Await terminal release receipt; do not infer publication from passing local tests.

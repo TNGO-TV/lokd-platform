@@ -1677,3 +1677,46 @@ test('officer schedule replaces declared work atomically, retains history and re
  assert.equal(database.prepare('SELECT status FROM officer_availability_windows WHERE id=?').get(available.id).status,'withdrawn');
  assert.equal((await readProductionSchedule(db,{...actor,userId:'intruder'})).availability.length,0);database.close();
 });
+
+test('bound officer signature projects workforce terms with replay, cancellation and document withdrawal recovery',async()=>{
+ const {manageProductionDocument,issueProductionEnvelope,signProductionEnvelope}=await import('../app/lib/production-signing.ts');
+ const database=migratedDatabase();await seedValid(database);const db=new D1Adapter(database),now=new Date().toISOString();
+ const officer={userId:'terms-officer',email:'terms-officer@example.test',operations:false,owner:false},ops={userId:'terms-owner',email:'terms-owner@example.test',operations:true,owner:true};
+ run(database,`INSERT INTO officer_applications(id,pathway,full_name,mobile_normalized,email_normalized,city,province,psira_status,service_interests,training_interests,over_18_confirmed,eligibility_acknowledged,privacy_notice_version,privacy_acknowledged_at,retention_review_at,environment,integrity_state) VALUES('terms-case','qualified','Terms Fixture','+27820000777',?,'Sandton','Gauteng','registered','[]','[]',1,1,'fixture',?,?,'prelaunch','user_submitted')`,officer.email,now,now);
+ run(database,"INSERT INTO signup_cases VALUES('officer','terms-case',?,'reviewed','Fixture','{}',1,'fixture',?)",officer.userId,now);
+ run(database,"INSERT INTO production_entity_links VALUES('officer','terms-case',1,?,'OFF-1','fixture',?)",officer.userId,now);
+ const facts=(await evaluateAssignmentActivation(db,request('terms:signing'))).facts;
+ const drafted=await manageProductionDocument(db,ops,{action:'draft',documentCode:'OFFICER_EMPLOYMENT',documentVersion:'fixture-employment-v1',entityId:facts.workforce.employer.id,locale:'en-ZA',wording:'Controlled employment wording for exercising the bound officer signature projection in an isolated database.'});
+ const body=database.prepare('SELECT * FROM signing_document_bodies WHERE id=?').get(drafted.documentId);
+ await manageProductionDocument(db,ops,{action:'approve',documentId:body.id,contentHash:body.content_hash,legalApprovalConfirmed:true,effectiveFrom:'2026-01-01T00:00:00Z'});
+ const issue={documentId:body.id,rosterSlotId:'SLOT-1',officerId:'OFF-1',slotVersion:1,identityEvidence:'Isolated fixture independent officer identity evidence'};
+ await issueProductionEnvelope(db,ops,issue);let envelope=database.prepare('SELECT * FROM production_signing_envelopes WHERE document_id=?').get(body.id);
+ const sign=e=>({action:'sign',envelopeId:e.id,affirmative:true,contentHash:e.content_hash,contextHash:e.context_hash});
+ await signProductionEnvelope(db,officer,sign(envelope));await signProductionEnvelope(db,officer,sign(envelope));
+ let acceptance=database.prepare("SELECT * FROM workforce_terms_acceptances WHERE id='WTA-LIVE-'||?").get(envelope.id);
+ assert.equal(acceptance.active_key,facts.workforce.engagementId);assert.equal(acceptance.acceptance_mode,'electronic_signature');assert.equal(acceptance.evidence_reference,'agreement:LIVE-SIGN-'+envelope.id);
+ assert.throws(()=>database.prepare("UPDATE workforce_terms_acceptances SET terms_version='forged' WHERE id=?").run(acceptance.id),/immutable/);
+ await signProductionEnvelope(db,officer,{action:'cancel',envelopeId:envelope.id,reason:'Fixture officer withdraws this exact acceptance.'});assert.equal(database.prepare('SELECT active_key FROM workforce_terms_acceptances WHERE id=?').get(acceptance.id).active_key,null);
+ await issueProductionEnvelope(db,ops,issue);envelope=database.prepare('SELECT * FROM production_signing_envelopes WHERE document_id=? ORDER BY issuance_number DESC LIMIT 1').get(body.id);await signProductionEnvelope(db,officer,sign(envelope));
+ await manageProductionDocument(db,ops,{action:'withdraw_document',documentId:body.id,reason:'Fixture legal wording withdrawn after independent review.'});
+ assert.equal(database.prepare("SELECT count(*) AS n FROM workforce_terms_acceptances WHERE id LIKE 'WTA-LIVE-%' AND active_key IS NOT NULL").get().n,0);assert.equal(database.prepare("SELECT count(*) AS n FROM workforce_terms_acceptances WHERE id LIKE 'WTA-LIVE-%'").get().n,2);database.close();
+});
+
+test('production payroll policy requires three separately granted actors and preserves immutable versions',async()=>{
+ const {manageProductionPayrollPolicy}=await import('../app/lib/production-payroll-policy.ts');const {operateProduction}=await import('../app/lib/production-operations.ts');const {SYNTHETIC_ENGINE_TEST_POLICY}=await import('../app/lib/payroll-engine.ts');const {env}=await import('cloudflare:workers');env.LOKD_OPERATIONS_MFA_REQUIRED='false';
+ const database=migratedDatabase(),db=new D1Adapter(database),headers=new Headers();
+ const owner={userId:'payroll-owner',email:'payroll-owner@example.test',operations:true,owner:true},maker={...owner,userId:'policy-maker',email:'policy-maker@example.test',owner:false},reviewer={...maker,userId:'policy-reviewer',email:'policy-reviewer@example.test'},approver={...maker,userId:'policy-approver',email:'policy-approver@example.test'};
+ for(const [actor,roles] of [[maker,['payroll_preparer','payroll_reviewer','finance_approver']],[reviewer,['payroll_reviewer','finance_approver']],[approver,['finance_approver']]])for(const role of roles)await operateProduction(db,owner,{action:'grant_operator',email:actor.email,role,limitCents:1000000},headers);
+ const rules={...SYNTHETIC_ENGINE_TEST_POLICY,version:'isolated-policy-fixture-v1',sourceReferences:['https://www.sars.gov.za/']};
+ await assert.rejects(()=>manageProductionPayrollPolicy(db,maker,{action:'prepare_payroll_policy',rules:SYNTHETIC_ENGINE_TEST_POLICY,sourcesReviewed:true,sourceReference:'Isolated fixture source review'},headers),/actual source/);
+ const prepared=await manageProductionPayrollPolicy(db,maker,{action:'prepare_payroll_policy',rules,sourcesReviewed:true,sourceReference:'Isolated fixture only; not an approved statutory production policy.'},headers);
+ const policy=()=>database.prepare('SELECT * FROM payroll_policy_versions WHERE id=?').get(prepared.policyId);
+ const command=action=>({action,policyId:prepared.policyId,version:policy().version,policyHash:policy().policy_hash,reason:'Independent isolated fixture review of exact policy.',sourcesReviewed:true});
+ await assert.rejects(()=>manageProductionPayrollPolicy(db,maker,command('review_payroll_policy'),headers),/maker/);
+ const stale=command('review_payroll_policy');await manageProductionPayrollPolicy(db,reviewer,stale,headers);await assert.rejects(()=>manageProductionPayrollPolicy(db,reviewer,stale,headers),/changed/);
+ await assert.rejects(()=>manageProductionPayrollPolicy(db,reviewer,command('activate_payroll_policy'),headers),/third/);
+ await manageProductionPayrollPolicy(db,approver,command('activate_payroll_policy'),headers);assert.equal(policy().active_key,'production:ZA');
+ assert.throws(()=>database.prepare("UPDATE payroll_policy_versions SET rules_json='{}' WHERE id=?").run(prepared.policyId),/immutable/);
+ await manageProductionPayrollPolicy(db,approver,command('withdraw_payroll_policy'),headers);assert.equal(policy().status,'withdrawn');assert.equal(policy().active_key,null);assert.equal(count(database,'payroll_runs'),0);
+ assert.throws(()=>database.exec("DELETE FROM payroll_policy_versions WHERE environment='production'"),/history/);database.close();
+});

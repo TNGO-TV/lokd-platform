@@ -1,3 +1,4 @@
+import {projectSignedWorkforceTerms} from './signed-workforce-terms';
 import {SignupError,type SignupActor} from './signup-server';
 import {agreementHash,canonicalAgreementContext,prepareAgreementReceipt,storeAgreementReceipt,type AgreementVersion} from './agreement-acceptance';
 import {activationAgreementContext,type ActivationAgreementRole} from './agreement-activation';
@@ -65,7 +66,7 @@ export async function signProductionEnvelope(db:D1Database,actor:SigningActor,in
  if(input.affirmative!==true||input.contentHash!==e.content_hash||input.contextHash!==e.context_hash)throw new SignupError('Affirmatively accept the exact presented wording and service scope.');
  if(await db.prepare('SELECT envelope_id FROM production_envelope_cancellations WHERE envelope_id=?').bind(id).first()||await db.prepare('SELECT document_id FROM signing_document_withdrawals WHERE document_id=?').bind(e.document_id).first())throw new SignupError('This envelope or document has been withdrawn. The historical receipt is retained.',409);
  const prior=await db.prepare('SELECT receipt_json,receipt_hash FROM agreement_acceptance_receipts WHERE id=?').bind('LIVE-SIGN-'+id).first<{receipt_json:string;receipt_hash:string}>();
- if(prior){if(await agreementHash(prior.receipt_json)!==prior.receipt_hash)throw new SignupError('Receipt integrity check failed.',409);return {receiptId:'LIVE-SIGN-'+id,alreadyRecorded:true};}
+ if(prior){if(await agreementHash(prior.receipt_json)!==prior.receipt_hash)throw new SignupError('Receipt integrity check failed.',409);await projectSignedWorkforceTerms(db,id,actor.userId);return {receiptId:'LIVE-SIGN-'+id,alreadyRecorded:true};}
  if(Date.parse(e.expires_at)<=Date.now()||await db.prepare('SELECT envelope_id FROM production_envelope_cancellations WHERE envelope_id=?').bind(id).first())throw new SignupError('This envelope is cancelled or expired.',409);
  const {version:doc}=await document(db,e.document_id);
  const current=await evaluateAssignmentActivation(db,{rosterSlotId:e.roster_slot_id,officerId:e.officer_id,expectedSlotVersion:Number(e.slot_version),activationKey:'signing-read',environment:'production'});
@@ -73,5 +74,6 @@ export async function signProductionEnvelope(db:D1Database,actor:SigningActor,in
  const prepared=await prepareAgreementReceipt({document:doc,context,presentedContentHash:e.content_hash,presentedContextHash:e.context_hash,expectedPurpose:doc.purpose,expectedEntityId:e.case_kind==='client'?current.facts.client.contractingEntityId!:current.facts.workforce.employer.id??'',expectedLocale:doc.locale,actorUserId:actor.userId,identityEvidence:e.identity_evidence,authorityEvidence:e.authority_evidence??undefined,action:'agree',affirmative:true});
  const receiptJson=JSON.stringify({...JSON.parse(prepared.receiptJson),evidenceRevision:current.sourceRevision});
  await storeAgreementReceipt(db,'LIVE-SIGN-'+id,{...prepared,receiptJson,receiptHash:await agreementHash(receiptJson)});
+ await projectSignedWorkforceTerms(db,id,actor.userId);
  return {receiptId:'LIVE-SIGN-'+id,workEligible:false};
 }
