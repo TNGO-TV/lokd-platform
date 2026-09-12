@@ -29,3 +29,11 @@ Logs: /tmp/lokd-client-review-test.log, /tmp/lokd-client-order-test.log, /tmp/lo
 - All temporary development users/configuration were removed and original local D1 restored. No synthetic data was inserted into production. Final TypeScript and targeted ESLint checks passed. Fresh build passed after the accessibility change. Build output was checked for exact development Clerk key values: none present.
 - Initial lint command resolved the system ESLint instead of the project version. Used the existing project's explicit ESLint executable; no installation/configuration change was needed.
 - Earlier 257 regression tests apply to the unchanged backend. No unnecessary full backend rerun after the selector-only change.
+
+## Release receipt
+- Published v52 from c442a9516db084aea727c0ab3a01468d6123af09.
+- Version appgprj_6a88a08505548191b266e9b711562ae3~appgver_2b479df922dc8191b262116aa95fc102.
+- Deployment appgdep_6aa587c31e1c819191f85560040947b2 succeeded 2026-09-12T17:12:06.437644Z; existing environment revision 9 retained.
+- Returned production URL https://lokd-security.zenas-capetown.chatgpt.site. Existing domains and public audience preserved. No secrets, account grants, provider settings, live scan setting or MFA exception changed.
+- Archive validated for worker, current migrations and project identity, excluding private environment/test files. Deployment succeeded on the first attempt using the previously learned SQL trigger syntax.
+- This accepts the client-review/service-order milestone only. The complete live service/payroll/payment build remains unfinished. Resume with reviewed site/post/workforce preparation and actual service completion before the provider-connected financial cycle; retain the exact missing implementation and external acceptance distinctions above.
