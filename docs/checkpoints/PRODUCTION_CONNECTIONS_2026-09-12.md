@@ -33,3 +33,7 @@ Database provenance vocabularies are security boundaries. Introduce an explicitl
 
 ## Browser acceptance
 Authenticated Client and assigned-owner development sessions passed the new production-routing browser check: 1 passed, 15.3 seconds test / 21.3 seconds total. It exercised linked reviewed intake preparation, immutable document drafting through the Operations screen, rejection of test wording from approval, negative privileged access, and empty/scoped Client service/agreement pages. Mobile Client page had no horizontal overflow. It did not exercise a real production contract signature or service/payment. Temporary Clerk users and local configuration were removed; original local D1 restored using SQLite backup. TypeScript and whitespace checks passed.
+
+## First publication failure and repair
+- Saved v50 from 38dadc2a70fd2df319ef7ca81c08559be305fefd. Deployment appgdep_6aa57e421ba08191a043b75beb66a898 failed at 2026-09-12T16:31:12.406564Z with `incomplete input: SQLITE_ERROR`, environment revision 9. This is not successful publication.
+- Migration 0042 used bare `SELECT CASE ... END;` inside a trigger, unlike the deployed migrations' parenthesised `SELECT (CASE ... END);` pattern. Changed only that wrapping and replaced a semicolon inside an error string. The suspected failure is the deployment SQL splitter treating CASE END as a trigger terminator; SQLite itself accepted the original SQL. No guard was removed or relaxed. Recheck and release results follow.

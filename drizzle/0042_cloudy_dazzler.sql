@@ -75,16 +75,16 @@ CREATE TRIGGER live_signing_commit_guard BEFORE INSERT ON agreement_acceptance_r
 CREATE TRIGGER signing_withdrawal_epoch AFTER INSERT ON signing_document_withdrawals BEGIN UPDATE activation_evidence_epoch SET revision=revision+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1; END;
 --> statement-breakpoint
 CREATE TRIGGER production_link_no_update BEFORE UPDATE ON production_entity_links BEGIN
- SELECT CASE WHEN NEW.kind!=OLD.kind OR NEW.case_id!=OLD.case_id OR NEW.entity_id!=OLD.entity_id OR NEW.owner_user_id!=OLD.owner_user_id OR NEW.case_version<=OLD.case_version THEN RAISE(ABORT,'Production entity identity binding is immutable') END;
- SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM signup_cases c WHERE c.kind=NEW.kind AND c.source_id=NEW.case_id AND c.version=NEW.case_version AND c.owner_user_id=NEW.owner_user_id AND c.status='reviewed') THEN RAISE(ABORT,'Reviewed intake changed during reconciliation') END;
- SELECT CASE WHEN (NEW.kind='client' AND NOT EXISTS(SELECT 1 FROM clients WHERE id=NEW.entity_id AND approval_status='pending')) OR (NEW.kind='officer' AND NOT EXISTS(SELECT 1 FROM officers WHERE id=NEW.entity_id AND approval_status='pending')) THEN RAISE(ABORT,'Suspend operational approval before changing reviewed details') END;
+ SELECT (CASE WHEN NEW.kind!=OLD.kind OR NEW.case_id!=OLD.case_id OR NEW.entity_id!=OLD.entity_id OR NEW.owner_user_id!=OLD.owner_user_id OR NEW.case_version<=OLD.case_version THEN RAISE(ABORT,'Production entity identity binding is immutable') END);
+ SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM signup_cases c WHERE c.kind=NEW.kind AND c.source_id=NEW.case_id AND c.version=NEW.case_version AND c.owner_user_id=NEW.owner_user_id AND c.status='reviewed') THEN RAISE(ABORT,'Reviewed intake changed during reconciliation') END);
+ SELECT (CASE WHEN (NEW.kind='client' AND NOT EXISTS(SELECT 1 FROM clients WHERE id=NEW.entity_id AND approval_status='pending')) OR (NEW.kind='officer' AND NOT EXISTS(SELECT 1 FROM officers WHERE id=NEW.entity_id AND approval_status='pending')) THEN RAISE(ABORT,'Suspend operational approval before changing reviewed details') END);
  INSERT INTO audit_events VALUES(lower(hex(randomblob(16))),'operations',NEW.prepared_by,'production_entity_reconciled',NEW.kind,NEW.entity_id,json_object('priorVersion',OLD.case_version,'version',NEW.case_version,'caseId',NEW.case_id),NEW.prepared_at);
  UPDATE activation_evidence_epoch SET revision=revision+1,updated_at=NEW.prepared_at WHERE singleton=1;
 END;
 --> statement-breakpoint
 CREATE TRIGGER production_link_no_delete BEFORE DELETE ON production_entity_links BEGIN SELECT RAISE(ABORT,'Production entity binding is immutable'); END;
 --> statement-breakpoint
-CREATE TRIGGER signing_body_no_update BEFORE UPDATE ON signing_document_bodies BEGIN SELECT RAISE(ABORT,'Document wording is immutable; create a new version'); END;
+CREATE TRIGGER signing_body_no_update BEFORE UPDATE ON signing_document_bodies BEGIN SELECT RAISE(ABORT,'Document wording is immutable. Create a new version'); END;
 --> statement-breakpoint
 CREATE TRIGGER signing_body_no_delete BEFORE DELETE ON signing_document_bodies BEGIN SELECT RAISE(ABORT,'Document history is immutable'); END;
 --> statement-breakpoint
