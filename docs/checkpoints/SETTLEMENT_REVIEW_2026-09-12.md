@@ -39,3 +39,15 @@ Review URLs: https://lokd.co.za/ ; https://portal.lokd.co.za/client/service ; ht
 Provider references checked: https://paystack.com/docs/api/settlement/ and https://paystack.com/docs/payments/webhooks/ . Clerk test flow follows https://clerk.com/docs/guides/development/testing/playwright/overview using existing installed SDKs and development credentials.
 
 Terminal build/deployment receipt follows separately.
+
+## Terminal release receipt
+
+- Final production build passed; archive validated with server, manifest and migrations 0053/0054 and no environment/test files.
+- Source 48b2ebb6c125274c548e52006ac9051c5feecd0e pushed to the existing Sites repository.
+- Version 57: appgprj_6a88a08505548191b266e9b711562ae3~appgver_f9017a7bf3d481918657addb3211f911.
+- Deployment appgdep_6aa5c06a3e9081919f9e463c0908445e succeeded at 2026-09-12T21:13:34.921148+00:00, environment revision 9 unchanged.
+- Native deployment URL: https://lokd-security.zenas-capetown.chatgpt.site.
+- Existing LOKD.co.za, portal, officers, operations and demo domains retain their association with the same published Worker. Public audience preserved. LOKD.co.za browser handoff was queued in Codex.
+- Final early-event recovery follow-up passed the affected database journey and existing webhook tests. The prior full 269-test regression and 45 affected readiness tests are recorded above; no passing full suite was rerun merely for release.
+- Documentation receipt only; no rebuild is required for these receipt lines.
+- Post-deployment custom-domain acceptance passed: LOKD.co.za homepage 200; Client/Officer/Operations service pages 307 to each correct host's sign-in with the requested return path; anonymous Operations API 401. Exact results: /tmp/lokd-v57-domain-acceptance.json. These confirm domain delivery and anonymous boundaries, not owner-specific production account acceptance.
