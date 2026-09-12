@@ -18,4 +18,7 @@ The officer identity/PSiRA readiness bridge must consume genuinely matching evid
 Paystack official transaction API: https://paystack.com/docs/api/transaction/ — backend initialise/verify, integer currency subunits, unique saved reference and exact metadata binding. Transfers: https://paystack.com/docs/api/transfer/ — future adapter must distinguish initiation from verified settlement. Neither research nor an isolated fixture is provider acceptance. Existing R350 test checkout and signed inbox must be reused without generating another dummy or repeatedly asking for its pending completion.
 
 ## Deployment
-Await terminal release receipt; do not infer publication from passing local tests.
+Published v54 from 7c22465f906e1176c03b427d723e609bb538b223.
+Version appgprj_6a88a08505548191b266e9b711562ae3~appgver_c014a0918ce88191a76580a3a6ab672b.
+Deployment appgdep_6aa5a4b36a048191b3156df957c665fc succeeded 2026-09-12T19:15:22.791049Z, existing environment revision 9 retained.
+Returned production URL https://lokd-security.zenas-capetown.chatgpt.site. Audience/domain settings, credentials, Clerk controls, MFA exception and live operating-acceptance switch unchanged. Exact archive checked for worker, project identity, migrations and private-file exclusions. No browser or provider financial acceptance beyond the stated checks is implied.

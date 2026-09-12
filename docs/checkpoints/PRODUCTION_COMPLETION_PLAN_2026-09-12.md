@@ -9,3 +9,7 @@ Implementation sequence in this existing task:
 4. Connected browser acceptance, current deployment and authoritative completion matrix distinguishing code/test/production acceptance.
 
 Unknown business inputs are owner-supplied documents, entity/employer decisions, training packages and first Operations identity; build forms and guarded interfaces rather than inventing these values. No duplicate implementation task or external-project edits.
+
+## Current checkpoint after v54, 12 September 2026
+Read SIGNED_TERMS_PAYROLL_POLICY_2026-09-12.md and SERVICE_EVIDENCE_SCHEDULING_2026-09-12.md first. Do not repeat already-deployed client review/orders, source-evidence reviews, scheduling, actual check-in/checkout, client disputes, service-pay review/reopen, bound employment signature projection or production payroll-policy configuration. Latest deployed source is 7c22465f906e1176c03b427d723e609bb538b223, with 262 regression tests passing. The complete build remains open.
+Next implementation: payroll profiles/destination verification and period-based payroll processing with independent approval/export/payslip and post-payroll adjustment recovery; partner payables; provider-backed booking collection and officer-payment reconciliation. Preserve older financial locks until exact command authorisation/evidence is integrated. Separate the unfinished code from external real-identity, legal, owner, Google, saved checkout and live financial/GPS acceptance inputs. No new test checkout or repeated manual-completion request.
