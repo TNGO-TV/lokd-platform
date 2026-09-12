@@ -30,4 +30,10 @@ Reuse the existing R350 dummy/test checkout and its saved receipts; the owner wa
 
 ## Release
 
-Final deployment pending; append authoritative source/version/deployment result after publication.
+Sites publication succeeded at 2026-09-12T20:21:19.455700Z, environment revision 9 unchanged.
+- Source: `130ecc0f67a834c98a0aba47f4f0d7155512be57`.
+- Version 55: `appgprj_6a88a08505548191b266e9b711562ae3~appgver_0a593be979b88191977012117d515f26`.
+- Deployment: `appgdep_6aa5b4174b208191bb170433c3c6316f`.
+- Native returned URL: https://lokd-security.zenas-capetown.chatgpt.site
+- Final build passed; archive validated with server, manifest and migration 0051, without test/environment files. Current public audience and existing domain configuration preserved.
+- Local authenticated browser acceptance is recorded above. No real production payroll or live provider payment was accepted or released. Resume the next implementation step above; this payroll milestone is deployed, the full platform build is not complete.
