@@ -35,3 +35,12 @@ Live GPS marker acceptance needs a real authorised, checked-in production office
 5. Preserve this build's failure/success evidence. Use hydration-ready controls for actions rendered before client handlers attach; never mask lost actions with arbitrary test sleeps.
 
 Release receipt follows after deployment.
+
+## Release receipt
+- Source 61f81f73e4b8078106063d945dd7681885d12b26 pushed; published **v49**.
+- Version: appgprj_6a88a08505548191b266e9b711562ae3~appgver_f34eccd889b4819183e86eb746199f73.
+- Deployment: appgdep_6aa569c42ca081919edf454e1fb31471, succeeded 2026-09-12T15:04:07.255194Z, existing environment revision **9** retained.
+- Returned production URL: https://lokd-security.zenas-capetown.chatgpt.site. Existing canonical LOKD.co.za audience/domain configuration preserved.
+- Archive validated for worker, project identity, migrations 0039–0041 and exclusion of environment files, tests and private artifacts. Current Sites 0.1.62 packager worked directly; no LF workaround or infrastructure installation needed.
+- Local browser acceptance and production publication are separate evidence: no production accounts, real GPS positions, signatures, services or payments were created for acceptance. No new live provider acceptance is claimed.
+- Final handoff uses the existing lokd-site tab. Working tree is clean after this documentation-only receipt. The connected test milestone is accepted; the production readiness requirements above remain open.
