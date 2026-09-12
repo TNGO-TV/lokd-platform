@@ -29,3 +29,21 @@ Then independently verified payment destinations, employee/partner payment adapt
 Sources checked: https://paystack.com/docs/api/transaction/ and https://paystack.com/docs/payments/webhooks/ (12 September 2026). Reuse the saved implementation/tests; do not repeat provider probes or the saved R350 completion request.
 
 Release receipt will record terminal deployment separately. Full platform completion remains open.
+
+## Terminal release receipt
+
+- Source: 227bc6ed9e31e7d829e9fb7229990ec3c23e0e6c, pushed to the existing Sites repository.
+- Version 56: appgprj_6a88a08505548191b266e9b711562ae3~appgver_38d0d4604ffc8191adc6acdbf27269ee.
+- Deployment appgdep_6aa5b968c524819191d47085d537b148 succeeded at 2026-09-12T20:43:38.021508+00:00, environment revision 9 unchanged.
+- Native URL: https://lokd-security.zenas-capetown.chatgpt.site.
+- Final production build passed. Archive validated with server, hosting manifest and migration 0052, excluding environment/test files. Existing public audience retained. No new domain/DNS acceptance claim.
+
+| Workflow | Built | Tested | Deployed | Browser acceptance | Live operational/provider acceptance |
+| --- | --- | --- | --- | --- | --- |
+| Payroll calculation/approval/CSV | Yes, prior milestone | Prior 263 + current regression | v55, retained in v56 | Prior local DEV fixture journey | Open |
+| Booking request/approval/checkout/evidence verification | Yes | Isolated database and mocked provider tests | v56 | Not performed in this milestone | Open; live dispatch disabled |
+| Canonical cleared settlement/funding/refund recovery | Incomplete | Existing guards retained | No new settlement implementation | Open | Open |
+| Verified destinations and employee/partner payouts | Incomplete | Existing financial locks retained | No release adapters claimed | Open | Open |
+| Partner payables/payslips/post-export adjustments/engagement splits | Incomplete | Existing unsupported transitions remain blocked | Not claimed | Open | Open |
+
+This receipt is documentation only and does not require rebuilding or redeploying application source. Next work starts with exact settlement and recovery, then destination verification and payment adapters.
