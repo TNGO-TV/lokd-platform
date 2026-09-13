@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Private owner capture and isolated SQLite restore. Never restores over production."""
-import argparse,collections,hashlib,json,os,sqlite3,subprocess,urllib.request
+import argparse,collections,hashlib,json,os,sqlite3,subprocess,urllib.request,urllib.error,time
 from pathlib import Path
 
 def quote(s): return '"'+s.replace('"','""')+'"'
@@ -57,7 +57,16 @@ def main():
  os.umask(0o077);args.output.mkdir(mode=0o700);private=args.output/'isolated-restore';private.mkdir(mode=0o700)
  cfg=json.loads(args.control.read_text());opener=urllib.request.build_opener(NoRedirect())
  def request(action,**fields):
-  return opener.open(urllib.request.Request(args.url,data=json.dumps({'action':action,**fields}).encode(),headers={'x-owner-backup-token':cfg['token'],'Content-Type':'application/json'},method='POST'),timeout=120)
+  for attempt in range(3):
+   try:
+    return opener.open(urllib.request.Request(args.url,data=json.dumps({'action':action,**fields}).encode(),headers={'User-Agent':'LOKD-Owner-Backup/1.0','x-owner-backup-token':cfg['token'],'Content-Type':'application/json'},method='POST'),timeout=45)
+   except urllib.error.HTTPError as e:
+    print('Read action',action,'HTTP',e.code,'attempt',attempt+1,flush=True)
+    if e.code not in (500,502,503,504) or attempt==2:raise
+   except TimeoutError:
+    print('Read action',action,'timed out; attempt',attempt+1,flush=True)
+    if attempt==2:raise
+   time.sleep(1)
  def read(action,**fields):
   with request(action,**fields) as r:
    if 'no-store' not in r.headers.get('Cache-Control',''):raise ValueError('Missing private response headers')
@@ -77,8 +86,8 @@ def main():
   return objects
  read('health');runtime=read('runtime')
  if sorted(runtime['values'])!=sorted(cfg['expected_runtime_keys']):raise ValueError('Incomplete runtime configuration coverage')
- save('runtime.json',runtime)
- before=inventory();manifest=[]
+ save('runtime.json',runtime);print('Runtime configuration captured',flush=True)
+ before=inventory();manifest=[];print('Inventory objects:',len(before),flush=True)
  for i,obj in enumerate(before):
   p=private/'objects'/f'{i:08d}.bin';p.parent.mkdir(exist_ok=True)
   with request('object',key=obj['key'],etag=obj['etag'],version=obj['version']) as r,p.open('xb') as f:
@@ -86,7 +95,7 @@ def main():
    for block in iter(lambda:r.read(1024*1024),b''):f.write(block)
   if p.stat().st_size!=obj['size']:raise ValueError('Object byte count mismatch')
   manifest.append({'metadata':obj,'file':str(p.relative_to(private)),'sha256':sha(p)})
- snapshot=read('database');save('database.json',snapshot)
+ snapshot=read('database');save('database.json',snapshot);print('Database snapshot captured',flush=True)
  if before!=inventory():raise ValueError('Object inventory changed during capture; retry in a new destination')
  save('objects.json',manifest)
  refs={c[1][7:] for t in snapshot['tables'] for row in t['rows'] for c in row if c[0]=='text' and c[1].startswith('BUCKET:')}

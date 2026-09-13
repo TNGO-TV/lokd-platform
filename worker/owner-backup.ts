@@ -12,11 +12,6 @@ async function schema(db: D1Database | D1DatabaseSession) {
   if (!result.success) throw new Error("Schema read failed");
   return result.results;
 }
-async function columns(db: D1Database | D1DatabaseSession, table: string) {
-  const result = await db.prepare(`PRAGMA table_xinfo(${quote(table)})`).all<Column>();
-  if (!result.success || !result.results.length) throw new Error("Column read failed");
-  return result.results;
-}
 function rowSql(table: string, cols: Column[], rowid: string | null) {
   const cells = [...(rowid ? [{name:rowid}] : []), ...cols].map(c => {
     const q = quote(c.name);
@@ -68,9 +63,12 @@ export async function ownerBackup(request: Request, env: BackupEnv): Promise<Res
       const tables = before.filter(s => s.type === "table" && !s.name.toLowerCase().startsWith("_cf_") && (s.name === "sqlite_sequence" || !s.name.startsWith("sqlite_")));
       if (tables.length > 200 || tables.some(t => /CREATE\s+VIRTUAL\s+TABLE/i.test(t.sql || ""))) return json({error:"Snapshot requires provider export: unsupported schema"},422);
       const definitions: Array<{name:string;columns:Column[];rowid:string|null}> = [];
-      // Sequential schema reads are bounded and avoid excessive concurrent D1 requests.
+      // One metadata query avoids one network round trip per table.
+      const metadata = await db.prepare("SELECT m.name AS table_name,p.name,p.type,p.pk,p.hidden FROM sqlite_schema m JOIN pragma_table_xinfo(m.name) p WHERE m.type='table' AND substr(lower(m.name),1,4)!='_cf_' ORDER BY m.name,p.cid").all<Column & {table_name:string}>();
+      if (!metadata.success) throw new Error("Column metadata read failed");
       for (const table of tables) {
-        const cols = await columns(db,table.name);
+        const cols = metadata.results.filter(c=>c.table_name===table.name).map(({name,type,pk,hidden})=>({name,type,pk,hidden}));
+        if (!cols.length) throw new Error("Column metadata absent");
         const rowid = /WITHOUT\s+ROWID/i.test(table.sql || "") ? null : ["rowid","_rowid_","oid"].find(n => !cols.some(c => c.name.toLowerCase() === n));
         if (rowid === undefined || cols.length > 100) return json({error:"Snapshot requires provider export: unsupported table"},422);
         definitions.push({name:table.name,columns:cols,rowid});
