@@ -1,3 +1,4 @@
+import {receiveEmployeeTransferWebhook} from './employee-payments';
 // This receiver records delivery evidence only. It cannot credit a booking,
 // reconcile live money, activate service or authorise an officer payment.
 import {receiveBookingCollectionWebhook} from './booking-collections';
@@ -24,6 +25,9 @@ export async function receivePaystackTest(request:Request,runtime:Runtime):Promi
  }
  // Only test-domain events are accepted. Missing/ambiguous domains stay rejected.
  if(payload.data.domain!=='test')return reply('Only explicit test-domain events are accepted here.',422);
+ if(payload.event.startsWith('transfer.')){
+  try{return Response.json(await receiveEmployeeTransferWebhook(new Request(request.url,{method:'POST',headers:request.headers,body:raw}),runtime.DB,runtime),{headers:{'cache-control':'no-store'}});}catch{return reply('Transfer event could not be accepted. Retry delivery.',503);}
+ }
  const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw)),b=>b.toString(16).padStart(2,'0')).join('');
  const metadata:Record<string,unknown>={};let rawMeta=payload.data.metadata;if(typeof rawMeta==='string'){try{rawMeta=JSON.parse(rawMeta);}catch{rawMeta={};}}for(const field of ['application_id','applicant_id','application_version','package_id','package_version','mode']){const value=rawMeta?.[field];if(typeof value==='string'&&value.length<=200||typeof value==='number'&&Number.isSafeInteger(value))metadata[field]=value;}
  const scalar=(value:unknown)=>typeof value==='string'?value.slice(0,200):typeof value==='number'&&Number.isSafeInteger(value)?String(value):null;

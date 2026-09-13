@@ -2580,3 +2580,18 @@ export const paymentDestinationHolds=sqliteTable('payment_destination_holds',{
  id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>paymentDestinationReviews.id),operatorId:text('operator_id').notNull(),
  userId:text('user_id').notNull(),reason:text('reason').notNull(),createdAt:text('created_at').notNull(),
 },t=>[uniqueIndex('destination_hold_idx').on(t.reviewId)]);
+
+export const employeePaymentInstructions=sqliteTable('employee_payment_instructions',{
+ reference:text('reference').primaryKey(),payrollItemId:text('payroll_item_id').notNull().references(()=>payrollItems.id),destinationId:text('destination_id').notNull().references(()=>paymentDestinationReviews.id),
+ mode:text('mode').notNull(),amountCents:integer('amount_cents').notNull(),sourceJson:text('source_json').notNull(),sourceHash:text('source_hash').notNull(),
+ requestKey:text('request_key').notNull(),requestHash:text('request_hash').notNull(),status:text('status').notNull(),version:integer('version').notNull().default(1),
+ preparedBy:text('prepared_by').notNull(),preparedUser:text('prepared_user').notNull(),approvedBy:text('approved_by'),activeKey:text('active_key'),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('employee_payment_request_idx').on(t.requestKey),uniqueIndex('employee_payment_active_idx').on(t.activeKey)]);
+export const employeePaymentCommands=sqliteTable('employee_payment_commands',{
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>employeePaymentInstructions.reference),version:integer('version').notNull(),action:text('action').notNull(),
+ operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),sourceHash:text('source_hash').notNull(),recipientHash:text('recipient_hash'),note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('employee_payment_command_version_idx').on(t.reference,t.version)]);
+export const employeeTransferObservations=sqliteTable('employee_transfer_observations',{
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>employeePaymentInstructions.reference),source:text('source').notNull(),event:text('event').notNull(),
+ payloadHash:text('payload_hash').notNull(),transferJson:text('transfer_json').notNull(),webhookCount:integer('webhook_count'),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('employee_transfer_delivery_idx').on(t.reference,t.source,t.payloadHash),index('employee_transfer_reference_idx').on(t.reference)]);

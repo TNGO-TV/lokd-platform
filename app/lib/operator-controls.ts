@@ -8,6 +8,10 @@ export type OperatorRole =
   | "compliance_reviewer";
 
 export type OperatorActionCode =
+  | "payment.prepare"
+  | "payment.approve"
+  | "payment.dispatch_test"
+  | "payment.cancel"
   | "payroll.calculate"
   | "payroll.first_approve"
   | "payroll.second_approve"
@@ -27,6 +31,10 @@ export type OperatorActionPolicy = {
 };
 
 export const OPERATOR_ACTION_POLICIES: OperatorActionPolicy[] = [
+  { actionCode: "payment.prepare", label: "Prepare employee payment instruction", requiredRole: "payroll_preparer", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "payment.approve", label: "Approve employee payment instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "payment.dispatch_test", label: "Submit approved test transfer", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "payment.cancel", label: "Cancel an unsent employee instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: false },
   { actionCode: "payroll.calculate", label: "Calculate payroll", requiredRole: "payroll_preparer", mfaMaxAgeMinutes: 30, maxAmountCents: 100_000_000, secondApprovalRequired: false },
   { actionCode: "payroll.first_approve", label: "First payroll approval", requiredRole: "payroll_reviewer", mfaMaxAgeMinutes: 15, maxAmountCents: 50_000_000, secondApprovalRequired: true },
   { actionCode: "payroll.second_approve", label: "Second payroll approval", requiredRole: "finance_approver", mfaMaxAgeMinutes: 15, maxAmountCents: 50_000_000, secondApprovalRequired: true },
