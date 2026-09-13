@@ -17,7 +17,9 @@ function rowSql(table: string, cols: Column[], rowid: string | null) {
     const q = quote(c.name);
     return `json_array(typeof(${q}),CASE typeof(${q}) WHEN 'blob' THEN hex(${q}) WHEN 'integer' THEN CAST(${q} AS TEXT) WHEN 'real' THEN printf('%!.26g',${q}) ELSE ${q} END)`;
   });
-  return `SELECT json_array(${cells.join(',')}) AS encoded FROM ${quote(table)}`;
+  const groups = [];
+  for (let i=0;i<cells.length;i+=24) groups.push(`json_array(${cells.slice(i,i+24).join(',')})`);
+  return `SELECT json_array(${groups.join(',')}) AS encoded FROM ${quote(table)}`;
 }
 export async function ownerBackup(request: Request, env: BackupEnv): Promise<Response | null> {
   if (new URL(request.url).pathname !== BACKUP_PATH) return null;
@@ -75,16 +77,31 @@ export async function ownerBackup(request: Request, env: BackupEnv): Promise<Res
       }
       // D1 batch is transactional: all data reads and the final schema are one batch.
       // Bound the entire encoded result inside SQLite, before it enters Worker memory.
-      const union = definitions.map((t,i) => `SELECT ${i} AS table_id, encoded FROM (${rowSql(t.name,t.columns,t.rowid)})`).join(" UNION ALL ") || "SELECT 0 AS table_id, '' AS encoded WHERE 0";
-      const dataSql = `WITH cells AS (${union}), stats AS (SELECT COUNT(*) AS n, COALESCE(SUM(length(CAST(encoded AS BLOB))),0) AS bytes FROM cells) SELECT n, bytes, CASE WHEN bytes <= 4194304 AND n <= 20000 THEN (SELECT json_group_array(json_array(table_id,json(encoded))) FROM cells) ELSE NULL END AS payload FROM stats`;
-      const results = await db.batch([db.prepare(dataSql),db.prepare("SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY type,name")]);
+      const chunks: string[][] = [[]];
+      for (const [i,t] of definitions.entries()) {
+        const sql = `SELECT ${i} AS table_id, encoded FROM (${rowSql(t.name,t.columns,t.rowid)})`;
+        if (new TextEncoder().encode(sql).length > 60000) return json({error:"Table export query exceeds supported size"},422);
+        const last = chunks[chunks.length-1];
+        if (last.length >= 4 || new TextEncoder().encode(last.join(" UNION ALL ")+sql).length > 60000) chunks.push([sql]); else last.push(sql);
+      }
+      const byteLimit = Math.floor(4194304/chunks.length);
+      const statements = chunks.map(parts => {
+        const union = parts.join(" UNION ALL ") || "SELECT 0 AS table_id, '' AS encoded WHERE 0";
+        return db.prepare(`WITH cells AS (${union}), stats AS (SELECT COUNT(*) AS n, COALESCE(SUM(length(CAST(encoded AS BLOB))),0) AS bytes FROM cells) SELECT n, bytes, CASE WHEN bytes <= ${byteLimit} AND n <= 20000 THEN (SELECT json_group_array(json_array(table_id,json(encoded))) FROM cells) ELSE NULL END AS payload FROM stats`);
+      });
+      statements.push(db.prepare("SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY type,name"));
+      const results = await db.batch(statements);
       if (results.some(r => !r.success)) return json({error:"Snapshot query failed"},503);
-      if (JSON.stringify(before) !== JSON.stringify(results[1].results)) return json({error:"Schema changed; retry snapshot"},409);
-      const data = results[0].results[0] as {n:number;bytes:number;payload:string|null};
-      if (data.payload === null) return json({error:"Snapshot exceeds bounded export limit; provider export required",rows:data.n,bytes:data.bytes},422);
-      const rows = JSON.parse(data.payload) as Array<[number,unknown[]]>;
+      if (JSON.stringify(before) !== JSON.stringify(results[results.length-1].results)) return json({error:"Schema changed; retry snapshot"},409);
       const output = definitions.map(t => ({...t,rows:[] as unknown[][]}));
-      for (const [index,row] of rows) output[index].rows.push(row);
+      let rowCount = 0;
+      for (const result of results.slice(0,-1)) {
+        const data = result.results[0] as {n:number;bytes:number;payload:string|null};
+        rowCount += data.n;
+        if (data.payload === null || rowCount > 20000) return json({error:"Snapshot exceeds bounded export limit; provider export required"},422);
+        const rows = JSON.parse(data.payload) as Array<[number,unknown[][]]>;
+        for (const [index,groups] of rows) output[index].rows.push(groups.flat());
+      }
       return json({format:"sqlite-typed-cells-v2",captured_at:new Date().toISOString(),schema:before.filter(s => !s.name.toLowerCase().startsWith("_cf_") && !s.tbl_name.toLowerCase().startsWith("_cf_")),excluded_provider_internal:before.filter(s => s.name.toLowerCase().startsWith("_cf_")).map(s=>s.name),tables:output});
     }
     if (input.action === "objects") {
@@ -100,5 +117,5 @@ export async function ownerBackup(request: Request, env: BackupEnv): Promise<Res
       return new Response(object.body,{headers:{...headers,"content-type":"application/octet-stream","content-length":String(object.size),"x-backup-etag":object.etag,"x-backup-version":object.version}});
     }
     return json({error:"Unknown action"},400);
-  } catch { return json({error:"Backup read failed; no application data was modified"},503); }
+  } catch (error) { return json({error:"Backup read failed; no application data was modified",diagnostic: error instanceof Error ? error.message.slice(0,500) : "Unknown runtime error"},503); }
 }
