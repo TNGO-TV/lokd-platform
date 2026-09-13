@@ -1,5 +1,7 @@
 # LOKD new-task handover — deployed v60, 13 September 2026
 
+> Superseded release/milestone update: partner-company destinations are implemented and published as **v61**. Read `PARTNER_DESTINATIONS_2026-09-13.md` for current source, migration, acceptance and release IDs. The full remaining-work list below is retained; partner payment instructions are now the recommended next milestone. Do not rebuild the completed destination workflow.
+
 Owner requested this checkpoint and will open a new task. Stop implementation here; hosting continues normally. This is the authoritative resume entry point and supersedes earlier v57 instructions and older remaining-work lists. The whole production build is **not complete**. Completed milestones must not be rebuilt simply because an older receipt lists them as next work.
 
 ## Workspace and exact release

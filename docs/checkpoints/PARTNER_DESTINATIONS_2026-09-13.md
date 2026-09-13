@@ -20,3 +20,17 @@ Migration `0058_slimy_slapstick.sql` adds immutable reviews/decisions/holds and 
 `LOKD_OPERATIONS_MFA_REQUIRED=false` and `LOKD_LIVE_SHIFT_SCAN=false` remain unchanged. No provider credential, infrastructure, DNS, audience, owner account or genuine production approval was changed. Legal/employer/representative/provider ownership/capability and controlled-pilot acceptance remain real external inputs. All other remaining implementation and recovery items in `NEW_THREAD_RESUME_2026-09-13.md` remain, except the completed partner destination milestone. Next bounded milestone: partner payment instructions bound to an approved unheld payable and this exact current destination, starting with isolated test behavior and durable recovery. Live employee/partner dispatch and paid-state projections remain locked/unbuilt as described in the handover.
 
 Reusable lesson: reuse recipient evidence primitives while keeping personal and company authority separate; source freshness and replacement checks belong at database commit as well as in the UI. A provider lookup does not establish account ownership or authority, and a successful test does not establish live acceptance.
+
+## Release receipt
+
+Published **v61** from exact source `9e198066cafad78a79ede733ef288f4fd7fb4876`.
+
+- Version: `appgprj_6a88a08505548191b266e9b711562ae3~appgver_41defa2a229481919e65345beef40bb5`.
+- Deployment: `appgdep_6aa6c991c69481918c56953c5e0cb41c`, succeeded `2026-09-13T16:04:54.043386+00:00`; environment revision 9 unchanged, existing public audience preserved.
+- Native production URL: https://lokd-security.zenas-capetown.chatgpt.site . Existing LOKD.co.za and role-domain associations retained.
+- Archive `/tmp/lokd-partner-destinations-v61.tar.gz`: validated Worker/manifest/exact new migration and private-file exclusions. Local gzip SHA-256 `7ea5d430104f350c2e16528e14950257690ec854fc1c6607df47fa84bcb69f30`; Sites stored archive hash `sha256:fb3cbf4193953a757a510acd4ab1929d6bf58a071da5584cacc8c358172628c6` (normalized archive).
+- Post-publication Python urllib requests received HTTP 403; curl successfully reached the custom homepage. Record HTTP-client differences when diagnosing route acceptance; do not infer a failed deployment from one client's response.
+
+This receipt-only update requires no rebuild. Source and prior local handover history were pushed together to the existing Sites branch. The remaining-work entry point is the original full handover plus this completed milestone and release receipt.
+
+Final curl route acceptance passed: custom/native homepages 200; Client/Officer/Operations service routes 307 to the correct same-host sign-in and return path; anonymous Operations API 401. Evidence: `/tmp/lokd-v61-domain-acceptance.json`. These are route checks, not actual owner sign-in or live financial acceptance.
