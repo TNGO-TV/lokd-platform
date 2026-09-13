@@ -1,4 +1,6 @@
-# LOKD production completion — active
+# LOKD production completion — checkpointed at v60
+
+Authoritative current status and full remaining-work list: `NEW_THREAD_RESUME_2026-09-13.md`, rewritten after deployed v60 on 13 September. Owner is opening a new task. The historical sequence below is retained for provenance; its older next-work items are superseded where v55–v60 completed them. Partner destinations/mandates are the recommended next milestone. The complete production build and real operating-cycle acceptance remain open.
 
 Owner asked to complete now after v49. Do not repeat the test-only milestone or call the complete build finished while production wiring remains absent. Test documents and fixtures are authorised for development and validation. Live approvals, live money and work activation still require their real evidence. Existing Clerk role controls, MFA exception, provider credentials and separate identity/PSiRA/payment/work states remain unchanged.
 
