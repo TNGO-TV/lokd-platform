@@ -1,3 +1,4 @@
+import { ownerBackup, type BackupEnv } from "./owner-backup";
 import { receivePaystackTest } from '../app/lib/paystack-test';
 import { liveSurfaceResponse } from "../app/lib/live-surface";
 /** Cloudflare Worker entry point for the vinext-starter template. */
@@ -7,7 +8,7 @@ import { runDueAssignmentRevalidations } from "../app/lib/assignment-activation-
 import { runPlatformMaintenance } from "../app/lib/platform-jobs";
 import { authenticateClerkRequest, type ClerkEnv } from "./clerk-auth";
 
-interface Env extends ClerkEnv {
+interface Env extends ClerkEnv, BackupEnv {
   PAYSTACK_TEST_SECRET_KEY?: string;
   ASSETS: Fetcher;
   DB: D1Database;
@@ -41,6 +42,8 @@ interface ScheduledController {
 
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const backup = await ownerBackup(request, env);
+    if (backup) return backup;
     const url = new URL(request.url);
 
     if (url.pathname === "/_vinext/image") {
