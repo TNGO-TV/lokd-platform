@@ -1,5 +1,9 @@
 # LOKD handover — 13 September 2026
 
+## Partner-payable continuation
+
+Read `PARTNER_PAYABLES_2026-09-13.md` first for the latest implementation and release receipt. Partner invoice-line preparation, independent finance approval, unpaid CSV export and durable suspension are now built and validated. Do not repeat this allocation workflow. Partner-company destinations/payment instructions, payslips, client invoices and post-export corrections remain open; live salary release still requires actual controlled-pilot acceptance. The older milestones below are retained as historical context.
+
 ## Employee payment-instruction continuation
 
 Read `EMPLOYEE_PAYMENT_INSTRUCTIONS_2026-09-13.md` first for the latest implementation and release receipt. Exact exported-payroll payment instructions, independent finance approval, safe pre-submission cancellation and test transfer/reconciliation recovery are built and validated. Live salary dispatch remains explicitly locked pending controlled-pilot prerequisites and its separately guarded implementation. Do not repeat employee destinations or the test adapter. Partner payables/destinations, payslips, invoice allocation and post-export adjustments remain open.

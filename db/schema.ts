@@ -2595,3 +2595,18 @@ export const employeeTransferObservations=sqliteTable('employee_transfer_observa
  id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>employeePaymentInstructions.reference),source:text('source').notNull(),event:text('event').notNull(),
  payloadHash:text('payload_hash').notNull(),transferJson:text('transfer_json').notNull(),webhookCount:integer('webhook_count'),createdAt:text('created_at').notNull(),
 },t=>[uniqueIndex('employee_transfer_delivery_idx').on(t.reference,t.source,t.payloadHash),index('employee_transfer_reference_idx').on(t.reference)]);
+
+export const productionPartnerPayableReviews=sqliteTable('production_partner_payable_reviews',{
+ id:text('id').primaryKey(),timesheetId:text('timesheet_id').notNull().references(()=>shiftTimesheets.id),employerId:text('employer_id').notNull().references(()=>workforceEmployers.id),
+ requestKey:text('request_key').notNull(),requestHash:text('request_hash').notNull(),sourceJson:text('source_json').notNull(),payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),
+ amountCents:integer('amount_cents').notNull(),preparedBy:text('prepared_by').notNull(),preparedUser:text('prepared_user').notNull(),preparedAt:text('prepared_at').notNull(),expiresAt:text('expires_at').notNull(),
+},t=>[uniqueIndex('partner_review_request_idx').on(t.requestKey),index('partner_review_timesheet_idx').on(t.timesheetId)]);
+export const productionPartnerPayableDecisions=sqliteTable('production_partner_payable_decisions',{
+ id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>productionPartnerPayableReviews.id),decision:text('decision').notNull(),operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),payloadHash:text('payload_hash').notNull(),note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('partner_payable_decision_idx').on(t.reviewId)]);
+export const productionPartnerPayableHolds=sqliteTable('production_partner_payable_holds',{
+ reviewId:text('review_id').primaryKey().references(()=>productionPartnerPayableReviews.id),operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),note:text('note').notNull(),createdAt:text('created_at').notNull(),
+});
+export const productionPartnerPayableExports=sqliteTable('production_partner_payable_exports',{
+ reviewId:text('review_id').primaryKey().references(()=>productionPartnerPayableReviews.id),operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),payloadHash:text('payload_hash').notNull(),createdAt:text('created_at').notNull(),
+});

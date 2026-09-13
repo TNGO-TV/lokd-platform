@@ -8,6 +8,9 @@ export type OperatorRole =
   | "compliance_reviewer";
 
 export type OperatorActionCode =
+  | "partner.prepare"
+  | "partner.approve"
+  | "partner.export"
   | "payment.prepare"
   | "payment.approve"
   | "payment.dispatch_test"
@@ -31,6 +34,9 @@ export type OperatorActionPolicy = {
 };
 
 export const OPERATOR_ACTION_POLICIES: OperatorActionPolicy[] = [
+  { actionCode: "partner.prepare", label: "Prepare partner invoice payable", requiredRole: "operations_controller", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "partner.approve", label: "Review or suspend partner payable", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "partner.export", label: "Export approved partner payable", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: false },
   { actionCode: "payment.prepare", label: "Prepare employee payment instruction", requiredRole: "payroll_preparer", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
   { actionCode: "payment.approve", label: "Approve employee payment instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
   { actionCode: "payment.dispatch_test", label: "Submit approved test transfer", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
