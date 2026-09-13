@@ -30,3 +30,13 @@ Official sources checked 13 September: https://paystack.com/docs/api/transfer-re
 Next implementation: exact employee payable instructions and payment adapter with fresh destination/provider checks at dispatch; partner payables and separately scoped partner destinations; payslips, invoice allocation/issuance, post-export corrections and engagement splits. Refund/dispute resolution remains separately guarded. Existing owner legal/entity/source decisions, real account acceptance, Google sign-in and live shift acceptance remain open. Preserve LOKD_OPERATIONS_MFA_REQUIRED=false and LOKD_LIVE_SHIFT_SCAN=false.
 
 Release receipt is recorded below only after terminal deployment.
+
+## Terminal release receipt
+
+- Tested application source `2a5be4a4a32beb66232421dc42f06fa542b5972a` pushed to the existing Sites repository.
+- Version 58: `appgprj_6a88a08505548191b266e9b711562ae3~appgver_fb1e337f7ae48191af0708e78a8dd25a`.
+- Deployment `appgdep_6aa6a2dadbbc8191ab5e7c9d75989546` succeeded at `2026-09-13T13:19:43.748378+00:00`; environment revision 9 unchanged.
+- Native URL https://lokd-security.zenas-capetown.chatgpt.site ; requested review URL https://lokd.co.za/ . Browser opening queued in this Codex task.
+- Archive validated with Worker, hosting manifest and new migration 0055; environment and test files excluded. Public audience and existing domain association retained.
+- Custom-domain delivery/access checks passed: homepage 200, Client/Officer/Operations service pages 307 to the corresponding host's sign-in with the correct return path, anonymous Operations API 401. Results: `/tmp/lokd-v58-domain-acceptance.json`. Python's default urllib client initially received 403; curl succeeded and completed the bounded checks. This is client-specific observed behavior, not evidence of an application failure or real-user acceptance.
+- This receipt and updated resume pointer are documentation-only. No rebuild or deployment is required for them. Real owner-account and bank/provider operational acceptance remain open.

@@ -1,5 +1,10 @@
 # LOKD handover — 13 September 2026
 
+## Payment-destination continuation
+
+The payment-destination implementation described below as next work has now been completed and validated. Read `PAYMENT_DESTINATIONS_2026-09-13.md` first for the current scope, acceptance limits and terminal release receipt. Employee recipient review, independent approval/rejection, test/live isolation, suspension and replacement history are built. Partner destinations/payables and actual payment instructions/adapters remain next work. The original v57 handover below is retained as historical context, not an instruction to repeat this implementation.
+
+
 Owner requested continuation, a handover at the next checkpoint, and research into Akta. Stop here for the new task. Hosting continues normally. This handover supersedes the 12 September new-thread entry point, which stopped at v55 payroll. Do not repeat the collections and settlement work completed since then.
 
 ## Start here
