@@ -2610,3 +2610,19 @@ export const productionPartnerPayableHolds=sqliteTable('production_partner_payab
 export const productionPartnerPayableExports=sqliteTable('production_partner_payable_exports',{
  reviewId:text('review_id').primaryKey().references(()=>productionPartnerPayableReviews.id),operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),payloadHash:text('payload_hash').notNull(),createdAt:text('created_at').notNull(),
 });
+
+export const partnerDestinationReviews=sqliteTable('partner_destination_reviews',{
+ id:text('id').primaryKey(),employerId:text('employer_id').notNull().references(()=>workforceEmployers.id),
+ mode:text('mode').notNull(),revision:integer('revision').notNull(),requestKey:text('request_key').notNull(),requestHash:text('request_hash').notNull(),
+ payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),preparedBy:text('prepared_by').notNull(),preparedUser:text('prepared_user').notNull(),
+ preparedAt:text('prepared_at').notNull(),reviewUntil:text('review_until').notNull(),expiresAt:text('expires_at').notNull(),
+},t=>[uniqueIndex('partner_destination_request_idx').on(t.requestKey),uniqueIndex('partner_destination_revision_idx').on(t.employerId,t.mode,t.revision)]);
+export const partnerDestinationDecisions=sqliteTable('partner_destination_decisions',{
+ id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>partnerDestinationReviews.id),decision:text('decision').notNull(),
+ operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),payloadHash:text('payload_hash').notNull(),providerHash:text('provider_hash'),
+ note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('partner_destination_decision_idx').on(t.reviewId)]);
+export const partnerDestinationHolds=sqliteTable('partner_destination_holds',{
+ id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>partnerDestinationReviews.id),operatorId:text('operator_id').notNull(),
+ userId:text('user_id').notNull(),reason:text('reason').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('partner_destination_hold_idx').on(t.reviewId)]);
