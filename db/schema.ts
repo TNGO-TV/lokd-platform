@@ -2626,3 +2626,18 @@ export const partnerDestinationHolds=sqliteTable('partner_destination_holds',{
  id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>partnerDestinationReviews.id),operatorId:text('operator_id').notNull(),
  userId:text('user_id').notNull(),reason:text('reason').notNull(),createdAt:text('created_at').notNull(),
 },t=>[uniqueIndex('partner_destination_hold_idx').on(t.reviewId)]);
+
+export const partnerPaymentInstructions=sqliteTable('partner_payment_instructions',{
+ reference:text('reference').primaryKey(),payableId:text('payable_id').notNull().references(()=>partnerPayables.id),destinationId:text('destination_id').notNull().references(()=>partnerDestinationReviews.id),
+ mode:text('mode').notNull(),amountCents:integer('amount_cents').notNull(),sourceJson:text('source_json').notNull(),sourceHash:text('source_hash').notNull(),
+ requestKey:text('request_key').notNull(),requestHash:text('request_hash').notNull(),status:text('status').notNull(),version:integer('version').notNull().default(1),
+ preparedBy:text('prepared_by').notNull(),preparedUser:text('prepared_user').notNull(),approvedBy:text('approved_by'),activeKey:text('active_key'),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('partner_payment_request_idx').on(t.requestKey),uniqueIndex('partner_payment_active_idx').on(t.activeKey)]);
+export const partnerPaymentCommands=sqliteTable('partner_payment_commands',{
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>partnerPaymentInstructions.reference),version:integer('version').notNull(),action:text('action').notNull(),
+ operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),sourceHash:text('source_hash').notNull(),recipientHash:text('recipient_hash'),note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('partner_payment_command_version_idx').on(t.reference,t.version)]);
+export const partnerTransferObservations=sqliteTable('partner_transfer_observations',{
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>partnerPaymentInstructions.reference),source:text('source').notNull(),event:text('event').notNull(),
+ payloadHash:text('payload_hash').notNull(),transferJson:text('transfer_json').notNull(),webhookCount:integer('webhook_count'),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('partner_transfer_delivery_idx').on(t.reference,t.source,t.payloadHash),index('partner_transfer_reference_idx').on(t.reference)]);

@@ -414,6 +414,13 @@
       "when": 1789315071565,
       "tag": "0058_slimy_slapstick",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "6",
+      "when": 1789316332886,
+      "tag": "0059_puzzling_jack_power",
+      "breakpoints": true
     }
   ]
 }

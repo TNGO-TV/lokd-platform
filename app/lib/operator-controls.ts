@@ -8,6 +8,10 @@ export type OperatorRole =
   | "compliance_reviewer";
 
 export type OperatorActionCode =
+  | "partner_payment.prepare"
+  | "partner_payment.approve"
+  | "partner_payment.dispatch_test"
+  | "partner_payment.cancel"
   | "partner.prepare"
   | "partner.approve"
   | "partner.export"
@@ -34,6 +38,11 @@ export type OperatorActionPolicy = {
 };
 
 export const OPERATOR_ACTION_POLICIES: OperatorActionPolicy[] = [
+  { actionCode: "partner_payment.prepare", label: "Prepare partner company payment instruction", requiredRole: "operations_controller", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "partner_payment.approve", label: "Approve partner company payment instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "partner_payment.dispatch_test", label: "Submit approved test transfer", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "partner_payment.cancel", label: "Cancel an unsent partner company instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: false },
+
   { actionCode: "partner.prepare", label: "Prepare partner invoice payable", requiredRole: "operations_controller", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
   { actionCode: "partner.approve", label: "Review or suspend partner payable", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
   { actionCode: "partner.export", label: "Export approved partner payable", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: false },

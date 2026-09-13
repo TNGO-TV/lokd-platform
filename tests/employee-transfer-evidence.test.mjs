@@ -17,3 +17,11 @@ test('employee transfer outcome requires current signed and API agreement and ne
  assert.equal(outcome(b,[signed,{...api,webhookCount:0}]),'verification_required');assert.equal(outcome(b,[{...signed,event:'transfer.failed'},api]),'review_required');
  assert.equal(outcome(b,[signed,{...api,transfer:{...t,status:'failed'}}]),'failed_test');assert.equal(outcome(b,[{...api,webhookCount:0,transfer:{...t,status:'otp'}}]),'provider_authorization_required');
 });
+test('company transfers require their own reference namespace and preserve exact reconciliation bindings',()=>{
+ const partner={...raw,reference:raw.reference.replace('lokd-pay-','lokd-partner-pay-')};
+ assert.equal(employeeTransfer(partner),null);assert.equal(employeeTransfer(raw,'partner'),null);
+ const normalized=employeeTransfer(partner,'partner');assert.ok(normalized);
+ const evidence=[{...signed,transfer:normalized},{...api,transfer:normalized}];
+ assert.equal(outcome({...b,reference:partner.reference},evidence),'confirmed_test');
+ assert.equal(outcome(b,evidence),'review_required');
+});

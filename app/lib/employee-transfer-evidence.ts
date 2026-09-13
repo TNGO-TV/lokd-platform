@@ -1,10 +1,10 @@
 export type EmployeeTransferBinding={reference:string;mode:'test'|'live';amount:number;currency:'ZAR';recipientId:string;integration:string};
 export type EmployeeTransfer={id:string;code:string;reference:string;mode:string;amount:number;currency:string;recipientId:string;integration:string;status:string};
 const id=(v:unknown)=>typeof v==='number'&&Number.isSafeInteger(v)&&v>0?String(v):typeof v==='string'&&/^[1-9][0-9]{0,19}$/.test(v)?v:null;
-export function employeeTransfer(raw:unknown):EmployeeTransfer|null{
+export function employeeTransfer(raw:unknown,kind:'employee'|'partner'='employee'):EmployeeTransfer|null{
  if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;const r=raw as Record<string,unknown>,recipient=r.recipient&&typeof r.recipient==='object'?r.recipient as Record<string,unknown>:null;
  const providerId=id(r.id),integration=id(r.integration),recipientId=id(recipient?.id??r.recipient);
- if(!providerId||!integration||!recipientId||typeof r.transfer_code!=='string'||!/^TRF_[a-zA-Z0-9]{6,60}$/.test(r.transfer_code)||typeof r.reference!=='string'||!/^lokd-pay-[a-z0-9-]{16,41}$/.test(r.reference)||!['test','live'].includes(String(r.domain))||r.currency!=='ZAR'||!Number.isSafeInteger(r.amount)||Number(r.amount)<1||r.source!=='balance'||!['pending','otp','success','failed','reversed','abandoned','blocked','rejected','received'].includes(String(r.status)))return null;
+ if(!providerId||!integration||!recipientId||typeof r.transfer_code!=='string'||!/^TRF_[a-zA-Z0-9]{6,60}$/.test(r.transfer_code)||typeof r.reference!=='string'||!(kind==='partner'?/^lokd-partner-pay-[a-z0-9-]{16,41}$/:/^lokd-pay-[a-z0-9-]{16,41}$/).test(r.reference)||!['test','live'].includes(String(r.domain))||r.currency!=='ZAR'||!Number.isSafeInteger(r.amount)||Number(r.amount)<1||r.source!=='balance'||!['pending','otp','success','failed','reversed','abandoned','blocked','rejected','received'].includes(String(r.status)))return null;
  if(recipient&&(id(recipient.integration)!==integration||recipient.domain!==r.domain||recipient.currency!==r.currency||recipient.type!=='basa'))return null;
  return {id:providerId,code:r.transfer_code,reference:r.reference,mode:String(r.domain),amount:Number(r.amount),currency:r.currency,recipientId,integration,status:String(r.status)};
 }

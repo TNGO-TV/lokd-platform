@@ -1949,7 +1949,7 @@ test('production destinations bind exact employee evidence with independent fres
  assert.equal(count(database,'disbursement_items'),0);assert.equal(count(database,'payroll_runs'),0);database.close();
 });
 
-test('production partner payables independently allocate invoice evidence and suspend unpaid exports',async()=>{
+test('production partner payables independently allocate invoice evidence and suspend unpaid exports',async(testContext)=>{
  const {recordProductionService,readProductionService}=await import('../app/lib/production-service.ts');
  const {operateProduction}=await import('../app/lib/production-operations.ts');
  const {operatePartnerPayable,readPartnerPayables,exportPartnerPayableCsv}=await import('../app/lib/partner-payables.ts');
@@ -1972,7 +1972,7 @@ test('production partner payables independently allocate invoice evidence and su
  for(const [actor,role] of [[finance,'finance_approver'],[finance,'payroll_reviewer'],[maker,'operations_controller'],[maker,'finance_approver']])await operateProduction(db,finance,{action:'grant_operator',email:actor.email,role,limitCents:1000000},headers);
  t=(await readProductionService(db,finance)).timesheets[0];await recordProductionService(db,finance,{action:'review_service_pay',shiftId:activation.shiftId,version:t.version,payableMinutes:t.recorded_minutes,grossCents:80000,payEvidenceReviewed:true,note:'Fixture independent contracted wage and attendance review.'});
  t=(await readProductionService(db,finance)).timesheets[0];
- const prepare={action:'prepare_partner_payable',requestKey:'partner-invoice-001',timesheetId:t.id,invoiceNumber:'INV-001',invoiceLine:'01',invoiceDate:new Date().toISOString().slice(0,10),dueDate:new Date(Date.now()+7*86400000).toISOString().slice(0,10),netCents:120000,taxCents:18000,invoiceReference:'vault:partner/invoice-001',invoiceHash:'a'.repeat(64),agreementReference:'vault:partner/signed-agreement',agreementHash:'b'.repeat(64),agreementVersion:'PARTNER-v1',taxEvidenceReference:'vault:partner/tax-review',note:'Fixture invoice line reconciled to actual contracted service.',expiresAt:new Date(Date.now()+3600000).toISOString(),sourcesReviewed:true};
+ const prepare={action:'prepare_partner_payable',requestKey:'partner-invoice-001',timesheetId:t.id,invoiceNumber:'INV-001',invoiceLine:'01',invoiceDate:new Date().toISOString().slice(0,10),dueDate:new Date().toISOString().slice(0,10),netCents:120000,taxCents:18000,invoiceReference:'vault:partner/invoice-001',invoiceHash:'a'.repeat(64),agreementReference:'vault:partner/signed-agreement',agreementHash:'b'.repeat(64),agreementVersion:'PARTNER-v1',taxEvidenceReference:'vault:partner/tax-review',note:'Fixture invoice line reconciled to actual contracted service.',expiresAt:new Date(Date.now()+3600000).toISOString(),sourcesReviewed:true};
  assert.equal((await readPartnerPayables(db,maker)).partnerPayableCandidates.length,1);
  for(const actor of [officer,client]){assert.equal((await readPartnerPayables(db,actor)).partnerPayableAccess,false);await assert.rejects(()=>operatePartnerPayable(db,actor,prepare,headers),/Operations/);}
  await assert.rejects(()=>operatePartnerPayable(db,maker,{...prepare,netCents:1.5},headers),/whole ZAR/);
@@ -1995,6 +1995,7 @@ test('production partner payables independently allocate invoice evidence and su
  await operatePartnerPayable(db,finance,approve,headers);assert.equal((await operatePartnerPayable(db,finance,approve,headers)).alreadyDecided,true);
  const payable=database.prepare('SELECT * FROM partner_payables').get();assert.equal(payable.amount_cents,138000);assert.notEqual(payable.amount_cents,t.gross_cents);assert.equal(payable.status,'approved_unpaid');assert.equal(payable.remittance_reference,null);
  assert.equal(count(database,'payroll_runs'),0);assert.equal((await readPartnerPayables(db,maker)).partnerPayableCandidates.length,0);
+ await testContext.test('partner payment instructions bind invoice and mandate with durable isolated test recovery',async()=>{const {partnerPaymentJourney}=await import('./fixtures/partner-payment-journey.mjs');await partnerPaymentJourney({database,db,maker,owner:finance,finance,officer,client,headers,payableId:payable.id});});
  await assert.rejects(()=>operatePartnerPayable(db,maker,{...prepare,requestKey:'duplicate'},headers),/changed/);
  assert.throws(()=>database.exec("UPDATE partner_payables SET status='paid'"),/immutable/);
  await operatePartnerPayable(db,finance,{...approve,action:'export_partner_payable'},headers);
@@ -2003,6 +2004,7 @@ test('production partner payables independently allocate invoice evidence and su
  run(database,"UPDATE workforce_employers SET version=version-1 WHERE id='EMP-1'");
  await operatePartnerPayable(db,finance,{...approve,action:'hold_partner_payable',note:'Fixture conflicting invoice evidence requires permanent suspension.'},headers);
  await assert.rejects(()=>exportPartnerPayableCsv(db,finance,r.id,headers),/unsuspended/);assert.equal(database.prepare('SELECT status FROM production_partner_payable_current WHERE id=?').get(r.id).status,'held');
+ const {readPartnerPayments}=await import('../app/lib/partner-payments.ts');const heldPayments=await readPartnerPayments(db,finance);assert.equal(heldPayments.partnerPaymentCandidates.length,0);assert.equal(heldPayments.partnerPayments.every(i=>!i.current),true);
  assert.throws(()=>database.exec('DELETE FROM production_partner_payable_holds'),/immutable/);
  await assert.rejects(()=>recordProductionService(db,finance,{action:'reopen_service_pay',shiftId:activation.shiftId,version:t.version,note:'Attempt correction after company invoice allocation.'}),/partner|consum|payroll|allocated/i);
  database.close();
