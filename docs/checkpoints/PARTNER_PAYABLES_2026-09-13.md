@@ -23,4 +23,11 @@ Partner-company payment destinations/mandates, guarded payment instructions/adap
 
 ## Release receipt
 
-Pending terminal deployment; append the exact source, native version and deployment outcome after publication.
+Published v60 from source `67a072a46092362ec9786d70f11e167690152c78`.
+
+- Project: `appgprj_6a88a08505548191b266e9b711562ae3`, existing public audience preserved.
+- Version: `appgprj_6a88a08505548191b266e9b711562ae3~appgver_42413635b4f081918883f54956fe2a5f`.
+- Deployment: `appgdep_6aa6c5ca190081919ab6e73edaecc535`, succeeded `2026-09-13T15:48:57.592454+00:00`; environment revision 9 unchanged.
+- Production build passed. Archive `/tmp/lokd-partner-payables-v60.tar.gz` validated with exact source migration, expected Worker/hosting metadata, and no local credentials/fixtures. Saved archive SHA-256 `6c456b9d3743c8077f1f51867d40375116b9da882126b81994bcebbf7871f5ab`.
+- https://lokd.co.za/ and https://lokd-security.zenas-capetown.chatgpt.site/ returned 200 after terminal success. Client/Officer/Operations service hosts returned 307 to their own sign-in with correct return paths. Anonymous Operations API returned 401. Evidence: `/tmp/lokd-v60-domain-acceptance.json`.
+- This final receipt is documentation-only; it does not require another build/deployment. Actual owner-account acceptance remains separate from these route checks.
