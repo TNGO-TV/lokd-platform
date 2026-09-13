@@ -2564,3 +2564,19 @@ export const productionPayrollSnapshots=sqliteTable('production_payroll_snapshot
 export const productionPayrollDecisions=sqliteTable('production_payroll_decisions',{
  id:text('id').primaryKey(),runId:text('run_id').notNull().references(()=>payrollRuns.id),runVersion:integer('run_version').notNull(),action:text('action').notNull(),operatorId:text('operator_id').notNull().references(()=>operatorAccounts.id),actorUserId:text('actor_user_id').notNull(),authBasis:text('auth_basis').notNull(),amountCents:integer('amount_cents').notNull(),calculationHash:text('calculation_hash').notNull(),note:text('note').notNull(),createdAt:text('created_at').notNull(),
 },t=>[uniqueIndex('production_payroll_decision_version').on(t.runId,t.runVersion)]);
+
+export const paymentDestinationReviews=sqliteTable('payment_destination_reviews',{
+ id:text('id').primaryKey(),officerId:text('officer_id').notNull().references(()=>officers.id),profileId:text('profile_id').notNull().references(()=>payrollProfiles.id),
+ mode:text('mode').notNull(),revision:integer('revision').notNull(),requestKey:text('request_key').notNull(),requestHash:text('request_hash').notNull(),
+ payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),preparedBy:text('prepared_by').notNull(),preparedUser:text('prepared_user').notNull(),
+ preparedAt:text('prepared_at').notNull(),reviewUntil:text('review_until').notNull(),expiresAt:text('expires_at').notNull(),
+},t=>[uniqueIndex('destination_request_idx').on(t.requestKey),uniqueIndex('destination_revision_idx').on(t.officerId,t.mode,t.revision)]);
+export const paymentDestinationDecisions=sqliteTable('payment_destination_decisions',{
+ id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>paymentDestinationReviews.id),decision:text('decision').notNull(),
+ operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),payloadHash:text('payload_hash').notNull(),providerHash:text('provider_hash'),
+ note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('destination_decision_idx').on(t.reviewId)]);
+export const paymentDestinationHolds=sqliteTable('payment_destination_holds',{
+ id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>paymentDestinationReviews.id),operatorId:text('operator_id').notNull(),
+ userId:text('user_id').notNull(),reason:text('reason').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('destination_hold_idx').on(t.reviewId)]);

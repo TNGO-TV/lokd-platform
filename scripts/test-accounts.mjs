@@ -23,7 +23,8 @@ const emails = Object.fromEntries(['client', 'officer', 'operations', 'unassigne
 const access = { clients: { [emails.client]: 'CL-001' }, officers: { [emails.officer]: 'OFF-001' }, operations: [emails.operations, ...(includeFinance ? [emails.finance] : [])], owners: [emails.owner] };
 let ownsVars = false;
 let failed = false;
-const collectionFixture=process.env.LOKD_ACCOUNT_TEST_COLLECTIONS==='true';
+const destinationFixture=process.env.LOKD_ACCOUNT_TEST_DESTINATIONS==='true';
+const collectionFixture=process.env.LOKD_ACCOUNT_TEST_COLLECTIONS==='true'||destinationFixture;
 let collectionDatabase,collectionBackup,collectionInstalled=false,collectionExport;
 const collectionMoved=[];
 try {
@@ -50,7 +51,7 @@ try {
     const directory=process.cwd()+'/.wrangler/state/v3/d1/miniflare-D1DatabaseObject';
     const names=(await readdir(directory)).filter(n=>n.endsWith('.sqlite')&&n!=='metadata.sqlite');if(names.length!==1)throw Error('Ambiguous local acceptance database');
     collectionDatabase=directory+'/'+names[0];collectionExport='/tmp/lokd-collection-'+run+'.sqlite';
-    const fixture=spawn(process.execPath,['--experimental-loader=./tests/cloudflare-loader.mjs','--test-name-pattern=production intake prepares','tests/assignment-activation-db.test.mjs'],{stdio:'inherit',env:{...process.env,LOKD_COLLECTION_FIXTURE_EXPORT:collectionExport,LOKD_COLLECTION_BROWSER_USERS:JSON.stringify(userIds),LOKD_COLLECTION_BROWSER_EMAILS:JSON.stringify(emails)}});
+    const fixture=spawn(process.execPath,['--experimental-loader=./tests/cloudflare-loader.mjs',destinationFixture?'--test-name-pattern=production destinations':'--test-name-pattern=production intake prepares','tests/assignment-activation-db.test.mjs'],{stdio:'inherit',env:{...process.env,...(destinationFixture?{LOKD_DESTINATION_FIXTURE_EXPORT:collectionExport,LOKD_DESTINATION_BROWSER_USERS:JSON.stringify(userIds),LOKD_DESTINATION_BROWSER_EMAILS:JSON.stringify(emails)}:{LOKD_COLLECTION_FIXTURE_EXPORT:collectionExport,LOKD_COLLECTION_BROWSER_USERS:JSON.stringify(userIds),LOKD_COLLECTION_BROWSER_EMAILS:JSON.stringify(emails)})}});
     if(await new Promise((resolve,reject)=>{fixture.on('error',reject);fixture.on('exit',resolve);})!==0)throw Error('Collection fixture did not pass');
     collectionBackup=await mkdtemp(directory+'/lokd-collection-original-');
     for(const suffix of ['','-wal','-shm']){try{await fileAccess(collectionDatabase+suffix);}catch{continue;}await rename(collectionDatabase+suffix,collectionBackup+'/database'+suffix);collectionMoved.push(suffix);}
