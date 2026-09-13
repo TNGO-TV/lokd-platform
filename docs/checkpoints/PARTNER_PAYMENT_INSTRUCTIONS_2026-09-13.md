@@ -24,3 +24,14 @@ No actual provider POST, money movement, recipient creation, credentials/infrast
 Suggested next bounded implementation: independently authorized failure/reversal disposition for claimed test transfers with proof of final status and duplicate-payment prevention, covering employee and company records. Do not unlock live dispatch or infer a final failure from a timeout, missing event or contradictory evidence. Actual operating-cycle acceptance remains separate.
 
 Reusable lesson: retain exact company invoice and mandate evidence at command commit; save the submission claim before network delivery; after uncertainty verify the original reference rather than generating another. A test confirmation is evidence of a test transfer only, never evidence that the liability was paid. This implementation reused existing safeguards without weakening them and completed its targeted, browser and regression checks without failing test runs.
+
+## Release receipt — v62
+
+- Deployed exact source: `042c237e02f69fadc896ac448bdd3b144d7d7deb`.
+- Sites project: `appgprj_6a88a08505548191b266e9b711562ae3`; existing public audience preserved.
+- Version: `appgprj_6a88a08505548191b266e9b711562ae3~appgver_f398579534908191a0199bc1e8f06d28`.
+- Deployment: `appgdep_6aa6ce6f71d8819187a3fe08700fbbe9`, succeeded `2026-09-13T16:25:34.361189+00:00`; environment revision 9 unchanged.
+- Native: https://lokd-security.zenas-capetown.chatgpt.site . Custom: https://lokd.co.za/ . Existing role hostnames preserved.
+- Archive `/tmp/lokd-partner-payments-v62.tar.gz` validated: Worker, expected project manifest, exact migration, private-file exclusions. Local gzip SHA-256 `14bf2f5fefafd25679b6754ef8e3b48f8deec7160124da0c08c532cd1a6c4b3a`; Sites normalized archive hash `sha256:ea11e9ef6b6a9ecdd7ff3fd3c51f416f138dc6efe3d7f8652772b8bdc02becda`.
+- Post-deployment acceptance: custom/native homepages 200; Client/Officer/Operations service routes 307 to the proper same-host sign-in and exact return paths; anonymous Operations API 401. `/tmp/lokd-v62-domain-acceptance.json`. These route checks are not genuine owner sign-in or live payment acceptance.
+- This release receipt and the refreshed remaining-work entry point are documentation-only; no further rebuild is required. Receipt-only commits are local until the next authorized source push, following the existing handover convention.
