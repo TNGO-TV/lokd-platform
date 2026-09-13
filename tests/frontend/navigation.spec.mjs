@@ -40,8 +40,9 @@ for(const base of ['/client','/officer','/ops'])test(`${base}: navigation, direc
  await page.getByRole('navigation',{name:/navigation$/}).getByRole('link',{name:'Agreements',exact:true}).click();await expect(page).toHaveURL(new RegExp(base+'/agreements$'));await page.getByRole('link',{name:'← Back to account'}).click();await expect(page).toHaveURL(new RegExp(base+'$'));
  expect(errors).toEqual([]);
 });
-test('Operations intake selection survives reload and direct links',async({page})=>{
+test('Operations intake selection survives reload and direct links',async({page},info)=>{
  await page.goto('/ops');await page.getByRole('link',{name:'Client enquiries',exact:true}).click();await expect(page).toHaveURL(/\/ops\/intake\?kind=client$/);await expect(page.getByRole('heading',{name:'Synthetic Example Client'})).toBeVisible();await page.reload();await expect(page.getByRole('navigation',{name:'Intake type'}).getByRole('link',{name:'Client enquiries'})).toHaveAttribute('aria-current','page');
+ const selected=page.getByRole('navigation',{name:'Intake type'}).getByRole('link',{name:'Client enquiries'});await selected.click();await expect(page.getByRole('heading',{name:'Synthetic Example Client'})).toBeVisible();await fits(page);await shot(page,'ops-intake-active-link',info);
 });
 for(const status of [401,403,409,423,503])test(`intake ${status}: useful error and preserved edits through failed refresh`,async({page},info)=>{
  await page.goto('/client');await page.getByRole('button',{name:'Correct my details'}).click();await page.getByLabel('Organisation',{exact:true}).fill('Unsaved correction');

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {operatePaymentRecovery as recover} from '../../app/lib/payment-recovery.ts';
 import {operateEmployeePayment,receiveEmployeeTransferWebhook} from '../../app/lib/employee-payments.ts';
 import {operatePartnerPayment,receivePartnerTransferWebhook} from '../../app/lib/partner-payments.ts';
@@ -25,6 +26,15 @@ export async function paymentRecoveryJourney({kind,database,db,maker,finance,off
  };
  const command=(action,patch={})=>({kind,action,reference,version:current().version,sourceHash:original.source_hash,evidenceReviewed:true,note:'Reviewed exact signed terminal event and fresh API result.',...patch});
  const terminal=()=>database.prepare(`SELECT * FROM ${kind}_recovery_terminal WHERE reference=?`).get(reference);
+ // Export only synthetic terminal evidence for authenticated localhost QA.
+ // The injected transport above cannot submit a provider transfer.
+ if(process.env.LOKD_RECOVERY_FIXTURE_EXPORT){
+  const path=process.env.LOKD_RECOVERY_FIXTURE_EXPORT;
+  assert.match(path,/^\/tmp\/lokd-[a-z0-9-]+\.sqlite$/);
+  assert.equal(fs.existsSync(path),false);
+  await signed('failed');await verify();assert.equal(terminal().disposition,'failed');
+  assert.equal(posts,0);database.prepare('VACUUM INTO ?').run(path);return;
+ }
  const proposal=()=>recover(db,maker,command('propose_test_disposition',{evidenceId:terminal()?.evidence_id,disposition:status}),headers);
  const approvalInput=p=>command('approve_test_disposition',{proposalId:p.proposalId,evidenceId:terminal()?.evidence_id,disposition:status});
  const approve=p=>recover(db,finance,approvalInput(p),headers);

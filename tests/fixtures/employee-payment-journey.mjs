@@ -43,6 +43,7 @@ export async function employeePaymentJourney({database,db,maker,owner,finance,of
  await assert.rejects(()=>operate(db,finance,command('dispatch_employee_test'),headers,runtime,transport),/cannot be repeated/);await assert.rejects(()=>operate(db,finance,command('cancel_employee_payment'),headers,runtime,transport),/cannot be repeated/);assert.equal(postCalls,1);
  const {paymentRecoveryJourney}=await import('./payment-recovery-journey.mjs');
  await paymentRecoveryJourney({kind:'employee',database,db,maker,finance,officer,headers,runtime,reference:ref,input,transfer,recipient});
+ if(process.env.LOKD_RECOVERY_FIXTURE_EXPORT)return;
  assert.throws(()=>database.prepare("INSERT INTO employee_transfer_observations VALUES('invalid-watermark',?,'verify','transfer.verify','invalid-watermark','null',NULL,?)").run(ref,new Date().toISOString()),/webhook evidence changed/);
  assert.equal((await operate(db,finance,command('verify_employee_test'),headers,runtime,transport)).providerState,'awaiting_signed_confirmation');
  const signed=async(event,data=transfer)=>{const body=JSON.stringify({event,data}),key=await crypto.subtle.importKey('raw',new TextEncoder().encode(runtime.PAYSTACK_TEST_SECRET_KEY),{name:'HMAC',hash:'SHA-512'},false,['sign']);const signature=Buffer.from(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(body))).toString('hex');return new Request('https://lokd.co.za/api/paystack/test/webhook',{method:'POST',headers:{'x-paystack-signature':signature},body});};
