@@ -31,3 +31,13 @@ Continued from deployed v58 and receipt 5aaa5ba. Existing Sites project and publ
 Checked official https://paystack.com/docs/api/transfer/ and https://paystack.com/docs/transfers/single-transfers/ on 13 September. The API documents balance transfers, unique client references, OTP/pending responses and verification by reference. Retained previous verified South African basa/ZAR recipient requirements. No actual configured provider capability, transfer authorization/OTP setting, live balance/reserve or bank acceptance was changed or inferred from mocked tests.
 
 Next: separately approved controlled-pilot/live-release prerequisites and guarded live adapter, partner payables and partner destinations, payslip issuance, invoice receipt allocation/issuance and post-export adjustments/engagement splits. Test transfer failure/reversal resolution remains intentionally locked against replacement. Employer legal/source decisions, two-cycle reserve evidence, real owner account/Google acceptance and live shift acceptance remain open. Keep LOKD_OPERATIONS_MFA_REQUIRED=false and LOKD_LIVE_SHIFT_SCAN=false.
+
+## Terminal release receipt
+
+- Tested/pushed application source: `7f189579ef9808587fd3145f4e2eaee5108ed3af`.
+- Version 59: `appgprj_6a88a08505548191b266e9b711562ae3~appgver_65df9d44176c819194ce08f8e996ff62`.
+- Deployment `appgdep_6aa6bf0f7f408191bd818c5d4c5ee6de` succeeded at `2026-09-13T15:20:01.886311+00:00`, environment revision 9 unchanged.
+- Native URL https://lokd-security.zenas-capetown.chatgpt.site ; requested custom-domain review https://lokd.co.za/ . Browser opening queued in the current Codex task.
+- Archive validated with Worker, manifest and exact final migration 0056; no environment or fixture files. Existing public audience and custom domains retained.
+- Post-deployment delivery and anonymous access checks passed: LOKD homepage 200, Client/Officer/Operations service pages 307 to their respective host sign-in paths, anonymous Operations API 401. Evidence: `/tmp/lokd-v59-domain-acceptance.json`.
+- Documentation-only release receipt and updated resume pointer require no rebuild. No test-provider POST or live money movement occurred outside mocked test transport. Real owner/provider/bank and controlled-pilot acceptance remain open.

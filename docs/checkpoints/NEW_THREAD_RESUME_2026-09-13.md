@@ -1,5 +1,9 @@
 # LOKD handover — 13 September 2026
 
+## Employee payment-instruction continuation
+
+Read `EMPLOYEE_PAYMENT_INSTRUCTIONS_2026-09-13.md` first for the latest implementation and release receipt. Exact exported-payroll payment instructions, independent finance approval, safe pre-submission cancellation and test transfer/reconciliation recovery are built and validated. Live salary dispatch remains explicitly locked pending controlled-pilot prerequisites and its separately guarded implementation. Do not repeat employee destinations or the test adapter. Partner payables/destinations, payslips, invoice allocation and post-export adjustments remain open.
+
 ## Payment-destination continuation
 
 The payment-destination implementation described below as next work has now been completed and validated. Read `PAYMENT_DESTINATIONS_2026-09-13.md` first for the current scope, acceptance limits and terminal release receipt. Employee recipient review, independent approval/rejection, test/live isolation, suspension and replacement history are built. Partner destinations/payables and actual payment instructions/adapters remain next work. The original v57 handover below is retained as historical context, not an instruction to repeat this implementation.
