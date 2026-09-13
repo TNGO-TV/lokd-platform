@@ -2613,3 +2613,20 @@ button { color: inherit; }
   .join-form-actions button { flex: 1 1 auto; min-height: 48px; }
   .portal-onboarding-card--error { flex-wrap: wrap; }
 }
+
+/* Public navigation remains available at every viewport, including keyboard zoom. */
+.public-header { height: auto; min-height: 82px; grid-template-columns: 110px minmax(0, 1fr) auto; gap: 18px; padding-block: 16px; }
+.public-header > nav { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.public-header nav a { display: flex; align-items: center; min-height: 44px; padding: 8px 4px; }
+.public-header nav a[aria-current="page"]::after { bottom: 2px; background: #557c1b; }
+.public-home :focus-visible { outline: 3px solid #557c1b; outline-offset: 3px; }
+@media (max-width: 1100px) {
+  .public-header { grid-template-columns: 1fr auto; }
+  .public-header > nav { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; border-top: 1px solid #d4ddd4; padding-top: 8px; }
+  .public-header-actions { grid-column: 2; grid-row: 1; }
+  .public-header-actions .public-login { display: block; }
+}
+@media (max-width: 600px) {
+  .public-header > nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+  .public-header nav a { font-size: 14px; }
+}

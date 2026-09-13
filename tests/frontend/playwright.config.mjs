@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test';
+export default defineConfig({testDir:'.',outputDir:process.cwd()+'/test-results/frontend-run',testMatch:'*.spec.mjs',workers:1,retries:0,timeout:45000,reporter:[['list'],['json',{outputFile:process.cwd()+'/test-results/frontend/browser.json'}]],use:{headless:true,baseURL:'http://127.0.0.1:4179'},projects:[{name:'mobile-360',use:{viewport:{width:360,height:800},isMobile:true,hasTouch:true}},{name:'desktop',use:{viewport:{width:1280,height:900}}}]});

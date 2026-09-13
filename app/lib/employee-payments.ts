@@ -1,3 +1,4 @@
+import {replacementReservation,readPaymentRecovery} from './payment-recovery';
 import {SignupError} from './signup-server';
 import {agreementHash} from './agreement-acceptance';
 import {productionOperatorControl} from './production-operator-control';
@@ -13,7 +14,7 @@ const binding=(i:Instruction):EmployeeTransferBinding=>{const s=JSON.parse(i.sou
 async function observations(db:D1Database,reference:string){return (await db.prepare('SELECT source,event,transfer_json,webhook_count FROM employee_transfer_observations WHERE reference=? ORDER BY rowid LIMIT 501').bind(reference).all<{source:string;event:string;transfer_json:string;webhook_count:number|null}>()).results.map(r=>({source:r.source,event:r.event,transfer:JSON.parse(r.transfer_json),webhookCount:r.webhook_count})) as TransferObservation[];}
 async function sourceCurrent(db:D1Database,i:Instruction){return !!await db.prepare('SELECT payroll_item_id FROM employee_payment_sources WHERE payroll_item_id=? AND destination_id=? AND source_json=?').bind(i.payroll_item_id,i.destination_id,i.source_json).first();}
 async function record(db:D1Database,i:Instruction,source:string,event:string,raw:unknown,count:number|null=null){
- const transfer=employeeTransfer(raw),json=JSON.stringify(transfer),hash=await agreementHash(JSON.stringify([event,json,count]));
+ const transfer=employeeTransfer(raw),json=JSON.stringify(transfer),hash=await agreementHash(JSON.stringify([event,json,count,...(source==='verify'?[crypto.randomUUID()]:[])]));
  await db.prepare('INSERT OR IGNORE INTO employee_transfer_observations VALUES(?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),i.reference,source,event,hash,json,count,new Date().toISOString()).run();
 }
 async function provider(secret:string,path:string,transport:typeof fetch,body?:unknown){
@@ -24,7 +25,7 @@ export async function readEmployeePayments(db:D1Database,actor:SigningActor){
  const allowed=actor.operations&&!!await db.prepare("SELECT a.id FROM operator_accounts a JOIN operator_role_assignments g ON g.operator_id=a.id WHERE lower(a.email)=? AND a.environment='production' AND a.integrity_state='production_verified' AND a.status='active' AND g.environment='production' AND g.integrity_state='production_verified' AND g.status='active' AND g.role IN ('payroll_preparer','payroll_reviewer','finance_approver') LIMIT 1").bind(actor.email.toLowerCase()).first();
  if(!allowed)return {employeePaymentAccess:false,employeePaymentCandidates:[],employeePayments:[]};
  const rows=(await db.prepare('SELECT * FROM employee_payment_instructions ORDER BY created_at DESC LIMIT 100').all<Instruction>()).results,payments=[];
- for(const i of rows){const evidence=await observations(db,i.reference);payments.push({...i,current:await sourceCurrent(db,i),providerState:evidence.length>500?'review_required':employeeTransferOutcome(binding(i),evidence),observations:evidence});}
+ for(const i of rows){const evidence=await observations(db,i.reference);payments.push({...i,current:await sourceCurrent(db,i),providerState:evidence.length>500?'review_required':employeeTransferOutcome(binding(i),evidence),observations:evidence,recovery:await readPaymentRecovery(db,'employee',i.reference)});}
  return {employeePaymentAccess:true,employeePayments:payments,employeePaymentCandidates:(await db.prepare("SELECT s.* FROM employee_payment_sources s WHERE NOT EXISTS(SELECT 1 FROM employee_payment_instructions i WHERE i.active_key=s.payroll_item_id||':'||s.mode) ORDER BY s.payroll_item_id LIMIT 500").all()).results};
 }
 export async function operateEmployeePayment(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,runtime:DestinationRuntime={},transport:typeof fetch=fetch){
@@ -34,13 +35,13 @@ export async function operateEmployeePayment(db:D1Database,actor:SigningActor,in
   const op=await productionOperatorControl(db,actor,headers,'payment.prepare',0);
   const itemId=text(input.payrollItemId,'the exported payroll item'),destinationId=text(input.destinationId,'the reviewed destination'),requestKey=text(input.requestKey,'a unique payment instruction reference'),note=text(input.note,'the instruction review findings',1200);
   if(input.instructionReviewed!==true)throw new SignupError('Review the exact exported net pay, employee, employer and destination before preparing an instruction.');
-  const hash=await agreementHash(JSON.stringify({itemId,destinationId,note}));
+  const hash=await agreementHash(JSON.stringify({itemId,destinationId,note,...(input.replacesReference!==undefined||input.recoveryApprovalId!==undefined?{replacesReference:input.replacesReference,recoveryApprovalId:input.recoveryApprovalId}:{})}));
   const prior=await db.prepare('SELECT * FROM employee_payment_instructions WHERE request_key=?').bind(requestKey).first<Instruction>();if(prior){await productionOperatorControl(db,actor,headers,'payment.prepare',prior.amount_cents);if(prior.request_hash!==hash)throw new SignupError('This request reference belongs to different instructions.',409);return {reference:prior.reference,alreadyPrepared:true,paymentReleased:false};}
   const source=await db.prepare('SELECT * FROM employee_payment_sources WHERE payroll_item_id=? AND destination_id=?').bind(itemId,destinationId).first<Source>();if(!source)throw new SignupError('Choose an exported payroll item with its exact current independently verified destination and payroll profile.',409);
   if(JSON.parse(source.source_json).ownerUser===actor.userId)throw new SignupError('An employee cannot prepare their own payment instruction.',403);
   await productionOperatorControl(db,actor,headers,'payment.prepare',source.amount_cents);
   const ref='lokd-pay-'+crypto.randomUUID(),sourceHash=await agreementHash(source.source_json);
-  await db.batch([db.prepare("INSERT INTO employee_payment_instructions VALUES(?,?,?,?,?,?,?,?,?,'prepared',1,?,?,NULL,?,?,?)").bind(ref,itemId,destinationId,source.mode,source.amount_cents,source.source_json,sourceHash,requestKey,hash,op.id,actor.userId,itemId+':'+source.mode,now,now),db.prepare("INSERT INTO audit_events VALUES(?,'operations',?,'employee_payment_prepared','employee_payment',?,?,?)").bind(crypto.randomUUID(),actor.userId,ref,JSON.stringify({sourceHash,note,paymentReleased:false}),now)]);
+  await db.batch([...replacementReservation(db,'employee',input,ref,now),db.prepare("INSERT INTO employee_payment_instructions VALUES(?,?,?,?,?,?,?,?,?,'prepared',1,?,?,NULL,?,?,?)").bind(ref,itemId,destinationId,source.mode,source.amount_cents,source.source_json,sourceHash,requestKey,hash,op.id,actor.userId,itemId+':'+source.mode,now,now),db.prepare("INSERT INTO audit_events VALUES(?,'operations',?,'employee_payment_prepared','employee_payment',?,?,?)").bind(crypto.randomUUID(),actor.userId,ref,JSON.stringify({sourceHash,note,paymentReleased:false}),now)]);
   return {reference:ref,paymentReleased:false};
  }
  if(!['approve_employee_payment','cancel_employee_payment','dispatch_employee_test','verify_employee_test'].includes(action))throw new SignupError('Choose a supported employee payment action.');
@@ -54,7 +55,7 @@ export async function operateEmployeePayment(db:D1Database,actor:SigningActor,in
  if(['dispatch_employee_test','verify_employee_test'].includes(action)&&i.mode!=='test')throw new SignupError('Live salary dispatch remains locked until controlled-pilot operating acceptance.',423);
  if(action==='verify_employee_test'){
   if(i.status!=='dispatch_claimed')throw new SignupError('Only a previously claimed test submission may be verified.',409);
-  const secret=destinationKey(runtime,'test'),raw=await provider(secret,'/transfer/verify/'+i.reference,transport),events=await observations(db,i.reference);
+  const events=await observations(db,i.reference),secret=destinationKey(runtime,'test'),raw=await provider(secret,'/transfer/verify/'+i.reference,transport);
   if(events.length>500)throw new SignupError('Transfer evidence requires manual review.',409);
   await record(db,i,'verify','transfer.verify',raw,events.filter(e=>e.source==='webhook').length);
   return {providerState:employeeTransferOutcome(binding(i),await observations(db,i.reference)),paymentReleased:false};

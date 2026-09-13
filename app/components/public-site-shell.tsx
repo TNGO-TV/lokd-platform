@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   CLIENT_PORTAL_URL,
   OFFICER_PORTAL_URL,
@@ -9,8 +12,8 @@ export type PublicSection = "home" | "services" | "industries" | "clients" | "of
 
 const navigation: Array<{ label: string; href: string; section: PublicSection }> = [
   { label: "Services", href: "/security-services", section: "services" },
-  { label: "Armed", href: "/armed-security", section: "services" },
-  { label: "VIP", href: "/vip-protection", section: "services" },
+  { label: "Armed security", href: "/armed-security", section: "services" },
+  { label: "VIP protection", href: "/vip-protection", section: "services" },
   { label: "Industries", href: "/industries", section: "industries" },
   { label: "For clients", href: "/clients", section: "clients" },
   { label: "For officers", href: "/officers", section: "officers" },
@@ -25,10 +28,11 @@ export function PublicLaunchBar() {
 }
 
 export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
-  return <header className="public-header">
+  const pathname = usePathname();
+  return <header className="public-header" data-section={active}>
     <Link className="public-logo" href="/" aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></Link>
     <nav aria-label="Main navigation">
-      {navigation.map((item) => <Link aria-current={active === item.section ? "page" : undefined} href={item.href} key={item.href}>{item.label}</Link>)}
+      {navigation.map((item) => <Link aria-current={pathname === item.href ? "page" : undefined} href={item.href} key={item.href}>{item.label}</Link>)}
     </nav>
     <div className="public-header-actions">
       <a className="public-login" href={CLIENT_PORTAL_URL}>Client login</a>

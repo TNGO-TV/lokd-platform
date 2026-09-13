@@ -1,0 +1,16 @@
+import {createRoot} from 'react-dom/client';
+import WorkspaceShell from '../../app/components/workspace-shell';
+import SignupPortal from '../../app/components/signup-portal';
+import ProductionSigningPanel from '../../app/components/production-signing-panel';
+import ProductionOperationsPanel from '../../app/components/production-operations-panel';
+import IdentityPanel from '../../app/components/identity-panel';
+import PsiraVerificationPanel from '../../app/components/psira-verification-panel';
+import TestCyclePanel from '../../app/components/test-cycle-panel';
+import OperationsSecurity from '../../app/components/operations-security';
+import '../../app/globals.css';
+const path=location.pathname;
+const operations=path.startsWith('/ops');
+const kind=path.startsWith('/client')?'client':'officer';
+const role=operations?'operations':kind;
+const panel=path.endsWith('/agreements')?<ProductionSigningPanel kind={kind} operations={operations}/>:path.endsWith('/service')?<ProductionOperationsPanel kind={kind} operations={operations}/>:path.endsWith('/identity')?<IdentityPanel caseId="SYNTHETIC-CASE" operations={operations}/>:path.endsWith('/psira')?<PsiraVerificationPanel scope={operations?'operations':'officer'}/>:path.endsWith('/test-cycle')?<TestCyclePanel kind={kind} operations={operations}/>:path.endsWith('/security')?<OperationsSecurity mfaRequired={false}/>:<SignupPortal kind={kind} operations={operations}/>;
+createRoot(document.getElementById('root')!).render(<WorkspaceShell role={role}>{panel}</WorkspaceShell>);

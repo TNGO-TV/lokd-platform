@@ -421,6 +421,13 @@
       "when": 1789316332886,
       "tag": "0059_puzzling_jack_power",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "6",
+      "when": 1789328820400,
+      "tag": "0060_fi05_payment_recovery",
+      "breakpoints": true
     }
   ]
 }
