@@ -7,7 +7,7 @@ import {verifyNowD1Receipts} from '../app/lib/verifynow-receipts.ts';
 
 const epoch=Date.parse('2026-09-14T12:00:00.000Z');
 class D1 {
- constructor(){this.sql=new DatabaseSync(':memory:');this.sql.exec('PRAGMA foreign_keys=ON; CREATE TABLE production_identity_cases(id TEXT PRIMARY KEY,applicant_id TEXT,applicant_version INTEGER,owner_user_id TEXT,binding_hash TEXT,capture_reference TEXT,provider TEXT);');this.sql.exec(fs.readFileSync('docs/launch/proposals/ID-PROVIDER-02.sql','utf8'));}
+ constructor(){this.sql=new DatabaseSync(':memory:');this.sql.exec('PRAGMA foreign_keys=ON; CREATE TABLE production_identity_cases(id TEXT PRIMARY KEY,applicant_id TEXT,applicant_version INTEGER,owner_user_id TEXT,binding_hash TEXT,capture_reference TEXT,provider TEXT);');this.sql.exec(fs.readFileSync('drizzle/0069_verifynow_receipt_guards.sql','utf8'));}
  prepare(sql){const make=(values=[])=>({bind:(...v)=>make(v),first:async()=>this.sql.prepare(sql).get(...values)??null,run:async()=>({meta:{changes:Number(this.sql.prepare(sql).run(...values).changes)}})});return make();}
 }
 async function fixture(){
@@ -45,11 +45,41 @@ test('SQL rejects mismatched receipt binding, verified promotion and reused prov
  const r=await f.port.submit(f.binding);const second={...f.binding,caseId:'fixture-case-2'};
  f.db.sql.prepare('INSERT INTO production_identity_cases VALUES(?,?,?,?,?,?,?)').run(second.caseId,second.applicantId,second.applicantVersion,second.ownerUserId,second.bindingHash,second.captureReference,f.port.key);
  assert.equal(await f.receipts.claim(second,'a'.repeat(64),'fixture-policy',30000),true);
- await assert.rejects(f.receipts.save(second,{...r,...second,outcome:'verified'}),/binding|CHECK/);
+ await assert.rejects(f.receipts.save(second,{...r,...second,providerReference:'different-for-verified',outcome:'verified'}),/binding|CHECK/);
  await assert.rejects(f.receipts.save(second,{...r,...second}),/UNIQUE/);
- assert.throws(()=>f.db.sql.prepare('INSERT INTO verifynow_production_receipts VALUES(?,?,?)').run(second.caseId,JSON.stringify({...r,...second,ownerUserId:'wrong'}),new Date(epoch).toISOString()),/binding/);
+ assert.throws(()=>f.db.sql.prepare('INSERT INTO verifynow_production_receipts VALUES(?,?,?)').run(second.caseId,JSON.stringify({...r,...second,providerReference:'different-for-binding',ownerUserId:'wrong'}),new Date(epoch).toISOString()),/binding/);
  }finally{f.db.sql.close();}});
-test('additive proposal loads after all 69 canonical migrations without changing existing rows',()=>{const db=new DatabaseSync(':memory:');try{
- const files=fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort();assert.equal(files.length,69);for(const file of files)db.exec(fs.readFileSync('drizzle/'+file,'utf8').replaceAll('--> statement-breakpoint',''));
- const tables=db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(x=>x.name);const snapshot=()=>tables.map(name=>[name,db.prepare('SELECT * FROM "'+name+'"').all()]);const before=snapshot();db.exec(fs.readFileSync('docs/launch/proposals/ID-PROVIDER-02.sql','utf8'));assert.deepEqual(snapshot(),before);assert.equal(db.prepare('PRAGMA integrity_check').get().integrity_check,'ok');assert.equal(db.prepare('SELECT count(*) n FROM verifynow_production_claims').get().n,0);
+test('canonical identity receipt migration preserves every existing table row',()=>{const db=new DatabaseSync(':memory:');try{
+ const files=fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')&&Number(f.slice(0,4))<69).sort();assert.equal(files.length,69);for(const file of files)db.exec(fs.readFileSync('drizzle/'+file,'utf8').replaceAll('--> statement-breakpoint',''));
+ const tables=db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(x=>x.name);const snapshot=()=>tables.map(name=>[name,db.prepare('SELECT * FROM "'+name+'"').all()]);const before=snapshot();db.exec(fs.readFileSync('drizzle/0069_verifynow_receipt_guards.sql','utf8'));assert.deepEqual(snapshot(),before);assert.equal(db.prepare('PRAGMA integrity_check').get().integrity_check,'ok');assert.equal(db.prepare('SELECT count(*) n FROM verifynow_production_claims').get().n,0);
  }finally{db.close();}});
+
+test('SQL protects permanent claims and receipts from REPLACE with recursive triggers disabled',async()=>{
+ const f=await fixture();try{
+  f.db.sql.exec('PRAGMA recursive_triggers=OFF');
+  const r=await f.port.submit(f.binding);
+  const claim=f.db.sql.prepare('SELECT * FROM verifynow_production_claims').get();
+  assert.throws(()=>f.db.sql.prepare('INSERT OR REPLACE INTO verifynow_production_claims VALUES(?,?,?,?,?,?)').run(claim.case_id,claim.binding_json,'b'.repeat(64),claim.claimed_at,'changed-policy',60000),/immutable/);
+  assert.throws(()=>f.db.sql.prepare('INSERT OR REPLACE INTO verifynow_production_receipts VALUES(?,?,?)').run(r.caseId,JSON.stringify({...r,providerReference:'replacement'}),new Date(epoch).toISOString()),/immutable/);
+  assert.deepEqual(f.db.sql.prepare('SELECT * FROM verifynow_production_claims').get(),claim);
+  assert.deepEqual(await f.receipts.read(f.binding),r);
+ }finally{f.db.sql.close();}
+});
+test('direct SQL cannot forge claim binding or omit receipt evidence',async()=>{
+ const f=await fixture();try{
+  const insert=f.db.sql.prepare('INSERT INTO verifynow_production_claims VALUES(?,?,?,?,?,?)');
+  for(const key of ['caseId','applicantId','applicantVersion','ownerUserId','bindingHash','captureReference']){
+   assert.throws(()=>insert.run(f.binding.caseId,JSON.stringify({...f.binding,[key]:key==='applicantVersion'?9:'wrong'}),'a'.repeat(64),new Date(epoch).toISOString(),'fixture-policy',30000),/binding/);
+  }
+  assert.equal(await f.receipts.claim(f.binding,'a'.repeat(64),'fixture-policy',30000),true);
+  const receipt={...f.binding,environment:'production',provider:f.port.key,outcome:'manual_review',providerReference:'fixture-ref',evidenceReference:'private:fixture',evidenceHash:'a'.repeat(64),checkedAt:new Date(epoch).toISOString(),expiresAt:new Date(epoch+30000).toISOString()};
+  for(const key of ['caseId','evidenceReference','evidenceHash','checkedAt','expiresAt']){
+   const invalid={...receipt};delete invalid[key];
+   assert.throws(()=>f.db.sql.prepare('INSERT INTO verifynow_production_receipts VALUES(?,?,?)').run(f.binding.caseId,JSON.stringify(invalid),new Date(epoch).toISOString()),/evidence/);
+  }
+  const write=value=>f.db.sql.prepare('INSERT INTO verifynow_production_receipts VALUES(?,?,?)').run(f.binding.caseId,value,new Date(epoch).toISOString());
+  for(const invalid of [{...receipt,checkedAt:'2451545.0',expiresAt:'2451545.0001'},{...receipt,expiresAt:new Date(epoch+60000).toISOString()},{...receipt,evidenceReference:':bad'},{...receipt,providerReference:'_bad'}])assert.throws(()=>write(JSON.stringify(invalid)),/evidence/);
+  assert.throws(()=>write(JSON.stringify(receipt).slice(0,-1)+',"caseId":"wrong"}'),/evidence/);
+  await f.receipts.save(f.binding,receipt);
+ }finally{f.db.sql.close();}
+});

@@ -143,7 +143,6 @@ test('VerifyNow receipt survives ID-01 projection failure and recovers without d
  const {verifyNowD1Receipts}=await import('../app/lib/verifynow-receipts.ts');
  const {db,caseId}=await setup();
  try{
-  db.sql.exec(fs.readFileSync('docs/launch/proposals/ID-PROVIDER-02.sql','utf8'));
   const capture={...input(caseId),ownerUserId:applicant.userId,environment:'production',idNumber:'0000000000000',capturedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+60000).toISOString(),consentEvidenceReference:'fixture-consent-evidence'};
   let calls=0,failProjection=true;const prepare=db.prepare.bind(db);
   db.prepare=sql=>{const stmt=prepare(sql);if(sql==='INSERT INTO production_identity_outcomes VALUES(?,?,?,?,?,?,?,?,?,?,?)'&&failProjection){const bind=stmt.bind;stmt.bind=(...values)=>{const bound=bind(...values);bound.run=async()=>{failProjection=false;throw Error('fixture projection crash');};return bound;};}return stmt;};

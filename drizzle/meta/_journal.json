@@ -484,6 +484,13 @@
       "when": 1789389551699,
       "tag": "0068_id_usable_private_delivery",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "6",
+      "when": 1789401195947,
+      "tag": "0069_verifynow_receipt_guards",
+      "breakpoints": true
     }
   ]
 }

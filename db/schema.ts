@@ -2933,3 +2933,12 @@ export const productionPassportDeliveryBindings=sqliteTable('production_passport
 export const productionHoldProvenance=sqliteTable('production_hold_provenance',{
  kind:text('kind').notNull(),holdId:text('hold_id').notNull(),auditEventId:text('audit_event_id').notNull().references(()=>auditEvents.id),
 },t=>[primaryKey({columns:[t.kind,t.holdId,t.auditEventId]}),check('production_hold_provenance_kind',sql`${t.kind} IN ('workforce','passport')`)]);
+
+// Dormant VerifyNow SAID transport: permanent dispatch claims and private receipts.
+export const verifynowProductionClaims=sqliteTable('verifynow_production_claims',{
+ caseId:text('case_id').primaryKey().references(()=>productionIdentityCases.id),
+ bindingJson:text('binding_json').notNull(),requestHash:text('request_hash').notNull(),claimedAt:text('claimed_at').notNull(),policyReference:text('policy_reference').notNull(),evidenceLifetimeMs:integer('evidence_lifetime_ms').notNull(),
+},t=>[check('verifynow_claim_binding_json',sql`json_valid(${t.bindingJson})`),check('verifynow_claim_request_hash',sql`length(${t.requestHash})=64`),check('verifynow_claim_policy',sql`length(${t.policyReference})>0`),check('verifynow_claim_lifetime',sql`${t.evidenceLifetimeMs}>0`),check('verifynow_claim_case',sql`json_extract(${t.bindingJson},'$.caseId')=${t.caseId}`)]);
+export const verifynowProductionReceipts=sqliteTable('verifynow_production_receipts',{
+ caseId:text('case_id').primaryKey().references(()=>verifynowProductionClaims.caseId),resultJson:text('result_json').notNull(),recordedAt:text('recorded_at').notNull(),
+},t=>[uniqueIndex('verifynow_receipt_provider_reference').on(sql`json_extract(${t.resultJson},'$.providerReference')`),check('verifynow_receipt_json',sql`json_valid(${t.resultJson})`),check('verifynow_receipt_case',sql`json_extract(${t.resultJson},'$.caseId')=${t.caseId}`),check('verifynow_receipt_environment',sql`json_extract(${t.resultJson},'$.environment')='production'`),check('verifynow_receipt_provider',sql`json_extract(${t.resultJson},'$.provider')='verifynow-said-production-v1'`),check('verifynow_receipt_outcome',sql`json_extract(${t.resultJson},'$.outcome')='manual_review'`)]);
