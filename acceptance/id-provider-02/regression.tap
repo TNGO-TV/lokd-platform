@@ -1,0 +1,476 @@
+TAP version 13
+# (node:1541055) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1541055) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: saved VerifyNow fixture signals preserve negatives, review and provider failures
+ok 1 - saved VerifyNow fixture signals preserve negatives, review and provider failures
+  ---
+  duration_ms: 1.010214
+  type: 'test'
+  ...
+# Subtest: adapter enforces fixed host, sandbox payload, redirect rejection and preserves Retry-After
+ok 2 - adapter enforces fixed host, sandbox payload, redirect rejection and preserves Retry-After
+  ---
+  duration_ms: 21.630225
+  type: 'test'
+  ...
+# Subtest: owned case dispatch is claimed once; sandbox entry unlocks correct path without real eligibility
+ok 3 - owned case dispatch is claimed once; sandbox entry unlocks correct path without real eligibility
+  ---
+  duration_ms: 642.042372
+  type: 'test'
+  ...
+# Subtest: unknown dispatch stays unverified and does not retry; anonymous and wrong-host access fail
+ok 4 - unknown dispatch stays unverified and does not retry; anonymous and wrong-host access fail
+  ---
+  duration_ms: 267.590694
+  type: 'test'
+  ...
+# Subtest: Operations recovery enforces cooldown, exclusive dispatch, evidence history and review of unknown delivery
+ok 5 - Operations recovery enforces cooldown, exclusive dispatch, evidence history and review of unknown delivery
+  ---
+  duration_ms: 245.237956
+  type: 'test'
+  ...
+# Subtest: applicant-bound R350 test checkout reuses dispatch and requires exact verified transaction plus signed webhook
+ok 6 - applicant-bound R350 test checkout reuses dispatch and requires exact verified transaction plus signed webhook
+  ---
+  duration_ms: 317.210504
+  type: 'test'
+  ...
+# Subtest: training cannot initialize registered enrolment and uncertain initialization never dispatches twice
+ok 7 - training cannot initialize registered enrolment and uncertain initialization never dispatches twice
+  ---
+  duration_ms: 485.096226
+  type: 'test'
+  ...
+# Subtest: test agreements bind delivery, signature, review and reissue to the current owned application
+ok 8 - test agreements bind delivery, signature, review and reissue to the current owned application
+  ---
+  duration_ms: 273.269151
+  type: 'test'
+  ...
+# Subtest: three-party test operating cycle requires exact signatures and handles dispute, refund and stale evidence
+ok 9 - three-party test operating cycle requires exact signatures and handles dispute, refund and stale evidence
+  ---
+  duration_ms: 359.148803
+  type: 'test'
+  ...
+# Subtest: presence requires consent, rejects unassigned live sharing and never exposes private test locations
+ok 10 - presence requires consent, rejects unassigned live sharing and never exposes private test locations
+  ---
+  duration_ms: 254.257003
+  type: 'test'
+  ...
+# (node:1541056) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: current PSiRA, Passport, service and purpose evidence enables a matching offer
+ok 11 - current PSiRA, Passport, service and purpose evidence enables a matching offer
+  ---
+  duration_ms: 0.922603
+  type: 'test'
+  ...
+# Subtest: Passport suspension fails closed even when all other evidence is current
+ok 12 - Passport suspension fails closed even when all other evidence is current
+  ---
+  duration_ms: 0.16131
+  type: 'test'
+  ...
+# Subtest: assignment-date checks reject expiring registration, qualifications and endorsements
+ok 13 - assignment-date checks reject expiring registration, qualifications and endorsements
+  ---
+  duration_ms: 0.131161
+  type: 'test'
+  ...
+# Subtest: a current Passport approaching review remains eligible but shows an expiring warning
+ok 14 - a current Passport approaching review remains eligible but shows an expiring warning
+  ---
+  duration_ms: 0.08697
+  type: 'test'
+  ...
+# (node:1541057) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1541057) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: new linked identity, PSiRA, readiness and reviewed workforce reach activation and check-in
+ok 15 - new linked identity, PSiRA, readiness and reviewed workforce reach activation and check-in
+  ---
+  duration_ms: 767.023853
+  type: 'test'
+  ...
+# Subtest: identity change racing activation rolls back all final records
+ok 16 - identity change racing activation rolls back all final records
+  ---
+  duration_ms: 698.900115
+  type: 'test'
+  ...
+# Subtest: intake change racing activation rolls back all final records
+ok 17 - intake change racing activation rolls back all final records
+  ---
+  duration_ms: 681.292972
+  type: 'test'
+  ...
+# Subtest: workforce change racing activation rolls back all final records
+ok 18 - workforce change racing activation rolls back all final records
+  ---
+  duration_ms: 668.872124
+  type: 'test'
+  ...
+# Subtest: identity change after activation prevents check-in
+ok 19 - identity change after activation prevents check-in
+  ---
+  duration_ms: 719.410478
+  type: 'test'
+  ...
+# Subtest: intake change after activation prevents check-in
+ok 20 - intake change after activation prevents check-in
+  ---
+  duration_ms: 707.616252
+  type: 'test'
+  ...
+# Subtest: workforce change after activation prevents check-in
+ok 21 - workforce change after activation prevents check-in
+  ---
+  duration_ms: 686.426458
+  type: 'test'
+  ...
+# (node:1541057) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: completed linked service is consumed by independently approved payroll and preserves history after workforce suspension
+ok 22 - completed linked service is consumed by independently approved payroll and preserves history after workforce suspension
+  ---
+  duration_ms: 792.540811
+  type: 'test'
+  ...
+# Subtest: fractional approval clock reproduces legacy rejection and additive migration preserves future denial
+ok 23 - fractional approval clock reproduces legacy rejection and additive migration preserves future denial
+  ---
+  duration_ms: 719.151047
+  type: 'test'
+  ...
+# (node:1541058) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1541058) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: old hold pages retain exact human provenance beyond a thousand newer events
+ok 24 - old hold pages retain exact human provenance beyond a thousand newer events
+  ---
+  duration_ms: 19.85213
+  type: 'test'
+  ...
+# (node:1541069) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: production identity HTTP boundary rejects unauthenticated, cross-host, cross-origin and forged-authority actions
+ok 25 - production identity HTTP boundary rejects unauthenticated, cross-host, cross-origin and forged-authority actions
+  ---
+  duration_ms: 17.285314
+  type: 'test'
+  ...
+# (node:1541095) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1541095) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: owner discovery is private and all reviewer evidence types are inspectable with audit
+ok 26 - owner discovery is private and all reviewer evidence types are inspectable with audit
+  ---
+  duration_ms: 623.642627
+  type: 'test'
+  ...
+# Subtest: private owner request survives response loss; independent issuance exposes no token to Operations
+ok 27 - private owner request survives response loss; independent issuance exposes no token to Operations
+  ---
+  duration_ms: 791.278467
+  type: 'test'
+  ...
+# Subtest: HTTP corrections and independent intake review reject stale versions and invalidate delivery
+ok 28 - HTTP corrections and independent intake review reject stale versions and invalidate delivery
+  ---
+  duration_ms: 808.322728
+  type: 'test'
+  ...
+# Subtest: workforce and automatic passport holds show exact human audit and forbid that human deciding disposition
+ok 29 - workforce and automatic passport holds show exact human audit and forbid that human deciding disposition
+  ---
+  duration_ms: 649.083673
+  type: 'test'
+  ...
+# (node:1541095) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: request and approval expiry use the database clock and preserve independent decisions
+ok 30 - request and approval expiry use the database clock and preserve independent decisions
+  ---
+  duration_ms: 687.773332
+  type: 'test'
+  ...
+# Subtest: concurrent private preparations consume a request once; a new hold blocks delayed approval
+ok 31 - concurrent private preparations consume a request once; a new hold blocks delayed approval
+  ---
+  duration_ms: 633.377866
+  type: 'test'
+  ...
+# Subtest: request owner/version is rechecked if correction races passport preparation
+ok 32 - request owner/version is rechecked if correction races passport preparation
+  ---
+  duration_ms: 614.75786
+  type: 'test'
+  ...
+# Subtest: historical system holds retain unattributed status and separate related human audit
+ok 33 - historical system holds retain unattributed status and separate related human audit
+  ---
+  duration_ms: 586.599044
+  type: 'test'
+  ...
+# Subtest: a changed workforce version rolls back suspension instead of misattributing the human audit
+ok 34 - a changed workforce version rolls back suspension instead of misattributing the human audit
+  ---
+  duration_ms: 617.792748
+  type: 'test'
+  ...
+# Subtest: private verifier receives bearer in body only and remains read-only across revocation
+ok 35 - private verifier receives bearer in body only and remains read-only across revocation
+  ---
+  duration_ms: 624.87498
+  type: 'test'
+  ...
+# (node:1541108) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1541108) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: production is locked without adapter; exact owner and capture provenance required
+ok 36 - production is locked without adapter; exact owner and capture provenance required
+  ---
+  duration_ms: 265.231437
+  type: 'test'
+  ...
+# Subtest: concurrent start dispatches once; independent current review is required and private references stay private
+ok 37 - concurrent start dispatches once; independent current review is required and private references stay private
+  ---
+  duration_ms: 333.662035
+  type: 'test'
+  ...
+# Subtest: sandbox, mismatched person, stale and unsupported provider outcomes never approve
+ok 38 - sandbox, mismatched person, stale and unsupported provider outcomes never approve
+  ---
+  duration_ms: 3255.55019
+  type: 'test'
+  ...
+# Subtest: negative, review and outage results are retained and cannot be manually promoted
+ok 39 - negative, review and outage results are retained and cannot be manually promoted
+  ---
+  duration_ms: 1191.637934
+  type: 'test'
+  ...
+# Subtest: uncertain delivery and crash-pending recover by lookup only; null and failure never authorise a resubmit
+ok 40 - uncertain delivery and crash-pending recover by lookup only; null and failure never authorise a resubmit
+  ---
+  duration_ms: 324.802538
+  type: 'test'
+  ...
+# Subtest: correction and withdrawal invalidate approved evidence and block review at database commit
+ok 41 - correction and withdrawal invalidate approved evidence and block review at database commit
+  ---
+  duration_ms: 709.340177
+  type: 'test'
+  ...
+# Subtest: concurrent reconciliation permits one successor, invalidates prior review, and rejects stale decision
+ok 42 - concurrent reconciliation permits one successor, invalidates prior review, and rejects stale decision
+  ---
+  duration_ms: 352.361751
+  type: 'test'
+  ...
+# Subtest: correction cannot create another dispatch while previous delivery is unknown; stale lookup is still possible
+ok 43 - correction cannot create another dispatch while previous delivery is unknown; stale lookup is still possible
+  ---
+  duration_ms: 350.128195
+  type: 'test'
+  ...
+# Subtest: expiry and stale outcome are rejected at commit, including null evidence
+ok 44 - expiry and stale outcome are rejected at commit, including null evidence
+  ---
+  duration_ms: 399.263714
+  type: 'test'
+  ...
+# Subtest: replayed provider reference cannot bind a second case, and capture races fail before dispatch
+ok 45 - replayed provider reference cannot bind a second case, and capture races fail before dispatch
+  ---
+  duration_ms: 649.389255
+  type: 'test'
+  ...
+# (node:1541117) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1541117) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: no implied policy, no self approval or evidence fabrication, and opt-in belongs to officer
+ok 46 - no implied policy, no self approval or evidence fabrication, and opt-in belongs to officer
+  ---
+  duration_ms: 442.276106
+  type: 'test'
+  ...
+# Subtest: current reviewed sources produce scoped passport, private token and existing activation projections
+ok 47 - current reviewed sources produce scoped passport, private token and existing activation projections
+  ---
+  duration_ms: 667.284829
+  type: 'test'
+  ...
+# Subtest: wrong-person, incomplete, duplicated and expired assessment evidence cannot create readiness
+ok 48 - wrong-person, incomplete, duplicated and expired assessment evidence cannot create readiness
+  ---
+  duration_ms: 504.470555
+  type: 'test'
+  ...
+# Subtest: old tokens and old assessment approvals cannot replace later independently approved versions
+ok 49 - old tokens and old assessment approvals cannot replace later independently approved versions
+  ---
+  duration_ms: 764.245504
+  type: 'test'
+  ...
+# Subtest: opt-out, identity/PSiRA change, policy hold and readiness suspension invalidate without rewriting history
+ok 50 - opt-out, identity/PSiRA change, policy hold and readiness suspension invalidate without rewriting history
+  ---
+  duration_ms: 3198.617808
+  type: 'test'
+  ...
+# Subtest: revoked passport cannot be renewed and direct projection edits cannot revive or extend evidence
+ok 51 - revoked passport cannot be renewed and direct projection edits cannot revive or extend evidence
+  ---
+  duration_ms: 650.627799
+  type: 'test'
+  ...
+# Subtest: concurrent passport preparation and decisions claim once; source race fails at commit
+ok 52 - concurrent passport preparation and decisions claim once; source race fails at commit
+  ---
+  duration_ms: 685.510326
+  type: 'test'
+  ...
+# Subtest: sandbox passport and endorsements cannot be converted by production issuance
+ok 53 - sandbox passport and endorsements cannot be converted by production issuance
+  ---
+  duration_ms: 1013.19055
+  type: 'test'
+  ...
+# Subtest: policy replacement, withdrawal and late decisions never revive old versions
+ok 54 - policy replacement, withdrawal and late decisions never revive old versions
+  ---
+  duration_ms: 639.027154
+  type: 'test'
+  ...
+# Subtest: same-day evidence expiry immediately invalidates public passport and deadline contract
+ok 55 - same-day evidence expiry immediately invalidates public passport and deadline contract
+  ---
+  duration_ms: 3606.717918
+  type: 'test'
+  ...
+# Subtest: passport suspension cannot be bypassed by issuing a new sequence
+ok 56 - passport suspension cannot be bypassed by issuing a new sequence
+  ---
+  duration_ms: 624.67123
+  type: 'test'
+  ...
+# (node:1541180) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1541180) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: account-bound PSiRA workflow preserves evidence, scope, identity separation, expiry and rechecks
+ok 57 - account-bound PSiRA workflow preserves evidence, scope, identity separation, expiry and rechecks
+  ---
+  duration_ms: 498.536306
+  type: 'test'
+  ...
+# Subtest: source evidence fails closed for mismatched registration, future times, missing identity proof and stale deadlines
+ok 58 - source evidence fails closed for mismatched registration, future times, missing identity proof and stale deadlines
+  ---
+  duration_ms: 0.419091
+  type: 'test'
+  ...
+# Subtest: training and unregistered declarations avoid lookup without granting work eligibility; switching to registered requires verification
+ok 59 - training and unregistered declarations avoid lookup without granting work eligibility; switching to registered requires verification
+  ---
+  duration_ms: 307.698756
+  type: 'test'
+  ...
+# Subtest: production assignment gate requires matching, current registration and identity evidence
+ok 60 - production assignment gate requires matching, current registration and identity evidence
+  ---
+  duration_ms: 351.470039
+  type: 'test'
+  ...
+# Subtest: public intake makes registered checks mandatory and routes training without requiring a number
+ok 61 - public intake makes registered checks mandatory and routes training without requiring a number
+  ---
+  duration_ms: 296.108731
+  type: 'test'
+  ...
+# (node:1541253) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1541253) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: documented registry success remains review-only; receipt recovers across adapter restart with no network
+ok 62 - documented registry success remains review-only; receipt recovers across adapter restart with no network
+  ---
+  duration_ms: 20.443522
+  type: 'test'
+  ...
+# Subtest: concurrent submission atomically claims once
+ok 63 - concurrent submission atomically claims once
+  ---
+  duration_ms: 1.662975
+  type: 'test'
+  ...
+# Subtest: capture binds exact owner, applicant, version, consent and reference before I/O
+ok 64 - capture binds exact owner, applicant, version, consent and reference before I/O
+  ---
+  duration_ms: 2.082957
+  type: 'test'
+  ...
+# Subtest: withdrawn, expired, future and sandbox captures fail closed
+ok 65 - withdrawn, expired, future and sandbox captures fail closed
+  ---
+  duration_ms: 2.586137
+  type: 'test'
+  ...
+# Subtest: wrong person/environment, replayed timestamp and unsupported result envelopes never become evidence
+ok 66 - wrong person/environment, replayed timestamp and unsupported result envelopes never become evidence
+  ---
+  duration_ms: 17.332472
+  type: 'test'
+  ...
+# Subtest: timeouts, server errors and uncertain delivery remain held with no retry
+ok 67 - timeouts, server errors and uncertain delivery remain held with no retry
+  ---
+  duration_ms: 13.158791
+  type: 'test'
+  ...
+# Subtest: capture withdrawal during request and receipt write failure cannot authorise retry
+ok 68 - capture withdrawal during request and receipt write failure cannot authorise retry
+  ---
+  duration_ms: 2.602937
+  type: 'test'
+  ...
+# Subtest: expired or mismatched receipts cannot recover, including a different provider reference replacement
+ok 69 - expired or mismatched receipts cannot recover, including a different provider reference replacement
+  ---
+  duration_ms: 1.180013
+  type: 'test'
+  ...
+# Subtest: no default policy; private evidence URLs rejected; request claims exclude raw identity
+ok 70 - no default policy; private evidence URLs rejected; request claims exclude raw identity
+  ---
+  duration_ms: 1.161434
+  type: 'test'
+  ...
+# Subtest: claim requires the exact persisted production case and provider
+ok 71 - claim requires the exact persisted production case and provider
+  ---
+  duration_ms: 1.063343
+  type: 'test'
+  ...
+1..71
+# tests 71
+# suites 0
+# pass 71
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13247.253547

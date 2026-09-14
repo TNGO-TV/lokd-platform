@@ -137,3 +137,20 @@ test('replayed provider reference cannot bind a second case, and capture races f
  await assert.rejects(start(fresh.db,applicant,input(fresh.caseId),g.port),/applicant changed/);
  assert.equal(g.counts().submits,0);fresh.db.sql.close();
 });
+
+test('VerifyNow receipt survives ID-01 projection failure and recovers without dispatch or approval',async()=>{
+ const {createVerifyNowProductionProvider}=await import('../app/lib/verifynow-production.ts');
+ const {verifyNowD1Receipts}=await import('../app/lib/verifynow-receipts.ts');
+ const {db,caseId}=await setup();
+ try{
+  db.sql.exec(fs.readFileSync('docs/launch/proposals/ID-PROVIDER-02.sql','utf8'));
+  const capture={...input(caseId),ownerUserId:applicant.userId,environment:'production',idNumber:'0000000000000',capturedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+60000).toISOString(),consentEvidenceReference:'fixture-consent-evidence'};
+  let calls=0,failProjection=true;const prepare=db.prepare.bind(db);
+  db.prepare=sql=>{const stmt=prepare(sql);if(sql==='INSERT INTO production_identity_outcomes VALUES(?,?,?,?,?,?,?,?,?,?,?)'&&failProjection){const bind=stmt.bind;stmt.bind=(...values)=>{const bound=bind(...values);bound.run=async()=>{failProjection=false;throw Error('fixture projection crash');};return bound;};}return stmt;};
+  const port=createVerifyNowProductionProvider({apiKey:'fixture-key',policyReference:'fixture-policy',evidenceLifetimeMs:30000,captures:{read:async()=>capture},receipts:verifyNowD1Receipts(db),evidence:{put:async()=> 'private-fixture:response'},transport:async()=>{calls++;return Response.json({success:true,requestId:'fixture-request-id',mode:'production',reportType:'said_verification',input:{idNumber:capture.idNumber},results:{said_verification:{Status:'Success',realTimeResults:{Status:'ID Number Valid'},meta:{environment:'production',timestamp:new Date().toISOString()}}}});}});
+  await assert.rejects(start(db,applicant,input(caseId),port),/projection crash/);
+  const pending=await start(db,applicant,input(caseId),port);assert.equal(pending.outcome,'pending');assert.equal(calls,1);
+  const restored=await recover(db,reviewer,pending.id,pending.outcomeId,port);assert.equal(restored.outcome,'manual_review');assert.equal(restored.identityVerified,false);assert.equal(calls,1);
+  await assert.rejects(approve(db,restored),/current identity review/);
+ }finally{db.sql.close();}
+});
