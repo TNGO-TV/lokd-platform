@@ -1,0 +1,15 @@
+# Frontend continuation — private credit access recovery
+
+Base: `8b5a9b509cb1c43c1bd8ae6be539df94450b9a06`. Isolated branch: `codex/fe-credit-access-followup`. The prior FE-BUILD-02 checkpoint is already integrated by Central; this is an incremental follow-up, not a replay of that patch.
+
+A private credit-note GET returning 401/403 left the previous credit source, immutable records, download button and draft mounted. The refund control in the same integrated build already clears its private data on confirmed access loss. The credit resource now clears its data too, unmounting source-bound forms and their in-memory keys. A fresh authorised GET starts with a blank, unacknowledged form. This does not imply any prior uncertain command failed or authorise a replacement command.
+
+Transient errors still retain private data and drafts while disabling commands. The existing unknown-POST regression now uses a temporary GET 503 instead of GET 403 and retains all exact original-body/key assertions. Dedicated 401/403 regressions verify removal of the record, printable download and draft, then a fresh empty form after access returns. Client empty-state copy now correctly describes no issued credits when the returned array contains only unissued proposals; the existing filtering/access rules are unchanged.
+
+Source references: `app/components/finance-adjustment-controls.tsx` (`usePrivateRecords`, `CreditNotes`); authoritative access errors in `app/api/credit-notes/route.ts`. No backend/API/schema/migration, financial rule, approved legal wording, dependency, runtime flag or hosted setting changes. Both payment/refund locks, live scan and owner MFA exception remain as integrated by Central.
+
+Validation evidence and exact source revision/patch are in the durable sibling integration packet. Tests use only local synthetic response interception on mobile and desktop, with the established native shared-memory option; no provider calls, real accounts, notifications, checkout, transfers, deployment or live testing. Initial expected failures from the old 403-retention assertion are retained as diagnostic evidence. No monetary assertion was removed to pass.
+
+Remaining build dependencies remain those in Central's `CENTRAL-REMAINING-BUILD-INPUTS-2026-09-14.md`: full capture/consent/provider/evidence contracts; dispute/final chargeback/residual liability and wider service/payroll/company rules; approved legal/operating inputs. This patch closes a bounded frontend recovery issue only. Central owns integration and independent combined QA; no external acceptance is claimed.
+
+Validation: 46/46 finance browser cases passed in 31.6 seconds, including six new mobile/desktop cases; zero failed/skipped/flaky. Two named finance-document contract/access tests passed. TypeScript noEmit/incrementalfalse and global lint passed with zero warnings; the final test-only edit also passed ESLint. Mobile and desktop access-loss screenshots were visually inspected. Final build and patch applicability results are recorded in the sibling INTEGRATION.md.
