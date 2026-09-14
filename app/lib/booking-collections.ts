@@ -1,3 +1,4 @@
+import {refundEvidence,refundWebhookEvidence} from './booking-refund-evidence';
 import {SignupError} from './signup-server';
 import {agreementHash} from './agreement-acceptance';
 import {productionOperatorControl} from './production-operator-control';
@@ -109,7 +110,7 @@ export async function receiveBookingCollectionWebhook(request:Request,db:D1Datab
   const ref=typeof tx?.reference==='string'?tx.reference:typeof p.data.transaction_reference==='string'?p.data.transaction_reference:null;
   const rows=(await db.prepare('SELECT reference FROM booking_collection_requests WHERE mode=? AND ((provider_id IS NOT NULL AND provider_id=?) OR reference=?)').bind(mode,tid,ref).all<{reference:string}>()).results;
   const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw)),b=>b.toString(16).padStart(2,'0')).join('');
-  await db.prepare('INSERT OR IGNORE INTO booking_provider_recovery_inbox VALUES(?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),mode,tid,ref,p.event,hash,JSON.stringify({transactionId:tid,transactionReference:ref,amountMinor:Number.isSafeInteger(p.data.amount)?p.data.amount:null,currency:typeof p.data.currency==='string'?p.data.currency.slice(0,3):null,action:'hold_pending_investigation',moneyMoved:false}),new Date().toISOString()).run();
+  await db.prepare('INSERT OR IGNORE INTO booking_provider_recovery_inbox VALUES(?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),mode,tid,ref,p.event,hash,JSON.stringify({refund:refundEvidence(p.data),refundEvent:refundWebhookEvidence(p.data),transactionId:tid,transactionReference:ref,amountMinor:Number.isSafeInteger(p.data.amount)?p.data.amount:null,currency:typeof p.data.currency==='string'?p.data.currency.slice(0,3):null,action:'hold_pending_investigation',moneyMoved:false}),new Date().toISOString()).run();
   return {received:true,matchedReference:rows.length>0,funded:false};
  }
  if(p.data.domain!==mode)throw new SignupError('Event mode or type does not match this receiver.',422);

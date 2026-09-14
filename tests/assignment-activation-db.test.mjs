@@ -130,6 +130,7 @@ function migratedDatabase() {
     const sql = fs.readFileSync(new URL(`../drizzle/${file}`, import.meta.url), "utf8").replaceAll("--> statement-breakpoint", "");
     database.exec(sql);
   }
+  for(const proposal of ['fi-build-06-credit-notes.sql','fi06-refund-dispute.sql'])database.exec(fs.readFileSync(new URL('../docs/migration-proposals/'+proposal,import.meta.url),'utf8'));
   return database;
 }
 
@@ -1656,6 +1657,8 @@ test('production intake prepares pending records and reconciles reviewed correct
  assert.throws(()=>database.exec("UPDATE booking_settlement_reviews SET payload_hash='wrong'"),/immutable/);
  const {invoiceDocumentJourney}=await import('./fixtures/invoice-document-journey.mjs');
  const invoiceDocument=await invoiceDocumentJourney({database,db,reviewer,owner,applicant,headers,bookingId:setup.orderId});
+ const {bookingRefundJourney}=await import('./fixtures/booking-refund-journey.mjs');
+ await bookingRefundJourney({database,db,reviewer,owner,applicant,headers,collection:saved(),transaction,runtime});
  const racing=command('verify_collection');
  await assert.rejects(()=>act(owner,racing,async()=>{await receiveBookingCollectionWebhook(webhook({...transaction,amount:1}),db,runtime,'test');return transport();}),/changed during provider/);
  assert.equal(saved().state,'review_required');
@@ -1691,6 +1694,7 @@ test('production intake prepares pending records and reconciles reviewed correct
  await manageProductionEvidence(db,owner,{action:'decide_evidence',reviewId:siteReview.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Independent fixture site review approved.'});
  assert.equal((await settle(owner,{action:'apply_booking_funding',reference:live.reference},liveRuntime)).bookingFunded,true);
  assert.equal(database.prepare('SELECT funding_status FROM bookings WHERE id=?').get(setup.orderId).funding_status,'paid_in_full');
+ await bookingRefundJourney({database,db,reviewer,owner,applicant,headers,collection:getLive(),transaction:liveTx,runtime:liveRuntime});
  const recoveryBody=JSON.stringify({event:'refund.processed',data:{transaction:{id:9002,reference:live.reference},amount:50,currency:'ZAR'}});
  const recovery=()=>new Request('https://lokd.co.za/api/paystack/booking/webhook?mode=live',{method:'POST',body:recoveryBody,headers:{'x-paystack-signature':createHmac('sha512',liveRuntime.PAYSTACK_LIVE_SECRET_KEY).update(recoveryBody).digest('hex')}});
  // Disabling new live checkout must not disable receipt of signed recovery events.
