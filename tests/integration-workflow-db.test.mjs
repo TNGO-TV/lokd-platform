@@ -14,6 +14,7 @@ import {
   startDemoIdentityVerification,
   recordDemoIdentityOutcome,
 } from "../app/lib/integration-server.ts";
+import { requiredSchemaCounts } from "../app/lib/schema-readiness.ts";
 import { runPlatformMaintenance } from "../app/lib/platform-jobs.ts";
 import { calculatePayrollItem, SYNTHETIC_ENGINE_TEST_POLICY } from "../app/lib/payroll-engine.ts";
 
@@ -316,8 +317,8 @@ test("platform maintenance records controls and dispatches internal outbox event
   });
 
   assert.equal(first.status, "completed");
-  assert.equal(first.requiredTables, 21);
-  assert.equal(first.requiredTriggers, 32);
+  assert.equal(first.requiredTables, requiredSchemaCounts.requiredTables);
+  assert.equal(first.requiredTriggers, requiredSchemaCounts.requiredTriggers);
   assert.equal(first.processedEvents, 1);
   assert.equal(second.processedEvents, 0);
   assert.equal(one(database, `SELECT COUNT(*) AS total FROM platform_readiness_controls WHERE status='ready'`).total, 6);

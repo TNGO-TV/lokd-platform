@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { env } from "cloudflare:workers";
+import { readinessSchema } from "../app/lib/readiness-schema-generated.ts";
 import { GET as live } from "../app/api/health/live/route.ts";
 import { GET as ready } from "../app/api/health/ready/route.ts";
 
@@ -35,7 +36,7 @@ test("readiness fails closed without a bound database", async () => {
   assert.equal(body.productionActivationAuthorized, false);
 });
 
-test("the migrated schema passes baseline checks without asserting provider or operational readiness", async () => {
+test("the migrated schema passes current object checks without asserting provider or operational readiness", async () => {
   const db = bindMigratedDatabase();
   try {
     const response = await ready();
@@ -44,7 +45,7 @@ test("the migrated schema passes baseline checks without asserting provider or o
     assert.equal(body.status, "ready");
     assert.equal(body.productionActivationAuthorized, false);
     assert.equal(body.payrollMode, "shadow_settlement_locked");
-    assert.equal(body.readinessScope, "baseline_schema_and_evidence_binding");
+    assert.equal(body.readinessScope, "current_schema_objects_and_evidence_binding");
     assert.equal(body.infrastructureReady, true);
     assert.equal(body.providerConnectivity, "not_assessed");
     assert.equal(body.operationalAcceptance, "not_assessed");
@@ -62,6 +63,11 @@ test("readiness rejects a missing payroll lock, specialist gate or validation vi
       ["TRIGGER", "specialist_pricing_update_guard_v33"],
       ["TRIGGER", "specialist_revalidation_pack_v34"],
       ["VIEW", "specialist_pack_validation_v34"],
+      ["TRIGGER", "id_usable_delivery_approval_guard"],
+      ["TRIGGER", "finance_document_issue_guard"],
+      ["INDEX", "finance_document_invoice_booking_once"],
+      ["TABLE", "production_passport_deliveries"],
+      ["VIEW", "current_production_passport_deliveries"],
     ]) {
       db.exec("SAVEPOINT missing_guard");
       db.exec(`DROP ${type} ${name}`);
@@ -82,5 +88,25 @@ test("readiness fails closed when private evidence storage is not bound", async 
     assert.equal(response.status, 503);
     assert.equal(body.infrastructureReady, false);
     assert.equal(body.checks.evidenceStoreBound, false);
+  } finally { cleanup(db); }
+});
+
+// This fails after any additive migration until Central regenerates the manifest.
+test("readiness inventory exactly matches the final canonical migrations", () => {
+  const db = bindMigratedDatabase();
+  try {
+    const actual = db.prepare("SELECT type,name FROM sqlite_master WHERE type IN ('table','trigger','view','index') AND name NOT LIKE 'sqlite_%' AND sql IS NOT NULL ORDER BY type,name").all().map(row => ({ ...row }));
+    assert.deepEqual(readinessSchema.objects, actual);
+    const files = fs.readdirSync(new URL("../drizzle", import.meta.url)).filter(name => name.endsWith(".sql")).sort();
+    assert.equal(readinessSchema.migration, files.at(-1));
+  } finally { cleanup(db); }
+});
+
+test("an unrelated guard cannot compensate for a missing required guard", async () => {
+  const db = bindMigratedDatabase();
+  try {
+    db.exec("DROP TRIGGER id_usable_delivery_approval_guard");
+    db.exec("CREATE TRIGGER unrelated_guard BEFORE INSERT ON production_passport_deliveries BEGIN SELECT 1; END");
+    assert.equal((await ready()).status, 503);
   } finally { cleanup(db); }
 });

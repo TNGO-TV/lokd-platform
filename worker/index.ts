@@ -58,8 +58,10 @@ const worker = {
     }
 
     try {
+      // Infrastructure probes must remain usable when browser authentication fails.
+      if (url.pathname === '/api/health/live' || url.pathname === '/api/health/ready') return await handler.fetch(request, env, ctx);
       // Provider authentication is HMAC, independent of browser sessions.
-      if (url.pathname === '/api/paystack/booking/webhook') return await handler.fetch(request, env, ctx);
+      if (url.pathname === '/api/paystack/booking/webhook' || url.pathname === '/api/paystack/transfers/live/webhook') return await handler.fetch(request, env, ctx);
       if (url.pathname === '/api/paystack/test/webhook') return await receivePaystackTest(request, env);
       const auth = await authenticateClerkRequest(request, env);
       if (auth.response) return auth.response;
