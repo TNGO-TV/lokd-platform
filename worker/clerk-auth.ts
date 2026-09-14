@@ -33,7 +33,13 @@ export async function authenticateClerkRequest(request: Request, env: ClerkEnv, 
   }
   if (state.isAuthenticated) {
     const auth = state.toAuth();
-    if (auth.userId) {
+    if (auth.userId && auth.sessionId) {
+      // Signed tokens can outlive server-side revocation. Check the authoritative
+      // session before forwarding any account or role headers.
+      let session;
+      try { session = await clerk.sessions.getSession(auth.sessionId); }
+      catch { return {response:Response.json({error:"Session verification is temporarily unavailable."},{status:503,headers:{"cache-control":"private, no-store"}})}; }
+      if(session.id!==auth.sessionId||session.userId!==auth.userId||session.status!=="active"||!Number.isFinite(session.expireAt)||session.expireAt<=Date.now())return {request:anonymous,headers:state.headers};
       const user = await clerk.users.getUser(auth.userId);
       const email = verifiedPrimaryEmail(user);
       if (email) {

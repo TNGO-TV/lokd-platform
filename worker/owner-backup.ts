@@ -63,7 +63,7 @@ export async function ownerBackup(request: Request, env: BackupEnv): Promise<Res
       const db = env.DB.withSession("first-primary");
       const before = await schema(db);
       const tables = before.filter(s => s.type === "table" && !s.name.toLowerCase().startsWith("_cf_") && (s.name === "sqlite_sequence" || !s.name.startsWith("sqlite_")));
-      if (tables.length > 200 || tables.some(t => /CREATE\s+VIRTUAL\s+TABLE/i.test(t.sql || ""))) return json({error:"Snapshot requires provider export: unsupported schema"},422);
+      if (tables.length > 256 || tables.some(t => /CREATE\s+VIRTUAL\s+TABLE/i.test(t.sql || ""))) return json({error:"Snapshot requires provider export: unsupported schema"},422);
       const definitions: Array<{name:string;columns:Column[];rowid:string|null}> = [];
       // One metadata query avoids one network round trip per table.
       const metadata = await db.prepare("SELECT m.name AS table_name,p.name,p.type,p.pk,p.hidden FROM sqlite_schema m JOIN pragma_table_xinfo(m.name) p WHERE m.type='table' AND substr(lower(m.name),1,4)!='_cf_' ORDER BY m.name,p.cid").all<Column & {table_name:string}>();

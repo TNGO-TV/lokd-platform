@@ -47,7 +47,7 @@ export async function recordProductionService(db:D1Database,actor:SigningActor,i
   if(t.client_evidence_status!=='pending')throw new SignupError('This service already has a client decision. Operations must review any correction.',409);
   if(input.serviceEvidenceReviewed!==true)throw new SignupError('Read the recorded service evidence before deciding.');clientStatus=input.action==='client_signoff'?'confirmed':'disputed';action=input.action;
  }else if(input.action==='resolve_service_dispute'){
-  if(!actor.operations||!actor.owner)throw new SignupError('Operations owner review is required for a disputed service.',403);
+  if(!actor.operations||!actor.owner||await owner('officer',s.officer_id)||await owner('client',s.client_id))throw new SignupError('Independent Operations owner review is required for a disputed service.',403);
   if(t.client_evidence_status!=='disputed'||!['confirmed','rejected'].includes(String(input.outcome)))throw new SignupError('Choose the evidenced dispute outcome.');clientStatus=String(input.outcome);action='dispute_resolved';
  }else throw new SignupError('Choose a supported service-evidence action.');
  if(t.operations_status!=='awaiting_review')throw new SignupError('This timesheet is locked for payroll. Record an adjustment through payroll review.',409);

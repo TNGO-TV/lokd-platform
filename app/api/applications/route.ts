@@ -276,7 +276,7 @@ export async function PATCH(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function submitOfficerApplication(request: Request, database?:D1Database) {
   try {
     requireSameOriginJson(request);
     const raw = await request.text();
@@ -312,7 +312,7 @@ export async function POST(request: Request) {
     if (input.eligibilityAcknowledged !== true) throw new ApplicationError("Confirm that you understand the PSiRA eligibility requirements.");
     if (input.contactConsent !== true) throw new ApplicationError("Consent is required to save and respond to this application.");
 
-    const db = getDb();
+    const db = database??getDb();
     const now = new Date();
     const nowIso = now.toISOString();
     const retentionReview = new Date(now);
@@ -346,3 +346,5 @@ export async function POST(request: Request) {
     return responseError(cause);
   }
 }
+
+export async function POST(request:Request){return submitOfficerApplication(request);}

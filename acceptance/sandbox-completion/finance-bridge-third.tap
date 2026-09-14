@@ -1,0 +1,59 @@
+TAP version 13
+# (node:1785942) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1785942) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (node:1785942) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: two application-produced service inputs retain distinct employer/engagement attribution within one SAST payroll period
+ok 1 - two application-produced service inputs retain distinct employer/engagement attribution within one SAST payroll period
+  ---
+  duration_ms: 1455.931722
+  type: 'test'
+  ...
+# (node:1785943) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1785943) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: authenticated finance completion produces separately assessed readiness; revoke atomically holds it
+ok 2 - authenticated finance completion produces separately assessed readiness; revoke atomically holds it
+  ---
+  duration_ms: 1092.043986
+  type: 'test'
+  ...
+# Subtest: authenticated finance completion produces separately assessed readiness; payment_evidence atomically holds it
+ok 3 - authenticated finance completion produces separately assessed readiness; payment_evidence atomically holds it
+  ---
+  duration_ms: 1088.881287
+  type: 'test'
+  ...
+# (node:1785945) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1785945) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: training purchase is not qualification; score, current source and separate approval produce actual readiness
+ok 4 - training purchase is not qualification; score, current source and separate approval produce actual readiness
+  ---
+  duration_ms: 1029.46058
+  type: 'test'
+  ...
+# Subtest: a caller cannot replace training completion with a typed evidence claim
+ok 5 - a caller cannot replace training completion with a typed evidence claim
+  ---
+  duration_ms: 897.107453
+  type: 'test'
+  ...
+# Subtest: a separately installed stricter policy changes the same assessment outcome
+ok 6 - a separately installed stricter policy changes the same assessment outcome
+  ---
+  duration_ms: 849.552763
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2989.165405

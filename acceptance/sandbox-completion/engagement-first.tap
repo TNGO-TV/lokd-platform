@@ -1,0 +1,36 @@
+TAP version 13
+# (node:1737168) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1737168) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: multi-company transition keeps old employment history and requires new bound terms; independent atomic projection
+not ok 1 - multi-company transition keeps old employment history and requires new bound terms; independent atomic projection
+  ---
+  duration_ms: 986.46653
+  type: 'test'
+  location: '/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-engagement.test.mjs:9:1'
+  failureType: 'testCodeFailure'
+  error: 'Workforce replacement requires disposition and fresh approved sources'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    Object.run (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/production-identity-journey.mjs:15:264)
+    sandboxEngagement (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/app/lib/sandbox-engagement.ts:19:158)
+    async TestContext.<anonymous> (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-engagement.test.mjs:12:2)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: unresolved assignment and stale version block engagement replacement without rewriting employment
+ok 2 - unresolved assignment and stale version block engagement replacement without rewriting employment
+  ---
+  duration_ms: 984.645693
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2246.172277

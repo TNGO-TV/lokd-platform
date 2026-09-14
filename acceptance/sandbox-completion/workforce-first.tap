@@ -1,0 +1,38 @@
+TAP version 13
+# (node:1702978) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1702978) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: partner readiness requires exact company mandate, source evidence and independent decision
+ok 1 - partner readiness requires exact company mandate, source evidence and independent decision
+  ---
+  duration_ms: 860.700632
+  type: 'test'
+  ...
+# Subtest: stale engagement, wrong company authority and rejection cannot enable partner
+ok 2 - stale engagement, wrong company authority and rejection cannot enable partner
+  ---
+  duration_ms: 842.983686
+  type: 'test'
+  ...
+# Subtest: direct_flex retains independently reviewed real engagement and exact model
+ok 3 - direct_flex retains independently reviewed real engagement and exact model
+  ---
+  duration_ms: 843.079065
+  type: 'test'
+  ...
+# Subtest: managed retains independently reviewed real engagement and exact model
+ok 4 - managed retains independently reviewed real engagement and exact model
+  ---
+  duration_ms: 833.749916
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3563.714987

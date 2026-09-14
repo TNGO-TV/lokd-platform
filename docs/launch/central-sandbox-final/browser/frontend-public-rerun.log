@@ -1,0 +1,42 @@
+
+Running 30 tests using 1 worker
+
+(node:1854578) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /client/sandbox?workspace=sbx-browser preserves the chosen intake destination
+[2/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /officer/sandbox?applicantId=APP-SYNTHETIC&applicantVersion=3 preserves the chosen intake destination
+[3/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /ops/sandbox?workspace=sbx-browser&financeSection=Payments+%26+recovery preserves the chosen intake destination
+[4/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /signup?kind=client preserves the chosen intake destination
+[5/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /ops/intake?kind=client preserves the chosen intake destination
+[6/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /officer/identity?caseId=CASE-FIXTURE preserves the chosen intake destination
+[7/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /ops/identity?caseId=CASE-FIXTURE preserves the chosen intake destination
+[8/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /officer/readiness?applicantId=APP-FIXTURE&officerId=OFF-FIXTURE&identityId=ID-FIXTURE preserves the chosen intake destination
+[9/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /ops/readiness?applicantId=APP-FIXTURE&officerId=OFF-FIXTURE&identityId=ID-FIXTURE preserves the chosen intake destination
+[10/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:19:178 › public /sign-out is readable and makes no verification or payment submission
+[11/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:19:178 › public /payments/paystack/test/callback is readable and makes no verification or payment submission
+[12/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:19:178 › public /verify is readable and makes no verification or payment submission
+[13/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:20:81 › /portal retains its canonical signed-out destination
+[14/30] [mobile-360] › tests/frontend/build-audit.spec.mjs:20:81 › /operations retains its canonical signed-out destination
+[15/30] [mobile-360] › tests/frontend/navigation.spec.mjs:61:1 › public routes retain mobile navigation and one exact active destination
+(node:1855218) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[16/30] [desktop] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /client/sandbox?workspace=sbx-browser preserves the chosen intake destination
+[17/30] [desktop] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /officer/sandbox?applicantId=APP-SYNTHETIC&applicantVersion=3 preserves the chosen intake destination
+[18/30] [desktop] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /ops/sandbox?workspace=sbx-browser&financeSection=Payments+%26+recovery preserves the chosen intake destination
+[19/30] [desktop] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /signup?kind=client preserves the chosen intake destination
+[20/30] [desktop] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /ops/intake?kind=client preserves the chosen intake destination
+[21/30] [desktop] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /officer/identity?caseId=CASE-FIXTURE preserves the chosen intake destination
+[22/30] [desktop] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /ops/identity?caseId=CASE-FIXTURE preserves the chosen intake destination
+[23/30] [desktop] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /officer/readiness?applicantId=APP-FIXTURE&officerId=OFF-FIXTURE&identityId=ID-FIXTURE preserves the chosen intake destination
+[24/30] [desktop] › tests/frontend/build-audit.spec.mjs:16:498 › signed-out /ops/readiness?applicantId=APP-FIXTURE&officerId=OFF-FIXTURE&identityId=ID-FIXTURE preserves the chosen intake destination
+[25/30] [desktop] › tests/frontend/build-audit.spec.mjs:19:178 › public /sign-out is readable and makes no verification or payment submission
+[26/30] [desktop] › tests/frontend/build-audit.spec.mjs:19:178 › public /payments/paystack/test/callback is readable and makes no verification or payment submission
+[27/30] [desktop] › tests/frontend/build-audit.spec.mjs:19:178 › public /verify is readable and makes no verification or payment submission
+[28/30] [desktop] › tests/frontend/build-audit.spec.mjs:20:81 › /portal retains its canonical signed-out destination
+[29/30] [desktop] › tests/frontend/build-audit.spec.mjs:20:81 › /operations retains its canonical signed-out destination
+[30/30] [desktop] › tests/frontend/navigation.spec.mjs:61:1 › public routes retain mobile navigation and one exact active destination
+  30 passed (11.1s)

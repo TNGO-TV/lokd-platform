@@ -1,0 +1,44 @@
+TAP version 13
+# (node:1686405) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1686405) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: runtime rejects production, primary alias, absent enablement and policy tampering
+ok 1 - runtime rejects production, primary alias, absent enablement and policy tampering
+  ---
+  duration_ms: 519.529948
+  type: 'test'
+  ...
+# Subtest: actual identity routes capture, independently review and privately deliver simulated evidence
+ok 2 - actual identity routes capture, independently review and privately deliver simulated evidence
+  ---
+  duration_ms: 591.054147
+  type: 'test'
+  ...
+# Subtest: lost responses recover original case without duplicate dispatch; outage remains unknown
+ok 3 - lost responses recover original case without duplicate dispatch; outage remains unknown
+  ---
+  duration_ms: 1707.017258
+  type: 'test'
+  ...
+# Subtest: negative, mismatch and stale outcomes cannot approve; private capture rejects real-data fields
+ok 4 - negative, mismatch and stale outcomes cannot approve; private capture rejects real-data fields
+  ---
+  duration_ms: 2707.493679
+  type: 'test'
+  ...
+# Subtest: simulated capture reaches real independent PSiRA/officer/readiness services
+ok 5 - simulated capture reaches real independent PSiRA/officer/readiness services
+  ---
+  duration_ms: 815.134996
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6514.598108

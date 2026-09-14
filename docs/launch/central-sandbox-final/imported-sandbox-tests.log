@@ -1,0 +1,245 @@
+TAP version 13
+# (node:1814392) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1814392) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (node:1814392) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: sandbox direct_flex/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+ok 1 - sandbox direct_flex/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1794.263641
+  type: 'test'
+  ...
+# Subtest: sandbox managed/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+ok 2 - sandbox managed/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1041.156543
+  type: 'test'
+  ...
+# Subtest: sandbox partner/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+ok 3 - sandbox partner/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1088.222872
+  type: 'test'
+  ...
+# Subtest: sandbox direct_flex/Armed/default: captured person through signed workforce, assignment and application-produced service input
+ok 4 - sandbox direct_flex/Armed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1089.423965
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/default: captured person through signed workforce, assignment and application-produced service input
+ok 5 - sandbox managed/VIP/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1074.925409
+  type: 'test'
+  ...
+# Subtest: sandbox managed/Armed/armed_movement: captured person through signed workforce, assignment and application-produced service input
+ok 6 - sandbox managed/Armed/armed_movement: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1077.677968
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/vip_armed: captured person through signed workforce, assignment and application-produced service input
+ok 7 - sandbox managed/VIP/vip_armed: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1087.152688
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/vip_protective_driver: captured person through signed workforce, assignment and application-produced service input
+ok 8 - sandbox managed/VIP/vip_protective_driver: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1088.01728
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/vip_team: captured person through signed workforce, assignment and application-produced service input
+ok 9 - sandbox managed/VIP/vip_team: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1551.714738
+  type: 'test'
+  ...
+# (node:1814393) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1814393) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: pre-check-in replacement preserves immutable assignment history and releases only the old reservations
+ok 10 - pre-check-in replacement preserves immutable assignment history and releases only the old reservations
+  ---
+  duration_ms: 1072.418851
+  type: 'test'
+  ...
+# Subtest: private read contracts isolate officers and HTTP bridge never generates an Operations passport token
+ok 11 - private read contracts isolate officers and HTTP bridge never generates an Operations passport token
+  ---
+  duration_ms: 878.850593
+  type: 'test'
+  ...
+# Subtest: simulated funding boundary retains source integrity and rejects self-approval and changed amounts
+ok 12 - simulated funding boundary retains source integrity and rejects self-approval and changed amounts
+  ---
+  duration_ms: 910.198092
+  type: 'test'
+  ...
+# (node:1814517) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1814517) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: multi-company transition keeps old employment history and requires new bound terms; independent atomic projection
+ok 13 - multi-company transition keeps old employment history and requires new bound terms; independent atomic projection
+  ---
+  duration_ms: 1004.698399
+  type: 'test'
+  ...
+# Subtest: unresolved assignment and stale version block engagement replacement without rewriting employment
+ok 14 - unresolved assignment and stale version block engagement replacement without rewriting employment
+  ---
+  duration_ms: 977.477763
+  type: 'test'
+  ...
+# (node:1814531) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1814531) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: runtime rejects production, primary alias, absent enablement and policy tampering
+ok 15 - runtime rejects production, primary alias, absent enablement and policy tampering
+  ---
+  duration_ms: 524.043418
+  type: 'test'
+  ...
+# Subtest: actual identity routes capture, independently review and privately deliver simulated evidence
+ok 16 - actual identity routes capture, independently review and privately deliver simulated evidence
+  ---
+  duration_ms: 605.511784
+  type: 'test'
+  ...
+# Subtest: lost responses recover original case without duplicate dispatch; outage remains unknown
+ok 17 - lost responses recover original case without duplicate dispatch; outage remains unknown
+  ---
+  duration_ms: 1754.991007
+  type: 'test'
+  ...
+# Subtest: negative, mismatch and stale outcomes cannot approve; private capture rejects real-data fields
+ok 18 - negative, mismatch and stale outcomes cannot approve; private capture rejects real-data fields
+  ---
+  duration_ms: 2810.037774
+  type: 'test'
+  ...
+# Subtest: simulated capture reaches real independent PSiRA/officer/readiness services
+ok 19 - simulated capture reaches real independent PSiRA/officer/readiness services
+  ---
+  duration_ms: 860.787096
+  type: 'test'
+  ...
+# (node:1814578) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1814578) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (node:1814578) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: two application-produced service inputs retain distinct employer/engagement attribution within one SAST payroll period
+ok 20 - two application-produced service inputs retain distinct employer/engagement attribution within one SAST payroll period
+  ---
+  duration_ms: 1451.784875
+  type: 'test'
+  ...
+# (node:1814625) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1814625) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: bounded alternative rules require their own immutable installation hash
+ok 21 - bounded alternative rules require their own immutable installation hash
+  ---
+  duration_ms: 524.093368
+  type: 'test'
+  ...
+# (node:1814638) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1814638) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (node:1814638) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: consented scan checks actual clock/distance observations, ownership and current passport before check-in
+ok 22 - consented scan checks actual clock/distance observations, ownership and current passport before check-in
+  ---
+  duration_ms: 1181.678624
+  type: 'test'
+  ...
+# Subtest: incident SLA escalation is due-bound, replay-safe, versioned and independently resolved
+ok 23 - incident SLA escalation is due-bound, replay-safe, versioned and independently resolved
+  ---
+  duration_ms: 1007.705478
+  type: 'test'
+  ...
+# (node:1814647) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1814647) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: authenticated finance completion produces separately assessed readiness; revoke atomically holds it
+ok 24 - authenticated finance completion produces separately assessed readiness; revoke atomically holds it
+  ---
+  duration_ms: 1120.603213
+  type: 'test'
+  ...
+# Subtest: authenticated finance completion produces separately assessed readiness; payment_evidence atomically holds it
+ok 25 - authenticated finance completion produces separately assessed readiness; payment_evidence atomically holds it
+  ---
+  duration_ms: 1121.449777
+  type: 'test'
+  ...
+# (node:1814665) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1814665) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: training purchase is not qualification; score, current source and separate approval produce actual readiness
+ok 26 - training purchase is not qualification; score, current source and separate approval produce actual readiness
+  ---
+  duration_ms: 988.194477
+  type: 'test'
+  ...
+# Subtest: a caller cannot replace training completion with a typed evidence claim
+ok 27 - a caller cannot replace training completion with a typed evidence claim
+  ---
+  duration_ms: 887.043449
+  type: 'test'
+  ...
+# Subtest: a separately installed stricter policy changes the same assessment outcome
+ok 28 - a separately installed stricter policy changes the same assessment outcome
+  ---
+  duration_ms: 840.05419
+  type: 'test'
+  ...
+# (node:1814673) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1814673) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: partner readiness requires exact company mandate, source evidence and independent decision
+ok 29 - partner readiness requires exact company mandate, source evidence and independent decision
+  ---
+  duration_ms: 862.851573
+  type: 'test'
+  ...
+# Subtest: stale engagement, wrong company authority and rejection cannot enable partner
+ok 30 - stale engagement, wrong company authority and rejection cannot enable partner
+  ---
+  duration_ms: 849.454691
+  type: 'test'
+  ...
+# Subtest: direct_flex retains independently reviewed real engagement and exact model
+ok 31 - direct_flex retains independently reviewed real engagement and exact model
+  ---
+  duration_ms: 844.968786
+  type: 'test'
+  ...
+# Subtest: managed retains independently reviewed real engagement and exact model
+ok 32 - managed retains independently reviewed real engagement and exact model
+  ---
+  duration_ms: 844.318774
+  type: 'test'
+  ...
+1..32
+# tests 32
+# suites 0
+# pass 32
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18732.453123

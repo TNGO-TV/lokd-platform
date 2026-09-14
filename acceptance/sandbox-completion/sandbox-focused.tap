@@ -1,0 +1,131 @@
+TAP version 13
+# (node:1770969) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1770969) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: multi-company transition keeps old employment history and requires new bound terms; independent atomic projection
+ok 1 - multi-company transition keeps old employment history and requires new bound terms; independent atomic projection
+  ---
+  duration_ms: 1060.803734
+  type: 'test'
+  ...
+# Subtest: unresolved assignment and stale version block engagement replacement without rewriting employment
+ok 2 - unresolved assignment and stale version block engagement replacement without rewriting employment
+  ---
+  duration_ms: 1021.260399
+  type: 'test'
+  ...
+# (node:1770970) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1770970) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: runtime rejects production, primary alias, absent enablement and policy tampering
+ok 3 - runtime rejects production, primary alias, absent enablement and policy tampering
+  ---
+  duration_ms: 630.095513
+  type: 'test'
+  ...
+# Subtest: actual identity routes capture, independently review and privately deliver simulated evidence
+ok 4 - actual identity routes capture, independently review and privately deliver simulated evidence
+  ---
+  duration_ms: 653.144066
+  type: 'test'
+  ...
+# Subtest: lost responses recover original case without duplicate dispatch; outage remains unknown
+ok 5 - lost responses recover original case without duplicate dispatch; outage remains unknown
+  ---
+  duration_ms: 1762.883283
+  type: 'test'
+  ...
+# Subtest: negative, mismatch and stale outcomes cannot approve; private capture rejects real-data fields
+ok 6 - negative, mismatch and stale outcomes cannot approve; private capture rejects real-data fields
+  ---
+  duration_ms: 2754.142499
+  type: 'test'
+  ...
+# Subtest: simulated capture reaches real independent PSiRA/officer/readiness services
+ok 7 - simulated capture reaches real independent PSiRA/officer/readiness services
+  ---
+  duration_ms: 827.189741
+  type: 'test'
+  ...
+# (node:1770971) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1770971) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: bounded alternative rules require their own immutable installation hash
+ok 8 - bounded alternative rules require their own immutable installation hash
+  ---
+  duration_ms: 604.839965
+  type: 'test'
+  ...
+# (node:1770977) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1770977) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (node:1770977) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: consented scan checks actual clock/distance observations, ownership and current passport before check-in
+ok 9 - consented scan checks actual clock/distance observations, ownership and current passport before check-in
+  ---
+  duration_ms: 1252.285853
+  type: 'test'
+  ...
+# Subtest: incident SLA escalation is due-bound, replay-safe, versioned and independently resolved
+ok 10 - incident SLA escalation is due-bound, replay-safe, versioned and independently resolved
+  ---
+  duration_ms: 1033.760659
+  type: 'test'
+  ...
+# (node:1770978) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1770978) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: training purchase is not qualification; score, current source and separate approval produce actual readiness
+ok 11 - training purchase is not qualification; score, current source and separate approval produce actual readiness
+  ---
+  duration_ms: 1078.223448
+  type: 'test'
+  ...
+# Subtest: a caller cannot replace training completion with a typed evidence claim
+ok 12 - a caller cannot replace training completion with a typed evidence claim
+  ---
+  duration_ms: 920.044192
+  type: 'test'
+  ...
+# (node:1771067) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1771067) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: partner readiness requires exact company mandate, source evidence and independent decision
+ok 13 - partner readiness requires exact company mandate, source evidence and independent decision
+  ---
+  duration_ms: 917.151763
+  type: 'test'
+  ...
+# Subtest: stale engagement, wrong company authority and rejection cannot enable partner
+ok 14 - stale engagement, wrong company authority and rejection cannot enable partner
+  ---
+  duration_ms: 890.06889
+  type: 'test'
+  ...
+# Subtest: direct_flex retains independently reviewed real engagement and exact model
+ok 15 - direct_flex retains independently reviewed real engagement and exact model
+  ---
+  duration_ms: 867.292477
+  type: 'test'
+  ...
+# Subtest: managed retains independently reviewed real engagement and exact model
+ok 16 - managed retains independently reviewed real engagement and exact model
+  ---
+  duration_ms: 855.155249
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6878.334149

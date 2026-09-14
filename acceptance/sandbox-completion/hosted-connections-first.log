@@ -1,0 +1,6 @@
+(node:1749306) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Created isolated Clerk development identities. No inboxes or invitations required.
+Account workflow failed: ERR_SQLITE_ERROR
+Original local database restored.
+Development test identities and temporary local configuration cleaned up.

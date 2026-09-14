@@ -1,0 +1,30 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {sandboxConnected} from './fixtures/sandbox-connected.mjs';
+import {applicant,maker,checker} from './fixtures/production-identity-journey.mjs';
+import {activateAssignment,request,passDueScheduledCheckpoints} from './fixtures/identity-activation-environment.mjs';
+import {sandboxScan,sandboxIncident} from '../app/lib/sandbox-service.ts';
+import {installFixtureClock} from './fixtures/fixture-clock.mjs';
+import {writePresence,publicPresence} from '../app/lib/officer-presence.ts';
+import {withdrawSandboxCapture} from '../app/lib/sandbox-identity.ts';
+import {readPublicPassport} from '../app/lib/passport-server.ts';
+async function assign(x){const version=x.database.prepare("SELECT version FROM roster_slots WHERE id='SLOT-1'").get().version;const a=await activateAssignment(x.activationDb,{...request('scan-activation',x.officerId),expectedSlotVersion:version},'ops-fixture');assert.equal(a.state,'activated');await passDueScheduledCheckpoints(x.activationDb);return a;}
+test('consented scan checks actual clock/distance observations, ownership and current passport before check-in',async context=>{const x=await sandboxConnected();try{const clock=installFixtureClock(context,x.database),a=await assign(x);clock.set(Date.parse(x.times.starts)-1);
+ const scan={shiftId:a.shiftId,passportToken:x.passport.token,consent:true};
+ await assert.rejects(sandboxScan(x.runtime,applicant,{...scan,consent:false,requestKey:'no-consent',scenario:'at_site'},new Headers()));
+ await assert.rejects(sandboxScan(x.runtime,{...applicant,userId:'another-user'},{...scan,requestKey:'wrong-user',scenario:'at_site'},new Headers()));
+ for(const scenario of ['outside_geofence','stale_clock','future_clock','gps_unavailable','wrong_passport']){const r=await sandboxScan(x.runtime,applicant,{...scan,requestKey:scenario,scenario},new Headers());assert.equal(r.ready,false);assert.equal(x.database.prepare('SELECT check_in_at FROM shifts WHERE id=?').get(a.shiftId).check_in_at,null);}
+ const good={...scan,requestKey:'at-site',scenario:'at_site'};await sandboxScan(x.runtime,applicant,good,new Headers());assert.ok(x.database.prepare('SELECT check_in_at FROM shifts WHERE id=?').get(a.shiftId).check_in_at);assert.equal((await sandboxScan(x.runtime,applicant,good,new Headers())).replayed,true);
+ await assert.rejects(sandboxScan(x.runtime,applicant,{...good,scenario:'stale_clock'},new Headers()),/different/);
+ assert.equal(x.database.prepare('SELECT count(*) n FROM sandbox_scan_receipts').get().n,6);
+ clock.set(Date.parse(x.times.starts)+1000);
+ const location={action:'share',mode:'live',consent:true,latitude:-26.1,longitude:28.1};await writePresence(x.db,applicant.userId,null,location);assert.equal((await publicPresence(x.db)).areas.length,1);clock.advance(180001);assert.equal((await publicPresence(x.db)).areas.length,0);await writePresence(x.db,applicant.userId,null,location);await writePresence(x.db,applicant.userId,null,{action:'stop',mode:'live'});assert.equal((await publicPresence(x.db)).areas.length,0);
+ const capture=x.database.prepare('SELECT id FROM sandbox_identity_captures').get();await withdrawSandboxCapture(x.runtime,applicant,capture.id);assert.equal((await readPublicPassport(x.db,x.passport.token)).status,'suspended');
+ await assert.rejects(sandboxScan(x.runtime,applicant,good,new Headers()));assert.equal(x.database.prepare('SELECT count(*) n FROM sandbox_scan_receipts').get().n,6);
+ }finally{x.close();}});
+test('incident SLA escalation is due-bound, replay-safe, versioned and independently resolved',async context=>{const x=await sandboxConnected();try{const clock=installFixtureClock(context,x.database),a=await assign(x);const input={requestKey:'incident-report',action:'report',shiftId:a.shiftId,severity:'low',category:'sandbox',summary:'Fictional unattended access',detail:'Versioned simulated incident'};let r=await sandboxIncident(x.runtime,applicant,input);assert.equal((await sandboxIncident(x.runtime,applicant,input)).alreadyRecorded,true);
+ const escalation={requestKey:'escalate',action:'escalate',incidentId:r.incidentId,expectedVersion:r.version,reason:'Response SLA expired'};await assert.rejects(sandboxIncident(x.runtime,maker,escalation),/overdue/);clock.advance(240*60000+1);r=await sandboxIncident(x.runtime,maker,escalation);assert.equal(x.database.prepare('SELECT severity FROM site_incidents WHERE id=?').get(r.incidentId).severity,'medium');assert.equal((await sandboxIncident(x.runtime,maker,escalation)).alreadyRecorded,true);
+ r=await sandboxIncident(x.runtime,maker,{requestKey:'ack',action:'acknowledge',incidentId:r.incidentId,expectedVersion:r.version,reason:'Command accepted'});r=await sandboxIncident(x.runtime,maker,{requestKey:'investigate',action:'investigate',incidentId:r.incidentId,expectedVersion:r.version,reason:'Evidence inspected'});
+ await assert.rejects(sandboxIncident(x.runtime,{...maker,owner:true},{requestKey:'self-resolve',action:'resolve',incidentId:r.incidentId,expectedVersion:r.version,reason:'Self resolution'}),/Separate/);
+ r=await sandboxIncident(x.runtime,checker,{requestKey:'resolve',action:'resolve',incidentId:r.incidentId,expectedVersion:r.version,reason:'Independent resolution'});await sandboxIncident(x.runtime,checker,{requestKey:'close',action:'close',incidentId:r.incidentId,expectedVersion:r.version,reason:'Close retained history'});
+ assert.equal(x.database.prepare('SELECT count(*) n FROM incident_events WHERE incident_id=?').get(r.incidentId).n,6);assert.throws(()=>x.database.exec('DELETE FROM sandbox_incident_commands'),/immutable/);
+ }finally{x.close();}});

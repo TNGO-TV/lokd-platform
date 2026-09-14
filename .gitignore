@@ -50,3 +50,6 @@ next-env.d.ts
 /playwright-report/
 
 /tests/accounts/test-results/
+
+# Local combined browser diagnostics
+/tests/integrated-browser/test-results/

@@ -1,0 +1,28 @@
+
+Running 16 tests using 1 worker
+
+(node:1835438) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/16] [mobile] › tests/integrated-browser/security-recovery.spec.mjs:8:1 › saved intake selector links, corrects and obtains separate Operations review through real handlers
+[2/16] [mobile] › tests/integrated-browser/security-recovery.spec.mjs:9:33 › lost intake response recovers original receipt without duplicate application
+[3/16] [mobile] › tests/integrated-browser/security-recovery.spec.mjs:9:33 › lost intake response retries exact original command without duplicate application
+[4/16] [mobile] › tests/integrated-browser/security-recovery.spec.mjs:10:1 › lost capture response recovers saved reference and starts exactly one original identity case
+[5/16] [mobile] › tests/integrated-browser/security-recovery.spec.mjs:11:1 › denied saved-review refresh clears private draft and can refresh again after sign-in
+[6/16] [mobile] › tests/integrated-browser/security-recovery.spec.mjs:12:1 › delayed identity discovery cannot restore private sources after denied capture
+[7/16] [mobile] › tests/integrated-browser/security-recovery.spec.mjs:13:1 › client intake lost response recovers one original enquiry and revoked recovery clears its private form
+[8/16] [mobile] › tests/integrated-browser/security-recovery.spec.mjs:14:1 › lost stale-capture rejection recovers a definitive failed receipt and unlocks corrected input
+(node:1835841) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[9/16] [desktop] › tests/integrated-browser/security-recovery.spec.mjs:8:1 › saved intake selector links, corrects and obtains separate Operations review through real handlers
+[10/16] [desktop] › tests/integrated-browser/security-recovery.spec.mjs:9:33 › lost intake response recovers original receipt without duplicate application
+[11/16] [desktop] › tests/integrated-browser/security-recovery.spec.mjs:9:33 › lost intake response retries exact original command without duplicate application
+[12/16] [desktop] › tests/integrated-browser/security-recovery.spec.mjs:10:1 › lost capture response recovers saved reference and starts exactly one original identity case
+[13/16] [desktop] › tests/integrated-browser/security-recovery.spec.mjs:11:1 › denied saved-review refresh clears private draft and can refresh again after sign-in
+[14/16] [desktop] › tests/integrated-browser/security-recovery.spec.mjs:12:1 › delayed identity discovery cannot restore private sources after denied capture
+[15/16] [desktop] › tests/integrated-browser/security-recovery.spec.mjs:13:1 › client intake lost response recovers one original enquiry and revoked recovery clears its private form
+[16/16] [desktop] › tests/integrated-browser/security-recovery.spec.mjs:14:1 › lost stale-capture rejection recovers a definitive failed receipt and unlocks corrected input
+  16 passed (54.9s)

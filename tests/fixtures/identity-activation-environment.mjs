@@ -160,12 +160,12 @@ function seedOfficerSupport(database,id,engagementId,termsId) {
     VALUES (?,?,'SITE-1','feasible','production','verified',30,'route_matrix','travel:evidence',?,?,1,?,?)`, `TRAVEL-${id}`, id, now, expiry, `${id}:SITE-1`, now);
 }
 
-async function moveCandidateToCheckInWindow(database,officerId) {
+async function moveCandidateToCheckInWindow(database,officerId,serviceType="Unarmed",specialistServiceCode,durationMinutes=720) {
   const base = Math.ceil(Date.now() / 60_000) * 60_000;
   const starts = new Date(base + 10 * 60_000).toISOString();
-  const ends = new Date(base + (12 * 60 + 10) * 60_000).toISOString();
+  const ends = new Date(base + (durationMinutes + 10) * 60_000).toISOString();
   const economics = officerShiftEconomicsForRoster({
-    serviceType: "Unarmed",
+    serviceType,specialistServiceCode,
     riskBand: "Standard",
     engagementModel: "flex",
     serviceDate: starts.slice(0, 10),

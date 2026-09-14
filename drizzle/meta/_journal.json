@@ -519,6 +519,13 @@
       "when": 1789416773349,
       "tag": "0073_finance_sandbox_workflows",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "6",
+      "when": 1789423045966,
+      "tag": "0074_specialist_calendar_wage",
+      "breakpoints": true
     }
   ]
 }

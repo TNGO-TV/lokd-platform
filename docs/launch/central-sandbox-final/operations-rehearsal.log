@@ -1,0 +1,22 @@
+(node:4) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+TAP version 13
+(node:4) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+OPERATIONS_REHEARSAL {"mode":"simulator","policyVersion":"lokd-sandbox-completion-v1","elapsedMs":2267,"steps":[{"step":"Actual captured identity through paid consumed service","actor":"user_identity","elapsedMs":2215,"scenarioAt":"2026-09-14T23:48:01.000Z"},{"step":"Incident reported, acknowledged and investigated","actor":"bridge-maker","elapsedMs":2217,"scenarioAt":"2026-09-14T23:48:01.000Z"},{"step":"Workforce held and prior passport invalidated","actor":"bridge-maker","elapsedMs":2241,"scenarioAt":"2026-09-14T23:48:01.000Z"},{"step":"Separate disposition authorizes fresh replacement only","actor":"operations-rehearsal-independent-owner","elapsedMs":2248,"scenarioAt":"2026-09-14T23:48:01.000Z"},{"step":"Incident closed; five consumed ledgers byte-for-byte unchanged","actor":"bridge-checker","elapsedMs":2267,"scenarioAt":"2026-09-14T23:48:01.000Z"}],"unchangedTables":["shift_timesheets","payroll_items","production_payroll_snapshots","pay_item_sources","employee_payment_instructions"],"backupRestore":"separate test","restoresApproval":false,"notificationsSent":0}
+# Subtest: coherent synthetic operations incident contains workforce then independently permits replacement without rewriting consumed service/payroll/payment history
+ok 1 - coherent synthetic operations incident contains workforce then independently permits replacement without rewriting consumed service/payroll/payment history
+  ---
+  duration_ms: 2278.683042
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2282.121953

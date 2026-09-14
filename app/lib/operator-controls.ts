@@ -8,6 +8,8 @@ export type OperatorRole =
   | "compliance_reviewer";
 
 export type OperatorActionCode =
+  | "specialist.prepare"
+  | "specialist.review"
   | "partner_payment.prepare"
   | "partner_payment.approve"
   | "partner_payment.dispatch_test"
@@ -38,6 +40,8 @@ export type OperatorActionPolicy = {
 };
 
 export const OPERATOR_ACTION_POLICIES: OperatorActionPolicy[] = [
+  { actionCode: "specialist.prepare", label: "Prepare specialist deployment evidence", requiredRole: "operations_controller", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "specialist.review", label: "Independently review specialist deployment evidence", requiredRole: "compliance_reviewer", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
   { actionCode: "partner_payment.prepare", label: "Prepare partner company payment instruction", requiredRole: "operations_controller", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
   { actionCode: "partner_payment.approve", label: "Approve partner company payment instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
   { actionCode: "partner_payment.dispatch_test", label: "Submit approved test transfer", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },

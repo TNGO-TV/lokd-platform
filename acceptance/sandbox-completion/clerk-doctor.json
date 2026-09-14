@@ -1,0 +1,46 @@
+[
+  {
+    "check": "Host execution",
+    "status": "pass"
+  },
+  {
+    "check": "CLI version",
+    "status": "pass"
+  },
+  {
+    "check": "Logged in",
+    "status": "pass"
+  },
+  {
+    "check": "Authentication valid",
+    "status": "pass"
+  },
+  {
+    "check": "Project linked",
+    "status": "fail"
+  },
+  {
+    "check": "Application reachable",
+    "status": "warn"
+  },
+  {
+    "check": "Instance IDs",
+    "status": "warn"
+  },
+  {
+    "check": "Environment variables",
+    "status": "warn"
+  },
+  {
+    "check": "CLI configuration",
+    "status": "pass"
+  },
+  {
+    "check": "Shell completion",
+    "status": "warn"
+  },
+  {
+    "check": "MCP server",
+    "status": "pass"
+  }
+]

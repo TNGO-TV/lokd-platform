@@ -24,6 +24,7 @@ const emails = Object.fromEntries(['client', 'officer', 'operations', 'unassigne
 const access = { clients: { [emails.client]: 'CL-001' }, officers: { [emails.officer]: 'OFF-001' }, operations: [emails.operations, ...(includeFinance ? [emails.finance] : [])], owners: [emails.owner] };
 let ownsVars = false;
 let failed = false;
+const sandboxFixture=process.env.LOKD_ACCOUNT_TEST_SANDBOX==='true';
 const intakeFixture=process.env.LOKD_ACCOUNT_TEST_INTAKE==='true';
 const recoveryFixture=process.env.LOKD_ACCOUNT_TEST_RECOVERY==='true';
 const partnerPaymentFixture=process.env.LOKD_ACCOUNT_TEST_PARTNER_PAYMENTS==='true';
@@ -42,7 +43,8 @@ try {
     `CLERK_PUBLISHABLE_KEY=${JSON.stringify(keys.CLERK_PUBLISHABLE_KEY)}`,
     `CLERK_SECRET_KEY=${JSON.stringify(keys.CLERK_SECRET_KEY)}`,
     'CLERK_AUTHORIZED_PARTIES="http://localhost:4177"',
-    `LOKD_APP_STAGE=${JSON.stringify(process.env.LOKD_ACCOUNT_TEST_STAGE === 'production' ? 'production' : 'demo')}`,
+    `LOKD_APP_STAGE=${JSON.stringify(sandboxFixture?'prelaunch':process.env.LOKD_ACCOUNT_TEST_STAGE === 'production' ? 'production' : 'demo')}`,
+    ...(sandboxFixture?['LOKD_SANDBOX_COMPLETION_ENABLED="true"','LOKD_FINANCE_ENVIRONMENT="sandbox"','LOKD_OPERATIONS_MFA_REQUIRED="false"']:[]),
     ...(process.env.LOKD_ACCOUNT_TEST_STAGE === 'production' ? ['LOKD_OPERATIONS_MFA_REQUIRED="false"'] : []),
     `LOKD_PILOT_ACCESS_JSON='${JSON.stringify(access)}'`,
     'LOKD_LIVE_SHIFT_SCAN="false"',
@@ -58,8 +60,8 @@ try {
     // Refuse to replace local data while the acceptance server is already running.
     const probe=createServer();await new Promise((resolve,reject)=>{probe.once('error',reject);probe.listen(4177,'127.0.0.1',resolve);});await new Promise(resolve=>probe.close(resolve));
     const directory=process.cwd()+'/.wrangler/state/v3/d1/miniflare-D1DatabaseObject';
-    const names=(await readdir(directory)).filter(n=>n.endsWith('.sqlite')&&n!=='metadata.sqlite');if(names.length!==1)throw Error('Ambiguous local acceptance database');
-    collectionDatabase=directory+'/'+names[0];collectionExport='/tmp/lokd-collection-'+run+'.sqlite';
+    const names=(await readdir(directory)).filter(n=>{if(!n.endsWith('.sqlite')||n==='metadata.sqlite')return false;const candidate=new DatabaseSync(directory+'/'+n,{readOnly:true});try{return !candidate.prepare("SELECT name FROM sqlite_master WHERE name='sandbox_completion_instance'").get();}finally{candidate.close();}});if(names.length!==1)throw Error('Ambiguous local acceptance database');
+    collectionDatabase=directory+'/'+names[0];collectionExport=(process.env.TMPDIR||'/tmp')+'/lokd-collection-'+run+'.sqlite';
     if(intakeFixture){
       const fresh=new DatabaseSync(collectionExport);
       try{for(const file of (await readdir('drizzle')).filter(name=>name.endsWith('.sql')).sort())fresh.exec(await readFile('drizzle/'+file,'utf8'));}
@@ -74,7 +76,7 @@ try {
     console.log('Installed isolated collection fixture; original local database preserved for restoration.');
   }
   const child = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', '--config=tests/accounts/playwright.config.mjs', ...process.argv.slice(2)], {
-    stdio: 'inherit', env: { ...process.env, ...keys, ...(localBrowserLibraries ? { LD_LIBRARY_PATH: [browserLibraries, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':') } : {}), LOKD_TEST_EMAILS: JSON.stringify(emails), LOKD_TEST_USER_IDS: JSON.stringify(userIds) },
+    stdio: 'inherit', env: { ...process.env, ...keys, ...(sandboxFixture?{LOKD_LOCAL_SANDBOX_COMPLETION:'true'}:{}), ...(localBrowserLibraries ? { LD_LIBRARY_PATH: [browserLibraries, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':') } : {}), LOKD_TEST_EMAILS: JSON.stringify(emails), LOKD_TEST_USER_IDS: JSON.stringify(userIds) },
   });
   const code = await new Promise((resolve, reject) => { child.on('error', reject); child.on('exit', resolve); });
   failed = code !== 0;

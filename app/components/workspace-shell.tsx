@@ -17,6 +17,7 @@ export default function WorkspaceShell({ role, children }: { role: WorkspaceRole
     { href: `${base}/service`, label: 'Service & payments' },
     ...(role !== 'client' ? [{ href: `${base}/readiness`, label: 'Identity & readiness' }, { href: `${base}/psira`, label: 'PSiRA checks' }] : []),
     ...(pathname === `${base}/identity` ? [{ href: `${pathname}?${searchParams.toString()}`, label: 'Identity · sandbox', active: true }] : []),
+    {href: `${base}/sandbox`,label:'Sandbox workflows'},
     { href: `${base}/test-cycle`, label: 'Test cycle · simulated' },
     ...(role === 'operations' ? [{ href: '/ops/security', label: 'Account security' }] : []),
   ];

@@ -35,10 +35,11 @@ const approve=(db,s,actor=reviewer)=>decide(db,actor,{id:s.id,outcomeId:s.outcom
 
 const maker={userId:'bridge-maker',email:'maker@example.test',operations:true,owner:false};
 const checker={userId:'bridge-checker',email:'checker@example.test',operations:true,owner:true};
-async function ready(beforeMigration){
+async function ready(beforeMigration,identityFactory){
  const {db,caseId}=await setup('qualified','active',beforeMigration);const f=fixture();
  await writeSignup(db,maker,{action:'review',kind:'officer',id:caseId,expectedVersion:1,status:'reviewed',note:'Synthetic intake review for isolated fixture'});
- let identity=await start(db,applicant,{...input(caseId),applicantVersion:2},f.port);identity=await approve(db,identity);
+ const actual=identityFactory?await identityFactory(db,caseId):{input:{...input(caseId),applicantVersion:2},port:f.port};
+ let identity=await start(db,applicant,actual.input,actual.port);identity=await approve(db,identity);
  const entity=await prepareProductionEntity(db,maker,{kind:'officer',caseId,caseVersion:2});
  const psiraId=await writePsiraCase(db,applicant,{action:'submit',declaration:'registered',psiraNumber:'1234567'});
  const psiraReview={action:'review',caseId:psiraId,expectedVersion:1,registrationStatus:'registered',identityMatch:'confirmed',recheckAt:new Date(Date.now()+86400000).toISOString(),evidence:{source:PSIRA_SOURCE,checkedAt:new Date().toISOString(),returnedNumber:'1234567',returnedName:'Synthetic Officer',returnedStatus:'Registered',grade:'A',certificateExpiry:'2099-01-01',employmentStatus:'Inactive',excerpt:'Isolated synthetic fixture only; no real registration assertion.',identityEvidence:'production-identity:'+identity.outcomeId}};
@@ -54,7 +55,7 @@ import {prepareReadinessRule,prepareReadinessReview,decideReadiness,setReadiness
 const assessor={userId:'readiness-assessor',email:'assessor@example.test',operations:true,owner:false};
 const independent={userId:'readiness-checker',email:'ready-checker@example.test',operations:true,owner:true};
 const decision=(db,kind,id,actor=independent)=>decideReadiness(db,actor,{kind,id,decision:'approve',independentlyInspected:true,reason:'Independently inspected isolated policy or applicant fixture'});
-async function base(beforeMigration){const x=await ready(beforeMigration);const bridge=await prepareOfficerReview(x.db,maker,x.proposal);await decideBridge(x.db,bridge.reviewId);return {...x,officerId:x.proposal.officerId,bridgeId:bridge.reviewId};}
+async function base(beforeMigration,identityFactory){const x=await ready(beforeMigration,identityFactory);const bridge=await prepareOfficerReview(x.db,maker,x.proposal);await decideBridge(x.db,bridge.reviewId);return {...x,officerId:x.proposal.officerId,bridgeId:bridge.reviewId};}
 async function qualify(x,category,scope){
  const rule=await prepareReadinessRule(x.db,assessor,{code:category==='core'?'core_ready':category+'_'+scope.toLowerCase(),label:'Isolated '+category+' fixture',category,serviceType:category==='service'?scope:undefined,purposeCode:category==='purpose'?scope:undefined,requirements:['fixture assessment'],maxDays:7,evidenceReference:'private:isolated-policy-not-real',expiresAt:new Date(Date.now()+2*86400000).toISOString()});
  await decision(x.db,'rule',rule.id);
@@ -62,7 +63,7 @@ async function qualify(x,category,scope){
  const input={officerId:x.officerId,officerReviewId:x.bridgeId,ruleId:rule.id,evidence,sourcesActuallyInspected:true};
  const review=await prepareReadinessReview(x.db,assessor,input);await decision(x.db,'review',review.id);return {rule,review,input};
 }
-async function complete({beforeMigration}={}){const x=await base(beforeMigration);x.core=await qualify(x,'core','');x.service=await qualify(x,'service','Unarmed');x.purpose=await qualify(x,'purpose','commercial_access');await setReadinessOptIn(x.db,applicant,{officerId:x.officerId,serviceType:'Unarmed',expectedRevision:0,optedIn:true});x.passportInput={officerId:x.officerId,officerReviewId:x.bridgeId,reviewIds:[x.core.review.id,x.service.review.id,x.purpose.review.id],expectedSequence:0};return x;}
+async function complete({beforeMigration,identityFactory,serviceType='Unarmed',purposeCode='commercial_access'}={}){const x=await base(beforeMigration,identityFactory);x.core=await qualify(x,'core','');x.service=await qualify(x,'service',serviceType);x.purpose=await qualify(x,'purpose',purposeCode);await setReadinessOptIn(x.db,applicant,{officerId:x.officerId,serviceType,expectedRevision:0,optedIn:true});x.passportInput={officerId:x.officerId,officerReviewId:x.bridgeId,reviewIds:[x.core.review.id,x.service.review.id,x.purpose.review.id],expectedSequence:0};return x;}
 
 
-export {complete,applicant,maker,checker,assessor,independent,decision,prepareReadinessPassport};
+export {D1,setup,reviewer,complete,applicant,maker,checker,assessor,independent,decision,prepareReadinessPassport};

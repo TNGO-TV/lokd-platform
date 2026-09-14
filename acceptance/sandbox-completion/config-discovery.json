@@ -1,0 +1,24 @@
+[
+  {
+    "file": ".env.clerk-test",
+    "exists": true,
+    "clerkModes": {
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "development",
+      "CLERK_SECRET_KEY": "development"
+    },
+    "verifyNowKeyPresent": false
+  },
+  {
+    "file": ".env.local",
+    "exists": true,
+    "clerkModes": {
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "production",
+      "CLERK_SECRET_KEY": "production"
+    },
+    "verifyNowKeyPresent": false
+  },
+  {
+    "file": ".dev.vars",
+    "exists": false
+  }
+]

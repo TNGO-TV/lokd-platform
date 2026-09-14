@@ -1,0 +1,25 @@
+(node:1835756) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1835756) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+file:///srv/ammosync/workspaces/lokd-security/app/lib/sandbox-identity-store.ts:16
+ async authorize({actor,binding}){await requireSandboxCompletion(runtime);await provider.lookup(binding);const grant=await db.prepare('SELECT id FROM sandbox_identity_access a WHERE case_id=? AND reader_user_id=? AND policy_version=? AND expires_at>? AND NOT EXISTS(SELECT 1 FROM sandbox_identity_access_revocations r WHERE r.grant_id=a.id)').bind(binding.caseId,actor.userId,policy.version,new Date().toISOString()).first<{id:string}>();return {allowed:actor.operations&&!!grant,policyReference:policy.version,decisionReference:grant?.id??'denied'};},
+ async open(reference,signal){await requireSandboxCompletion(runtime);if(signal.aborted)throw new SignupError('Read cancelled.',409);const row=await db.prepare('SELECT * FROM sandbox_identity_objects o WHERE reference=? AND policy_version=? AND expires_at>? AND body<>'' AND NOT EXISTS(SELECT 1 FROM sandbox_evidence_retention r WHERE r.case_id=o.case_id)').bind(reference,policy.version,new Date().toISOString()).first<{case_id:string;reference:string;body:string}>();return row?{caseId:row.case_id,reference:row.reference,body:new Response(row.body).body!}:null;},
+                                                                                                                                                                                                                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ };}
+
+SyntaxError [ERR_INVALID_TYPESCRIPT_SYNTAX]: Expected ',', got 'string literal ( AND NOT EXISTS(SELECT 1 FROM sandbox_evidence_retention r WHERE r.case_id=o.case_id), ' AND NOT EXISTS(SELECT 1 FROM sandbox_evidence_retention r WHERE r.case_id=o.case_id)')'
+    at parseTypeScript (node:internal/modules/typescript:67:36)
+    at processTypeScriptCode (node:internal/modules/typescript:133:42)
+    at stripTypeScriptModuleTypes (node:internal/modules/typescript:163:10)
+    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:605:16)
+    at #translate (node:internal/modules/esm/loader:546:20)
+    at afterLoad (node:internal/modules/esm/loader:596:29) {
+  code: 'ERR_INVALID_TYPESCRIPT_SYNTAX'
+}
+
+Node.js v22.22.1

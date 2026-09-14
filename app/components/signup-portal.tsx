@@ -1,5 +1,5 @@
 'use client';
-import {useCallback,useEffect,useState,type FormEvent} from 'react';
+import {useCallback,useEffect,useState,useRef,type FormEvent} from 'react';
 import Link from 'next/link';
 import {useSearchParams} from 'next/navigation';
 import {signupNextStep,signupStatusLabels,type SignupRecord,type SignupKind} from '../lib/signup-types';
@@ -19,21 +19,23 @@ export default function SignupPortal({kind:initialKind,operations=false}:{kind:S
  const searchParams=useSearchParams();
  const kind=operations?(searchParams.get('kind')==='client'?'client':'officer'):initialKind;
  const [records,setRecords]=useState<SignupRecord[]>([]),[email,setEmail]=useState(''),[offset,setOffset]=useState(0),[hasMore,setHasMore]=useState(false),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const generation=useRef(0),writeLock=useRef(false);
+ const clearPrivate=useCallback(()=>{generation.current++;setRecords([]);setEmail('');setHasMore(false);},[]);
  const endpoint=`/api/signup?scope=${operations?'operations':kind}${operations?`&kind=${kind}`:''}`;
  const refresh=useCallback(async()=>{
-  setLoading(true);setError('');
-  try{const response=await fetch(`${endpoint}&offset=${offset}`,{cache:'no-store'});const data=await response.json() as {error?:string;records?:SignupRecord[];hasMore?:boolean;email?:string};if(!response.ok||!Array.isArray(data.records))throw new Error(intakeError(response.status,data.error));setRecords(data.records);setHasMore(data.hasMore===true);setEmail(data.email??'');return true;}
+  const request=++generation.current;setLoading(true);setError('');
+  try{const response=await fetch(`${endpoint}&offset=${offset}`,{cache:'no-store'});const data=await response.json() as {error?:string;records?:SignupRecord[];hasMore?:boolean;email?:string};if(request!==generation.current)return false;if([401,403].includes(response.status))clearPrivate();if(!response.ok||!Array.isArray(data.records))throw new Error(intakeError(response.status,data.error));setRecords(data.records);setHasMore(data.hasMore===true);setEmail(data.email??'');return true;}
   catch(cause){setError(cause instanceof Error?cause.message:'Unable to load your submissions.');return false;}
   finally{setLoading(false);}
- },[endpoint,offset]);
+ },[endpoint,offset,clearPrivate]);
  // This effect synchronises the selected intake page with its remote record.
  // eslint-disable-next-line react-hooks/set-state-in-effect
  useEffect(()=>{void refresh();},[refresh]);
  async function run(body:Record<string,unknown>) {
-  if(busy)return false;setBusy(true);setError('');setNotice('');
-  try{const response=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...body,kind})});const data=await response.json() as {error?:string};if(!response.ok)throw new Error(intakeError(response.status,data.error));const refreshed=await refresh();setNotice(refreshed?'Saved. The latest status is shown below.':'Saved, but the latest status could not be loaded. Refresh to check it before making another change.');return true;}
+  if(writeLock.current)return false;writeLock.current=true;setBusy(true);setError('');setNotice('');
+  try{const response=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...body,kind})});const data=await response.json() as {error?:string};if([401,403].includes(response.status))clearPrivate();if(!response.ok)throw new Error(intakeError(response.status,data.error));const refreshed=await refresh();setNotice(refreshed?'Saved. The latest status is shown below.':'Saved, but the latest status could not be loaded. Refresh to check it before making another change.');return true;}
   catch(cause){setError(cause instanceof Error?cause.message:'Unable to save.');return false;}
-  finally{setBusy(false);}
+  finally{writeLock.current=false;setBusy(false);}
  }
  return <main className={styles.shell}>
 

@@ -1,0 +1,65 @@
+TAP version 13
+# (node:1734968) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1734968) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (node:1734968) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: sandbox direct_flex/Unarmed: captured person through signed workforce, assignment and application-produced service input
+ok 1 - sandbox direct_flex/Unarmed: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1160.798271
+  type: 'test'
+  ...
+# Subtest: sandbox managed/Unarmed: captured person through signed workforce, assignment and application-produced service input
+ok 2 - sandbox managed/Unarmed: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1077.751125
+  type: 'test'
+  ...
+# Subtest: sandbox partner/Unarmed: captured person through signed workforce, assignment and application-produced service input
+ok 3 - sandbox partner/Unarmed: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1174.926476
+  type: 'test'
+  ...
+# Subtest: sandbox direct_flex/Armed: captured person through signed workforce, assignment and application-produced service input
+not ok 4 - sandbox direct_flex/Armed: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 948.41065
+  type: 'test'
+  location: '/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:11:148'
+  failureType: 'testCodeFailure'
+  error: 'specialist_assignment_plan_not_current'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    priceSpecialistFixture (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/sandbox-specialist.mjs:11:107)
+    sandboxConnected (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/sandbox-connected.mjs:26:3)
+    async TestContext.<anonymous> (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:12:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: sandbox managed/VIP: captured person through signed workforce, assignment and application-produced service input
+not ok 5 - sandbox managed/VIP: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 875.695446
+  type: 'test'
+  location: '/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:11:148'
+  failureType: 'testCodeFailure'
+  error: 'specialist_assignment_plan_not_current'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    priceSpecialistFixture (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/sandbox-specialist.mjs:11:107)
+    sandboxConnected (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/sandbox-connected.mjs:26:3)
+    async TestContext.<anonymous> (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:12:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 3
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5551.324453

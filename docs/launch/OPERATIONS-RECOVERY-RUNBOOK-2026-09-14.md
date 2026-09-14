@@ -1,6 +1,6 @@
 # LOKD support, suspension and recovery runbook
 
-Status: locally documented procedure, not a staffed or rehearsed live operation. Baseline deployed review v69, c358358d6ad1ad59ba2f8e39513928c343e5736b. Build must finish and independent local QA must pass before real-account/provider/person/device/finance acceptance. Existing payment locks, LOKD_LIVE_SHIFT_SCAN=false and owner LOKD_OPERATIONS_MFA_REQUIRED=false exception remain. No unattended monitor or live mutation is enabled by this document.
+Status: locally documented procedure with an executed isolated synthetic incident rehearsal; not a staffed or rehearsed live operation. Baseline deployed review v69, c358358d6ad1ad59ba2f8e39513928c343e5736b. Build must finish and independent local QA must pass before real-account/provider/person/device/finance acceptance. Existing payment locks, LOKD_LIVE_SHIFT_SCAN=false and owner LOKD_OPERATIONS_MFA_REQUIRED=false exception remain. No unattended monitor or live mutation is enabled by this document.
 
 ## Accountability and escalation inputs
 
@@ -39,3 +39,7 @@ Off-host disaster recovery is still blocked on an approved independent destinati
 ## Local rehearsal and acceptance record
 
 Existing local connected identity/workforce/service/payroll tests cover suspension without history mutation; payment recovery tests cover uncertainty and replacement safety; backup preflight proves a restore of the older capture. RE-03 is only complete after a named operator and independent reviewer execute a coherent isolated incident scenario, verify the matching recovery/disposition, and record source, steps, actual results, failures, timing and remaining inputs. No live testing is requested to discover unfinished build behavior.
+
+## Central isolated rehearsal — 15 September 2026
+
+RE-03 now has an executed coherent sandbox incident, containment, independent recovery disposition and closure scenario. Synthetic operator/reviewer identities, steps, measured duration and immutable-history comparisons are recorded in `central-sandbox-final/OPERATIONS-REHEARSAL.md`; its regression passed. The full current-schema encrypted local backup/restore is separate evidence in `central-sandbox-final/recovery-rehearsal.log`. These complete the simulated procedures without asserting real staffing, an agreed RPO/RTO, off-host disaster recovery or a deployed rollback.

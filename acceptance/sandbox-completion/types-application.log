@@ -1,0 +1,2 @@
+app/lib/sandbox-application.ts(32,67): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type '{ officerId: string; requestKey: string; tokenHash: string; }'.
+  Type 'Record<string, unknown>' is missing the following properties from type '{ officerId: string; requestKey: string; tokenHash: string; }': officerId, requestKey, tokenHash

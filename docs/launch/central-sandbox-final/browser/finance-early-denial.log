@@ -1,0 +1,16 @@
+
+Running 4 tests using 1 worker
+
+(node:1881848) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/4] [mobile] › tests/integrated-browser/sandbox-contract.spec.mjs:17:1 › contract: finance access denial clears the private source and draft
+[2/4] [mobile] › tests/integrated-browser/sandbox-contract.spec.mjs:20:1 › contract: early finance denial with delayed capabilities has no unhandled rejection and clears private data
+(node:1882025) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[3/4] [desktop] › tests/integrated-browser/sandbox-contract.spec.mjs:17:1 › contract: finance access denial clears the private source and draft
+[4/4] [desktop] › tests/integrated-browser/sandbox-contract.spec.mjs:20:1 › contract: early finance denial with delayed capabilities has no unhandled rejection and clears private data
+  4 passed (3.5s)

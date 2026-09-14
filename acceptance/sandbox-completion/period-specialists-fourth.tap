@@ -1,0 +1,89 @@
+TAP version 13
+# (node:1773862) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1773862) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (node:1773862) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: sandbox direct_flex/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+ok 1 - sandbox direct_flex/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1348.258624
+  type: 'test'
+  ...
+# Subtest: sandbox managed/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+ok 2 - sandbox managed/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1032.082914
+  type: 'test'
+  ...
+# Subtest: sandbox partner/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+ok 3 - sandbox partner/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1032.181794
+  type: 'test'
+  ...
+# Subtest: sandbox direct_flex/Armed/default: captured person through signed workforce, assignment and application-produced service input
+ok 4 - sandbox direct_flex/Armed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1060.273752
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/default: captured person through signed workforce, assignment and application-produced service input
+ok 5 - sandbox managed/VIP/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1075.525769
+  type: 'test'
+  ...
+# Subtest: sandbox managed/Armed/armed_movement: captured person through signed workforce, assignment and application-produced service input
+ok 6 - sandbox managed/Armed/armed_movement: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1081.400348
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/vip_armed: captured person through signed workforce, assignment and application-produced service input
+ok 7 - sandbox managed/VIP/vip_armed: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1099.029833
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/vip_protective_driver: captured person through signed workforce, assignment and application-produced service input
+ok 8 - sandbox managed/VIP/vip_protective_driver: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1106.818227
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/vip_team: captured person through signed workforce, assignment and application-produced service input
+not ok 9 - sandbox managed/VIP/vip_team: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1396.166263
+  type: 'test'
+  location: '/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:13:298'
+  failureType: 'testCodeFailure'
+  error: 'Capture not found.'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    withdrawSandboxCapture (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/app/lib/sandbox-identity.ts:20:310)
+    async TestContext.<anonymous> (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:38:85)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# (node:1773863) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1773863) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (node:1773863) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: two application-produced service inputs retain distinct employer/engagement attribution within one SAST payroll period
+ok 10 - two application-produced service inputs retain distinct employer/engagement attribution within one SAST payroll period
+  ---
+  duration_ms: 1346.066317
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 9
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10492.06142

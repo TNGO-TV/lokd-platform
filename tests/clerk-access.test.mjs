@@ -53,9 +53,10 @@ test("Clerk verifies signatures, expiry and trusted origins before forwarding id
   };
   let lookups = 0;
   let twoFactorEnabled = true;
+  let sessionStatus="active",sessionUser="user_fixture",sessionExpiry=Date.now()+60000;
   const factory = (options) => {
     const client = createClerkClient({ ...options, telemetry: { disabled: true } });
-    return { ...client, users: { ...client.users, getUser: async (userId) => {
+    return { ...client, sessions:{getSession:async(id)=>({id,userId:sessionUser,status:sessionStatus,expireAt:sessionExpiry})}, users: { ...client.users, getUser: async (userId) => {
       assert.equal(userId, "user_fixture");
       lookups++;
       return { id: "user_fixture", twoFactorEnabled, firstName: "Fixture", lastName: "Officer",
@@ -82,6 +83,8 @@ test("Clerk verifies signatures, expiry and trusted origins before forwarding id
     const proof = await authenticateClerkRequest(request(token({fva})), environment, factory);
     assert.equal(proof.request.headers.has('x-lokd-verified-second-factor-at'), fva?.[1] === 0);
   }
+  for(const state of ["revoked","ended","expired"]){sessionStatus=state;const rejected=await authenticateClerkRequest(request(token()),environment,factory);assert.equal(rejected.request.headers.has("x-lokd-verified-user-id"),false);}
+  sessionStatus="active";sessionUser="wrong-person";assert.equal((await authenticateClerkRequest(request(token()),environment,factory)).request.headers.has("x-lokd-verified-user-id"),false);sessionUser="user_fixture";sessionExpiry=Date.now()-1;assert.equal((await authenticateClerkRequest(request(token()),environment,factory)).request.headers.has("x-lokd-verified-user-id"),false);sessionExpiry=Date.now()+60000;
   twoFactorEnabled = false;
   const unenrolled = await authenticateClerkRequest(request(token({fva:[0,0]})), environment, factory);
   assert.equal(unenrolled.request.headers.has('x-lokd-verified-second-factor-at'), false);

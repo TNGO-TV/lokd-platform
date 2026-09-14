@@ -1,5 +1,5 @@
 'use client';
-import {readWorkspaceResponse,WorkspaceRequestError,workspaceFailure} from './workspace-request';
+import {readWorkspaceResponse,WorkspaceRequestError,workspaceFailure,workspaceAccessDenied} from './workspace-request';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { PSIRA_SOURCE, type PsiraCase, type PsiraEvidence } from '../lib/psira-verification';
 import styles from './psira-verification.module.css';
@@ -18,12 +18,12 @@ export default function PsiraVerificationPanel({ scope }: { scope: 'officer' | '
   const endpoint=`/api/psira?scope=${scope}`;
   const refresh=useCallback(async()=>{
     setLoading(true);setError('');
-    try {const response=await fetch(endpoint,{cache:'no-store'});const data=await readResponse(response);setCases(data.cases);setCanAccess(true);}catch(e){setError(workspaceFailure(e,'Unable to load verification records.'));}finally{setLoading(false);}
+    try {const response=await fetch(endpoint,{cache:'no-store'});const data=await readResponse(response);setCases(data.cases);setCanAccess(true);}catch(e){if(workspaceAccessDenied(e)){setCases([]);setCanAccess(false);setNumber('');setDeclaration('');}setError(workspaceFailure(e,'Unable to load verification records.'));}finally{setLoading(false);}
   },[endpoint]);
   useEffect(()=>{const timer=setTimeout(()=>void refresh(),0);return()=>clearTimeout(timer);},[refresh]);
   async function action(body: Record<string,unknown>) {
     setBusy(true);setError('');setMessage('');
-    try {const response=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const data=await readResponse(response);setCases(data.cases);setMessage('Verification record saved.');}catch(e){setError(workspaceFailure(e,'Unable to save the record.'));}finally{setBusy(false);}
+    try {const response=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const data=await readResponse(response);setCases(data.cases);setMessage('Verification record saved.');}catch(e){if(workspaceAccessDenied(e)){setCases([]);setCanAccess(false);setNumber('');setDeclaration('');}setError(workspaceFailure(e,'Unable to save the record.'));}finally{setBusy(false);}
   }
   return <main className={styles.page}>
     <header><a href={scope==='officer'?'/officer':'/ops'}>← Back to {scope==='officer'?'Officer':'Operations'}</a><p className={styles.kicker}>LOKD · Registration evidence</p><h1>PSiRA verification</h1><p>A registration lookup and a match to the person are separate checks. Submission alone never verifies an officer.</p></header>

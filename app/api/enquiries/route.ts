@@ -60,7 +60,7 @@ function requireSignedInOperations(request: Request) {
   return requirePilotApiRole(request, "operations");
 }
 
-export async function POST(request: Request) {
+export async function submitClientEnquiry(request: Request,database?:D1Database) {
   try {
     requireSameOriginJson(request);
     const raw = await request.text();
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     if (input.advanceFundingAcknowledged !== true) throw new EnquiryError("Confirm that LOKD offers no credit terms and requires cleared advance funding.");
     if (input.privacyConsent !== true) throw new EnquiryError("Consent is required to save and respond to this enquiry.");
 
-    const db = getDb();
+    const db = database??getDb();
     const existing = await db.prepare(`SELECT id FROM client_enquiries
       WHERE email_normalized = ? AND organisation_name = ?
         AND environment = 'prelaunch' AND integrity_state = 'user_submitted'
@@ -119,6 +119,8 @@ export async function POST(request: Request) {
     return reply({ reference: id }, 202);
   } catch (cause) { return failure(cause); }
 }
+
+export async function POST(request:Request){return submitClientEnquiry(request);}
 
 export async function GET(request: Request) {
   try {

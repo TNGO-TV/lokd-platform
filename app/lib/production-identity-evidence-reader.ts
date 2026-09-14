@@ -8,6 +8,8 @@ export type IdentityEvidenceAccess = {
  purpose:'identity_review';
 };
 export type IdentityEvidenceReader = {
+ // Optional trusted source for isolated adapters; never accepted from request JSON.
+ source?:{provider:string;read(binding:IdentityBinding):Promise<IdentityResult|null>};
  // Server-owned approved policy; must check current capture consent/withdrawal,
  // reader assignment and exact case scope. No default or browser attestation.
  authorize(input:IdentityEvidenceAccess):Promise<{allowed:boolean;policyReference:string;decisionReference:string}>;
@@ -31,15 +33,16 @@ export async function readPrivateIdentityEvidence(db:D1Database,actor:SignupActo
  if(!reader)throw new SignupError('Private identity evidence access is not configured.',503);
  if(!opaque(caseId))throw unavailable();
  const row=await db.prepare('SELECT * FROM production_identity_cases WHERE id=?').bind(caseId).first<CaseRow>();
- if(!row||row.provider!=='verifynow-said-production-v1')throw unavailable();
+ if(!row||row.provider!==(reader.source?.provider??'verifynow-said-production-v1'))throw unavailable();
  const binding:IdentityBinding={caseId:row.id,applicantId:row.applicant_id,applicantVersion:row.applicant_version,ownerUserId:row.owner_user_id,bindingHash:row.binding_hash,captureReference:row.capture_reference};
  async function receipt(){
   const source=await identityCase(db,binding.ownerUserId,binding.applicantId).catch(error=>{if(error instanceof SignupError)throw unavailable();throw error;});
   if(source.version!==binding.applicantVersion)throw unavailable();
   if(await db.prepare('SELECT id FROM production_identity_suspensions WHERE case_id=? LIMIT 1').bind(caseId).first())throw unavailable();
-  const saved=await db.prepare('SELECT result_json FROM verifynow_production_receipts WHERE case_id=?').bind(caseId).first<{result_json:string}>();
-  let r:IdentityResult;try{r=JSON.parse(saved?.result_json??'null');}catch{throw unavailable();}
-  if(!r||!sameIdentityBinding(binding,r)||r.provider!==row!.provider||r.environment!=='production'||r.outcome!=='manual_review'||!opaque(r.evidenceReference)||!opaque(r.providerReference)||!/^[a-f0-9]{64}$/.test(r.evidenceHash)||!Number.isFinite(Date.parse(r.expiresAt))||Date.parse(r.expiresAt)<=Date.now()||!Number.isFinite(Date.parse(r.checkedAt))||Date.parse(r.checkedAt)>Date.now())throw unavailable();
+  let r:IdentityResult|null;
+  if(reader!.source)r=await reader!.source.read(binding);
+  else {const saved=await db.prepare('SELECT result_json FROM verifynow_production_receipts WHERE case_id=?').bind(caseId).first<{result_json:string}>();try{r=JSON.parse(saved?.result_json??'null');}catch{throw unavailable();}}
+  if(!r||!sameIdentityBinding(binding,r)||r.provider!==row!.provider||r.environment!=='production'||!(reader!.source?['verified','declined','no_record','manual_review','unavailable']:['manual_review']).includes(r.outcome)||!opaque(r.evidenceReference)||!opaque(r.providerReference)||!/^[a-f0-9]{64}$/.test(r.evidenceHash)||!Number.isFinite(Date.parse(r.expiresAt))||Date.parse(r.expiresAt)<=Date.now()||!Number.isFinite(Date.parse(r.checkedAt))||Date.parse(r.checkedAt)>Date.now())throw unavailable();
   return r;
  }
  const r=await receipt();
