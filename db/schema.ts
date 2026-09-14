@@ -3060,3 +3060,102 @@ export const payrollCorrectionDecisions=sqliteTable('payroll_correction_decision
  id:text('id').primaryKey().notNull(),reviewId:text('review_id').notNull().references(()=>payrollCorrectionReviews.id),decision:text('decision').notNull(),payloadHash:text('payload_hash').notNull(),
  operatorId:text('operator_id').notNull().references(()=>operatorAccounts.id),userId:text('user_id').notNull(),findings:text('findings').notNull(),authContext:text('auth_context').notNull(),createdAt:text('created_at').notNull(),
 },t=>[uniqueIndex('payroll_correction_one_decision').on(t.reviewId),check('payroll_correction_decision_value',sql`${t.decision} IN ('evidence_reviewed','rejected')`),check('payroll_correction_findings',sql`length(trim(${t.findings}))>=3`),check('payroll_correction_auth_context',sql`${t.authContext} IN ('mfa_verified','owner_mfa_exception')`)]);
+
+// Canonical finance sandbox workflow schema; column order preserves handler contracts.
+export const financeCommandApplications=sqliteTable('finance_command_applications',{
+ commandId:text('command_id').primaryKey().notNull().references(():AnySQLiteColumn=>financeWorkflowCommands.id),
+ reviewerUserId:text('reviewer_user_id').notNull(),
+ reviewerVersion:integer('reviewer_version').notNull(),
+ decision:text('decision').notNull(),
+ digest:text('digest').notNull(),
+ findings:text('findings').notNull(),
+ createdAt:text('created_at').notNull(),
+},()=>[check('finance_command_applications_check_0',sql.raw("decision IN('approved','rejected')")),check('finance_command_applications_check_1',sql.raw('length(trim(findings))>=3'))]);
+export const financeJournals=sqliteTable('finance_journals',{
+ id:text('id').primaryKey().notNull(),
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ commandId:text('command_id').notNull().references(():AnySQLiteColumn=>financeWorkflowCommands.id),
+ entriesJson:text('entries_json').notNull(),
+ createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('finance_journals_unique_0').on(t.commandId),check('finance_journals_check_0',sql.raw('json_valid(entries_json)'))]);
+export const financeMembers=sqliteTable('finance_members',{
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ userId:text('user_id').notNull(),
+ version:integer('version').notNull(),
+ role:text('role').notNull(),
+ limitCents:integer('limit_cents').notNull(),
+ active:integer('active').notNull(),
+},t=>[primaryKey({columns:[t.workspaceId,t.userId,t.version]}),check('finance_members_check_0',sql.raw('version>0')),check('finance_members_check_1',sql.raw("role IN('preparer','reviewer','client','officer','trainer')")),check('finance_members_check_2',sql.raw("typeof(limit_cents)='integer' AND limit_cents>=0")),check('finance_members_check_3',sql.raw('active IN(0,1)'))]);
+export const financeProviderClaims=sqliteTable('finance_provider_claims',{
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ operationId:text('operation_id').notNull(),
+ attempt:integer('attempt').notNull(),
+ reference:text('reference').notNull(),
+ providerMode:text('provider_mode').notNull(),
+ payloadJson:text('payload_json').notNull(),
+ createdAt:text('created_at').notNull(),
+},t=>[primaryKey({columns:[t.workspaceId,t.operationId,t.attempt]}),uniqueIndex('finance_provider_claims_unique_0').on(t.workspaceId,t.reference,t.attempt),check('finance_provider_claims_check_0',sql.raw('attempt>0')),check('finance_provider_claims_check_1',sql.raw("provider_mode IN('simulator','paystack_test')")),check('finance_provider_claims_check_2',sql.raw('json_valid(payload_json)'))]);
+export const financeProviderConflicts=sqliteTable('finance_provider_conflicts',{
+ id:text('id').primaryKey().notNull(),
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ operationId:text('operation_id').notNull(),
+ eventKey:text('event_key').notNull(),
+ digest:text('digest').notNull(),
+},()=>[]);
+export const financeProviderEvidence=sqliteTable('finance_provider_evidence',{
+ sequence:integer('sequence').primaryKey({autoIncrement:true}),
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ operationId:text('operation_id').notNull(),
+ source:text('source').notNull(),
+ eventKey:text('event_key').notNull(),
+ bodyJson:text('body_json').notNull(),
+ digest:text('digest').notNull(),
+ createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('finance_provider_evidence_unique_0').on(t.workspaceId,t.source,t.eventKey),check('finance_provider_evidence_check_0',sql.raw("source IN('api','webhook','bank')")),check('finance_provider_evidence_check_1',sql.raw('json_valid(body_json)'))]);
+export const financeRecords=sqliteTable('finance_records',{
+ sequence:integer('sequence').primaryKey({autoIncrement:true}),
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ id:text('id').notNull(),
+ kind:text('kind').notNull(),
+ version:integer('version').notNull(),
+ ownerUserId:text('owner_user_id').notNull(),
+ policyVersion:text('policy_version').notNull().references(():AnySQLiteColumn=>financeWorkflowPolicies.version),
+ dataJson:text('data_json').notNull(),
+ digest:text('digest').notNull(),
+ commandId:text('command_id').notNull(),
+ createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('finance_records_unique_0').on(t.workspaceId,t.id,t.version),check('finance_records_check_0',sql.raw('version>0')),check('finance_records_check_1',sql.raw('json_valid(data_json)'))]);
+export const financeSourceClaims=sqliteTable('finance_source_claims',{
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ sourceType:text('source_type').notNull(),
+ sourceId:text('source_id').notNull(),
+ sourceVersion:text('source_version').notNull(),
+ consumerId:text('consumer_id').notNull(),
+ commandId:text('command_id').notNull().references(():AnySQLiteColumn=>financeWorkflowCommands.id),
+},t=>[primaryKey({columns:[t.workspaceId,t.sourceType,t.sourceId]}),uniqueIndex('finance_provider_identity_unique').on(t.sourceId).where(sql.raw("source_type='provider-identity'"))]);
+export const financeWorkflowCommands=sqliteTable('finance_workflow_commands',{
+ id:text('id').primaryKey().notNull(),
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ requestKey:text('request_key').notNull(),
+ inputJson:text('input_json').notNull(),
+ planJson:text('plan_json').notNull(),
+ digest:text('digest').notNull(),
+ policyVersion:text('policy_version').notNull().references(():AnySQLiteColumn=>financeWorkflowPolicies.version),
+ makerUserId:text('maker_user_id').notNull(),
+ makerVersion:integer('maker_version').notNull(),
+ amountCents:integer('amount_cents').notNull(),
+ createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('finance_workflow_commands_unique_0').on(t.workspaceId,t.requestKey),check('finance_workflow_commands_check_0',sql.raw('json_valid(input_json)')),check('finance_workflow_commands_check_1',sql.raw('json_valid(plan_json)')),check('finance_workflow_commands_check_2',sql.raw("typeof(amount_cents)='integer' AND amount_cents>=0"))]);
+export const financeWorkflowPolicies=sqliteTable('finance_workflow_policies',{
+ version:text('version').primaryKey().notNull(),
+ environment:text('environment').notNull(),
+ rulesJson:text('rules_json').notNull(),
+ digest:text('digest').notNull(),
+ createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('finance_workflow_policies_unique_0').on(t.digest),check('finance_workflow_policies_check_0',sql.raw("environment='sandbox'")),check('finance_workflow_policies_check_1',sql.raw("json_valid(rules_json) AND json_extract(rules_json,'$.environment')='sandbox' AND json_extract(rules_json,'$.fictional')=1"))]);
+export const financeWorkspaces=sqliteTable('finance_workspaces',{
+ id:text('id').primaryKey().notNull(),
+ environment:text('environment').notNull(),
+ createdBy:text('created_by').notNull(),
+ createdAt:text('created_at').notNull(),
+},()=>[check('finance_workspaces_check_0',sql.raw("environment='sandbox'"))]);

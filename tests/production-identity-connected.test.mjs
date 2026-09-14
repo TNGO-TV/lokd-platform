@@ -77,6 +77,8 @@ test('completed linked service is consumed by independently approved payroll and
  await operateProduction(x.db,checker,{action:'grant_operator',email:checker.email,role:'payroll_reviewer',limitCents:1000000},headers);
  timesheet=(await readProductionService(x.db,checker)).timesheets[0];
  await recordProductionService(x.db,checker,{action:'review_service_pay',shiftId:activated.shiftId,version:timesheet.version,payableMinutes:timesheet.recorded_minutes,grossCents:80000,payEvidenceReviewed:true,note:'Isolated independent review of completed attendance and contractual pay'},headers);
+ const {financeWorkflowConnected}=await import('./fixtures/finance-workflow-connected.mjs');
+ await financeWorkflowConnected({...x,shiftId:activated.shiftId,maker,checker,applicant,client});
  const consumed=await consumeConnectedPayroll({...x,shiftId:activated.shiftId,maker,checker,applicant,client});
  const tables=['assignment_activation_snapshots','assignment_workforce_snapshots','shift_timesheets','production_service_events','payroll_runs','payroll_items','pay_item_sources','production_payroll_snapshots','production_payroll_decisions','finance_document_versions','finance_document_decisions','finance_document_issues'];
  const history=()=>Object.fromEntries(tables.map(t=>[t,x.database.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all()]));const before=history();
