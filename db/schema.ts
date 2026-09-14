@@ -3048,3 +3048,15 @@ export const bookingRefundReceipts=sqliteTable('booking_refund_receipts',{
  authContext:text("auth_context").notNull(),
  createdAt:text("created_at").notNull(),
 },()=>[check("booking_refund_receipts_check_0",sql.raw("length(bank_hash)=64")),check("booking_refund_receipts_check_1",sql.raw("typeof(bank_amount_minor)='integer' AND bank_amount_minor>0")),check("booking_refund_receipts_check_2",sql.raw("json_valid(payload_json)")),check("booking_refund_receipts_check_3",sql.raw("length(payload_hash)=64")),check("booking_refund_receipts_check_4",sql.raw("length(trim(note))>=3")),check("booking_refund_receipts_check_5",sql.raw("auth_context IN('mfa_verified','owner_mfa_exception')"))]);
+
+export const payrollCorrectionReviews=sqliteTable('payroll_correction_reviews',{
+ id:text('id').primaryKey().notNull(),requestKey:text('request_key').notNull(),itemId:text('item_id').notNull().references(()=>payrollItems.id),
+ parentId:text('parent_id').references(():AnySQLiteColumn=>payrollCorrectionReviews.id),sourceJson:text('source_json').notNull(),financialJson:text('financial_json').notNull(),
+ exportReference:text('export_reference').notNull(),requestJson:text('request_json').notNull(),payloadHash:text('payload_hash').notNull(),
+ operatorId:text('operator_id').notNull().references(()=>operatorAccounts.id),userId:text('user_id').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('payroll_correction_request_key').on(t.requestKey),uniqueIndex('payroll_correction_successor').on(t.parentId).where(sql`${t.parentId} IS NOT NULL`),
+ check('payroll_correction_source_json',sql`json_valid(${t.sourceJson})`),check('payroll_correction_financial_json',sql`json_valid(${t.financialJson})`),check('payroll_correction_request_json',sql`json_valid(${t.requestJson})`),check('payroll_correction_payload_hash',sql`length(${t.payloadHash})=64`)]);
+export const payrollCorrectionDecisions=sqliteTable('payroll_correction_decisions',{
+ id:text('id').primaryKey().notNull(),reviewId:text('review_id').notNull().references(()=>payrollCorrectionReviews.id),decision:text('decision').notNull(),payloadHash:text('payload_hash').notNull(),
+ operatorId:text('operator_id').notNull().references(()=>operatorAccounts.id),userId:text('user_id').notNull(),findings:text('findings').notNull(),authContext:text('auth_context').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('payroll_correction_one_decision').on(t.reviewId),check('payroll_correction_decision_value',sql`${t.decision} IN ('evidence_reviewed','rejected')`),check('payroll_correction_findings',sql`length(trim(${t.findings}))>=3`),check('payroll_correction_auth_context',sql`${t.authContext} IN ('mfa_verified','owner_mfa_exception')`)]);

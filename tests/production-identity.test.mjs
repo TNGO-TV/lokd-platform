@@ -153,3 +153,20 @@ test('VerifyNow receipt survives ID-01 projection failure and recovers without d
   await assert.rejects(approve(db,restored),/current identity review/);
  }finally{db.sql.close();}
 });
+
+test('private reader uses canonical provider receipt, applicant currentness and suspension audit',async()=>{
+ const {createVerifyNowProductionProvider}=await import('../app/lib/verifynow-production.ts');
+ const {verifyNowD1Receipts}=await import('../app/lib/verifynow-receipts.ts');
+ const {readPrivateIdentityEvidence}=await import('../app/lib/production-identity-evidence-reader.ts');
+ const {db,caseId}=await setup();let bytes;
+ try{
+  const capture={...input(caseId),ownerUserId:applicant.userId,environment:'production',idNumber:'0000000000000',capturedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+60000).toISOString(),consentEvidenceReference:'fixture-consent-evidence'};
+  const port=createVerifyNowProductionProvider({apiKey:'fixture-key',policyReference:'fixture-policy',evidenceLifetimeMs:30000,captures:{read:async()=>capture},receipts:verifyNowD1Receipts(db),evidence:{put:async(_id,value)=>{bytes=value;return 'private-fixture:response';}},transport:async()=>Response.json({success:true,requestId:'fixture-private-request',mode:'production',reportType:'said_verification',input:{idNumber:capture.idNumber},results:{said_verification:{Status:'Success',realTimeResults:{Status:'ID Number Valid'},meta:{environment:'production',timestamp:new Date().toISOString()}}}})});
+  const state=await start(db,applicant,input(caseId),port);assert.equal(state.outcome,'manual_review');
+  const reader={authorize:async()=>({allowed:true,policyReference:'fixture-private-access',decisionReference:'fixture-decision'}),open:async reference=>({caseId:state.id,reference,body:new Response(bytes).body})};
+  const response=await readPrivateIdentityEvidence(db,reviewer,state.id,reader);assert.deepEqual(new Uint8Array(await response.arrayBuffer()),bytes);
+  assert.equal(db.sql.prepare("SELECT count(*) n FROM audit_events WHERE event_type='identity_provider_evidence_read_ready' AND actor_id=?").get(reviewer.userId).n,1);
+  assert.equal((await read(db,applicant,state.id)).identityVerified,false);
+  await suspend(db,reviewer,state.id,'Fixture withdrawal');await assert.rejects(readPrivateIdentityEvidence(db,reviewer,state.id,reader));
+ }finally{db.sql.close();}
+});

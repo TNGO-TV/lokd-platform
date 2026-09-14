@@ -27,6 +27,8 @@ export async function consumeConnectedPayroll({db,database,officerId,shiftId,mak
  assert.equal(database.prepare('SELECT count(*) AS n FROM pay_item_sources WHERE timesheet_id=?').get(t.id).n,1);
  const snapshot=database.prepare('SELECT * FROM production_payroll_snapshots WHERE run_id=?').get(prepared.runId),item=JSON.parse(snapshot.payload_json).items[0];
  assert.equal(JSON.parse(snapshot.payload_json).calendar,'Africa/Johannesburg');assert.equal(item.officerId,officerId);assert.equal(item.engagementId,t.workforce_engagement_id);assert.equal(item.sources[0].id,t.id);assert.equal(item.calculation.grossCents,t.gross_wage_cents);assert.equal(item.calculation.earnings[0].minutes,t.payable_minutes);
+ const {preparePayrollCorrectionReview}=await import('../../app/lib/payroll-correction-reviews.ts');
+ await assert.rejects(()=>preparePayrollCorrectionReview(db,maker,{itemId:item.id},freshHeaders(maker)),/exported payroll item/);
  const run=()=>database.prepare('SELECT * FROM payroll_runs WHERE id=?').get(prepared.runId);
  const command=action=>({action,runId:prepared.runId,version:run().version,calculationHash:snapshot.payload_hash,calculationReviewed:true,note:'Independent synthetic payroll calculation inspection'});
  await assert.rejects(decideProductionPayroll(db,maker,command('first_approve_payroll'),freshHeaders(maker)),/maker/);
@@ -40,6 +42,8 @@ export async function consumeConnectedPayroll({db,database,officerId,shiftId,mak
  const {financeDocumentJourney}=await import('./finance-document-journey.mjs');
  const document=await financeDocumentJourney({db,database,maker,finance,recipient:applicant,kind:'payslip',sourceId:item.id,headers:freshHeaders(finance)});
  assert.equal((await document.read()).documents[0].currentState,'unpaid');
+ const {payrollCorrectionReviewJourney}=await import('./payroll-correction-review-journey.mjs');
+ await payrollCorrectionReviewJourney({db,database,itemId:item.id,maker,finance,applicant,headers:freshHeaders});
  const {consumeConnectedPayment}=await import('./connected-payment-consumption.mjs');
  const payment=await consumeConnectedPayment({db,database,runId:prepared.runId,officerId,maker,checker,finance,applicant,document,headers:freshHeaders});
  assert.equal(payment.dispatches,1);assert.equal(payment.restored,true);

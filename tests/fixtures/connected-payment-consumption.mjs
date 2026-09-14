@@ -88,7 +88,12 @@ export async function consumeConnectedPayment({db,database,runId,officerId,maker
   assert.equal(financial().financial_state,'paid');assert.equal(financial().paid_receipts,1);
   assert.equal((await document.read()).documents[0].currentState,'paid');assert.equal((await document.read()).documents[0].asIssuedState,'unpaid');
   const paidHistory=JSON.stringify(database.prepare('SELECT * FROM payment_live_reconciliation_decisions ORDER BY rowid').all());
+  const {preparePayrollCorrectionReview,decidePayrollCorrectionReview,readPayrollCorrectionReviews}=await import('../../app/lib/payroll-correction-reviews.ts');
+  const correction=await preparePayrollCorrectionReview(db,maker,{itemId:item.id,requestKey:'paid-correction',originalReviewed:true,findings:'Review the paid payslip before further changes.',requestedCorrection:'Review recorded earnings against the supporting source.',evidenceReference:'fixture-paid-source',evidenceHash:'1'.repeat(64)},headers(maker));
+  const correctionRow=database.prepare('SELECT * FROM payroll_correction_reviews WHERE id=?').get(correction.reviewId);
   status='reversed';await signed();assert.equal(financial().financial_state,'held');assert.equal((await document.read()).documents[0].currentState,'held');
+  await assert.rejects(()=>decidePayrollCorrectionReview(db,finance,{reviewId:correction.reviewId,payloadHash:correctionRow.payload_hash,decision:'evidence_reviewed',originalReviewed:true,findings:'Attempt review against stale paid evidence.'},headers(finance)),/current payroll evidence/);
+  await decidePayrollCorrectionReview(db,finance,{reviewId:correction.reviewId,payloadHash:correctionRow.payload_hash,decision:'rejected',originalReviewed:true,findings:'New reversal evidence requires a fresh review.'},headers(finance));
   await execute(finance,'verify_live_payment');await reconcile('returned','e'.repeat(64),item.net_pay_cents);
   assert.equal(financial().financial_state,'reversed');assert.equal(financial().paid_receipts,1);assert.equal(posts,1);
   assert.equal((await document.read()).documents[0].currentState,'reversed');assert.equal((await document.read()).documents[0].asIssuedState,'unpaid');
@@ -102,7 +107,7 @@ export async function consumeConnectedPayment({db,database,runId,officerId,maker
   // exists. This is a guarded domain action, not a raw history/state mutation.
   const engagementReview=database.prepare("SELECT id FROM production_evidence_reviews WHERE kind='engagement' AND state='approved' AND json_extract(payload_json,'$.engagementId')=?").get(item.workforce_engagement_id);
   assert.ok(engagementReview);
-  const historyTables=['employee_payment_instructions','employee_payment_commands','employee_transfer_observations','payment_live_claims','payment_live_reserves','payment_live_reserve_decisions','payment_live_releases','payment_live_release_decisions','payment_live_reconciliation_reviews','payment_live_reconciliation_decisions','payroll_runs','payroll_items','pay_item_sources','production_payroll_snapshots','production_payroll_decisions','finance_document_versions','finance_document_decisions','finance_document_issues'];
+  const historyTables=['employee_payment_instructions','employee_payment_commands','employee_transfer_observations','payment_live_claims','payment_live_reserves','payment_live_reserve_decisions','payment_live_releases','payment_live_release_decisions','payment_live_reconciliation_reviews','payment_live_reconciliation_decisions','payroll_runs','payroll_items','pay_item_sources','production_payroll_snapshots','production_payroll_decisions','finance_document_versions','finance_document_decisions','finance_document_issues','payroll_correction_reviews','payroll_correction_decisions'];
   const retainedHistory=()=>Object.fromEntries(historyTables.map(table=>[table,database.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()]));
   const beforeSuspension=retainedHistory();
   assert.deepEqual(decisions.filter(d=>d.decision==='approved').map(d=>d.disposition),['success','reversed']);
@@ -117,6 +122,7 @@ export async function consumeConnectedPayment({db,database,runId,officerId,maker
   assert.equal(financial().financial_state,'reversed');assert.equal(financial().paid_receipts,1);
   const afterSuspension=(await document.read()).documents[0];
   assert.equal(afterSuspension.currentState,'reversed');assert.equal(afterSuspension.asIssuedState,'unpaid');
+  const reviewHistory=await readPayrollCorrectionReviews(db,finance,headers(finance),item.id);const retained=reviewHistory.reviews.find(r=>r.id===correction.reviewId);assert.equal(retained.paymentStateWhenRecorded,'paid');assert.equal(retained.currentPaymentState,'reversed');assert.equal(retained.decision,'rejected');
   assert.equal(posts,1);
 
  }finally{db.batch=oldBatch;database.exec('ROLLBACK TO connected_payment; RELEASE connected_payment');}

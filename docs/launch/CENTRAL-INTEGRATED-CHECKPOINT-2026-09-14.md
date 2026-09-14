@@ -33,3 +33,9 @@ Missing contracts prevent completion of full person-capture identity, partner re
 ## Incremental credit access follow-up
 
 Owner a7a710e imported against8b5a9b5 and independently accepted:credit GET401/403 clears private records/forms/downloads; temporary failures preserve drafts and unknown request keys. Central corrected contradictory retained-data wording.46 affected browser cases plus4 targeted final-wording reruns passed; types/changed-file lint/build passed. Broad404/170 totals above describe the preceding checkpoint, not newly repeated suites. See fe-credit-access-followup/CENTRAL-ACCEPTANCE.md. Full product gates remain open; no deployment/live testing.
+
+## Subsequent EX01 and identity evidence checkpoint
+
+Payroll owner732955b and identity ownerb5a935b are integrated locally after be2423d. Canonical0072 adds immutable payslip supporting-record reporting and independent review; Central adds the corresponding lazy Operations UI. Neither review nor its decisions change wages, release payments or replace payslips. ID-PROVIDER-03 adds an explicitly authorized, integrity-checked private evidence reader; it remains unmounted pending approved vault/policy wiring. Current readiness inventory supersedes the earlier count:1272 objects through0072.
+
+Latest complete backend regression415/415 passes; independent browser acceptance38/38 passes (22 new review cases,10 recovery and6 navigation). These browser totals are targeted, not a repeat of the earlier170-case full suite. Independent canonical/API and reader QA accepted their bounded scope. Final build/static evidence and provenance are in CENTRAL-EX01-ID03-ACCEPTANCE-2026-09-14.md and central-ex01-id03-checks. Full product build remains incomplete; reviewv69 is still the last verified deployment, and no live testing occurred.
