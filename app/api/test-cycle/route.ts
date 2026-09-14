@@ -13,5 +13,5 @@ function actor(request:Request){const url=new URL(request.url),kind=url.searchPa
  return {userId,email,operations};
 }
 const fail=(e:unknown)=>e instanceof SignupError||e instanceof PilotAccessError?reply({error:e.message},e.status):reply({error:'Test cycle unavailable. No service or payment authorised.'},503);
-export async function GET(request:Request){try{const a=actor(request),url=new URL(request.url);if(!env.DB)throw new SignupError('Storage unavailable.',503);return reply(await readTestCycles(env.DB,a));}catch(e){return fail(e);}}
+export async function GET(request:Request){try{const a=actor(request);if(!env.DB)throw new SignupError('Storage unavailable.',503);return reply(await readTestCycles(env.DB,a));}catch(e){return fail(e);}}
 export async function POST(request:Request){try{requireSameOriginJson(request);const a=actor(request);if(!env.DB)throw new SignupError('Storage unavailable.',503);const raw=await request.text();if(raw.length>4000)throw new SignupError('Request too large.',413);let input;try{input=JSON.parse(raw);}catch{throw new SignupError('Invalid request.');}if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Invalid document action.');return reply(await writeTestCycle(env.DB,a,{...input,kind:new URL(request.url).searchParams.get('kind')}));}catch(e){return fail(e);}}

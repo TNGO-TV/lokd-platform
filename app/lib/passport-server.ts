@@ -49,7 +49,7 @@ export async function evaluateBookingReadiness(
     b.start_date AS startDate,
     COALESCE((SELECT MAX(slot.ends_at) FROM roster_slots slot WHERE slot.booking_id = b.id), b.end_date || 'T23:59:59.999Z') AS validThrough,
     o.approval_status AS approvalStatus, o.psira_grade AS psiraGrade,
-    o.psira_expiry AS psiraExpiry, p.status AS passportStatus, p.next_review_at AS passportNextReviewAt,
+    o.psira_expiry AS psiraExpiry, p.status AS passportStatus, p.next_review_at AS passportNextReviewAt, p.evidence_reference AS passportEvidenceReference,
     os.qualified AS serviceQualified, os.opted_in AS serviceOptedIn,
     os.qualification_expiry AS qualificationExpiry
     FROM bookings b
@@ -70,11 +70,20 @@ export async function evaluateBookingReadiness(
       psiraExpiry: string;
       passportStatus: PassportStatus | null;
       passportNextReviewAt: string | null;
+      passportEvidenceReference: string | null;
       serviceQualified: number | null;
       serviceOptedIn: number | null;
       qualificationExpiry: string | null;
     }>();
   if (!row) return { eligible: false, displayStatus: "restricted" as PassportStatus, blockers: ["Booking or officer record was not found."], warnings: [] };
+  if (row.passportEvidenceReference?.startsWith('readiness-passport:')) {
+    const current = await db.prepare(`SELECT p.id FROM usable_production_readiness_passports p
+      WHERE p.officer_id=? AND 'readiness-passport:'||p.id=? AND julianday(p.expires_at)>=julianday(?)
+      AND EXISTS(SELECT 1 FROM json_each(p.items_json) j JOIN current_production_readiness_reviews r ON r.id=j.value WHERE r.service_type=?)
+      AND EXISTS(SELECT 1 FROM json_each(p.items_json) j JOIN current_production_readiness_reviews r ON r.id=j.value WHERE r.purpose_code=?)`)
+      .bind(officerId,row.passportEvidenceReference,row.validThrough,row.serviceType,row.purposeCode).first();
+    if (!current) return {eligible:false,displayStatus:'restricted' as PassportStatus,blockers:['Current scoped readiness evidence must cover the assignment.'],warnings:[]};
+  }
   const [endorsements, compliance] = await Promise.all([
     readEndorsements(db, officerId),
     all<{ recordType: string; status: string; expiresAt: string | null; nextDueAt: string | null }>(
@@ -170,11 +179,12 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
   const hash = await tokenHash(rawToken);
   const passport = await db.prepare(`SELECT p.officer_id AS officerId, p.passport_number AS passportNumber,
     p.status, p.readiness_label AS readinessLabel, p.last_reviewed_at AS lastReviewedAt,
-    p.next_review_at AS nextReviewAt, p.environment, p.integrity_state AS integrityState,
+    p.next_review_at AS nextReviewAt, p.environment, p.integrity_state AS integrityState, p.evidence_reference AS evidenceReference,
     o.full_name AS officerName, o.psira_grade AS psiraGrade,
     o.psira_expiry AS psiraExpiry FROM officer_passports p JOIN officers o ON o.id = p.officer_id
     WHERE p.public_token_hash = ?`).bind(hash).first<{
       officerId: string;
+      evidenceReference: string | null;
       passportNumber: string;
       status: PassportStatus;
       readinessLabel: string;
@@ -188,6 +198,10 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
     }>();
   if (!passport) return null;
 
+  const managedPassport = passport.evidenceReference?.startsWith('readiness-passport:') === true;
+  const ledgerCurrent = !managedPassport || Boolean(await db.prepare(`SELECT id FROM usable_production_readiness_passports
+    WHERE officer_id=? AND token_hash=? AND 'readiness-passport:'||id=?`)
+    .bind(passport.officerId,hash,passport.evidenceReference).first());
   const today = new Date().toISOString().slice(0, 10);
   const psiraCurrent = passport.psiraExpiry.slice(0, 10) >= today;
   const coreStatusCurrent = passport.status === "active" || passport.status === "expiring";
@@ -219,8 +233,8 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
       WHERE s.id = ? AND b.id = ? AND s.officer_id = ?
         AND s.environment = ? AND s.integrity_state = ?
         AND b.environment = ? AND b.integrity_state = ?`)
-      .bind(shiftId, bookingId, passport.officerId, passport.environment, passport.integrityState,
-        passport.environment, passport.integrityState).first<{
+      .bind(shiftId, bookingId, passport.officerId, passport.environment, managedPassport ? 'production_verified' : passport.integrityState,
+        passport.environment, managedPassport ? 'production_verified' : passport.integrityState).first<{
         bookingId: string; serviceType: ServiceType; purposeLabel: string; scheduledDate: string;
         shiftStart: string; shiftEnd: string; verificationStatus: string; verifiedAt: string | null;
       }>() : null;
@@ -240,7 +254,7 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
 
   let result: PublicPassport["result"] = "green";
   let message = "Passport current. Officer is LOKD Ready.";
-  if (!coreStatusCurrent || !reviewCurrent || !psiraCurrent || !coreCurrent) {
+  if (!ledgerCurrent || !coreStatusCurrent || !reviewCurrent || !psiraCurrent || !coreCurrent) {
     result = "red";
     message = "Passport is not current. Do not deploy this officer until LOKD confirms clearance.";
   } else if (!assignmentMatch) {
@@ -254,7 +268,7 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
     message = "Passport is current for this assignment. A readiness review is due soon.";
   }
 
-  const synthetic = passport.environment !== "production" || passport.integrityState !== "production_verified";
+  const synthetic = passport.environment !== "production" || (passport.integrityState !== "production_verified" && !(managedPassport && passport.integrityState === "verified"));
   if (synthetic) {
     result = "grey";
     message = assignmentMatch

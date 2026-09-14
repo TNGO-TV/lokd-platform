@@ -10,8 +10,17 @@ export const WORKSPACE_PATHS: Record<WorkspaceRole, string> = {
 // return URLs and keep subdomain logins in their own workspace.
 export function signInDestination(hostname: string, requested?: string): string {
   const role = workspaceRoleForHost(hostname);
-  if (role) return WORKSPACE_PATHS[role];
-  return (requested === "/signup" || Object.values(WORKSPACE_PATHS).includes(requested ?? "")) ? requested! : "/";
+  const fallback = role ? WORKSPACE_PATHS[role] : "/";
+  if (!requested || /[\\\x00-\x20]/.test(requested) || !requested.startsWith("/") || requested.startsWith("//")) return fallback;
+  const url = new URL(requested, "https://lokd.local");
+  const paths = ["/signup", ...Object.values(WORKSPACE_PATHS).flatMap(base =>
+    ["", "/agreements", "/service", "/test-cycle", ...(base === "/client" ? [] : ["/identity", "/readiness", "/psira"]), ...(base === "/ops" ? ["/intake", "/security"] : [])].map(suffix => base + suffix))];
+  if (url.origin !== "https://lokd.local" || !paths.includes(url.pathname)) return fallback;
+  if (role && url.pathname !== fallback && !url.pathname.startsWith(fallback + "/")) return fallback;
+  const allowed = url.pathname.endsWith("/readiness") ? ["applicantId", "officerId", "identityId"] : url.pathname.endsWith("/identity") ? ["caseId"] : url.pathname === "/ops/intake" || url.pathname === "/signup" ? ["kind"] : [];
+  const query = new URLSearchParams();
+  for (const key of allowed) { const value = url.searchParams.get(key); if (value && value.length <= 300 && !/[\x00-\x1f]/.test(value)) query.set(key, value); }
+  return url.pathname + (query.size ? "?" + query.toString() : "");
 }
 
 export function cleanIdentityHeaders(request: Request): Headers {

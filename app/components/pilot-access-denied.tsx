@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { PUBLIC_SITE_URL } from "../lib/public-site";
 import { lokdSignOutPath } from "../lokd-auth";
@@ -13,7 +14,7 @@ const labels: Record<PilotRole, string> = {
 export default function PilotAccessDenied({ email, role }: { email: string; role: PilotRole }) {
   return <main className="pilot-access-shell">
     <section className="pilot-access-card">
-      <Link href="/" aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></Link>
+      <Link href="/" aria-label="LOKD home"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" /></Link>
       <p className="public-kicker">Account access</p>
       <h1>{labels[role]} access is not assigned.</h1>
       <p>You are signed in as <strong>{email}</strong>. LOKD has not linked this account to the requested role.</p>

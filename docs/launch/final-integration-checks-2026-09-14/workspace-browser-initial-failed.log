@@ -1,0 +1,287 @@
+
+Running 78 tests using 1 worker
+
+(node:1503017) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [mobile-360] › tests/frontend/navigation.spec.mjs:27:49 › /client: navigation, direct links, empty states and keyboard (718ms)
+  ✓   2 [mobile-360] › tests/frontend/navigation.spec.mjs:27:49 › /officer: navigation, direct links, empty states and keyboard (829ms)
+  ✘   3 [mobile-360] › tests/frontend/navigation.spec.mjs:27:49 › /ops: navigation, direct links, empty states and keyboard (878ms)
+(node:1503228) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   4 [mobile-360] › tests/frontend/navigation.spec.mjs:45:1 › Operations intake selection survives reload and direct links (312ms)
+  ✓   5 [mobile-360] › tests/frontend/navigation.spec.mjs:48:43 › intake 401: useful error and preserved edits through failed refresh (351ms)
+  ✓   6 [mobile-360] › tests/frontend/navigation.spec.mjs:48:43 › intake 403: useful error and preserved edits through failed refresh (484ms)
+  ✓   7 [mobile-360] › tests/frontend/navigation.spec.mjs:48:43 › intake 409: useful error and preserved edits through failed refresh (449ms)
+  ✓   8 [mobile-360] › tests/frontend/navigation.spec.mjs:48:43 › intake 423: useful error and preserved edits through failed refresh (470ms)
+  ✓   9 [mobile-360] › tests/frontend/navigation.spec.mjs:48:43 › intake 503: useful error and preserved edits through failed refresh (504ms)
+  ✓  10 [mobile-360] › tests/frontend/navigation.spec.mjs:54:1 › agreement expiry removes signature action without refreshing (5.6s)
+  ✘  11 [mobile-360] › tests/frontend/navigation.spec.mjs:58:1 › public routes retain mobile navigation and one exact active destination (9.4s)
+(node:1504254) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  12 [mobile-360] › tests/frontend/navigation.spec.mjs:63:1 › workspace reflows at 200 percent text size (337ms)
+  ✓  13 [mobile-360] › tests/frontend/navigation.spec.mjs:67:115 › agreements/production 401: recovery keeps draft and does not replay (436ms)
+  ✓  14 [mobile-360] › tests/frontend/navigation.spec.mjs:67:115 › agreements/production 403: recovery keeps draft and does not replay (489ms)
+  ✓  15 [mobile-360] › tests/frontend/navigation.spec.mjs:67:115 › agreements/production 409: recovery keeps draft and does not replay (413ms)
+  ✓  16 [mobile-360] › tests/frontend/navigation.spec.mjs:67:115 › agreements/production 423: recovery keeps draft and does not replay (410ms)
+  ✓  17 [mobile-360] › tests/frontend/navigation.spec.mjs:67:115 › agreements/production 503: recovery keeps draft and does not replay (445ms)
+  ✓  18 [mobile-360] › tests/frontend/navigation.spec.mjs:67:115 › production-operations 401: recovery keeps draft and does not replay (391ms)
+  ✓  19 [mobile-360] › tests/frontend/navigation.spec.mjs:67:115 › production-operations 403: recovery keeps draft and does not replay (345ms)
+  ✓  20 [mobile-360] › tests/frontend/navigation.spec.mjs:67:115 › production-operations 409: recovery keeps draft and does not replay (374ms)
+  ✓  21 [mobile-360] › tests/frontend/navigation.spec.mjs:67:115 › production-operations 423: recovery keeps draft and does not replay (335ms)
+  ✓  22 [mobile-360] › tests/frontend/navigation.spec.mjs:67:115 › production-operations 503: recovery keeps draft and does not replay (356ms)
+  ✓  23 [mobile-360] › tests/frontend/navigation.spec.mjs:77:1 › PSiRA draft survives a failed refresh and requires status review (291ms)
+  ✓  24 [mobile-360] › tests/frontend/navigation.spec.mjs:81:1 › agreement structured details preserve every source field and exact wording (292ms)
+  ✓  25 [mobile-360] › tests/frontend/navigation.spec.mjs:86:1 › identity session recovery preserves the case return path (161ms)
+  ✓  26 [mobile-360] › tests/frontend/navigation.spec.mjs:89:1 › Operations PSiRA review retains source evidence across a failed refresh (255ms)
+  ✓  27 [mobile-360] › tests/frontend/navigation.spec.mjs:92:1 › uncertain booking checkout keeps its original reference and offers no replacement (345ms)
+  ✓  28 [mobile-360] › tests/frontend/private-passport.spec.mjs:3:1 › officer sends only hash and keeps token private until approved (278ms)
+  ✓  29 [mobile-360] › tests/frontend/private-passport.spec.mjs:8:1 › private verifier clears fragment and uses read-only POST body (143ms)
+  ✓  30 [mobile-360] › tests/frontend/private-passport.spec.mjs:11:1 › protected audit preserves system attribution and linked human provenance (246ms)
+  ✘  31 [mobile-360] › tests/frontend/readiness.spec.mjs:17:1 › Operations reads explicit readiness, hold limits and guarded private delivery (300ms)
+(node:1505092) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  32 [mobile-360] › tests/frontend/readiness.spec.mjs:25:1 › Officer changes only own service choice with the saved revision (301ms)
+  ✓  33 [mobile-360] › tests/frontend/readiness.spec.mjs:31:1 › failed refresh and uncertain write preserve correction draft without automatic resubmission (436ms)
+  ✓  34 [mobile-360] › tests/frontend/readiness.spec.mjs:38:1 › changed source requires deliberate re-review without losing notes (402ms)
+  ✓  35 [mobile-360] › tests/frontend/readiness.spec.mjs:44:1 › switching records requires explicit draft discard (310ms)
+  ✓  36 [mobile-360] › tests/frontend/readiness.spec.mjs:47:1 › private passport metadata never exposes a returned credential or fabricates delivery (187ms)
+  ✓  37 [mobile-360] › tests/frontend/readiness.spec.mjs:51:1 › owner decision controls are absent for ordinary Operations (186ms)
+  ✓  38 [mobile-360] › tests/frontend/readiness.spec.mjs:55:1 › keyboard navigation keeps drafts when leaving is cancelled (252ms)
+  ✓  39 [mobile-360] › tests/frontend/readiness.spec.mjs:60:1 › section links track direct hashes and browser back (248ms)
+(node:1505454) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  40 [desktop] › tests/frontend/navigation.spec.mjs:27:49 › /client: navigation, direct links, empty states and keyboard (842ms)
+(node:1505602) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  41 [desktop] › tests/frontend/navigation.spec.mjs:27:49 › /officer: navigation, direct links, empty states and keyboard (989ms)
+(node:1505767) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  42 [desktop] › tests/frontend/navigation.spec.mjs:27:49 › /ops: navigation, direct links, empty states and keyboard (1.0s)
+(node:1505929) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  43 [desktop] › tests/frontend/navigation.spec.mjs:45:1 › Operations intake selection survives reload and direct links (375ms)
+  ✓  44 [desktop] › tests/frontend/navigation.spec.mjs:48:43 › intake 401: useful error and preserved edits through failed refresh (376ms)
+  ✓  45 [desktop] › tests/frontend/navigation.spec.mjs:48:43 › intake 403: useful error and preserved edits through failed refresh (364ms)
+  ✓  46 [desktop] › tests/frontend/navigation.spec.mjs:48:43 › intake 409: useful error and preserved edits through failed refresh (376ms)
+  ✓  47 [desktop] › tests/frontend/navigation.spec.mjs:48:43 › intake 423: useful error and preserved edits through failed refresh (387ms)
+  ✓  48 [desktop] › tests/frontend/navigation.spec.mjs:48:43 › intake 503: useful error and preserved edits through failed refresh (401ms)
+  ✓  49 [desktop] › tests/frontend/navigation.spec.mjs:54:1 › agreement expiry removes signature action without refreshing (5.6s)
+  ✘  50 [desktop] › tests/frontend/navigation.spec.mjs:58:1 › public routes retain mobile navigation and one exact active destination (5.8s)
+(node:1506347) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  51 [desktop] › tests/frontend/navigation.spec.mjs:63:1 › workspace reflows at 200 percent text size (241ms)
+  ✓  52 [desktop] › tests/frontend/navigation.spec.mjs:67:115 › agreements/production 401: recovery keeps draft and does not replay (339ms)
+  ✓  53 [desktop] › tests/frontend/navigation.spec.mjs:67:115 › agreements/production 403: recovery keeps draft and does not replay (305ms)
+  ✓  54 [desktop] › tests/frontend/navigation.spec.mjs:67:115 › agreements/production 409: recovery keeps draft and does not replay (292ms)
+  ✓  55 [desktop] › tests/frontend/navigation.spec.mjs:67:115 › agreements/production 423: recovery keeps draft and does not replay (312ms)
+  ✓  56 [desktop] › tests/frontend/navigation.spec.mjs:67:115 › agreements/production 503: recovery keeps draft and does not replay (353ms)
+  ✓  57 [desktop] › tests/frontend/navigation.spec.mjs:67:115 › production-operations 401: recovery keeps draft and does not replay (281ms)
+  ✓  58 [desktop] › tests/frontend/navigation.spec.mjs:67:115 › production-operations 403: recovery keeps draft and does not replay (297ms)
+  ✓  59 [desktop] › tests/frontend/navigation.spec.mjs:67:115 › production-operations 409: recovery keeps draft and does not replay (287ms)
+  ✓  60 [desktop] › tests/frontend/navigation.spec.mjs:67:115 › production-operations 423: recovery keeps draft and does not replay (337ms)
+  ✓  61 [desktop] › tests/frontend/navigation.spec.mjs:67:115 › production-operations 503: recovery keeps draft and does not replay (349ms)
+  ✓  62 [desktop] › tests/frontend/navigation.spec.mjs:77:1 › PSiRA draft survives a failed refresh and requires status review (286ms)
+  ✓  63 [desktop] › tests/frontend/navigation.spec.mjs:81:1 › agreement structured details preserve every source field and exact wording (279ms)
+  ✓  64 [desktop] › tests/frontend/navigation.spec.mjs:86:1 › identity session recovery preserves the case return path (154ms)
+  ✓  65 [desktop] › tests/frontend/navigation.spec.mjs:89:1 › Operations PSiRA review retains source evidence across a failed refresh (251ms)
+  ✓  66 [desktop] › tests/frontend/navigation.spec.mjs:92:1 › uncertain booking checkout keeps its original reference and offers no replacement (345ms)
+  ✓  67 [desktop] › tests/frontend/private-passport.spec.mjs:3:1 › officer sends only hash and keeps token private until approved (302ms)
+  ✓  68 [desktop] › tests/frontend/private-passport.spec.mjs:8:1 › private verifier clears fragment and uses read-only POST body (157ms)
+  ✓  69 [desktop] › tests/frontend/private-passport.spec.mjs:11:1 › protected audit preserves system attribution and linked human provenance (247ms)
+  ✘  70 [desktop] › tests/frontend/readiness.spec.mjs:17:1 › Operations reads explicit readiness, hold limits and guarded private delivery (279ms)
+(node:1507126) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  71 [desktop] › tests/frontend/readiness.spec.mjs:25:1 › Officer changes only own service choice with the saved revision (341ms)
+  ✓  72 [desktop] › tests/frontend/readiness.spec.mjs:31:1 › failed refresh and uncertain write preserve correction draft without automatic resubmission (419ms)
+  ✓  73 [desktop] › tests/frontend/readiness.spec.mjs:38:1 › changed source requires deliberate re-review without losing notes (359ms)
+  ✓  74 [desktop] › tests/frontend/readiness.spec.mjs:44:1 › switching records requires explicit draft discard (295ms)
+  ✓  75 [desktop] › tests/frontend/readiness.spec.mjs:47:1 › private passport metadata never exposes a returned credential or fabricates delivery (199ms)
+  ✓  76 [desktop] › tests/frontend/readiness.spec.mjs:51:1 › owner decision controls are absent for ordinary Operations (210ms)
+  ✓  77 [desktop] › tests/frontend/readiness.spec.mjs:55:1 › keyboard navigation keeps drafts when leaving is cancelled (242ms)
+  ✓  78 [desktop] › tests/frontend/readiness.spec.mjs:60:1 › section links track direct hashes and browser back (218ms)
+
+
+  1) [mobile-360] › tests/frontend/navigation.spec.mjs:27:49 › /ops: navigation, direct links, empty states and keyboard
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('h1')
+    Expected: visible
+    Received: undefined
+
+    Call log:
+      - Expect "toBeVisible" locator('h1') with timeout 5000ms
+      - waiting for locator('h1')
+      - Protocol error (Runtime.callFunctionOn): Page crashed.
+
+
+      39 |   await fits(page);await shot(page,(base+suffix).slice(1).replaceAll('/','-')||'account',info);
+      40 |  }
+    > 41 |  await page.goto(base);await expect(page.locator('h1')).toBeVisible();await page.keyboard.press('Tab');await expect(page.getByRole('link',{name:'Skip to page content'})).toBeFocused();await page.keyboard.press('Enter');await expect(page.locator('#workspace-content')).toBeFocused();
+         |                                                         ^
+      42 |  await page.getByRole('navigation',{name:/navigation$/}).getByRole('link',{name:'Agreements',exact:true}).click();await expect(page).toHaveURL(new RegExp(base+'/agreements$'));await page.getByRole('link',{name:'← Back to account'}).click();await expect(page).toHaveURL(new RegExp(base+'$'));
+      43 |  expect(errors).toEqual([]);
+      44 | });
+        at /srv/ammosync/workspaces/lokd-security/tests/frontend/navigation.spec.mjs:41:57
+
+    Error Context: test-results/frontend-run/navigation--ops-navigation-15c8b-s-empty-states-and-keyboard-mobile-360/error-context.md
+
+  2) [mobile-360] › tests/frontend/navigation.spec.mjs:58:1 › public routes retain mobile navigation and one exact active destination
+
+    Error: page.goto: net::ERR_ABORTED; maybe frame was detached?
+    Call log:
+      - navigating to "http://127.0.0.1:4178/officers", waiting until "load"
+
+
+      59 |  const routes=['/','/security-services','/armed-security','/vip-protection','/industries','/locations/johannesburg','/clients','/officers','/training','/compliance','/about','/contact','/privacy'];
+      60 |  const primary=['/security-services','/armed-security','/vip-protection','/industries','/clients','/officers','/about'];
+    > 61 |  for(const path of routes){await page.goto('http://127.0.0.1:4178'+path);await expect(page.locator('h1')).toBeVisible();if(path!='/privacy'){const nav=page.getByRole('navigation',{name:'Main navigation'});await expect(nav).toBeVisible();await expect(nav.locator('[aria-current=page]')).toHaveCount(primary.includes(path)?1:0);await expect(nav.getByRole('link',{name:'Armed security',exact:true})).toBeVisible();}await fits(page);if(['/','/armed-security','/contact'].includes(path))await shot(page,'public-'+(path.slice(1)||'home'),info);}
+         |                                       ^
+      62 | });
+      63 | test('workspace reflows at 200 percent text size',async({page},info)=>{
+      64 |  await page.goto('/officer');await page.addStyleTag({content:'html { font-size: 200%; } button, input, select, textarea, a, p, label, small { font-size: 1rem !important; }'});await fits(page);await shot(page,'officer-large-text',info);
+        at /srv/ammosync/workspaces/lokd-security/tests/frontend/navigation.spec.mjs:61:39
+
+    Error Context: test-results/frontend-run/navigation-public-routes-r-388a3-ne-exact-active-destination-mobile-360/error-context.md
+
+  3) [mobile-360] › tests/frontend/readiness.spec.mjs:17:1 › Operations reads explicit readiness, hold limits and guarded private delivery
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('Prepare private passport', { exact: true })
+    Expected: visible
+    Error: strict mode violation: getByText('Prepare private passport', { exact: true }) resolved to 2 elements:
+        1) <summary>Prepare private passport</summary> aka locator('summary').filter({ hasText: 'Prepare private passport' })
+        2) <button class="_primary_n0fh3_1">Prepare private passport</button> aka locator('button').filter({ hasText: 'Prepare private passport' })
+
+    Call log:
+      - Expect "toBeVisible" getByText('Prepare private passport', { exact: true }) with timeout 5000ms
+      - waiting for getByText('Prepare private passport', { exact: true })
+
+
+      19 |  await expect(page.getByText('Manual provider review needed',{exact:true})).toBeVisible();await expect(page.getByText('Workforce engagement held',{exact:true})).toBeVisible();
+      20 |  await page.getByText('Hold reference and audit limits',{exact:true}).first().click();await expect(page.getByText(/summary does not include the full audit/).first()).toBeVisible();
+    > 21 |  await expect(page.getByText('Prepare private passport',{exact:true})).toBeVisible();
+         |                                                                        ^
+      22 |  await expect(page.getByRole('button',{name:'Request private passport delivery',exact:true})).toHaveCount(0);
+      23 |  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await screenshot(page,'readiness-operations',info);
+      24 | });
+        at /srv/ammosync/workspaces/lokd-security/tests/frontend/readiness.spec.mjs:21:72
+
+    Error Context: test-results/frontend-run/readiness-Operations-reads-3b71c-nd-guarded-private-delivery-mobile-360/error-context.md
+
+  4) [desktop] › tests/frontend/navigation.spec.mjs:27:49 › /client: navigation, direct links, empty states and keyboard
+
+    Error: keyboard.press: Target crashed
+
+      39 |   await fits(page);await shot(page,(base+suffix).slice(1).replaceAll('/','-')||'account',info);
+      40 |  }
+    > 41 |  await page.goto(base);await expect(page.locator('h1')).toBeVisible();await page.keyboard.press('Tab');await expect(page.getByRole('link',{name:'Skip to page content'})).toBeFocused();await page.keyboard.press('Enter');await expect(page.locator('#workspace-content')).toBeFocused();
+         |                                                                                           ^
+      42 |  await page.getByRole('navigation',{name:/navigation$/}).getByRole('link',{name:'Agreements',exact:true}).click();await expect(page).toHaveURL(new RegExp(base+'/agreements$'));await page.getByRole('link',{name:'← Back to account'}).click();await expect(page).toHaveURL(new RegExp(base+'$'));
+      43 |  expect(errors).toEqual([]);
+      44 | });
+        at /srv/ammosync/workspaces/lokd-security/tests/frontend/navigation.spec.mjs:41:91
+
+    Error Context: test-results/frontend-run/navigation--client-navigat-96f43-s-empty-states-and-keyboard-desktop/error-context.md
+
+  5) [desktop] › tests/frontend/navigation.spec.mjs:27:49 › /officer: navigation, direct links, empty states and keyboard
+
+    Error: page.screenshot: Protocol error (Page.captureScreenshot): Unable to capture screenshot
+    Call log:
+      - taking page screenshot
+      - waiting for fonts to load...
+      - fonts loaded
+
+
+       8 | const record=kind=>({id:'SYNTHETIC-'+kind,kind,email:kind+'@example.test',createdAt:'2026-09-13T10:00:00Z',updatedAt:'2026-09-13T10:00:00Z',accountLinked:true,version:1,status:'needs_information',note:'Please confirm your contact details.',details:kind==='client'?{organisationName:'Synthetic Example Client',contactName:'Example Contact',mobile:'0821234567',siteArea:'Johannesburg',message:'Synthetic site enquiry for frontend validation.'}:{fullName:'Synthetic Example Officer',mobile:'0821234567',city:'Johannesburg',province:'Gauteng',pathway:'qualified',psiraStatus:'active',psiraNumber:'1234567',psiraGrade:'Grade C'},events:[]});
+       9 | async function fits(page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();}
+    > 10 | async function shot(page,name,info){await mkdir(output,{recursive:true});await page.screenshot({path:`${output}/${info.project.name}-${name}.png`,fullPage:false});}
+         |                                                                                     ^
+      11 | test.beforeEach(async({page})=>{
+      12 |  await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
+      13 |  await page.route('**/api/**',route=>{
+        at shot (/srv/ammosync/workspaces/lokd-security/tests/frontend/navigation.spec.mjs:10:85)
+        at /srv/ammosync/workspaces/lokd-security/tests/frontend/navigation.spec.mjs:39:20
+
+    Error Context: test-results/frontend-run/navigation--officer-naviga-65fa9-s-empty-states-and-keyboard-desktop/error-context.md
+
+  6) [desktop] › tests/frontend/navigation.spec.mjs:27:49 › /ops: navigation, direct links, empty states and keyboard
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  getByRole('navigation', { name: /navigation$/ }).getByRole('link', { name: 'Agreements', exact: true })
+    Expected: visible
+    Received: undefined
+
+    Call log:
+      - Expect "toBeVisible" getByRole('navigation', { name: /navigation$/ }).getByRole('link', { name: 'Agreements', exact: true }) with timeout 5000ms
+      - waiting for getByRole('navigation', { name: /navigation$/ }).getByRole('link', { name: 'Agreements', exact: true })
+      - Protocol error (Runtime.callFunctionOn): Page crashed.
+
+
+      33 |   const nav=page.getByRole('navigation',{name:/navigation$/});
+      34 |   await expect(nav.locator('[aria-current=page]')).toHaveCount(1);
+    > 35 |   await expect(nav.getByRole('link',{name:'Agreements',exact:true})).toBeVisible();
+         |                                                                      ^
+      36 |   if(base!='/ops')await expect(nav.getByRole('link',{name:'Account security'})).toHaveCount(0);
+      37 |   if(suffix==='/service')await expect(page.getByText('No production roster records are available for this account.')).toBeVisible();
+      38 |   if(suffix==='/agreements')await expect(page.getByText('No approved agreements have been delivered to this account.')).toBeVisible();
+        at /srv/ammosync/workspaces/lokd-security/tests/frontend/navigation.spec.mjs:35:70
+
+    Error Context: test-results/frontend-run/navigation--ops-navigation-15c8b-s-empty-states-and-keyboard-desktop/error-context.md
+
+  7) [desktop] › tests/frontend/navigation.spec.mjs:58:1 › public routes retain mobile navigation and one exact active destination
+
+    Error: page.goto: net::ERR_ABORTED; maybe frame was detached?
+    Call log:
+      - navigating to "http://127.0.0.1:4178/vip-protection", waiting until "load"
+
+
+      59 |  const routes=['/','/security-services','/armed-security','/vip-protection','/industries','/locations/johannesburg','/clients','/officers','/training','/compliance','/about','/contact','/privacy'];
+      60 |  const primary=['/security-services','/armed-security','/vip-protection','/industries','/clients','/officers','/about'];
+    > 61 |  for(const path of routes){await page.goto('http://127.0.0.1:4178'+path);await expect(page.locator('h1')).toBeVisible();if(path!='/privacy'){const nav=page.getByRole('navigation',{name:'Main navigation'});await expect(nav).toBeVisible();await expect(nav.locator('[aria-current=page]')).toHaveCount(primary.includes(path)?1:0);await expect(nav.getByRole('link',{name:'Armed security',exact:true})).toBeVisible();}await fits(page);if(['/','/armed-security','/contact'].includes(path))await shot(page,'public-'+(path.slice(1)||'home'),info);}
+         |                                       ^
+      62 | });
+      63 | test('workspace reflows at 200 percent text size',async({page},info)=>{
+      64 |  await page.goto('/officer');await page.addStyleTag({content:'html { font-size: 200%; } button, input, select, textarea, a, p, label, small { font-size: 1rem !important; }'});await fits(page);await shot(page,'officer-large-text',info);
+        at /srv/ammosync/workspaces/lokd-security/tests/frontend/navigation.spec.mjs:61:39
+
+    Error Context: test-results/frontend-run/navigation-public-routes-r-388a3-ne-exact-active-destination-desktop/error-context.md
+
+  8) [desktop] › tests/frontend/readiness.spec.mjs:17:1 › Operations reads explicit readiness, hold limits and guarded private delivery
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('Prepare private passport', { exact: true })
+    Expected: visible
+    Error: strict mode violation: getByText('Prepare private passport', { exact: true }) resolved to 2 elements:
+        1) <summary>Prepare private passport</summary> aka locator('summary').filter({ hasText: 'Prepare private passport' })
+        2) <button class="_primary_n0fh3_1">Prepare private passport</button> aka locator('button').filter({ hasText: 'Prepare private passport' })
+
+    Call log:
+      - Expect "toBeVisible" getByText('Prepare private passport', { exact: true }) with timeout 5000ms
+      - waiting for getByText('Prepare private passport', { exact: true })
+
+
+      19 |  await expect(page.getByText('Manual provider review needed',{exact:true})).toBeVisible();await expect(page.getByText('Workforce engagement held',{exact:true})).toBeVisible();
+      20 |  await page.getByText('Hold reference and audit limits',{exact:true}).first().click();await expect(page.getByText(/summary does not include the full audit/).first()).toBeVisible();
+    > 21 |  await expect(page.getByText('Prepare private passport',{exact:true})).toBeVisible();
+         |                                                                        ^
+      22 |  await expect(page.getByRole('button',{name:'Request private passport delivery',exact:true})).toHaveCount(0);
+      23 |  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await screenshot(page,'readiness-operations',info);
+      24 | });
+        at /srv/ammosync/workspaces/lokd-security/tests/frontend/readiness.spec.mjs:21:72
+
+    Error Context: test-results/frontend-run/readiness-Operations-reads-3b71c-nd-guarded-private-delivery-desktop/error-context.md
+
+  8 failed
+    [mobile-360] › tests/frontend/navigation.spec.mjs:27:49 › /ops: navigation, direct links, empty states and keyboard
+    [mobile-360] › tests/frontend/navigation.spec.mjs:58:1 › public routes retain mobile navigation and one exact active destination
+    [mobile-360] › tests/frontend/readiness.spec.mjs:17:1 › Operations reads explicit readiness, hold limits and guarded private delivery
+    [desktop] › tests/frontend/navigation.spec.mjs:27:49 › /client: navigation, direct links, empty states and keyboard
+    [desktop] › tests/frontend/navigation.spec.mjs:27:49 › /officer: navigation, direct links, empty states and keyboard
+    [desktop] › tests/frontend/navigation.spec.mjs:27:49 › /ops: navigation, direct links, empty states and keyboard
+    [desktop] › tests/frontend/navigation.spec.mjs:58:1 › public routes retain mobile navigation and one exact active destination
+    [desktop] › tests/frontend/readiness.spec.mjs:17:1 › Operations reads explicit readiness, hold limits and guarded private delivery
+  70 passed (59.4s)

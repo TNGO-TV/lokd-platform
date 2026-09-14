@@ -1,3 +1,4 @@
+import {documentPaymentState,type FinancialRow} from './finance-documents';
 import {SignupError} from './signup-server';
 import {agreementHash} from './agreement-acceptance';
 import {productionOperatorControl} from './production-operator-control';
@@ -57,5 +58,6 @@ export async function exportPartnerPayableCsv(db:D1Database,actor:SigningActor,r
  await productionOperatorControl(db,actor,headers,'partner.export',r.amount_cents);if(participant(r.source_json,actor.userId))throw new SignupError('Independent finance access required.',403);
  if(await agreementHash(JSON.stringify({source:r.source_json,payload:r.payload_json}))!==r.payload_hash)throw new SignupError('Payable integrity check failed.',409);
  const s=JSON.parse(r.source_json),p=JSON.parse(r.payload_json),cell=(v:unknown)=>'"'+String(v).replace(/^[=+@\-\t\r]/,"'$&").replaceAll('"','""')+'"';
- return [['payable_id','employer_id','employer_legal_name','timesheet_id','service_date','invoice_number','invoice_line','invoice_date','due_date','currency','net_cents','invoice_tax_cents','total_cents','payment_status','review_hash'],['PP-'+r.id,r.employer_id,s.employerName,r.timesheet_id,s.serviceDate,p.invoiceNumber,p.invoiceLine,p.invoiceDate,p.dueDate,'ZAR',p.netCents,p.taxCents,r.amount_cents,'NOT_PAID',r.payload_hash]].map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
+ const paymentState=documentPaymentState((await db.prepare('SELECT *,active_key IS NOT NULL AS active FROM document_partner_payment_states WHERE source_id=?').bind('PP-'+r.id).all<FinancialRow>()).results);
+ return [['payable_id','employer_id','employer_legal_name','timesheet_id','service_date','invoice_number','invoice_line','invoice_date','due_date','currency','net_cents','invoice_tax_cents','total_cents','export_payment_marker','payment_status','review_hash'],['PP-'+r.id,r.employer_id,s.employerName,r.timesheet_id,s.serviceDate,p.invoiceNumber,p.invoiceLine,p.invoiceDate,p.dueDate,'ZAR',p.netCents,p.taxCents,r.amount_cents,'NOT_PAID',paymentState,r.payload_hash]].map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
 }

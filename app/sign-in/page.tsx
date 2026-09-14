@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { env } from "cloudflare:workers";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -16,7 +17,7 @@ async function Login({ searchParams }: { searchParams: Promise<{ return_to?: str
   const publishableKey = runtime.CLERK_PUBLISHABLE_KEY || runtime.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   const role = workspaceRoleForHost(hostname);
   return <main className="pilot-access-shell"><section className="pilot-access-card">
-    <a href="https://lokd.co.za"><img src="/lokd-logo.png" alt="LOKD home" /></a>
+    <a href="https://lokd.co.za"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD home" /></a>
     <h1>{role === "operations" ? "Operations" : role === "officer" ? "Officer" : role === "client" ? "Client" : "LOKD"} sign in</h1>
     {publishableKey && runtime.CLERK_SECRET_KEY
       ? <ClerkLogin destination={destination} />

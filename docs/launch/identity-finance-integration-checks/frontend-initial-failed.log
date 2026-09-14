@@ -1,0 +1,139 @@
+
+Running 54 tests using 1 worker
+
+(node:1343928) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [mobile-360] › tests/frontend/navigation.spec.mjs:25:49 › /client: navigation, direct links, empty states and keyboard (1.6s)
+  ✓   2 [mobile-360] › tests/frontend/navigation.spec.mjs:25:49 › /officer: navigation, direct links, empty states and keyboard (1.3s)
+  ✘   3 [mobile-360] › tests/frontend/navigation.spec.mjs:25:49 › /ops: navigation, direct links, empty states and keyboard (5.5s)
+(node:1344208) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   4 [mobile-360] › tests/frontend/navigation.spec.mjs:43:1 › Operations intake selection survives reload and direct links (463ms)
+  ✓   5 [mobile-360] › tests/frontend/navigation.spec.mjs:46:43 › intake 401: useful error and preserved edits through failed refresh (351ms)
+  ✓   6 [mobile-360] › tests/frontend/navigation.spec.mjs:46:43 › intake 403: useful error and preserved edits through failed refresh (349ms)
+  ✓   7 [mobile-360] › tests/frontend/navigation.spec.mjs:46:43 › intake 409: useful error and preserved edits through failed refresh (343ms)
+  ✓   8 [mobile-360] › tests/frontend/navigation.spec.mjs:46:43 › intake 423: useful error and preserved edits through failed refresh (346ms)
+  ✓   9 [mobile-360] › tests/frontend/navigation.spec.mjs:46:43 › intake 503: useful error and preserved edits through failed refresh (454ms)
+  ✓  10 [mobile-360] › tests/frontend/navigation.spec.mjs:52:1 › agreement expiry removes signature action without refreshing (5.6s)
+  ✓  11 [mobile-360] › tests/frontend/navigation.spec.mjs:56:1 › public routes retain mobile navigation and one exact active destination (3.8s)
+  ✓  12 [mobile-360] › tests/frontend/navigation.spec.mjs:61:1 › workspace reflows at 200 percent text size (325ms)
+  ✓  13 [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › agreements/production 401: recovery keeps draft and does not replay (362ms)
+  ✓  14 [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › agreements/production 403: recovery keeps draft and does not replay (323ms)
+  ✓  15 [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › agreements/production 409: recovery keeps draft and does not replay (343ms)
+  ✓  16 [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › agreements/production 423: recovery keeps draft and does not replay (346ms)
+  ✓  17 [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › agreements/production 503: recovery keeps draft and does not replay (375ms)
+  ✘  18 [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 401: recovery keeps draft and does not replay (45.0s)
+(node:1345226) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  19 [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 403: recovery keeps draft and does not replay (45.0s)
+(node:1345696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  20 [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 409: recovery keeps draft and does not replay (494ms)
+  ✓  21 [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 423: recovery keeps draft and does not replay (415ms)
+  ✓  22 [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 503: recovery keeps draft and does not replay (560ms)
+  ✓  23 [mobile-360] › tests/frontend/navigation.spec.mjs:75:1 › PSiRA draft survives a failed refresh and requires status review (364ms)
+  ✓  24 [mobile-360] › tests/frontend/navigation.spec.mjs:79:1 › agreement structured details preserve every source field and exact wording (377ms)
+  ✓  25 [mobile-360] › tests/frontend/navigation.spec.mjs:84:1 › identity session recovery preserves the case return path (207ms)
+  ✓  26 [mobile-360] › tests/frontend/navigation.spec.mjs:87:1 › Operations PSiRA review retains source evidence across a failed refresh (330ms)
+  ✓  27 [mobile-360] › tests/frontend/navigation.spec.mjs:90:1 › uncertain booking checkout keeps its original reference and offers no replacement (416ms)
+(node:1345958) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  28 [desktop] › tests/frontend/navigation.spec.mjs:25:49 › /client: navigation, direct links, empty states and keyboard (1.2s)
+  ✓  29 [desktop] › tests/frontend/navigation.spec.mjs:25:49 › /officer: navigation, direct links, empty states and keyboard (1.3s)
+  ✓  30 [desktop] › tests/frontend/navigation.spec.mjs:25:49 › /ops: navigation, direct links, empty states and keyboard (1.8s)
+  ✓  31 [desktop] › tests/frontend/navigation.spec.mjs:43:1 › Operations intake selection survives reload and direct links (428ms)
+  ✓  32 [desktop] › tests/frontend/navigation.spec.mjs:46:43 › intake 401: useful error and preserved edits through failed refresh (370ms)
+  ✓  33 [desktop] › tests/frontend/navigation.spec.mjs:46:43 › intake 403: useful error and preserved edits through failed refresh (319ms)
+  ✓  34 [desktop] › tests/frontend/navigation.spec.mjs:46:43 › intake 409: useful error and preserved edits through failed refresh (346ms)
+  ✓  35 [desktop] › tests/frontend/navigation.spec.mjs:46:43 › intake 423: useful error and preserved edits through failed refresh (360ms)
+  ✓  36 [desktop] › tests/frontend/navigation.spec.mjs:46:43 › intake 503: useful error and preserved edits through failed refresh (469ms)
+  ✓  37 [desktop] › tests/frontend/navigation.spec.mjs:52:1 › agreement expiry removes signature action without refreshing (5.6s)
+  ✓  38 [desktop] › tests/frontend/navigation.spec.mjs:56:1 › public routes retain mobile navigation and one exact active destination (2.0s)
+  ✓  39 [desktop] › tests/frontend/navigation.spec.mjs:61:1 › workspace reflows at 200 percent text size (366ms)
+  ✓  40 [desktop] › tests/frontend/navigation.spec.mjs:65:115 › agreements/production 401: recovery keeps draft and does not replay (387ms)
+  ✓  41 [desktop] › tests/frontend/navigation.spec.mjs:65:115 › agreements/production 403: recovery keeps draft and does not replay (365ms)
+  ✓  42 [desktop] › tests/frontend/navigation.spec.mjs:65:115 › agreements/production 409: recovery keeps draft and does not replay (401ms)
+  ✓  43 [desktop] › tests/frontend/navigation.spec.mjs:65:115 › agreements/production 423: recovery keeps draft and does not replay (435ms)
+  ✓  44 [desktop] › tests/frontend/navigation.spec.mjs:65:115 › agreements/production 503: recovery keeps draft and does not replay (444ms)
+  ✓  45 [desktop] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 401: recovery keeps draft and does not replay (406ms)
+  ✓  46 [desktop] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 403: recovery keeps draft and does not replay (405ms)
+  ✓  47 [desktop] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 409: recovery keeps draft and does not replay (433ms)
+  ✓  48 [desktop] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 423: recovery keeps draft and does not replay (416ms)
+  ✓  49 [desktop] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 503: recovery keeps draft and does not replay (574ms)
+  ✓  50 [desktop] › tests/frontend/navigation.spec.mjs:75:1 › PSiRA draft survives a failed refresh and requires status review (419ms)
+  ✓  51 [desktop] › tests/frontend/navigation.spec.mjs:79:1 › agreement structured details preserve every source field and exact wording (375ms)
+  ✓  52 [desktop] › tests/frontend/navigation.spec.mjs:84:1 › identity session recovery preserves the case return path (274ms)
+  ✓  53 [desktop] › tests/frontend/navigation.spec.mjs:87:1 › Operations PSiRA review retains source evidence across a failed refresh (321ms)
+  ✓  54 [desktop] › tests/frontend/navigation.spec.mjs:90:1 › uncertain booking checkout keeps its original reference and offers no replacement (395ms)
+
+
+  1) [mobile-360] › tests/frontend/navigation.spec.mjs:25:49 › /ops: navigation, direct links, empty states and keyboard
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('navigation', { name: /navigation$/ }).getByRole('link', { name: 'Agreements', exact: true })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByRole('navigation', { name: /navigation$/ }).getByRole('link', { name: 'Agreements', exact: true }) with timeout 5000ms
+      - waiting for getByRole('navigation', { name: /navigation$/ }).getByRole('link', { name: 'Agreements', exact: true })
+
+
+      31 |   const nav=page.getByRole('navigation',{name:/navigation$/});
+      32 |   await expect(nav.locator('[aria-current=page]')).toHaveCount(1);
+    > 33 |   await expect(nav.getByRole('link',{name:'Agreements',exact:true})).toBeVisible();
+         |                                                                      ^
+      34 |   if(base!='/ops')await expect(nav.getByRole('link',{name:'Account security'})).toHaveCount(0);
+      35 |   if(suffix==='/service')await expect(page.getByText('No production roster records are available for this account.')).toBeVisible();
+      36 |   if(suffix==='/agreements')await expect(page.getByText('No approved agreements have been delivered to this account.')).toBeVisible();
+        at /srv/ammosync/workspaces/lokd-security/tests/frontend/navigation.spec.mjs:33:70
+
+    Error Context: test-results/frontend-run/navigation--ops-navigation-15c8b-s-empty-states-and-keyboard-mobile-360/error-context.md
+
+  2) [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 401: recovery keeps draft and does not replay
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.fill: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByLabel('Operational officer ID', { exact: true })
+
+
+      66 |  const agreement=endpoint==='agreements/production';await page.goto(agreement?'/ops/agreements':'/ops/service');
+      67 |  if(agreement){await page.getByText('Prepare a legal document for approval',{exact:true}).click();await page.getByLabel('Document version',{exact:true}).fill('SYNTHETIC-DRAFT');await page.getByLabel('Contracting or employing entity ID',{exact:true}).fill('SYNTHETIC-ENTITY');await page.getByLabel('Exact legal wording',{exact:true}).fill('SYNTHETIC legal text used only for browser presentation validation.');}
+    > 68 |  else {await page.getByLabel('Production roster slot',{exact:true}).fill('SYNTHETIC-SLOT');await page.getByLabel('Operational officer ID',{exact:true}).fill('SYNTHETIC-OFFICER');await page.getByLabel('Current slot version',{exact:true}).fill('1');await page.getByLabel('Unique activation reference',{exact:true}).fill('SYNTHETIC-ORIGINAL-REFERENCE');}
+         |                                                                                                                                                         ^
+      69 |  let posts=0;await page.route(`**/api/${endpoint}?**`,route=>{if(route.request().method()==='POST')posts++;return route.fulfill({status,contentType:'text/html',body:'<html>Upstream unavailable</html>'});});
+      70 |  await page.getByRole('button',{name:agreement?'Save immutable draft':'Evaluate readiness',exact:true}).click();
+      71 |  await expect(page.getByRole('alert')).toContainText(status===401?'session has expired':status===403?'cannot perform':status===409?'evidence has changed':status===423?'action is locked':'outcome may be unknown');
+        at /srv/ammosync/workspaces/lokd-security/tests/frontend/navigation.spec.mjs:68:153
+
+    Error Context: test-results/frontend-run/navigation-production-oper-837e4-s-draft-and-does-not-replay-mobile-360/error-context.md
+
+  3) [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 403: recovery keeps draft and does not replay
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.fill: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByLabel('Operational officer ID', { exact: true })
+
+
+      66 | for(const endpoint of ['agreements/production','production-operations'])for(const status of [401,403,409,423,503])test(`${endpoint} ${status}: recovery keeps draft and does not replay`,async({page},info)=>{
+      67 |  const agreement=endpoint==='agreements/production';await page.goto(agreement?'/ops/agreements':'/ops/service');
+    > 68 |  if(agreement){await page.getByText('Prepare a legal document for approval',{exact:true}).click();await page.getByLabel('Document version',{exact:true}).fill('SYNTHETIC-DRAFT');await page.getByLabel('Contracting or employing entity ID',{exact:true}).fill('SYNTHETIC-ENTITY');await page.getByLabel('Exact legal wording',{exact:true}).fill('SYNTHETIC legal text used only for browser presentation validation.');}
+         |                                                                                                                                                         ^
+      69 |  else {await page.getByLabel('Production roster slot',{exact:true}).fill('SYNTHETIC-SLOT');await page.getByLabel('Operational officer ID',{exact:true}).fill('SYNTHETIC-OFFICER');await page.getByLabel('Current slot version',{exact:true}).fill('1');await page.getByLabel('Unique activation reference',{exact:true}).fill('SYNTHETIC-ORIGINAL-REFERENCE');}
+      70 |  let posts=0;await page.route(`**/api/${endpoint}?**`,route=>{if(route.request().method()==='POST')posts++;return route.fulfill({status,contentType:'text/html',body:'<html>Upstream unavailable</html>'});});
+      71 |  await page.getByRole('button',{name:agreement?'Save immutable draft':'Evaluate readiness',exact:true}).click();
+        at /srv/ammosync/workspaces/lokd-security/tests/frontend/navigation.spec.mjs:68:153
+
+    Error Context: test-results/frontend-run/navigation-production-oper-1b936-s-draft-and-does-not-replay-mobile-360/error-context.md
+
+  3 failed
+    [mobile-360] › tests/frontend/navigation.spec.mjs:25:49 › /ops: navigation, direct links, empty states and keyboard
+    [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 401: recovery keeps draft and does not replay
+    [mobile-360] › tests/frontend/navigation.spec.mjs:65:115 › production-operations 403: recovery keeps draft and does not replay
+  51 passed (2.3m)

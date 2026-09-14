@@ -1,4 +1,8 @@
+"use client";
+
+import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   CLIENT_PORTAL_URL,
   OFFICER_PORTAL_URL,
@@ -9,8 +13,8 @@ export type PublicSection = "home" | "services" | "industries" | "clients" | "of
 
 const navigation: Array<{ label: string; href: string; section: PublicSection }> = [
   { label: "Services", href: "/security-services", section: "services" },
-  { label: "Armed", href: "/armed-security", section: "services" },
-  { label: "VIP", href: "/vip-protection", section: "services" },
+  { label: "Armed security", href: "/armed-security", section: "services" },
+  { label: "VIP protection", href: "/vip-protection", section: "services" },
   { label: "Industries", href: "/industries", section: "industries" },
   { label: "For clients", href: "/clients", section: "clients" },
   { label: "For officers", href: "/officers", section: "officers" },
@@ -25,10 +29,11 @@ export function PublicLaunchBar() {
 }
 
 export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
-  return <header className="public-header">
-    <Link className="public-logo" href="/" aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></Link>
+  const pathname = usePathname();
+  return <header className="public-header" data-section={active}>
+    <Link className="public-logo" href="/" aria-label="LOKD home"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" /></Link>
     <nav aria-label="Main navigation">
-      {navigation.map((item) => <Link aria-current={active === item.section ? "page" : undefined} href={item.href} key={item.href}>{item.label}</Link>)}
+      {navigation.map((item) => <Link aria-current={pathname === item.href ? "page" : undefined} href={item.href} key={item.href}>{item.label}</Link>)}
     </nav>
     <div className="public-header-actions">
       <a className="public-login" href={CLIENT_PORTAL_URL}>Client login</a>
@@ -39,7 +44,7 @@ export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
 
 export function PublicFooter() {
   return <footer className="public-footer public-footer--expanded">
-    <div className="public-footer-brand"><img src="/lokd-logo.png" alt="LOKD" /><p>Verified people. Controlled operations. Complete proof.</p></div>
+    <div className="public-footer-brand"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" /><p>Verified people. Controlled operations. Complete proof.</p></div>
     <nav aria-label="LOKD services"><strong>Explore</strong><Link href="/security-services">Security services</Link><Link href="/armed-security">Armed security</Link><Link href="/vip-protection">VIP protection</Link><Link href="/locations/johannesburg">Johannesburg</Link></nav>
     <nav aria-label="LOKD company"><strong>LOKD</strong><Link href="/about">About</Link><Link href="/compliance">Compliance</Link><Link href="/training">Training</Link><Link href="/contact">Contact</Link></nav>
     <nav aria-label="LOKD workspaces"><strong>Workspaces</strong><a href={CLIENT_PORTAL_URL}>Client portal</a><a href={OFFICER_PORTAL_URL}>Officer portal</a><a href={OPERATIONS_PORTAL_URL}>Operations portal</a><Link href="/join">Officer applications</Link></nav>

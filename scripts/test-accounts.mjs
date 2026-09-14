@@ -1,5 +1,6 @@
 import { readFile, writeFile, unlink, mkdir, access as fileAccess, readdir, rename, copyFile, mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
+import { DatabaseSync } from 'node:sqlite';
 import { parseEnv } from 'node:util';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
@@ -23,12 +24,16 @@ const emails = Object.fromEntries(['client', 'officer', 'operations', 'unassigne
 const access = { clients: { [emails.client]: 'CL-001' }, officers: { [emails.officer]: 'OFF-001' }, operations: [emails.operations, ...(includeFinance ? [emails.finance] : [])], owners: [emails.owner] };
 let ownsVars = false;
 let failed = false;
+const intakeFixture=process.env.LOKD_ACCOUNT_TEST_INTAKE==='true';
+const recoveryFixture=process.env.LOKD_ACCOUNT_TEST_RECOVERY==='true';
 const partnerPaymentFixture=process.env.LOKD_ACCOUNT_TEST_PARTNER_PAYMENTS==='true';
 const partnerDestinationFixture=process.env.LOKD_ACCOUNT_TEST_PARTNER_DESTINATIONS==='true';
 const partnerFixture=process.env.LOKD_ACCOUNT_TEST_PARTNER_PAYABLES==='true';
 const paymentFixture=process.env.LOKD_ACCOUNT_TEST_PAYMENTS==='true';
 const destinationFixture=process.env.LOKD_ACCOUNT_TEST_DESTINATIONS==='true';
-const collectionFixture=process.env.LOKD_ACCOUNT_TEST_COLLECTIONS==='true'||destinationFixture||paymentFixture||partnerFixture||partnerDestinationFixture||partnerPaymentFixture;
+if(intakeFixture && (recoveryFixture||paymentFixture||partnerPaymentFixture||partnerFixture||partnerDestinationFixture||destinationFixture||process.env.LOKD_ACCOUNT_TEST_COLLECTIONS==='true'))throw Error('Intake account QA requires its own empty fixture.');
+if(recoveryFixture && (process.env.LOKD_ACCOUNT_TEST_STAGE!=='production' || paymentFixture===partnerPaymentFixture))throw Error('Recovery account QA requires production stage and exactly one employee or partner payment fixture.');
+const collectionFixture=intakeFixture||process.env.LOKD_ACCOUNT_TEST_COLLECTIONS==='true'||destinationFixture||paymentFixture||partnerFixture||partnerDestinationFixture||partnerPaymentFixture;
 let collectionDatabase,collectionBackup,collectionInstalled=false,collectionExport;
 const collectionMoved=[];
 try {
@@ -55,8 +60,14 @@ try {
     const directory=process.cwd()+'/.wrangler/state/v3/d1/miniflare-D1DatabaseObject';
     const names=(await readdir(directory)).filter(n=>n.endsWith('.sqlite')&&n!=='metadata.sqlite');if(names.length!==1)throw Error('Ambiguous local acceptance database');
     collectionDatabase=directory+'/'+names[0];collectionExport='/tmp/lokd-collection-'+run+'.sqlite';
-    const fixture=spawn(process.execPath,['--experimental-loader=./tests/cloudflare-loader.mjs',partnerDestinationFixture?'--test-name-pattern=production partner destinations':(partnerFixture||partnerPaymentFixture)?'--test-name-pattern=production partner payables':paymentFixture?'--test-name-pattern=production period payroll':destinationFixture?'--test-name-pattern=production destinations':'--test-name-pattern=production intake prepares','tests/assignment-activation-db.test.mjs'],{stdio:'inherit',env:{...process.env,...(partnerDestinationFixture?{LOKD_PARTNER_DESTINATION_FIXTURE_EXPORT:collectionExport,LOKD_PARTNER_DESTINATION_BROWSER_USERS:JSON.stringify(userIds),LOKD_PARTNER_DESTINATION_BROWSER_EMAILS:JSON.stringify(emails)}:(partnerFixture||partnerPaymentFixture)?{...(partnerPaymentFixture?{LOKD_PARTNER_PAYMENT_FIXTURE_EXPORT:collectionExport}:{LOKD_PARTNER_FIXTURE_EXPORT:collectionExport}),LOKD_PARTNER_MAKER_USER:userIds.operations,LOKD_PARTNER_MAKER_EMAIL:emails.operations,LOKD_PARTNER_FINANCE_USER:userIds.owner,LOKD_PARTNER_FINANCE_EMAIL:emails.owner,LOKD_PARTNER_OFFICER_USER:userIds.officer,LOKD_PARTNER_OFFICER_EMAIL:emails.officer,LOKD_PARTNER_CLIENT_USER:userIds.client,LOKD_PARTNER_CLIENT_EMAIL:emails.client}:paymentFixture?{LOKD_PAYMENT_FIXTURE_EXPORT:collectionExport,LOKD_PAYMENT_BROWSER_USERS:JSON.stringify(userIds),LOKD_PAYMENT_BROWSER_EMAILS:JSON.stringify(emails)}:destinationFixture?{LOKD_DESTINATION_FIXTURE_EXPORT:collectionExport,LOKD_DESTINATION_BROWSER_USERS:JSON.stringify(userIds),LOKD_DESTINATION_BROWSER_EMAILS:JSON.stringify(emails)}:{LOKD_COLLECTION_FIXTURE_EXPORT:collectionExport,LOKD_COLLECTION_BROWSER_USERS:JSON.stringify(userIds),LOKD_COLLECTION_BROWSER_EMAILS:JSON.stringify(emails)})}});
+    if(intakeFixture){
+      const fresh=new DatabaseSync(collectionExport);
+      try{for(const file of (await readdir('drizzle')).filter(name=>name.endsWith('.sql')).sort())fresh.exec(await readFile('drizzle/'+file,'utf8'));}
+      finally{fresh.close();}
+    }else{
+    const fixture=spawn(process.execPath,['--experimental-loader=./tests/cloudflare-loader.mjs',partnerDestinationFixture?'--test-name-pattern=production partner destinations':(partnerFixture||partnerPaymentFixture)?'--test-name-pattern=production partner payables':paymentFixture?'--test-name-pattern=production period payroll':destinationFixture?'--test-name-pattern=production destinations':'--test-name-pattern=production intake prepares','tests/assignment-activation-db.test.mjs'],{stdio:'inherit',env:{...process.env,...(partnerDestinationFixture?{LOKD_PARTNER_DESTINATION_FIXTURE_EXPORT:collectionExport,LOKD_PARTNER_DESTINATION_BROWSER_USERS:JSON.stringify(userIds),LOKD_PARTNER_DESTINATION_BROWSER_EMAILS:JSON.stringify(emails)}:(partnerFixture||partnerPaymentFixture)?{...(partnerPaymentFixture?{LOKD_PARTNER_PAYMENT_FIXTURE_EXPORT:collectionExport}:{LOKD_PARTNER_FIXTURE_EXPORT:collectionExport}),LOKD_PARTNER_MAKER_USER:userIds.operations,LOKD_PARTNER_MAKER_EMAIL:emails.operations,LOKD_PARTNER_FINANCE_USER:userIds.owner,LOKD_PARTNER_FINANCE_EMAIL:emails.owner,LOKD_PARTNER_OFFICER_USER:userIds.officer,LOKD_PARTNER_OFFICER_EMAIL:emails.officer,LOKD_PARTNER_CLIENT_USER:userIds.client,LOKD_PARTNER_CLIENT_EMAIL:emails.client}:paymentFixture?{LOKD_PAYMENT_FIXTURE_EXPORT:collectionExport,LOKD_PAYMENT_BROWSER_USERS:JSON.stringify(userIds),LOKD_PAYMENT_BROWSER_EMAILS:JSON.stringify(emails)}:destinationFixture?{LOKD_DESTINATION_FIXTURE_EXPORT:collectionExport,LOKD_DESTINATION_BROWSER_USERS:JSON.stringify(userIds),LOKD_DESTINATION_BROWSER_EMAILS:JSON.stringify(emails)}:{LOKD_COLLECTION_FIXTURE_EXPORT:collectionExport,LOKD_COLLECTION_BROWSER_USERS:JSON.stringify(userIds),LOKD_COLLECTION_BROWSER_EMAILS:JSON.stringify(emails)}),...(recoveryFixture?{LOKD_RECOVERY_FIXTURE_EXPORT:collectionExport,LOKD_PAYMENT_FIXTURE_EXPORT:'',LOKD_PARTNER_PAYMENT_FIXTURE_EXPORT:''}:{})}});
     if(await new Promise((resolve,reject)=>{fixture.on('error',reject);fixture.on('exit',resolve);})!==0)throw Error('Collection fixture did not pass');
+    }
     collectionBackup=await mkdtemp(directory+'/lokd-collection-original-');
     for(const suffix of ['','-wal','-shm']){try{await fileAccess(collectionDatabase+suffix);}catch{continue;}await rename(collectionDatabase+suffix,collectionBackup+'/database'+suffix);collectionMoved.push(suffix);}
     collectionInstalled=true;await copyFile(collectionExport,collectionDatabase);

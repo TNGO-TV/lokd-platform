@@ -1,7 +1,10 @@
 'use client';
-import {useState,useEffect,useRef} from 'react';
+import {useState,useEffect,useRef,useSyncExternalStore} from 'react';
+const subscribeToHydration=()=>()=>{};
+const clientReady=()=>true;
+const serverReady=()=>false;
 export default function OfficerPresencePanel(){
- const [ready,setReady]=useState(false);useEffect(()=>{setReady(true);},[]);
+ const ready=useSyncExternalStore(subscribeToHydration,clientReady,serverReady);
  const [sharing,setSharing]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[consent,setConsent]=useState(false);const inFlight=useRef(false);
  async function request(body:Record<string,unknown>){const r=await fetch('/api/presence',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}),d=await r.json() as {error?:string};if(!r.ok)throw Error(d.error);}
  async function update(test=false){if(inFlight.current)return;inFlight.current=true;setBusy(true);try{let coords={latitude:-26.2,longitude:28};if(!test){if(!consent)throw Error('Confirm public approximate-location consent first.');coords=await new Promise<GeolocationCoordinates>((resolve,reject)=>navigator.geolocation.getCurrentPosition(p=>resolve(p.coords),()=>reject(Error('Location permission denied or unavailable. Nothing was shared.')),{enableHighAccuracy:false,timeout:10000,maximumAge:30000}));}

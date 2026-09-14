@@ -421,6 +421,69 @@
       "when": 1789316332886,
       "tag": "0059_puzzling_jack_power",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "6",
+      "when": 1789328820400,
+      "tag": "0060_fi05_payment_recovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "6",
+      "when": 1789332066107,
+      "tag": "0061_id01_production_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "6",
+      "when": 1789332066833,
+      "tag": "0062_id02_officer_approval",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "6",
+      "when": 1789332067574,
+      "tag": "0063_id03_readiness_passports",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "6",
+      "when": 1789332068353,
+      "tag": "0064_id04_rereview_disposition",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "6",
+      "when": 1789332156051,
+      "tag": "0065_fi02_payment_execution",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "6",
+      "when": 1789336234872,
+      "tag": "0066_id_integration_activation_clock",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "6",
+      "when": 1789389525089,
+      "tag": "0067_finance_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "6",
+      "when": 1789389551699,
+      "tag": "0068_id_usable_private_delivery",
+      "breakpoints": true
     }
   ]
 }

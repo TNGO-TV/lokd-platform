@@ -93,3 +93,10 @@ test("Clerk verifies signatures, expiry and trusted origins before forwarding id
   }
   assert.equal(lookups, 1, "invalid sessions must not resolve a user");
 });
+
+ test("safe workspace deep links preserve only record selectors without granting cross-workspace access", () => {
+ assert.equal(signInDestination("officers.lokd.co.za", "/officer/readiness?applicantId=A&identityId=I&redirect=https://evil.example"), "/officer/readiness?applicantId=A&identityId=I");
+ assert.equal(signInDestination("localhost", "/client/agreements"), "/client/agreements");
+ assert.equal(signInDestination("operations.lokd.co.za", "/ops/intake?kind=officer"), "/ops/intake?kind=officer");
+ for (const path of ["/ops/readiness", "/officer/../ops/readiness", "/officer/%2e%2e/ops", "/officer/unknown", "//evil.example", "/officer/readiness\\evil", "/officer/readiness\n"]) assert.equal(signInDestination("officers.lokd.co.za", path), "/officer");
+ });

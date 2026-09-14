@@ -56,7 +56,13 @@ export async function manageProductionEvidence(db:D1Database,actor:SigningActor,
   if(r.kind==='engagement')statements.push(db.prepare("UPDATE workforce_engagements SET status='suspended',active_key=NULL,version=version+1,updated_at=? WHERE id=? AND environment='production'").bind(now,p.engagementId));
   if(r.kind==='payroll_profile')statements.push(db.prepare("UPDATE payroll_profiles SET status='suspended',active_key=NULL,version=version+1,updated_at=? WHERE id=? AND environment='production'").bind(now,p.profileId));
   if(r.kind==='induction')statements.push(db.prepare("UPDATE officer_site_inductions SET active_key=NULL WHERE id=? AND environment='production'").bind('IND-'+reviewId),db.prepare("UPDATE officer_travel_assessments SET active_key=NULL WHERE id=? AND environment='production'").bind('TRAVEL-'+reviewId));
-  statements.push(db.prepare("INSERT INTO audit_events VALUES(?,'operations',?,'production_evidence_suspended','evidence_review',?,?,?)").bind(crypto.randomUUID(),actor.userId,reviewId,reason,now));await db.batch(statements);return {suspended:true,workEligible:false};
+  let detail=reason;
+  if(r.kind==='engagement'){
+   const source=await db.prepare("SELECT version FROM workforce_engagements WHERE id=? AND environment='production'").bind(p.engagementId).first<{version:number}>();
+   if(!source)throw new SignupError('Engagement source not found.',409);
+   detail=JSON.stringify({reason,engagementId:p.engagementId,sourceVersion:source.version});
+  }
+  statements.push(db.prepare("INSERT INTO audit_events VALUES(?,'operations',?,'production_evidence_suspended','evidence_review',?,?,?)").bind(crypto.randomUUID(),actor.userId,reviewId,detail,now));await db.batch(statements);return {suspended:true,workEligible:false};
  }
  if(input.action==='prepare_evidence'){
   if(!Object.hasOwn(productionEvidenceKinds,String(input.kind)))throw new SignupError('Choose an evidence review type.');const kind=input.kind as ProductionEvidenceKind,p:Record<string,string>={};

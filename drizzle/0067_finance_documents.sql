@@ -1,0 +1,156 @@
+CREATE TABLE `finance_document_decisions` (
+	`id` text PRIMARY KEY NOT NULL,
+	`document_id` text NOT NULL,
+	`decision` text NOT NULL,
+	`payload_hash` text NOT NULL,
+	`operator_id` text NOT NULL,
+	`user_id` text NOT NULL,
+	`note` text NOT NULL,
+	`auth_context` text NOT NULL,
+	`created_at` text NOT NULL,
+	FOREIGN KEY (`document_id`) REFERENCES `finance_document_versions`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`operator_id`) REFERENCES `operator_accounts`(`id`) ON UPDATE no action ON DELETE no action,
+	CONSTRAINT "finance_document_decisions_check_0" CHECK(decision IN('approved','rejected')),
+	CONSTRAINT "finance_document_decisions_check_1" CHECK(length(trim(note))>=3),
+	CONSTRAINT "finance_document_decisions_check_2" CHECK(auth_context IN('mfa_verified','owner_mfa_exception'))
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `finance_document_decisions_document_id_idx` ON `finance_document_decisions` (`document_id`);--> statement-breakpoint
+CREATE TABLE `finance_document_issues` (
+	`document_id` text PRIMARY KEY NOT NULL,
+	`number` text NOT NULL,
+	`issued_at` text NOT NULL,
+	FOREIGN KEY (`document_id`) REFERENCES `finance_document_versions`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `finance_document_issues_number_idx` ON `finance_document_issues` (`number`);--> statement-breakpoint
+CREATE TABLE `finance_document_versions` (
+	`id` text PRIMARY KEY NOT NULL,
+	`kind` text NOT NULL,
+	`source_id` text NOT NULL,
+	`party_id` text NOT NULL,
+	`recipient_user` text NOT NULL,
+	`request_key` text NOT NULL,
+	`parent_id` text,
+	`version` integer NOT NULL,
+	`source_json` text NOT NULL,
+	`financial_json` text NOT NULL,
+	`payload_hash` text NOT NULL,
+	`amount_cents` integer NOT NULL,
+	`note` text NOT NULL,
+	`operator_id` text NOT NULL,
+	`user_id` text NOT NULL,
+	`auth_context` text NOT NULL,
+	`created_at` text NOT NULL,
+	FOREIGN KEY (`parent_id`) REFERENCES `finance_document_versions`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`operator_id`) REFERENCES `operator_accounts`(`id`) ON UPDATE no action ON DELETE no action,
+	CONSTRAINT "finance_document_versions_check_0" CHECK(kind IN('payslip','invoice','remittance')),
+	CONSTRAINT "finance_document_versions_check_1" CHECK(version>=1),
+	CONSTRAINT "finance_document_versions_check_2" CHECK(json_valid(source_json)),
+	CONSTRAINT "finance_document_versions_check_3" CHECK(json_valid(financial_json)),
+	CONSTRAINT "finance_document_versions_check_4" CHECK(length(payload_hash)=64),
+	CONSTRAINT "finance_document_versions_check_5" CHECK(typeof(amount_cents)='integer' AND amount_cents>=0),
+	CONSTRAINT "finance_document_versions_check_6" CHECK(length(trim(note))>=3),
+	CONSTRAINT "finance_document_versions_check_7" CHECK(auth_context IN('mfa_verified','owner_mfa_exception'))
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `finance_document_successor` ON `finance_document_versions` (`parent_id`) WHERE parent_id IS NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX `finance_document_root` ON `finance_document_versions` (`kind`,`source_id`) WHERE parent_id IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX `finance_document_versions_request_key_idx` ON `finance_document_versions` (`request_key`);--> statement-breakpoint
+CREATE UNIQUE INDEX `finance_document_invoice_booking_once` ON `client_invoices` (`booking_id`) WHERE environment='production' AND document_type='invoice';
+--> statement-breakpoint
+CREATE VIEW document_employee_payment_states AS SELECT i.payroll_item_id AS source_id,i.reference,i.mode,i.status,i.active_key,f.financial_state,f.paid_receipts,
+ CASE WHEN i.mode='test' THEN 'unpaid' WHEN EXISTS(SELECT 1 FROM employee_recovery_chain_holds WHERE reference=i.reference) THEN 'held' WHEN f.financial_state='paid' THEN 'paid' WHEN f.financial_state='reversed' THEN 'reversed' WHEN f.financial_state='held' THEN 'held' WHEN i.status IN('prepared','approved') THEN 'pending' ELSE 'unpaid' END AS state
+ FROM employee_payment_instructions i JOIN employee_payment_financial_state f ON f.reference=i.reference;
+--> statement-breakpoint
+CREATE VIEW document_partner_payment_states AS SELECT i.payable_id AS source_id,i.reference,i.mode,i.status,i.active_key,f.financial_state,f.paid_receipts,
+ CASE WHEN i.mode='test' THEN 'unpaid' WHEN EXISTS(SELECT 1 FROM partner_recovery_chain_holds WHERE reference=i.reference) THEN 'held' WHEN f.financial_state='paid' THEN 'paid' WHEN f.financial_state='reversed' THEN 'reversed' WHEN f.financial_state='held' THEN 'held' WHEN i.status IN('prepared','approved') THEN 'pending' ELSE 'unpaid' END AS state
+ FROM partner_payment_instructions i JOIN partner_payment_financial_state f ON f.reference=i.reference;
+--> statement-breakpoint
+CREATE VIEW finance_document_sources AS
+ SELECT 'payslip' AS kind,i.id AS source_id,i.officer_id AS party_id,l.owner_user_id AS recipient_user,i.net_pay_cents AS amount_cents,
+ json_object('itemId',i.id,'officerId',i.officer_id,'officerName',o.full_name,'employerId',r.employer_id,'employerName',e.legal_name,'runId',r.id,'periodStart',r.period_start,'periodEnd',r.period_end,'payDate',r.pay_date,'calendar',coalesce(json_extract(s.payload_json,'$.calendar'),'legacy UTC cutoff; SAST service dates'),'currency','ZAR','calculation',json(json_extract(j.value,'$.calculation')),'payrollHash',s.payload_hash,'sourceAllocations',json((SELECT json_group_array(json_object('timesheetId',timesheet_id,'version',timesheet_version,'minutes',payable_minutes,'grossCents',gross_wage_cents)) FROM (SELECT * FROM pay_item_sources WHERE payroll_item_id=i.id ORDER BY id)))) AS source_json
+ FROM payroll_items i JOIN payroll_runs r ON r.id=i.payroll_run_id JOIN production_payroll_snapshots s ON s.run_id=r.id JOIN json_each(s.payload_json,'$.items') j ON json_extract(j.value,'$.id')=i.id JOIN officers o ON o.id=i.officer_id JOIN workforce_employers e ON e.id=r.employer_id JOIN production_entity_links l ON l.kind='officer' AND l.entity_id=i.officer_id
+ WHERE r.environment='production' AND i.environment='production' AND r.integrity_state='production_verified' AND i.integrity_state='production_verified' AND r.status IN('approved_for_export','exported')
+ UNION ALL SELECT 'remittance',p.id,p.employer_id,json_extract(dest.payload_json,'$.representativeUserId'),p.amount_cents,
+ json_object('payableId',p.id,'employerId',p.employer_id,'employerName',e.legal_name,'timesheetId',p.timesheet_id,'invoice',json(v.payload_json),'reviewHash',v.payload_hash,'currency','ZAR','amountCents',p.amount_cents,'serviceDate',json_extract(v.source_json,'$.serviceDate'))
+ FROM partner_payables p JOIN production_partner_payable_reviews v ON p.id='PP-'||v.id JOIN production_partner_payable_decisions d ON d.review_id=v.id AND d.decision='approved' JOIN workforce_employers e ON e.id=p.employer_id JOIN partner_destination_reviews dest ON dest.id=(SELECT x.id FROM partner_destination_reviews x JOIN partner_destination_decisions xd ON xd.review_id=x.id AND xd.decision IN('verified_live','confirmed_test') WHERE x.employer_id=p.employer_id ORDER BY x.rowid DESC LIMIT 1)
+ WHERE p.environment='production' AND p.integrity_state='production_verified'
+ UNION ALL SELECT 'invoice',i.id,i.client_id,l.owner_user_id,i.total_cents,
+ json_object('invoiceId',i.id,'bookingId',i.booking_id,'clientId',i.client_id,'issuer',json(i.issuer_snapshot),'client',json(i.client_snapshot),'periodStart',i.service_period_start,'periodEnd',i.service_period_end,'currency',i.currency,'subtotalCents',i.subtotal_cents,'taxCents',i.tax_cents,'totalCents',i.total_cents,'taxTreatment',i.tax_treatment,'taxEvidence',json(i.issue_reference),'pricingVersion',i.pricing_version,'dueDate',i.due_at,'lines',json((SELECT json_group_array(json_object('description',description,'quantity',quantity,'unitPriceCents',unit_price_cents,'netCents',net_cents,'taxCents',tax_cents,'grossCents',gross_cents)) FROM (SELECT * FROM client_invoice_lines WHERE invoice_id=i.id ORDER BY id))))
+ FROM client_invoices i JOIN bookings b ON b.id=i.booking_id AND b.client_id=i.client_id JOIN production_entity_links l ON l.kind='client' AND l.entity_id=i.client_id
+ WHERE i.environment='production' AND i.integrity_state='production_verified' AND i.currency='ZAR' AND i.total_cents=b.client_price_cents AND i.tax_cents>=0 AND i.subtotal_cents+i.tax_cents=i.total_cents AND i.tax_treatment<>'pending_configuration' AND json_valid(i.issuer_snapshot) AND json_valid(i.client_snapshot)
+ AND EXISTS(SELECT 1 FROM billing_profiles p WHERE p.id=i.issuer_billing_profile_id AND p.version=json_extract(i.issuer_snapshot,'$.version') AND p.active_key IS NOT NULL AND p.owner_id=b.contracting_entity_id AND p.environment='production' AND p.integrity_state='production_verified') AND EXISTS(SELECT 1 FROM billing_profiles p WHERE p.id=i.client_billing_profile_id AND p.version=json_extract(i.client_snapshot,'$.version') AND p.active_key IS NOT NULL AND p.owner_id=i.client_id AND p.environment='production' AND p.integrity_state='production_verified') AND i.pricing_version=b.pricing_version AND json_extract(i.issue_reference,'$.requestHash')=(SELECT request_hash FROM production_order_setups WHERE id=i.booking_id) AND i.tax_cents=b.vat_cents AND i.total_cents=(SELECT sum(gross_cents) FROM client_invoice_lines WHERE invoice_id=i.id);
+--> statement-breakpoint
+CREATE VIEW document_invoice_payment_states AS SELECT i.id AS source_id,r.reference,r.mode,r.state AS status,r.reference AS active_key,
+ CASE WHEN EXISTS(SELECT 1 FROM booking_collection_recoveries WHERE reference=r.reference) OR EXISTS(SELECT 1 FROM booking_funding_reconciliations WHERE provider_reference=r.reference AND status='held') THEN 'held'
+ WHEN r.mode='live' AND EXISTS(SELECT 1 FROM booking_funding_reconciliations f JOIN booking_settlement_reviews s ON f.evidence_reference='settlement-review:'||s.id JOIN booking_settlement_decisions d ON d.review_id=s.id AND d.decision='cleared_live' WHERE f.provider_reference=r.reference AND f.booking_id=i.booking_id AND f.status='cleared_reconciled' AND f.cleared_amount_cents=i.total_cents) THEN 'paid'
+ WHEN r.mode='live' AND r.state NOT IN('prepared','approved') THEN 'pending' ELSE 'unpaid' END AS state
+ FROM client_invoices i JOIN booking_collection_requests r ON r.order_id=i.booking_id;
+--> statement-breakpoint
+CREATE VIEW finance_document_payment_rows AS SELECT 'payslip' AS kind,source_id,reference,mode,status,active_key,state,paid_receipts FROM document_employee_payment_states UNION ALL SELECT 'remittance',source_id,reference,mode,status,active_key,state,paid_receipts FROM document_partner_payment_states UNION ALL SELECT 'invoice',source_id,reference,mode,status,active_key,state,CASE WHEN state='paid' THEN 1 ELSE 0 END FROM document_invoice_payment_states;
+--> statement-breakpoint
+CREATE VIEW finance_document_financial_snapshots AS SELECT s.kind,s.source_id,(SELECT json_group_array(json_object('reference',reference,'mode',mode,'status',status,'active',active_key IS NOT NULL,'state',state,'paidReceipts',paid_receipts)) FROM (SELECT * FROM finance_document_payment_rows p WHERE p.kind=s.kind AND p.source_id=s.source_id ORDER BY reference)) AS financial_json FROM finance_document_sources s;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_prepare_guard BEFORE INSERT ON finance_document_versions BEGIN
+ SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM finance_document_sources s WHERE s.kind=NEW.kind AND s.source_id=NEW.source_id AND s.party_id=NEW.party_id AND s.recipient_user=NEW.recipient_user AND s.source_json=NEW.source_json AND s.amount_cents=NEW.amount_cents AND NEW.financial_json=(SELECT financial_json FROM finance_document_financial_snapshots WHERE kind=s.kind AND source_id=s.source_id) AND EXISTS(SELECT 1 FROM operator_accounts a JOIN operator_role_assignments g ON g.operator_id=a.id WHERE a.id=NEW.operator_id AND a.status='active' AND a.environment='production' AND a.integrity_state='production_verified' AND a.approval_limit_cents>=s.amount_cents AND g.role IN('payroll_preparer','finance_approver') AND g.status='active' AND g.environment='production' AND g.integrity_state='production_verified') AND NEW.user_id<>s.recipient_user) THEN RAISE(ABORT,'Document source or preparer authority changed') END);
+ SELECT (CASE WHEN (NEW.parent_id IS NULL AND NEW.version<>1) OR (NEW.parent_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM finance_document_versions p JOIN finance_document_decisions d ON d.document_id=p.id WHERE p.id=NEW.parent_id AND p.kind=NEW.kind AND p.source_id=NEW.source_id AND p.party_id=NEW.party_id AND p.recipient_user=NEW.recipient_user AND NEW.version=p.version+1)) THEN RAISE(ABORT,'Correction must retain the exact original party and history') END);
+END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_decision_guard BEFORE INSERT ON finance_document_decisions BEGIN
+ SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM finance_document_versions v WHERE v.id=NEW.document_id AND v.payload_hash=NEW.payload_hash AND v.operator_id<>NEW.operator_id AND v.user_id<>NEW.user_id AND EXISTS(SELECT 1 FROM operator_accounts a JOIN operator_role_assignments g ON g.operator_id=a.id WHERE a.id=NEW.operator_id AND a.status='active' AND a.environment='production' AND a.integrity_state='production_verified' AND a.approval_limit_cents>=v.amount_cents AND g.role IN('finance_approver') AND g.status='active' AND g.environment='production' AND g.integrity_state='production_verified') AND NEW.user_id<>v.recipient_user AND (NEW.decision='rejected' OR EXISTS(SELECT 1 FROM finance_document_sources s WHERE s.kind=v.kind AND s.source_id=v.source_id AND s.source_json=v.source_json AND s.recipient_user=v.recipient_user AND v.financial_json=(SELECT financial_json FROM finance_document_financial_snapshots WHERE kind=s.kind AND source_id=s.source_id) AND EXISTS(SELECT 1 FROM operator_accounts a JOIN operator_role_assignments g ON g.operator_id=a.id WHERE a.id=v.operator_id AND a.status='active' AND a.environment='production' AND a.integrity_state='production_verified' AND a.approval_limit_cents>=s.amount_cents AND g.role IN('payroll_preparer','finance_approver') AND g.status='active' AND g.environment='production' AND g.integrity_state='production_verified') AND v.user_id<>s.recipient_user))) THEN RAISE(ABORT,'Independent current document approval required') END);
+END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_issue_guard BEFORE INSERT ON finance_document_issues BEGIN SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM finance_document_decisions d WHERE d.document_id=NEW.document_id AND d.decision='approved') THEN RAISE(ABORT,'Independent approval required before private issue') END);END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_versions_update BEFORE UPDATE ON finance_document_versions BEGIN SELECT RAISE(ABORT,'Finance document history is immutable and required');END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_versions_delete BEFORE DELETE ON finance_document_versions BEGIN SELECT RAISE(ABORT,'Finance document history is immutable and required');END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_decisions_update BEFORE UPDATE ON finance_document_decisions BEGIN SELECT RAISE(ABORT,'Finance document history is immutable and required');END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_decisions_delete BEFORE DELETE ON finance_document_decisions BEGIN SELECT RAISE(ABORT,'Finance document history is immutable and required');END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_issues_update BEFORE UPDATE ON finance_document_issues BEGIN SELECT RAISE(ABORT,'Finance document history is immutable and required');END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_issues_delete BEFORE DELETE ON finance_document_issues BEGIN SELECT RAISE(ABORT,'Finance document history is immutable and required');END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_client_invoices_update BEFORE UPDATE ON client_invoices WHEN EXISTS(SELECT 1 FROM finance_document_versions WHERE kind='invoice' AND source_id=OLD.id) AND NOT (OLD.invoice_number IS NULL AND NEW.status='issued' AND NEW.version=OLD.version+1 AND NEW.id IS OLD.id AND NEW.booking_id IS OLD.booking_id AND NEW.client_id IS OLD.client_id AND NEW.issuer_billing_profile_id IS OLD.issuer_billing_profile_id AND NEW.client_billing_profile_id IS OLD.client_billing_profile_id AND NEW.artifact_id IS OLD.artifact_id AND NEW.original_invoice_id IS OLD.original_invoice_id AND NEW.document_type IS OLD.document_type AND NEW.currency IS OLD.currency AND NEW.service_period_start IS OLD.service_period_start AND NEW.service_period_end IS OLD.service_period_end AND NEW.subtotal_cents IS OLD.subtotal_cents AND NEW.tax_cents IS OLD.tax_cents AND NEW.total_cents IS OLD.total_cents AND NEW.balance_cents IS OLD.balance_cents AND NEW.tax_treatment IS OLD.tax_treatment AND NEW.funding_status IS OLD.funding_status AND NEW.pricing_version IS OLD.pricing_version AND NEW.issuer_snapshot IS OLD.issuer_snapshot AND NEW.client_snapshot IS OLD.client_snapshot AND NEW.issue_reference IS OLD.issue_reference AND NEW.payment_reference IS OLD.payment_reference AND NEW.due_at IS OLD.due_at AND NEW.settled_at IS OLD.settled_at AND NEW.environment IS OLD.environment AND NEW.integrity_state IS OLD.integrity_state AND NEW.created_at IS OLD.created_at AND EXISTS(SELECT 1 FROM finance_document_issues n JOIN finance_document_versions v ON v.id=n.document_id WHERE v.kind='invoice' AND v.source_id=OLD.id AND n.number=NEW.invoice_number AND n.issued_at=NEW.issued_at AND NEW.updated_at=NEW.issued_at)) BEGIN SELECT RAISE(ABORT,'Document invoice sources are frozen; retain correction history');END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_client_invoices_delete BEFORE DELETE ON client_invoices WHEN EXISTS(SELECT 1 FROM finance_document_versions WHERE kind='invoice' AND source_id=OLD.id)  BEGIN SELECT RAISE(ABORT,'Document invoice sources are frozen; retain correction history');END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_client_invoice_lines_update BEFORE UPDATE ON client_invoice_lines WHEN EXISTS(SELECT 1 FROM finance_document_versions WHERE kind='invoice' AND source_id IN (OLD.invoice_id,NEW.invoice_id))  BEGIN SELECT RAISE(ABORT,'Document invoice sources are frozen; retain correction history');END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_client_invoice_lines_delete BEFORE DELETE ON client_invoice_lines WHEN EXISTS(SELECT 1 FROM finance_document_versions WHERE kind='invoice' AND source_id=OLD.invoice_id)  BEGIN SELECT RAISE(ABORT,'Document invoice sources are frozen; retain correction history');END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_invoice_issue AFTER INSERT ON finance_document_issues WHEN EXISTS(SELECT 1 FROM finance_document_versions WHERE id=NEW.document_id AND kind='invoice') BEGIN UPDATE client_invoices SET invoice_number=NEW.number,status='issued',issued_at=NEW.issued_at,updated_at=NEW.issued_at,version=version+1 WHERE id=(SELECT source_id FROM finance_document_versions WHERE id=NEW.document_id) AND invoice_number IS NULL;END;
+--> statement-breakpoint
+CREATE TRIGGER finance_document_invoice_line_freeze BEFORE INSERT ON client_invoice_lines WHEN EXISTS(SELECT 1 FROM finance_document_versions WHERE kind='invoice' AND source_id=NEW.invoice_id) BEGIN SELECT RAISE(ABORT,'Issued invoice source is frozen');END;
+--> statement-breakpoint
+CREATE TRIGGER payroll_sast_calendar_guard BEFORE INSERT ON production_payroll_snapshots BEGIN SELECT (CASE WHEN json_extract(NEW.payload_json,'$.calendar') IS NOT 'Africa/Johannesburg' OR json_extract(NEW.payload_json,'$.periodEnd')>date('now','+2 hours') THEN RAISE(ABORT,'Payroll requires the accepted South African calendar and completed service period') END);END;
+--> statement-breakpoint
+DROP TRIGGER employee_payment_command_insert;
+--> statement-breakpoint
+CREATE TRIGGER employee_payment_command_insert BEFORE INSERT ON employee_payment_commands BEGIN
+ SELECT (CASE WHEN NEW.auth_method NOT IN ('mfa_verified','owner_mfa_exception') OR julianday(NEW.created_at) IS NULL OR abs(julianday(NEW.created_at)-julianday('now'))>1.0/1440
+ OR NOT EXISTS(SELECT 1 FROM employee_payment_instructions i JOIN operator_accounts a ON a.id=NEW.operator_id JOIN operator_role_assignments g ON g.operator_id=a.id WHERE i.reference=NEW.reference AND i.version=NEW.version AND i.source_hash=NEW.source_hash AND a.environment='production' AND a.integrity_state='production_verified' AND a.status='active' AND a.approval_limit_cents>=i.amount_cents AND g.role='finance_approver' AND g.environment='production' AND g.integrity_state='production_verified' AND g.status='active' AND json_extract(i.source_json,'$.ownerUser')!=NEW.user_id
+ AND ((NEW.action='cancel' AND i.status IN ('prepared','approved')) OR (NEW.action IN ('approve','dispatch_test','dispatch_live') AND i.prepared_by!=NEW.operator_id AND i.prepared_user!=NEW.user_id AND ((NEW.action='approve' AND i.status='prepared') OR (NEW.action IN ('dispatch_test','dispatch_live') AND i.status='approved' AND i.mode=CASE NEW.action WHEN 'dispatch_live' THEN 'live' ELSE 'test' END AND json_extract(i.source_json,'$.payDate')<=date('now','+2 hours'))))))
+ THEN RAISE(ABORT,'Employee instruction stage or independent finance authority changed') END);
+ SELECT (CASE WHEN NEW.action!='cancel' AND NOT EXISTS(SELECT 1 FROM employee_payment_instructions i JOIN employee_payment_sources s ON s.payroll_item_id=i.payroll_item_id AND s.destination_id=i.destination_id AND s.source_json=i.source_json WHERE i.reference=NEW.reference
+ AND EXISTS(SELECT 1 FROM operator_accounts a JOIN operator_role_assignments g ON g.operator_id=a.id WHERE a.id=i.prepared_by AND a.environment='production' AND a.integrity_state='production_verified' AND a.status='active' AND a.approval_limit_cents>=i.amount_cents AND g.role='payroll_preparer' AND g.environment='production' AND g.integrity_state='production_verified' AND g.status='active')
+ AND (NEW.action NOT IN ('dispatch_test','dispatch_live') OR (NEW.recipient_hash=json_extract((SELECT payload_json FROM payment_destination_reviews WHERE id=i.destination_id),'$.providerHash') AND EXISTS(SELECT 1 FROM operator_accounts a JOIN operator_role_assignments g ON g.operator_id=a.id WHERE a.id=i.approved_by AND a.environment='production' AND a.integrity_state='production_verified' AND a.status='active' AND a.approval_limit_cents>=i.amount_cents AND g.role='finance_approver' AND g.environment='production' AND g.integrity_state='production_verified' AND g.status='active')))
+ AND NOT EXISTS(SELECT 1 FROM employee_transfer_observations e WHERE e.reference=i.reference)) THEN RAISE(ABORT,'Employee source, destination or provider evidence changed') END);
+END;
+--> statement-breakpoint
+DROP TRIGGER partner_payment_command_insert;
+--> statement-breakpoint
+CREATE TRIGGER partner_payment_command_insert BEFORE INSERT ON partner_payment_commands BEGIN
+ SELECT (CASE WHEN NEW.auth_method NOT IN ('mfa_verified','owner_mfa_exception') OR julianday(NEW.created_at) IS NULL OR abs(julianday(NEW.created_at)-julianday('now'))>1.0/1440
+ OR NOT EXISTS(SELECT 1 FROM partner_payment_instructions i JOIN operator_accounts a ON a.id=NEW.operator_id JOIN operator_role_assignments g ON g.operator_id=a.id WHERE i.reference=NEW.reference AND i.version=NEW.version AND i.source_hash=NEW.source_hash AND a.environment='production' AND a.integrity_state='production_verified' AND a.status='active' AND a.approval_limit_cents>=i.amount_cents AND g.role='finance_approver' AND g.environment='production' AND g.integrity_state='production_verified' AND g.status='active' AND NEW.user_id NOT IN (json_extract(i.source_json,'$.representativeUser'),json_extract(i.source_json,'$.officerUser'),json_extract(i.source_json,'$.clientUser'))
+ AND ((NEW.action='cancel' AND i.status IN ('prepared','approved')) OR (NEW.action IN ('approve','dispatch_test','dispatch_live') AND i.prepared_by!=NEW.operator_id AND i.prepared_user!=NEW.user_id AND ((NEW.action='approve' AND i.status='prepared') OR (NEW.action IN ('dispatch_test','dispatch_live') AND i.status='approved' AND i.mode=CASE NEW.action WHEN 'dispatch_live' THEN 'live' ELSE 'test' END AND json_extract(i.source_json,'$.dueDate')<=date('now','+2 hours'))))))
+ THEN RAISE(ABORT,'Partner instruction stage or independent finance authority changed') END);
+ SELECT (CASE WHEN NEW.action!='cancel' AND NOT EXISTS(SELECT 1 FROM partner_payment_instructions i JOIN partner_payment_sources s ON s.payable_id=i.payable_id AND s.destination_id=i.destination_id AND s.source_json=i.source_json WHERE i.reference=NEW.reference
+ AND EXISTS(SELECT 1 FROM operator_accounts a JOIN operator_role_assignments g ON g.operator_id=a.id WHERE a.id=i.prepared_by AND a.environment='production' AND a.integrity_state='production_verified' AND a.status='active' AND a.approval_limit_cents>=i.amount_cents AND g.role='operations_controller' AND g.environment='production' AND g.integrity_state='production_verified' AND g.status='active')
+ AND (NEW.action NOT IN ('dispatch_test','dispatch_live') OR (NEW.recipient_hash=json_extract((SELECT payload_json FROM partner_destination_reviews WHERE id=i.destination_id),'$.providerHash') AND EXISTS(SELECT 1 FROM operator_accounts a JOIN operator_role_assignments g ON g.operator_id=a.id WHERE a.id=i.approved_by AND a.environment='production' AND a.integrity_state='production_verified' AND a.status='active' AND a.approval_limit_cents>=i.amount_cents AND g.role='finance_approver' AND g.environment='production' AND g.integrity_state='production_verified' AND g.status='active')))
+ AND NOT EXISTS(SELECT 1 FROM partner_transfer_observations e WHERE e.reference=i.reference)) THEN RAISE(ABORT,'Partner source, destination or provider evidence changed') END);
+END;

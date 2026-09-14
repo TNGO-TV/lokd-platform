@@ -13,11 +13,22 @@ type Run=(action:SpecialistAction)=>Promise<boolean>;
 
 export function SpecialistOperationsControl({initialTab="packs"}:{initialTab?:Tab}) {
   const [state,setState]=useState<SpecialistOperationsState|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[tab,setTab]=useState<Tab>(initialTab),[selected,setSelected]=useState("");
-  const refresh=useCallback(async()=>{
-    try {const response=await fetch("/api/specialist?scope=operations",{cache:"no-store"});const payload=await response.json() as {state?:SpecialistOperationsState;error?:string};if(!response.ok||!payload.state) throw new Error(payload.error??"Specialist records unavailable.");setState(payload.state);setError("");}
-    catch(cause){setError(cause instanceof Error?cause.message:"Unable to load specialist records.");}
+  const read=useCallback(async(signal?:AbortSignal)=>{
+    const response=await fetch("/api/specialist?scope=operations",{cache:"no-store",signal});
+    const payload=await response.json() as {state?:SpecialistOperationsState;error?:string};
+    if(!response.ok||!payload.state) throw new Error(payload.error??"Specialist records unavailable.");
+    return payload.state;
   },[]);
-  useEffect(()=>{void refresh();},[refresh]);
+  const refresh=useCallback(async()=>{
+    try {setState(await read());setError("");}
+    catch(cause){setError(cause instanceof Error?cause.message:"Unable to load specialist records.");}
+  },[read]);
+  useEffect(()=>{
+    const controller=new AbortController();
+    void read(controller.signal).then(data=>{if(!controller.signal.aborted){setState(data);setError("");}})
+      .catch(cause=>{if(!controller.signal.aborted)setError(cause instanceof Error?cause.message:"Unable to load specialist records.");});
+    return()=>controller.abort();
+  },[read]);
   const run:Run=async(action)=>{
     setBusy(true);setError("");try {const response=await fetch("/api/specialist?scope=operations",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(action)});const payload=await response.json() as {state?:SpecialistOperationsState;error?:string};if(!response.ok||!payload.state) throw new Error(payload.error??"This action could not complete.");setState(payload.state);return true;}
     catch(cause){setError(cause instanceof Error?cause.message:"This action could not complete.");return false;}finally{setBusy(false);}

@@ -35,7 +35,7 @@ test("readiness fails closed without a bound database", async () => {
   assert.equal(body.productionActivationAuthorized, false);
 });
 
-test("the fully migrated Version 34 schema is ready without authorising paid deployment", async () => {
+test("the migrated schema passes baseline checks without asserting provider or operational readiness", async () => {
   const db = bindMigratedDatabase();
   try {
     const response = await ready();
@@ -44,9 +44,13 @@ test("the fully migrated Version 34 schema is ready without authorising paid dep
     assert.equal(body.status, "ready");
     assert.equal(body.productionActivationAuthorized, false);
     assert.equal(body.payrollMode, "shadow_settlement_locked");
-    assert.equal(body.onboardingMode, "controlled_demo_rehearsal");
-    assert.equal(body.softwareIntegrationReady, true);
-    assert.deepEqual(body.remainingExternalProviders, ["iiDENTIFii", "payment processor"]);
+    assert.equal(body.readinessScope, "baseline_schema_and_evidence_binding");
+    assert.equal(body.infrastructureReady, true);
+    assert.equal(body.providerConnectivity, "not_assessed");
+    assert.equal(body.operationalAcceptance, "not_assessed");
+    assert.equal("softwareIntegrationReady" in body, false);
+    assert.equal("remainingExternalProviders" in body, false);
+    assert.equal("onboardingMode" in body, false);
   } finally { cleanup(db); }
 });
 
@@ -76,7 +80,7 @@ test("readiness fails closed when private evidence storage is not bound", async 
     const response = await ready();
     const body = await response.json();
     assert.equal(response.status, 503);
-    assert.equal(body.softwareIntegrationReady, false);
+    assert.equal(body.infrastructureReady, false);
     assert.equal(body.checks.evidenceStoreBound, false);
   } finally { cleanup(db); }
 });

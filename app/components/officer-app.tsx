@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import type {
   PilotOffer,
@@ -79,7 +80,7 @@ export default function OfficerApp() {
     <main className="portal-shell officer-shell officer-v2">
       <header className="portal-header officer-header-v2">
         <a href={PUBLIC_SITE_URL} className="portal-logo">
-          <img src="/lokd-logo.png" alt="LOKD" />
+          <Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" />
         </a>
         <div
           className="portal-role-switch pilot-role-switch"
@@ -1361,7 +1362,7 @@ function ShiftDetail({
       </section>
       {(shift.status === "confirmed" || shift.status === "on_post") && (
         <section className="shift-passport-card">
-          <img
+          <Image width={256} height={256} unoptimized loading="eager"
             src="/lokd-shift-passport-qr.svg"
             alt="Booking-specific LOKD Passport rehearsal QR"
           />
@@ -1580,7 +1581,7 @@ function OfficerEarnings({
       </section>
       <section className="lokd-card-preview card-preview-v2">
         <div className="mini-payment-card">
-          <img src="/lokd-logo-reverse.png" alt="" />
+          <Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo-reverse.png" alt="" />
           <span>CONCEPT</span>
           <b>•••• 2081</b>
         </div>
@@ -1806,7 +1807,7 @@ function OfficerProfile({
               </p>
             </div>
           </div>
-          <img
+          <Image width={256} height={256} unoptimized loading="eager"
             src="/lokd-passport-qr.svg"
             alt="Synthetic LOKD Passport preview QR"
           />

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { projectGautengCoordinate } from "../lib/operations-core";
 import type {
@@ -143,7 +144,7 @@ export default function OperationsApp({ stage, actorEmail, owner = false }: { ow
   return (
     <main className="app-shell ops-premium-shell">
       <aside className="side-rail">
-        <a className="brand-lockup" href={PUBLIC_SITE_URL} aria-label="LOKD home"><img src="/lokd-logo-reverse.png" alt="LOKD" /></a>
+        <a className="brand-lockup" href={PUBLIC_SITE_URL} aria-label="LOKD home"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo-reverse.png" alt="LOKD" /></a>
         <div className="pilot-chip"><span className="pulse-dot" /><span><strong>Johannesburg pilot</strong>Operations command · Synthetic</span></div>
         <div className="experience-switcher" aria-label="Preview experience">
           <a className="experience-active" href={OPERATIONS_PORTAL_URL}>Ops</a><a href={OFFICER_PORTAL_URL}>Officer</a><a href={CLIENT_PORTAL_URL}>Client</a>
@@ -171,7 +172,7 @@ export default function OperationsApp({ stage, actorEmail, owner = false }: { ow
 
       <section className="main-stage">
         <header className="top-bar ops-command-topbar">
-          <a className="mobile-brand" href={PUBLIC_SITE_URL} aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></a>
+          <a className="mobile-brand" href={PUBLIC_SITE_URL} aria-label="LOKD home"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" /></a>
           <div className="breadcrumb"><span>Operations</span><b>/</b><strong>{activeNav}</strong></div>
           <div className="top-actions">
             <button className="icon-button" aria-label="Search" aria-expanded={searchOpen} onClick={() => { setSearchOpen((value) => !value); setNotificationsOpen(false); }}><Icon name="search" /></button>

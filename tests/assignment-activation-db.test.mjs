@@ -1146,8 +1146,10 @@ test("check-in closes at the roster deadline in both the server and database gua
   database.close();
 });
 
-test("primary activation cannot cross the scheduled start boundary", async () => {
+test("primary activation cannot cross the scheduled start boundary", async (context) => {
   const database = migratedDatabase();
+  const {installFixtureClock}=await import('./fixtures/fixture-clock.mjs');
+  installFixtureClock(context,database,Date.parse('2026-09-13T22:00:30Z'));
   await seedValid(database);
   await signFixtureAgreements(database);
   const db = new D1Adapter(database);
@@ -1158,7 +1160,8 @@ test("primary activation cannot cross the scheduled start boundary", async () =>
   const base = Math.floor(Date.now() / 60_000) * 60_000;
   const pastStart = new Date(base - 60_000).toISOString();
   const futureEnd = new Date(base + 12 * 60 * 60_000).toISOString();
-  const serviceDate = new Date(base + 2 * 60 * 60_000).toISOString().slice(0, 10);
+  const serviceDate = new Date(Date.parse(pastStart) + 2 * 60 * 60_000).toISOString().slice(0, 10);
+  assert.equal(serviceDate,"2026-09-13"); // The start is before SAST midnight, even though evaluation is after it.
   run(database, `UPDATE roster_slots SET service_date=?,starts_at=?,ends_at=?,arrival_due_at=?,check_in_due_at=?
     WHERE id='SLOT-1'`, serviceDate, pastStart, futureEnd, pastStart, new Date(base + 10 * 60_000).toISOString());
   run(database, `UPDATE officer_availability_windows SET starts_at=?,ends_at=? WHERE officer_id='OFF-1'`,
@@ -1651,6 +1654,8 @@ test('production intake prepares pending records and reconciles reviewed correct
  assert.equal((await settle(owner,approveSettlement)).alreadyDecided,true);
  assert.equal(database.prepare('SELECT count(*) n FROM booking_funding_reconciliations WHERE booking_id=?').get(setup.orderId).n,0);
  assert.throws(()=>database.exec("UPDATE booking_settlement_reviews SET payload_hash='wrong'"),/immutable/);
+ const {invoiceDocumentJourney}=await import('./fixtures/invoice-document-journey.mjs');
+ const invoiceDocument=await invoiceDocumentJourney({database,db,reviewer,owner,applicant,headers,bookingId:setup.orderId});
  const racing=command('verify_collection');
  await assert.rejects(()=>act(owner,racing,async()=>{await receiveBookingCollectionWebhook(webhook({...transaction,amount:1}),db,runtime,'test');return transport();}),/changed during provider/);
  assert.equal(saved().state,'review_required');
@@ -1666,6 +1671,7 @@ test('production intake prepares pending records and reconciles reviewed correct
  const getLive=()=>database.prepare("SELECT * FROM booking_collection_requests WHERE mode='live'").get();
  const liveCommand=action=>({action,reference:live.reference,revision:getLive().revision});
  await operateBookingCollection(db,applicant,liveCommand('initialize_collection'),headers,liveRuntime,async()=>Response.json({status:true,data:{reference:live.reference,authorization_url:'https://checkout.paystack.com/isolated-fixture'}}));
+ assert.equal((await invoiceDocument.read()).documents[0].currentState,'pending');
  const liveTx={...transaction,id:9002,reference:live.reference,domain:'live',metadata:{...meta,mode:'live'}};
  const liveVerify=async()=>Response.json({status:true,data:liveTx});
  await receiveBookingCollectionWebhook(webhook(liveTx,liveRuntime.PAYSTACK_LIVE_SECRET_KEY),db,liveRuntime,'live');
@@ -1676,6 +1682,7 @@ test('production intake prepares pending records and reconciles reviewed correct
  const liveReview=database.prepare('SELECT * FROM booking_settlement_reviews WHERE id=?').get(preparedLive.settlementReviewId);
  const liveApproval={...approveSettlement,reference:live.reference,reviewId:liveReview.id,payloadHash:liveReview.payload_hash};
  assert.equal((await settle(owner,liveApproval,liveRuntime,liveSettlementTransport)).cleared,true);
+ assert.equal((await invoiceDocument.read()).documents[0].currentState,'paid');assert.equal((await invoiceDocument.read()).documents[0].asIssuedState,'unpaid');
  assert.equal(database.prepare('SELECT funding_status FROM bookings WHERE id=?').get(setup.orderId).funding_status,'unfunded');
  await assert.rejects(()=>settle(owner,{action:'apply_booking_funding',reference:live.reference},liveRuntime),/site, pricing/);
  assert.equal(database.prepare("SELECT status FROM booking_funding_reconciliations WHERE provider_reference=?").get(live.reference).status,'cleared_reconciled');
@@ -1692,6 +1699,7 @@ test('production intake prepares pending records and reconciles reviewed correct
  assert.equal(database.prepare('SELECT count(*) n FROM booking_collection_recoveries').get().n,1);
  assert.equal(database.prepare("SELECT status FROM booking_funding_reconciliations WHERE provider_reference=?").get(live.reference).status,'held');
  assert.equal(getLive().state,'review_required');
+ assert.equal((await invoiceDocument.read()).documents[0].currentState,'held');
  assert.throws(()=>database.exec("DELETE FROM booking_collection_recoveries"),/required/);
  const earlyBody=JSON.stringify({event:'charge.dispute.create',data:{transaction:9003,amount:100}});
  const earlyEvent=new Request('https://lokd.co.za/api/paystack/booking/webhook?mode=test',{method:'POST',body:earlyBody,headers:{'x-paystack-signature':createHmac('sha512',runtime.PAYSTACK_TEST_SECRET_KEY).update(earlyBody).digest('hex')}});
@@ -1720,17 +1728,31 @@ test('production intake prepares pending records and reconciles reviewed correct
  database.close();
 });
 
-test('production service records actual checkout and a disputed client journey without financial approval',async()=>{
- const {recordProductionService,readProductionService}=await import('../app/lib/production-service.ts');
+test('linked production officer cannot check in without current identity and scoped readiness',async()=>{
  const database=migratedDatabase();await seedValid(database);await moveCandidateToCheckInWindow(database);const db=new D1Adapter(database);
- const activation=await activateAssignment(db,request('service:workflow'),'ops-fixture');await passDueScheduledCheckpoints(db);
- const officer={userId:'officer-service',email:'officer-service@example.test',operations:false,owner:false},client={userId:'client-service',email:'client-service@example.test',operations:false,owner:false},ops={userId:'ops-service',email:'ops-service@example.test',operations:true,owner:true};
+ const activation=await activateAssignment(db,request('identity:linked-denial'),'ops-fixture');await passDueScheduledCheckpoints(db);
+ const officer={userId:'officer-service',email:'officer-service@example.test',operations:false,owner:false};
  run(database,"INSERT INTO production_entity_links VALUES('officer','service-officer-case',1,?,'OFF-1','fixture',?)",officer.userId,new Date().toISOString());
  const checkInNow=new Date().toISOString();run(database,`INSERT INTO officer_applications(id,pathway,full_name,mobile_normalized,email_normalized,city,province,psira_status,service_interests,training_interests,over_18_confirmed,eligibility_acknowledged,privacy_notice_version,privacy_acknowledged_at,retention_review_at,environment,integrity_state) VALUES('service-officer-case','qualified','Service Fixture','+27820000888',?,'Sandton','Gauteng','registered','[]','[]',1,1,'fixture',?,?,'prelaunch','user_submitted')`,officer.email,checkInNow,checkInNow);
  run(database,"INSERT INTO signup_cases VALUES('officer','service-officer-case',?,'reviewed','Fixture','{}',1,'fixture',?)",officer.userId,checkInNow);
  const {operateProduction:checkIn}=await import('../app/lib/production-operations.ts');
- const checked=await checkIn(db,officer,{action:'check_in',shiftId:activation.shiftId},new Headers(),true);assert.equal(checked.ready,true,JSON.stringify(checked.blockers));
+ await assert.rejects(()=>checkIn(db,officer,{action:'check_in',shiftId:activation.shiftId},new Headers(),true),/Current (officer approval|scoped readiness passport)/);
+ assert.notEqual(database.prepare('SELECT status FROM shifts WHERE id=?').get(activation.shiftId).status,'on_post');
+ assert.equal(count(database,'production_service_events'),0);database.close();
+});
+
+test('legacy service history retains disputed checkout and pay review after account linking',async()=>{
+ const {recordProductionService,readProductionService}=await import('../app/lib/production-service.ts');
+ const database=migratedDatabase();await seedValid(database);await moveCandidateToCheckInWindow(database);const db=new D1Adapter(database);
+ const activation=await activateAssignment(db,request('service:workflow'),'ops-fixture');await passDueScheduledCheckpoints(db);
+ const officer={userId:'officer-service',email:'officer-service@example.test',operations:false,owner:false},client={userId:'client-service',email:'client-service@example.test',operations:false,owner:false},ops={userId:'ops-service',email:'ops-service@example.test',operations:true,owner:true};
+ // This is legacy consumed-service regression coverage. New linked-officer
+ // activation is tested separately above and requires the complete evidence chain.
+ const checked=await revalidateAssignment(db,activation.shiftId,'check_in',officer.userId,true);assert.equal(checked.ready,true,JSON.stringify(checked.blockers));
  assert.equal(database.prepare('SELECT status FROM shifts WHERE id=?').get(activation.shiftId).status,'on_post');
+ run(database,"INSERT INTO production_entity_links VALUES('officer','service-officer-case',1,?,'OFF-1','fixture',?)",officer.userId,new Date().toISOString());
+ const checkInNow=new Date().toISOString();run(database,`INSERT INTO officer_applications(id,pathway,full_name,mobile_normalized,email_normalized,city,province,psira_status,service_interests,training_interests,over_18_confirmed,eligibility_acknowledged,privacy_notice_version,privacy_acknowledged_at,retention_review_at,environment,integrity_state) VALUES('service-officer-case','qualified','Service Fixture','+27820000888',?,'Sandton','Gauteng','registered','[]','[]',1,1,'fixture',?,?,'prelaunch','user_submitted')`,officer.email,checkInNow,checkInNow);
+ run(database,"INSERT INTO signup_cases VALUES('officer','service-officer-case',?,'reviewed','Fixture','{}',1,'fixture',?)",officer.userId,checkInNow);
  run(database,"INSERT INTO production_entity_links VALUES('client','service-client-case',1,?,'CL-1','fixture',?)",client.userId,new Date().toISOString());
  const completion={action:'complete_service',shiftId:activation.shiftId,note:'Fixture officer reports actual service completion.'};
  await assert.rejects(()=>recordProductionService(db,client,completion),/assigned officer/);
@@ -1833,14 +1855,23 @@ test('production payroll policy requires three separately granted actors and pre
 });
 
 test('production period payroll binds reviewed sources and profiles, enforces independent approval and exports without settlement',async(testContext)=>{
+ if(process.env.LOKD_PAYROLL_FIXTURE_EXPORT)throw new Error('The deterministic payroll clock is in-memory only; this fixture cannot be exported for browser or account acceptance.');
  const {prepareProductionPayroll,decideProductionPayroll,readProductionPayroll,exportProductionPayrollCsv}=await import('../app/lib/production-payroll.ts');
  const {recordProductionService}=await import('../app/lib/production-service.ts');const {manageProductionEvidence}=await import('../app/lib/production-evidence.ts');const {manageProductionPayrollPolicy}=await import('../app/lib/production-payroll-policy.ts');const {operateProduction}=await import('../app/lib/production-operations.ts');const {ZA_2027_SARS_POLICY_CANDIDATE}=await import('../app/lib/payroll-engine.ts');const {env}=await import('cloudflare:workers');env.LOKD_OPERATIONS_MFA_REQUIRED='false';
- const database=migratedDatabase();await seedValid(database);await moveCandidateToCheckInWindow(database);const db=new D1Adapter(database),headers=new Headers();
+ const database=migratedDatabase();
+ const {installFixtureClock}=await import('./fixtures/fixture-clock.mjs');
+ const clock=installFixtureClock(testContext,database,Date.parse('2026-09-13T21:52:00Z'));
+ await seedValid(database);const scheduled=await moveCandidateToCheckInWindow(database);const db=new D1Adapter(database),headers=new Headers();
  const paymentUsers=JSON.parse(process.env.LOKD_PAYMENT_BROWSER_USERS??'{}'),paymentEmails=JSON.parse(process.env.LOKD_PAYMENT_BROWSER_EMAILS??'{}');
  const owner={userId:paymentUsers.owner??'period-owner',email:paymentEmails.owner??'period-owner@example.test',operations:true,owner:true},maker={userId:paymentUsers.operations??'period-maker',email:paymentEmails.operations??'period-maker@example.test',operations:true,owner:false},finance={userId:paymentUsers.finance??'period-finance',email:paymentEmails.finance??'period-finance@example.test',operations:true,owner:false},officer={userId:paymentUsers.officer??'period-officer',email:paymentEmails.officer??'period-officer@example.test',operations:false,owner:false},client={userId:paymentUsers.client??'period-client',email:paymentEmails.client??'period-client@example.test',operations:false,owner:false};
  const activation=await activateAssignment(db,request('period:service'),'fixture');await passDueScheduledCheckpoints(db);await revalidateAssignment(db,activation.shiftId,'check_in',officer.userId,true);
  run(database,"INSERT INTO production_entity_links VALUES('officer','period-officer-case',1,?,'OFF-1','fixture',?)",officer.userId,new Date().toISOString());run(database,"INSERT INTO production_entity_links VALUES('client','period-client-case',1,?,'CL-1','fixture',?)",client.userId,new Date().toISOString());
  for(const [actor,roles] of [[owner,['payroll_reviewer']],[maker,['payroll_preparer','payroll_reviewer']],[finance,['finance_approver']]])for(const role of roles)await operateProduction(db,owner,{action:'grant_operator',email:actor.email,role,limitCents:10000000},headers);
+ const serviceDate=database.prepare("SELECT service_date FROM roster_slots WHERE id='SLOT-1'").get().service_date;
+ assert.equal(serviceDate,'2026-09-14');
+ await assert.rejects(()=>prepareProductionPayroll(db,maker,{requestKey:'period-fixture-too-early',employerId:'EMP-1',periodStart:serviceDate,periodEnd:serviceDate,payDate:serviceDate},headers),/completed pay period/);
+ // Complete the simulated shift before preparing its pay period; no stored evidence is backdated.
+ clock.set(Date.parse(scheduled.ends)+1000);
  await recordProductionService(db,officer,{action:'complete_service',shiftId:activation.shiftId,note:'Isolated service completion for payroll integration.'});let t=database.prepare('SELECT * FROM shift_timesheets WHERE shift_id=?').get(activation.shiftId);
  await recordProductionService(db,client,{action:'client_signoff',shiftId:activation.shiftId,version:t.version,note:'Fixture client reviewed actual service.',serviceEvidenceReviewed:true});t=database.prepare('SELECT * FROM shift_timesheets WHERE shift_id=?').get(activation.shiftId);
  await recordProductionService(db,owner,{action:'review_service_pay',shiftId:activation.shiftId,version:t.version,payableMinutes:120,grossCents:80000,payEvidenceReviewed:true,note:'Isolated reviewed contracted gross including pay treatment.'},headers);t=database.prepare('SELECT * FROM shift_timesheets WHERE shift_id=?').get(activation.shiftId);
@@ -1852,7 +1883,6 @@ test('production period payroll binds reviewed sources and profiles, enforces in
  await assert.rejects(()=>prepareProductionPayroll(db,maker,input,headers),/payroll calculation profile/);
  const profile=await manageProductionEvidence(db,maker,{action:'prepare_evidence',kind:'payroll_profile',sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString(),fields:{profileId:'PROFILE-PERIOD',officerId:'OFF-1',engagementId:t.workforce_engagement_id,employerId:t.employer_id,taxToken:'vault:fixture:tax',uifToken:'vault:fixture:uif',providentToken:'vault:fixture:provident',payrollReference:'Isolated payroll setup review'}});
  await manageProductionEvidence(db,owner,{action:'decide_evidence',reviewId:profile.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Independent isolated payroll profile review.'});assert.equal(database.prepare("SELECT payment_destination_token FROM payroll_profiles WHERE id='PROFILE-PERIOD'").get().payment_destination_token,null);
- if(process.env.LOKD_PAYROLL_FIXTURE_EXPORT){const path=process.env.LOKD_PAYROLL_FIXTURE_EXPORT;assert.match(path,/^\/tmp\/lokd-[a-z0-9-]+\.sqlite$/);assert.equal(fs.existsSync(path),false);database.prepare('VACUUM INTO ?').run(path);}
  let raced=false;db.afterRead=async({sql})=>{if(!raced&&sql.includes('SELECT p.id,p.version,r.expires_at')){raced=true;run(database,"UPDATE payroll_profiles SET version=version+1 WHERE id='PROFILE-PERIOD'");}};
  await assert.rejects(()=>prepareProductionPayroll(db,maker,input,headers),/profile changed/);assert.equal(count(database,'payroll_runs'),0);db.afterRead=null;
  let prepared=await prepareProductionPayroll(db,maker,input,headers);assert.equal((await prepareProductionPayroll(db,maker,input,headers)).alreadyPrepared,true);
@@ -1949,7 +1979,7 @@ test('production destinations bind exact employee evidence with independent fres
  assert.equal(count(database,'disbursement_items'),0);assert.equal(count(database,'payroll_runs'),0);database.close();
 });
 
-test('production partner payables independently allocate invoice evidence and suspend unpaid exports',async(testContext)=>{
+test('legacy partner service history independently allocates invoice evidence and suspends unpaid exports',async(testContext)=>{
  const {recordProductionService,readProductionService}=await import('../app/lib/production-service.ts');
  const {operateProduction}=await import('../app/lib/production-operations.ts');
  const {operatePartnerPayable,readPartnerPayables,exportPartnerPayableCsv}=await import('../app/lib/partner-payables.ts');
@@ -1963,8 +1993,9 @@ test('production partner payables independently allocate invoice evidence and su
  const officer={userId:process.env.LOKD_PARTNER_OFFICER_USER||'partner-officer',email:process.env.LOKD_PARTNER_OFFICER_EMAIL||'partner-officer@example.test',operations:false,owner:false};
  const client={userId:process.env.LOKD_PARTNER_CLIENT_USER||'partner-client',email:process.env.LOKD_PARTNER_CLIENT_EMAIL||'partner-client@example.test',operations:false,owner:false};
  const activation=await activateAssignment(db,request('partner:service'),'fixture');await passDueScheduledCheckpoints(db);
- run(database,"INSERT INTO production_entity_links VALUES('officer','partner-officer-case',1,?,'OFF-1','fixture',?)",officer.userId,new Date().toISOString());
+ // Keep legacy completed-service finance coverage without granting a linked officer readiness.
  const checked=await revalidateAssignment(db,activation.shiftId,'check_in',officer.userId,true);assert.equal(checked.ready,true,JSON.stringify(checked.blockers));
+ run(database,"INSERT INTO production_entity_links VALUES('officer','partner-officer-case',1,?,'OFF-1','fixture',?)",officer.userId,new Date().toISOString());
  run(database,"INSERT INTO production_entity_links VALUES('client','partner-client-case',1,?,'CL-1','fixture',?)",client.userId,new Date().toISOString());
  await recordProductionService(db,officer,{action:'complete_service',shiftId:activation.shiftId,note:'Fixture completed partner service.'});
  let t=(await readProductionService(db,client)).timesheets[0];
