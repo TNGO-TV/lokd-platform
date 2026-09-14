@@ -1,0 +1,27 @@
+# Independent finance adjustment UI review — 2026-09-14
+
+Scope: current Central finance-adjustment-controls.tsx, finance-document-controls.tsx integration, production service mount, credit GET evidence and exact credit/refund backend contracts. No implementation edits. Browser fixture run coordinated with frontend_qa to avoid concurrent browser execution; independent browser results will be appended when complete.
+
+## Finding
+
+P2 contract mismatch: finance-adjustment-controls.tsx providerId inputs allow a one-digit positive numeric string, matching the documented provider evidence identifier shape. However booking-refunds.ts uses text(input.externalRefundId,...,40) and text(input.refundId,...,40), where text requires trimmed length>=3. Valid IDs '1' and '12' therefore pass browser validation but fail real backend400. Existing UI mock tests do not execute this parser. Align the backend with its own /^[1-9][0-9]{0,39}$/ evidence identifier validation, retaining strings and rejecting zero, signs, decimals, exponent notation, unsafe numeric values and oversized IDs. Author and Central notified; no change made by reviewer.
+
+## Reviewed controls
+
+- UI request actions/fields match backend credit prepare/approve/reject/reversal, refund/investigation prepare, case decisions, GET-only external adoption, original-refund verification, receipt preparation and independent receipt approval. Amount derives from issued credit; the UI does not invent percentages or include an override amount.
+- Adjustments default to unmounted via allowCredits=false; production service mounts them for Operations/client only. Officer workspace does not mount these private APIs. Client sees its issued credit records and download only; server checks recipient ownership/current entity linkage. Reviewer user, findings and decision timestamp now come from actual credit decisions in GET.
+- Shared resource lock and per-form refs prevent simultaneous duplicate submissions. Durable request keys/facts are retained for uncertain credit/case preparation and retried unchanged. No automatic retries. Monetary dispatch/adoption and receipt preparation are once-per-mounted-form; authoritative server durable claims/guards remain essential after remount or page reload.
+- Live monetary dispatch button requires both returned live gates and current case approval; test dispatch and existing-refund adoption remain distinct. UI never turns provider processed state into paid/refunded proof. Backend remains authoritative for maker/user separation and fresh amount-scoped privileges; a rendered approval control is not authorization.
+- Refresh failures retain draft/data but disable actions; source changes require explicit acknowledgement and reset review checkboxes. Drafts are component-memory only; no persistent draft recovery across browser reload is claimed.
+- Issued document amounts/payment-at-issue remain separate from current state, credits and refunds. Credit printable HTML includes signed direction/net/tax/total, original invoice, actual issue/reviewer evidence, escaping and restrictive CSP; raw injected markup is escaped. Blob stays local, with no external download transmission.
+- Limit notices explicitly identify bounded refund discovery; UI does not claim full-history completeness. Remaining finance exception work and genuine-provider/bank acceptance are not closed by this panel.
+
+## Final independent verification and disposition
+
+The provider ID mismatch is fixed by Central with providerRefundId accepting exact positive numeric strings1–40 digits. Both external adoption preparation and original verification use it. Independently reran the real connected intake/refund journey, including ID1 and malformed-ID rejection before transport: named test passed, /tmp/lokd-finance-ui-contract-independent.log.
+
+After frontend_qa released browser ownership, independently ran seven critical scenarios in both mobile360 and desktop viewports: issued client download/escaping/reviewer evidence, unknown outcome stable facts/key and denied-refresh behavior, live dispatch locks/no timeout replay, original verification/receipt/independent decision contracts, GET-only adoption while live gates locked, deterministic400 corrected-key recovery, and exact single-digit provider strings/narrow layout. All14 passed, zero failures/skips/retries,12.0s. Log /tmp/lokd-finance-ui-independent-browser-final.log; isolated artifacts /tmp/lokd-finance-ui-independent-browser-final.
+
+The initial attempt failed before test actions because sandboxed Chromium socket initialization was denied (SIGTRAP). Retained /tmp/lokd-finance-ui-independent-browser.log records those14 infrastructure failures. Authorized escalated rerun used the same localhost fixture, external-host aborts and mocked API calls; it produced the14 actual passing scenarios above. These browser checks validate UI rendering/contracts, not real authentication, real D1/provider/bank evidence or customer workflows. The independent connected Node journey separately exercised the real backend.
+
+Disposition: ACCEPTED for this bounded finance UI/backend-contract change after the provider ID correction. No remaining actionable finding from this review. Broader finance exception work, pending refund-history pagination, full-build readiness, actual account/provider/bank/configuration acceptance and user's build-before-live-testing boundary remain in force. Exact synthetic fixture4294 process PID1578339 was stopped after the independent run.

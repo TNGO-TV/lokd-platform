@@ -16,7 +16,7 @@ let browser;
 try{
  await build({entryPoints:[entry],bundle:true,outfile:path.join(temporary,'app.js'),format:'esm',platform:'browser',jsx:'automatic',nodePaths:[path.join(root,'node_modules')],loader:{'.css':'local-css'},define:{'process.env.NODE_ENV':'"development"'}});
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const address='http://127.0.0.1:'+server.address().port;
- browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ browser=await chromium.launch({headless:true,...(process.env.LOKD_BROWSER_NATIVE_SHM==='true'?{ignoreDefaultArgs:['--disable-dev-shm-usage']}:{})});const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/api/finance-documents?*',route=>route.fulfill({json:{documents:[doc],sources:[source],calendar:'Africa/Johannesburg'}}));
  await page.goto(address);await page.getByRole('heading',{name:'Private finance documents'}).waitFor();
  await page.getByRole('link',{name:'Download private payslip (printable HTML)'}).waitFor();

@@ -1,0 +1,11 @@
+
+> lokd-security@0.1.0 lint
+> bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next
+
+
+/srv/ammosync/workspaces/lokd-security/db/schema.ts
+  3006:3  warning  't' is defined but never used  @typescript-eslint/no-unused-vars
+  3025:3  warning  't' is defined but never used  @typescript-eslint/no-unused-vars
+  3050:3  warning  't' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 3 problems (0 errors, 3 warnings)

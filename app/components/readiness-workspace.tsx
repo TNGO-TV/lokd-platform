@@ -82,7 +82,7 @@ export default function ReadinessWorkspace({operations=false,owner=false,applica
  useEffect(()=>{const timer=setTimeout(()=>void load(),0);return()=>{clearTimeout(timer);invalidate();};},[load,invalidate]);
  useEffect(()=>{if(!dirty)return;const warn=(event:BeforeUnloadEvent)=>{if(!leaving.current)event.preventDefault();};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
  useEffect(()=>{if(!dirty)return;
-  const guard=(event:MouseEvent)=>{const target=event.target instanceof Element?event.target.closest('a'):null;if(!target||!target.href||target.getAttribute('href')?.startsWith('#'))return;const next=new URL(target.href);if(next.href===location.href)return;if(!window.confirm('Leave this review workspace? Any unsaved drafts will be lost.')){event.preventDefault();event.stopImmediatePropagation();}else leaving.current=true;};
+  const guard=(event:MouseEvent)=>{const target=event.target instanceof Element?event.target.closest('a'):null;if(!target||!target.href||target.target==='_blank'||event.ctrlKey||event.metaKey||event.shiftKey||target.getAttribute('href')?.startsWith('#'))return;const next=new URL(target.href);if(next.href===location.href)return;if(!window.confirm('Leave this review workspace? Any unsaved drafts will be lost.')){event.preventDefault();event.stopImmediatePropagation();}else leaving.current=true;};
   document.addEventListener('click',guard,true);return()=>document.removeEventListener('click',guard,true);
  },[dirty]);
  function openRecords(event:FormEvent){event.preventDefault();if(dirty&&JSON.stringify(selection)!==JSON.stringify(opened)){setSwitchWarning(true);return;}setState({});setErrors({});setOpened({...selection});}

@@ -51,3 +51,11 @@ Credit schema: credit_notes (immutable original source, request key, direction, 
 Refund schema: booking_refund_control (seeded off); booking_refund_cases, decisions, claims, observations, receipts, receipt_decisions. Request-key and case-claim uniqueness; reference may have multiple sequential partial claims. Commit guards prevent cumulative excess, credit reuse, unresolved competing claims, duplicate external/provider identity and reused bank evidence. All histories reject UPDATE/DELETE. Sources/current approval/final evidence/accounting/state views; replaces only document_invoice_payment_states additively. Neither historical funding rows nor issued finance rows are rewritten.
 
 The existing assignment fixture explicitly loads the two proposals after the canonical chain. The contract test applies the same order with restricted SQLite limits and checks locks. Remove those two explicit loads when Central adds canonical migrations. Do not import old snapshot commits or overwrite Central's schema.
+
+## Central integration addendum — 14 September 2026
+
+The canonical migration chain now includes0070_credit_notes and0071_refund_reconciliation; do not apply the unnumbered proposals a second time. Cases/receipts bind an exact signed-event identity/hash and consumed signed events cannot approve another case. New finance history and existing recovery/inbox identity are protected at all primary/alternate conflict keys. Exact callback replay retains original event identity.
+
+Refund identifiers submitted for externalRefundId/verify_refund are exact positive numeric strings1–40 digits; short IDs are valid, and floating-point coercion is prohibited. Credit GET now returns reviewer_user_id, decision_note and decided_at from its authoritative decision record for private issued-note rendering.
+
+The earlier discovery caps are superseded by authorized cursor pages. See ../launch/central-v69-checks/refund-pagination-handoff.md for exact pageSize/dataset/cursor/reference/caseId parameters, per-dataset continuation and current-authority behavior. Every page is independently authorized; cursors are continuation state, not authorization. No hidden totals or cross-authority records are exposed. Final frontend integration and its QA are recorded separately in Central acceptance evidence.
