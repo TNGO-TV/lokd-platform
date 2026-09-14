@@ -2942,3 +2942,109 @@ export const verifynowProductionClaims=sqliteTable('verifynow_production_claims'
 export const verifynowProductionReceipts=sqliteTable('verifynow_production_receipts',{
  caseId:text('case_id').primaryKey().references(()=>verifynowProductionClaims.caseId),resultJson:text('result_json').notNull(),recordedAt:text('recorded_at').notNull(),
 },t=>[uniqueIndex('verifynow_receipt_provider_reference').on(sql`json_extract(${t.resultJson},'$.providerReference')`),check('verifynow_receipt_json',sql`json_valid(${t.resultJson})`),check('verifynow_receipt_case',sql`json_extract(${t.resultJson},'$.caseId')=${t.caseId}`),check('verifynow_receipt_environment',sql`json_extract(${t.resultJson},'$.environment')='production'`),check('verifynow_receipt_provider',sql`json_extract(${t.resultJson},'$.provider')='verifynow-said-production-v1'`),check('verifynow_receipt_outcome',sql`json_extract(${t.resultJson},'$.outcome')='manual_review'`)]);
+
+// Canonical finance exception sources; reviewed rules remain explicit evidence.
+export const creditNoteDecisions=sqliteTable('credit_note_decisions',{
+ id:text("id").primaryKey().notNull(),
+ creditId:text("credit_id").notNull().references(():AnySQLiteColumn=>creditNotes.id),
+ decision:text("decision").notNull(),
+ payloadHash:text("payload_hash").notNull(),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ note:text("note").notNull(),
+ authContext:text("auth_context").notNull(),
+ createdAt:text("created_at").notNull(),
+},t=>[uniqueIndex("credit_note_decisions_credit_id_idx").on(t.creditId),check("credit_note_decisions_check_0",sql.raw("decision IN('approved','rejected')")),check("credit_note_decisions_check_1",sql.raw("length(trim(note))>=3")),check("credit_note_decisions_check_2",sql.raw("auth_context IN('mfa_verified','owner_mfa_exception')"))]);
+export const creditNoteIssues=sqliteTable('credit_note_issues',{
+ creditId:text("credit_id").primaryKey().notNull().references(():AnySQLiteColumn=>creditNotes.id),
+ number:text("number").notNull(),
+ issuedAt:text("issued_at").notNull(),
+},t=>[uniqueIndex("credit_note_issues_number_idx").on(t.number)]);
+export const creditNotes=sqliteTable('credit_notes',{
+ id:text("id").primaryKey().notNull(),
+ requestKey:text("request_key").notNull(),
+ invoiceId:text("invoice_id").notNull().references(():AnySQLiteColumn=>clientInvoices.id),
+ reversesId:text("reverses_id").references(():AnySQLiteColumn=>creditNotes.id),
+ direction:integer("direction").notNull(),
+ netCents:integer("net_cents").notNull(),
+ taxCents:integer("tax_cents").notNull(),
+ sourceJson:text("source_json").notNull(),
+ payloadJson:text("payload_json").notNull(),
+ payloadHash:text("payload_hash").notNull(),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ createdAt:text("created_at").notNull(),
+},t=>[uniqueIndex("credit_notes_request_key_idx").on(t.requestKey),check("credit_notes_check_0",sql.raw("direction IN(1,-1)")),check("credit_notes_check_1",sql.raw("typeof(net_cents)='integer' AND net_cents>=0")),check("credit_notes_check_2",sql.raw("typeof(tax_cents)='integer' AND tax_cents>=0")),check("credit_notes_check_3",sql.raw("json_valid(source_json)")),check("credit_notes_check_4",sql.raw("json_valid(payload_json)")),check("credit_notes_check_5",sql.raw("length(payload_hash)=64")),check("credit_notes_check_6",sql.raw("net_cents+tax_cents>0")),check("credit_notes_check_7",sql.raw("(direction=1 AND reverses_id IS NULL) OR (direction=-1 AND reverses_id IS NOT NULL)"))]);
+
+// Canonical finance exception sources; reviewed rules remain explicit evidence.
+export const bookingRefundCases=sqliteTable('booking_refund_cases',{
+ id:text("id").primaryKey().notNull(),
+ requestKey:text("request_key").notNull(),
+ reference:text("reference").notNull().references(():AnySQLiteColumn=>bookingCollectionRequests.reference),
+ payloadJson:text("payload_json").notNull(),
+ payloadHash:text("payload_hash").notNull(),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ note:text("note").notNull(),
+ authContext:text("auth_context").notNull(),
+ createdAt:text("created_at").notNull(),
+ expiresAt:text("expires_at").notNull(),
+},t=>[uniqueIndex("booking_refund_cases_request_key_idx").on(t.requestKey),check("booking_refund_cases_check_0",sql.raw("json_valid(payload_json)")),check("booking_refund_cases_check_1",sql.raw("length(payload_hash)=64")),check("booking_refund_cases_check_2",sql.raw("length(trim(note))>=3")),check("booking_refund_cases_check_3",sql.raw("auth_context IN('mfa_verified','owner_mfa_exception')"))]);
+export const bookingRefundClaims=sqliteTable('booking_refund_claims',{
+ id:text("id").primaryKey().notNull(),
+ caseId:text("case_id").notNull().references(():AnySQLiteColumn=>bookingRefundCases.id),
+ reference:text("reference").notNull().references(():AnySQLiteColumn=>bookingCollectionRequests.reference),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ authContext:text("auth_context").notNull(),
+ createdAt:text("created_at").notNull(),
+ holdWatermark:integer("hold_watermark").notNull(),
+},t=>[uniqueIndex("booking_refund_claims_case_id_idx").on(t.caseId),check("booking_refund_claims_check_0",sql.raw("auth_context IN('mfa_verified','owner_mfa_exception')")),check("booking_refund_claims_check_1",sql.raw("hold_watermark>=0"))]);
+export const bookingRefundControl=sqliteTable('booking_refund_control',{
+ id:integer("id").primaryKey(),
+ enabled:integer("enabled").notNull().default(sql.raw("0")),
+},()=>[check("booking_refund_control_check_0",sql.raw("id=1")),check("booking_refund_control_check_1",sql.raw("enabled IN(0,1)"))]);
+export const bookingRefundDecisions=sqliteTable('booking_refund_decisions',{
+ id:text("id").primaryKey().notNull(),
+ caseId:text("case_id").notNull().references(():AnySQLiteColumn=>bookingRefundCases.id),
+ payloadHash:text("payload_hash").notNull(),
+ decision:text("decision").notNull(),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ note:text("note").notNull(),
+ authContext:text("auth_context").notNull(),
+ createdAt:text("created_at").notNull(),
+},t=>[uniqueIndex("booking_refund_decisions_case_id_idx").on(t.caseId),check("booking_refund_decisions_check_0",sql.raw("decision IN('approved','rejected')")),check("booking_refund_decisions_check_1",sql.raw("length(trim(note))>=3")),check("booking_refund_decisions_check_2",sql.raw("auth_context IN('mfa_verified','owner_mfa_exception')"))]);
+export const bookingRefundObservations=sqliteTable('booking_refund_observations',{
+ id:text("id").primaryKey().notNull(),
+ caseId:text("case_id").notNull().references(():AnySQLiteColumn=>bookingRefundCases.id),
+ source:text("source").notNull(),
+ evidenceJson:text("evidence_json").notNull(),
+ holdWatermark:integer("hold_watermark").notNull(),
+ createdAt:text("created_at").notNull(),
+},()=>[check("booking_refund_observations_check_0",sql.raw("source IN('initiate','verify')")),check("booking_refund_observations_check_1",sql.raw("json_valid(evidence_json)")),check("booking_refund_observations_check_2",sql.raw("typeof(hold_watermark)='integer' AND hold_watermark>=0"))]);
+export const bookingRefundReceiptDecisions=sqliteTable('booking_refund_receipt_decisions',{
+ id:text("id").primaryKey().notNull(),
+ receiptId:text("receipt_id").notNull().references(():AnySQLiteColumn=>bookingRefundReceipts.id),
+ decision:text("decision").notNull(),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ note:text("note").notNull(),
+ authContext:text("auth_context").notNull(),
+ createdAt:text("created_at").notNull(),
+},t=>[uniqueIndex("booking_refund_receipt_decisions_receipt_id_idx").on(t.receiptId),check("booking_refund_receipt_decisions_check_0",sql.raw("decision IN('approved','rejected')")),check("booking_refund_receipt_decisions_check_1",sql.raw("length(trim(note))>=3")),check("booking_refund_receipt_decisions_check_2",sql.raw("auth_context IN('mfa_verified','owner_mfa_exception')"))]);
+export const bookingRefundReceipts=sqliteTable('booking_refund_receipts',{
+ id:text("id").primaryKey().notNull(),
+ caseId:text("case_id").notNull().references(():AnySQLiteColumn=>bookingRefundCases.id),
+ observationId:text("observation_id").notNull().references(():AnySQLiteColumn=>bookingRefundObservations.id),
+ bankReference:text("bank_reference").notNull(),
+ bankHash:text("bank_hash").notNull(),
+ bankAmountMinor:integer("bank_amount_minor").notNull(),
+ payloadJson:text("payload_json").notNull(),
+ payloadHash:text("payload_hash").notNull(),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ note:text("note").notNull(),
+ authContext:text("auth_context").notNull(),
+ createdAt:text("created_at").notNull(),
+},()=>[check("booking_refund_receipts_check_0",sql.raw("length(bank_hash)=64")),check("booking_refund_receipts_check_1",sql.raw("typeof(bank_amount_minor)='integer' AND bank_amount_minor>0")),check("booking_refund_receipts_check_2",sql.raw("json_valid(payload_json)")),check("booking_refund_receipts_check_3",sql.raw("length(payload_hash)=64")),check("booking_refund_receipts_check_4",sql.raw("length(trim(note))>=3")),check("booking_refund_receipts_check_5",sql.raw("auth_context IN('mfa_verified','owner_mfa_exception')"))]);

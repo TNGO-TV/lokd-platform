@@ -40,5 +40,8 @@ export async function consumeConnectedPayroll({db,database,officerId,shiftId,mak
  const {financeDocumentJourney}=await import('./finance-document-journey.mjs');
  const document=await financeDocumentJourney({db,database,maker,finance,recipient:applicant,kind:'payslip',sourceId:item.id,headers:freshHeaders(finance)});
  assert.equal((await document.read()).documents[0].currentState,'unpaid');
- return {runId:prepared.runId,input,document};
+ const {consumeConnectedPayment}=await import('./connected-payment-consumption.mjs');
+ const payment=await consumeConnectedPayment({db,database,runId:prepared.runId,officerId,maker,checker,finance,applicant,document,headers:freshHeaders});
+ assert.equal(payment.dispatches,1);assert.equal(payment.restored,true);
+ return {runId:prepared.runId,input,document,payment};
 }

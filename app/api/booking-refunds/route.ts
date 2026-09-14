@@ -2,7 +2,7 @@ import {env} from 'cloudflare:workers';
 import {SignupError} from '../../lib/signup-server';
 import {PilotAccessError,principalForEmail,principalHasRole,requirePilotApiRole,requireSameOriginJson} from '../../lib/pilot-runtime';
 import {workspaceRoleForHost} from '../../lib/public-site';
-import {operateBookingRefund,readBookingRefunds,type RefundRuntime} from '../../lib/booking-refunds';
+import {operateBookingRefund,readBookingRefunds,type RefundRuntime,refundPageDatasets,type RefundPageOptions} from '../../lib/booking-refunds';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>Response.json(data,{status,headers:{'cache-control':'private, no-store','referrer-policy':'no-referrer'}});
 export async function POST(request:Request){
@@ -14,7 +14,18 @@ export async function POST(request:Request){
   if(host&&host!=='operations'||!principalHasRole(principal,'operations'))throw new SignupError('Operations access required.',403);
   requirePilotApiRole(request,'operations');
   if(!env.DB)throw new SignupError('Storage unavailable.',503);
-  if(request.method==='GET')return reply(await readBookingRefunds(env.DB,{userId,email,operations:true,owner:principal.owner},request.headers,env as RefundRuntime));
+  if(request.method==='GET'){
+   const query=new URL(request.url).searchParams,allowed=new Set(['pageSize','dataset','cursor','reference','caseId',...refundPageDatasets.map(name=>name+'Cursor')]);
+   for(const key of query.keys())if(!allowed.has(key)||query.getAll(key).length!==1)throw new SignupError('Choose valid refund page parameters.',400);
+   const page:RefundPageOptions={};
+   if(query.has('pageSize')){const value=query.get('pageSize')!;if(!/^[1-9][0-9]{0,2}$/.test(value))throw new SignupError('Choose a refund page size from 1 to 100.',400);page.pageSize=Number(value);}
+   if(query.has('dataset'))page.dataset=query.get('dataset') as RefundPageOptions['dataset'];
+   if(query.has('reference'))page.reference=query.get('reference')!;
+   if(query.has('caseId'))page.caseId=query.get('caseId')!;
+   if(query.has('cursor'))page.cursor=query.get('cursor')!;
+   page.cursors={};for(const name of refundPageDatasets)if(query.has(name+'Cursor'))page.cursors[name]=query.get(name+'Cursor')!;
+   return reply(await readBookingRefunds(env.DB,{userId,email,operations:true,owner:principal.owner},request.headers,env as RefundRuntime,page));
+  }
   const raw=await request.text();if(raw.length>6000)throw new SignupError('Request too large.',413);
   let input;try{input=JSON.parse(raw);}catch{throw new SignupError('Invalid request.');}
   if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a recovery action.');

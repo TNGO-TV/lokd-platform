@@ -99,4 +99,33 @@ add('DROP VIEW document_invoice_payment_states;');
 add(invoice.replace('CASE WHEN EXISTS',"CASE WHEN r.mode='live' AND EXISTS(SELECT 1 FROM booking_refund_accounting a WHERE a.reference=r.reference AND a.reconciled_minor=a.amount_minor AND a.currently_held=0) THEN 'reversed' WHEN EXISTS"));
 add(`CREATE TRIGGER credit_refund_claim_guard BEFORE INSERT ON credit_note_decisions WHEN NEW.decision='approved' BEGIN SELECT CASE WHEN EXISTS(SELECT 1 FROM credit_notes c JOIN booking_refund_cases r ON json_extract(r.payload_json,'$.creditNoteId')=c.reverses_id JOIN booking_refund_claims k ON k.case_id=r.id WHERE c.id=NEW.credit_id) THEN RAISE(ABORT,'Claimed refund credit cannot be reversed or reused') END; END;`);
 for(const table of ['cases','decisions','claims','observations','receipts','receipt_decisions'])for(const action of ['UPDATE','DELETE'])add(`CREATE TRIGGER booking_refund_${table}_no_${action.toLowerCase()} BEFORE ${action} ON booking_refund_${table} BEGIN SELECT RAISE(ABORT,'Refund history is immutable and required'); END;`);
+// Bind one concrete signed event to one approved receipt. Sparse events cannot
+// independently prove two equal adopted refunds just because API IDs differ.
+const finalIndex=statements.findIndex(s=>s.startsWith('CREATE VIEW booking_refund_final_evidence'));
+let final=statements[finalIndex];
+const prefix='AND EXISTS(SELECT 1 FROM booking_collection_recoveries h WHERE ';
+const matchStart=final.indexOf(prefix),matchEnd=final.indexOf('\n\n AND NOT EXISTS',matchStart);
+if(matchStart<0||matchEnd<0)throw Error('Refund event matching contract moved');
+const where=final.slice(matchStart+prefix.length,matchEnd).trim().slice(0,-1);
+add(`CREATE VIEW booking_refund_matching_events AS SELECT o.id AS observation_id,h.id AS signed_event_id,h.payload_hash AS signed_event_hash,h.rowid AS event_order
+ FROM booking_refund_observations o JOIN booking_refund_cases c ON c.id=o.case_id JOIN booking_refund_sources s ON s.reference=c.reference JOIN booking_refund_claims k ON k.case_id=c.id JOIN booking_collection_recoveries h ON h.reference=c.reference
+ WHERE ${where} AND NOT EXISTS(SELECT 1 FROM booking_refund_receipts used JOIN booking_refund_receipt_decisions decision ON decision.receipt_id=used.id AND decision.decision='approved' WHERE json_extract(used.payload_json,'$.signedEventId')=h.id AND used.case_id<>c.id);`);
+const chosen='SELECT e.signed_event_id FROM booking_refund_matching_events e WHERE e.observation_id=o.id ORDER BY e.event_order LIMIT 1';
+final=final.slice(0,matchStart)+`AND (SELECT count(*) FROM booking_refund_matching_events e WHERE e.observation_id=o.id)=1`+final.slice(matchEnd);
+final=final.replace('AS provider_refund_id',`AS provider_refund_id,(${chosen}) AS signed_event_id,(SELECT e.signed_event_hash FROM booking_refund_matching_events e WHERE e.observation_id=o.id ORDER BY e.event_order LIMIT 1) AS signed_event_hash`);
+statements[finalIndex]=final;
+add(`CREATE TRIGGER booking_refund_receipt_event_guard BEFORE INSERT ON booking_refund_receipts WHEN NOT EXISTS(SELECT 1 FROM booking_refund_final_evidence e WHERE e.id=NEW.observation_id AND e.case_id=NEW.case_id AND e.signed_event_id=json_extract(NEW.payload_json,'$.signedEventId') AND e.signed_event_hash=json_extract(NEW.payload_json,'$.signedEventHash')) BEGIN SELECT RAISE(ABORT,'Exact unconsumed signed refund event required'); END;`);
+add(`CREATE TRIGGER booking_refund_receipt_event_decision BEFORE INSERT ON booking_refund_receipt_decisions WHEN NEW.decision='approved' BEGIN
+ SELECT CASE WHEN EXISTS(SELECT 1 FROM booking_refund_receipts r JOIN booking_refund_receipts prior ON json_extract(prior.payload_json,'$.signedEventId')=json_extract(r.payload_json,'$.signedEventId') JOIN booking_refund_receipt_decisions d ON d.receipt_id=prior.id AND d.decision='approved' WHERE r.id=NEW.receipt_id) THEN RAISE(ABORT,'Signed refund event already reconciled') END;
+ SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM booking_refund_receipts r JOIN booking_refund_final_evidence e ON e.id=r.observation_id AND e.signed_event_id=json_extract(r.payload_json,'$.signedEventId') AND e.signed_event_hash=json_extract(r.payload_json,'$.signedEventHash') WHERE r.id=NEW.receipt_id) THEN RAISE(ABORT,'Signed refund event changed or consumed') END;
+END;`);
+for(const [suffix,keys] of Object.entries({cases:['id','request_key'],decisions:['id','case_id'],claims:['id','case_id'],observations:['id'],receipts:['id'],receipt_decisions:['id','receipt_id']}))add(`CREATE TRIGGER booking_refund_${suffix}_no_replace BEFORE INSERT ON booking_refund_${suffix} WHEN EXISTS(SELECT 1 FROM booking_refund_${suffix} WHERE ${keys.map(key=>`${key}=NEW.${key}`).join(' OR ')}) BEGIN SELECT RAISE(ABORT,'Refund history is immutable and required'); END;`);
+add(`CREATE TRIGGER booking_collection_recoveries_preserve_identity BEFORE INSERT ON booking_collection_recoveries WHEN EXISTS(SELECT 1 FROM booking_collection_recoveries WHERE id=NEW.id OR (reference=NEW.reference AND source=NEW.source AND payload_hash=NEW.payload_hash)) BEGIN
+ SELECT CASE WHEN EXISTS(SELECT 1 FROM booking_collection_recoveries WHERE (id=NEW.id OR (reference=NEW.reference AND source=NEW.source AND payload_hash=NEW.payload_hash)) AND NOT (reference IS NEW.reference AND source IS NEW.source AND event IS NEW.event AND payload_hash IS NEW.payload_hash AND detail IS NEW.detail AND actor_id IS NEW.actor_id)) THEN RAISE(ABORT,'Recovery event history is immutable') END;
+ SELECT RAISE(IGNORE);
+END;`);
+add(`CREATE TRIGGER booking_provider_recovery_inbox_preserve_identity BEFORE INSERT ON booking_provider_recovery_inbox WHEN EXISTS(SELECT 1 FROM booking_provider_recovery_inbox WHERE id=NEW.id OR (mode=NEW.mode AND payload_hash=NEW.payload_hash)) BEGIN
+ SELECT CASE WHEN EXISTS(SELECT 1 FROM booking_provider_recovery_inbox WHERE (id=NEW.id OR (mode=NEW.mode AND payload_hash=NEW.payload_hash)) AND NOT (mode IS NEW.mode AND provider_id IS NEW.provider_id AND transaction_reference IS NEW.transaction_reference AND event IS NEW.event AND payload_hash IS NEW.payload_hash AND detail IS NEW.detail)) THEN RAISE(ABORT,'Recovery event history is immutable') END;
+ SELECT RAISE(IGNORE);
+END;`);
 writeFileSync(new URL('./fi06-refund-dispute.sql',import.meta.url),statements.join('\n--> statement-breakpoint\n')+'\n');

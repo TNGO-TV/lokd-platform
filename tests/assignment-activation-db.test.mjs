@@ -130,7 +130,6 @@ function migratedDatabase() {
     const sql = fs.readFileSync(new URL(`../drizzle/${file}`, import.meta.url), "utf8").replaceAll("--> statement-breakpoint", "");
     database.exec(sql);
   }
-  for(const proposal of ['fi-build-06-credit-notes.sql','fi06-refund-dispute.sql'])database.exec(fs.readFileSync(new URL('../docs/migration-proposals/'+proposal,import.meta.url),'utf8'));
   return database;
 }
 

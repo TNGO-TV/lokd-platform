@@ -4,9 +4,8 @@ import fs from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {env} from 'cloudflare:workers';
 import {POST,GET} from '../app/api/booking-refunds/route.ts';
-test('FI-06 additive proposal fits hosted SQLite limits and starts locked',()=>{
+test('FI-06 canonical migrations fit hosted SQLite limits and starts locked',()=>{
  const files=fs.readdirSync(new URL('../drizzle/',import.meta.url)).filter(n=>n.endsWith('.sql')).sort().map(n=>fs.readFileSync(new URL('../drizzle/'+n,import.meta.url),'utf8'));
- for(const proposal of ['fi-build-06-credit-notes.sql','fi06-refund-dispute.sql'])files.push(fs.readFileSync(new URL('../docs/migration-proposals/'+proposal,import.meta.url),'utf8'));
  execFileSync('python3',['-c',`
 import sys,json,sqlite3
 c=sqlite3.connect(':memory:')

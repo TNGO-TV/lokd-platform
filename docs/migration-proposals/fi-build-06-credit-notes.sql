@@ -30,3 +30,9 @@ CREATE TRIGGER credit_note_decisions_no_delete BEFORE DELETE ON credit_note_deci
 CREATE TRIGGER credit_note_issues_no_update BEFORE UPDATE ON credit_note_issues BEGIN SELECT RAISE(ABORT,'Credit history is immutable'); END;
 --> statement-breakpoint
 CREATE TRIGGER credit_note_issues_no_delete BEFORE DELETE ON credit_note_issues BEGIN SELECT RAISE(ABORT,'Credit history is immutable'); END;
+--> statement-breakpoint
+CREATE TRIGGER credit_notes_no_replace BEFORE INSERT ON credit_notes WHEN EXISTS(SELECT 1 FROM credit_notes WHERE id=NEW.id OR request_key=NEW.request_key) BEGIN SELECT RAISE(ABORT,'Credit history is immutable'); END;
+--> statement-breakpoint
+CREATE TRIGGER credit_note_decisions_no_replace BEFORE INSERT ON credit_note_decisions WHEN EXISTS(SELECT 1 FROM credit_note_decisions WHERE id=NEW.id OR credit_id=NEW.credit_id) BEGIN SELECT RAISE(ABORT,'Credit history is immutable'); END;
+--> statement-breakpoint
+CREATE TRIGGER credit_note_issues_no_replace BEFORE INSERT ON credit_note_issues WHEN EXISTS(SELECT 1 FROM credit_note_issues WHERE credit_id=NEW.credit_id OR number=NEW.number) BEGIN SELECT RAISE(ABORT,'Credit history is immutable'); END;

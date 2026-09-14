@@ -135,12 +135,15 @@ export async function bookingRefundJourney({database,db,reviewer,owner,applicant
   assert.equal(database.prepare('SELECT enabled FROM payment_live_control').get().enabled,1); // synthetic scenario only; rollback restores default
  });
  await scenario(async()=>{
-  const c=await prepare(undefined,undefined,'existing','80001');await approve(c);
-  const existing={...refund(c),merchant_note:'Provider originated reviewed refund'};
+  const c=await prepare(undefined,undefined,'existing','1');await approve(c);
+  const existing={...refund(c),id:1,merchant_note:'Provider originated reviewed refund'};
   const body=JSON.stringify({event:'refund.processed',data:existing});await receiveBookingCollectionWebhook(new Request('https://lokd.co.za/api/paystack/booking/webhook',{method:'POST',body,headers:{'x-paystack-signature':createHmac('sha512',secret).update(body).digest('hex')}}),db,runtime,mode);
   // The event invalidates the prepared case. Prepare another exact current case, retaining the same issued credit.
   request.requestKey+='-fresh';const fresh=await run(reviewer,request),adopt=database.prepare('SELECT * FROM booking_refund_cases WHERE id=?').get(fresh.caseId);await approve(adopt);
   let posts=0;await run(owner,{action:'adopt_refund',caseId:adopt.id,payloadHash:adopt.payload_hash,evidenceReviewed:true},async(url,options)=>{if(options.method==='POST')posts++;return Response.json({status:true,data:existing});});assert.equal(posts,0);
+  let gets=0;const lookup=async(url,options)=>{gets++;assert.equal(options.method,'GET');assert.equal(url,'https://api.paystack.co/refund/1');return Response.json({status:true,data:existing});};
+  for(const refundId of ['0','01','1/2','1 ','9'.repeat(41),1])await assert.rejects(()=>run(owner,{action:'verify_refund',caseId:adopt.id,refundId},lookup),/positive numeric/);assert.equal(gets,0);
+  await run(owner,{action:'verify_refund',caseId:adopt.id,refundId:'1'},lookup);assert.equal(gets,1);
   assert.equal(database.prepare('SELECT count(*) AS n FROM booking_refund_final_evidence WHERE case_id=?').get(adopt.id).n,1);
   const receipt=await run(reviewer,{action:'prepare_refund_receipt',caseId:adopt.id,evidenceReviewed:true,bankReference:'adopted-bank-'+mode,bankHash:'9'.repeat(64),bankAmountMinor:amount,note:'Existing provider refund reconciles exact bank debit.'});
   const row=database.prepare('SELECT * FROM booking_refund_receipts WHERE id=?').get(receipt.receiptId);

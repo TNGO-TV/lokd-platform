@@ -30,6 +30,6 @@ export async function operateCreditNote(db:D1Database,a:SigningActor,input:Recor
 export async function readCreditNotes(db:D1Database,a:SigningActor,h:Headers,invoiceId:string){
  const s=await db.prepare('SELECT * FROM credit_note_balances WHERE invoice_id=?').bind(invoiceId).first<Source&{credited_cents:number}>();if(!s)throw new SignupError('Private invoice not found.',404);
  if(a.operations)await authority(db,a,h,s);else if(a.userId!==s.recipient_user||!await db.prepare("SELECT entity_id FROM production_entity_links WHERE kind='client' AND entity_id=? AND owner_user_id=?").bind(s.client_id,a.userId).first())throw new SignupError('Private invoice not found.',404);
- const notes=(await db.prepare(`SELECT c.*,d.decision,n.number,n.issued_at FROM credit_notes c LEFT JOIN credit_note_decisions d ON d.credit_id=c.id LEFT JOIN credit_note_issues n ON n.credit_id=c.id WHERE c.invoice_id=? ${a.operations?'':'AND n.credit_id IS NOT NULL'} ORDER BY c.rowid`).bind(invoiceId).all()).results;
+ const notes=(await db.prepare(`SELECT c.*,d.decision,d.user_id AS reviewer_user_id,d.note AS decision_note,d.created_at AS decided_at,n.number,n.issued_at FROM credit_notes c LEFT JOIN credit_note_decisions d ON d.credit_id=c.id LEFT JOIN credit_note_issues n ON n.credit_id=c.id WHERE c.invoice_id=? ${a.operations?'':'AND n.credit_id IS NOT NULL'} ORDER BY c.rowid`).bind(invoiceId).all()).results;
  return {invoice:s,creditNotes:notes,moneyMoved:false,liabilitiesCancelled:false};
 }
