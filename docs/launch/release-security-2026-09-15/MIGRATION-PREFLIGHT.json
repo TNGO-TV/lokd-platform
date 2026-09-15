@@ -1,0 +1,15 @@
+{
+  "applied": [
+    "0069_verifynow_receipt_guards.sql",
+    "0070_credit_notes.sql",
+    "0071_refund_reconciliation.sql",
+    "0072_payroll_correction_reviews.sql",
+    "0073_finance_sandbox_workflows.sql",
+    "0074_specialist_calendar_wage.sql"
+  ],
+  "existing_tables_unchanged": 186,
+  "existing_rows_unchanged": 155,
+  "integrity": "ok",
+  "foreign_keys": "ok",
+  "restored_copy_only": true
+}
