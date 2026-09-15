@@ -1,0 +1,63 @@
+{
+  "version": 73,
+  "source_commit": "6cf282b3bd4ee906eca58607f429911fa24e5961",
+  "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_c8638399eb7881918a928dd3dae55616",
+  "deployment_id": "appgdep_6aa9132f75048191bd030a0bdf38d5bc",
+  "deployment_status": "succeeded",
+  "environment_revision": 19,
+  "url": "https://lokd-security.zenas-capetown.chatgpt.site",
+  "custom_url": "https://demo.lokd.co.za",
+  "local_archive_sha256": "b8afe1369470812626132f05ae66e713c0320a8a76f37c00814d997d5918ece0",
+  "saved_archive_sha256": "ed5f411c78d4c241e94bfdb900cce8e32896d29863e8dd8bc2847e47ee84d436",
+  "backup": {
+    "tables": 212,
+    "rows": 163,
+    "schema_match": true,
+    "cells_match": true,
+    "integrity": "ok",
+    "foreign_keys": "ok",
+    "excluded_provider_internal": [
+      "_cf_KV"
+    ],
+    "objects": 0,
+    "object_bytes": 0,
+    "database_object_references": 0,
+    "runtime_keys": [
+      "CLERK_PUBLISHABLE_KEY",
+      "CLERK_SECRET_KEY",
+      "LOKD_APP_STAGE",
+      "LOKD_LIVE_SHIFT_SCAN",
+      "LOKD_OPERATIONS_MFA_REQUIRED",
+      "LOKD_PILOT_ACCESS_JSON",
+      "PAYSTACK_TEST_PUBLIC_KEY",
+      "PAYSTACK_TEST_SECRET_KEY",
+      "VERIFYNOW_API_KEY",
+      "VERIFYNOW_SANDBOX_ENABLED"
+    ],
+    "archive_sha256": "6b6e6560a4a5228a01dd317f7842684e1a2d89e4438faa7b5d1a8c396d718a8d",
+    "archive_bytes": 354959,
+    "decrypted_files_match": true,
+    "application_data_restore_verified": true,
+    "full_production_recovery_complete": false,
+    "remaining": [
+      "External identity/payment/verification recovery records are deferred"
+    ],
+    "offhost_copy_uploaded": true,
+    "offhost_metadata_verified": true,
+    "offhost_bytes_checksum_verified": false,
+    "backup_window_revoked": true,
+    "plaintext_restore_copies_removed": true
+  },
+  "source_backup": {
+    "sha256": "c2c91f900b4a85c31c34a5a3da0dd2b4d996b5b8b4ecb55d07dee459cecfaeb4",
+    "bytes": 13039863,
+    "decryption_match": true,
+    "git_restore_verified": true
+  },
+  "drive_folder": "https://drive.google.com/drive/folders/1u0JEL4nBvZpj4eUB1H6glsYlq9vRWY_i",
+  "drive_source_id": "1l67GSsI-LmzSfKAyeKaFtYmALsLvDEOO",
+  "drive_data_id": "1-No0A6fmH3jUhUTJAr-O12i4dGrgZIo2",
+  "drive_permissions": "Owner-only folder and files; shared=false; size and parent metadata match",
+  "recovery_key_uploaded": false,
+  "real_account_testing": "Deferred as instructed"
+}
