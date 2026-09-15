@@ -1,3 +1,4 @@
+import {readFinanceText} from '../../lib/finance-body';
 import {env} from 'cloudflare:workers';
 import {SignupError} from '../../lib/signup-server';
 import {PilotAccessError,principalForEmail,principalHasRole,requirePilotApiRole,requireSameOriginJson} from '../../lib/pilot-runtime';
@@ -15,7 +16,7 @@ export async function POST(request:Request){try{
  const actor={userId,email,operations,owner:operations&&principal.owner};
  if(request.method==='GET')return Response.json(await readCreditNotes(env.DB,actor,request.headers,url.searchParams.get('invoiceId')??''),{headers});
  if(!operations)throw new SignupError('Operations access required.',403);
- const raw=await request.text();if(raw.length>8000)throw new SignupError('Request too large.',413);let input;try{input=JSON.parse(raw);}catch{throw new SignupError('Invalid JSON.');}if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a credit action.');
+ const raw=await readFinanceText(request,8000);let input;try{input=JSON.parse(raw);}catch{throw new SignupError('Invalid JSON.');}if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a credit action.');
  return Response.json(await operateCreditNote(env.DB,actor,input,request.headers),{headers});
 }catch(e){return Response.json({error:e instanceof SignupError||e instanceof PilotAccessError?e.message:'Credit source or authority changed. Refresh and review.'},{status:e instanceof SignupError||e instanceof PilotAccessError?e.status:409,headers});}}
 export const GET=POST;

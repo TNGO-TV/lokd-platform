@@ -1,3 +1,4 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import {env} from 'cloudflare:workers';
 import {SignupError,writeSignup} from '../../lib/signup-server';
 import {PilotAccessError,principalForEmail,principalHasRole,requirePilotApiRole,requireSameOriginJson} from '../../lib/pilot-runtime';
@@ -23,7 +24,7 @@ function actor(request:Request){
  return {userId,email,operations,owner:operations&&principal.owner};
 }
 const reply=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff'}});
-const fail=(error:unknown)=>error instanceof SignupError||error instanceof PilotAccessError?reply({error:error.message},error.status):reply({error:'The evidence or authority may have changed. Refresh the saved record before acting again. No approval was restored.'},409);
+const fail=(error:unknown)=>error instanceof SignupError||error instanceof RequestBodyError || error instanceof PilotAccessError?reply({error:error.message},error.status):reply({error:'The evidence or authority may have changed. Refresh the saved record before acting again. No approval was restored.'},409);
 const reference=(value:unknown)=>{if(typeof value!=='string'||!value.trim()||value.length>300)throw new SignupError('Choose a valid record.');return value.trim();};
 export async function GET(request:Request){
  try{
@@ -46,7 +47,7 @@ export async function GET(request:Request){
 export async function POST(request:Request){
  try{
   requireSameOriginJson(request);const a=actor(request);
-  const raw=await request.text();if(raw.length>64000)throw new SignupError('Request too large.',413);
+  const raw = await readRequestText(request, 64000);
   let body;try{body=JSON.parse(raw);}catch{throw new SignupError('Invalid request.');}
   if(!body||typeof body!=='object'||Array.isArray(body))throw new SignupError('Choose an action.');
   // Provider adapters, normalized outcomes and actor authority are never accepted from JSON.

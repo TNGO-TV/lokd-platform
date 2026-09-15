@@ -1,3 +1,4 @@
+import {readFinanceText} from '../../lib/finance-body';
 import {env} from 'cloudflare:workers';
 import {SignupError} from '../../lib/signup-server';
 import {PilotAccessError,principalForEmail,principalHasRole,requirePilotApiRole,requireSameOriginJson} from '../../lib/pilot-runtime';
@@ -26,7 +27,7 @@ export async function POST(request:Request){
    page.cursors={};for(const name of refundPageDatasets)if(query.has(name+'Cursor'))page.cursors[name]=query.get(name+'Cursor')!;
    return reply(await readBookingRefunds(env.DB,{userId,email,operations:true,owner:principal.owner},request.headers,env as RefundRuntime,page));
   }
-  const raw=await request.text();if(raw.length>6000)throw new SignupError('Request too large.',413);
+  const raw=await readFinanceText(request,6000);
   let input;try{input=JSON.parse(raw);}catch{throw new SignupError('Invalid request.');}
   if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a recovery action.');
   return reply(await operateBookingRefund(env.DB,{userId,email,operations:true,owner:principal.owner},input,request.headers,env as RefundRuntime));

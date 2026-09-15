@@ -1,14 +1,11 @@
+import {readFinanceText} from './finance-body';
 import {agreementHash} from './agreement-acceptance';
 import {FINANCE_SANDBOX_POLICY} from './finance-sandbox-policy';
 import {sandbox,type FinanceRuntime} from './finance-workflow-store';
 import {SignupError} from './signup-server';
 export async function readFinanceBody(request:Request,maxBytes:number,timeoutMs=5000){
- const length=request.headers.get('content-length');if(length!==null&&(!/^\d+$/.test(length)||Number(length)>maxBytes))throw new SignupError('Request too large.',413);
- const reader=request.body?.getReader();if(!reader)throw new SignupError('Missing request body.');
- let timer:ReturnType<typeof setTimeout>|undefined;const timeout=new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new SignupError('Request body timed out.',408)),timeoutMs);});
- const chunks:Uint8Array[]=[];let size=0;
- try{for(;;){const {done,value}=await Promise.race([reader.read(),timeout]);if(done)break;size+=value.byteLength;if(size>maxBytes)throw new SignupError('Request too large.',413);chunks.push(value);}const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}return new TextDecoder('utf-8',{fatal:true}).decode(bytes);}
- catch(error){void reader.cancel().catch(()=>{});throw error;}finally{clearTimeout(timer);reader.releaseLock();}
+ if(!request.body)throw new SignupError('Missing request body.');
+ return readFinanceText(request,maxBytes,timeoutMs);
 }
 
 export async function financeSandboxDatabase(runtime:FinanceRuntime & {DB?:D1Database;SANDBOX_DB?:D1Database;LOKD_APP_STAGE?:string;LOKD_SANDBOX_COMPLETION_ENABLED?:string}){

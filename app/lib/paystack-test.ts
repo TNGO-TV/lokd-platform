@@ -1,3 +1,5 @@
+import {readFinanceWebhookBytes} from './finance-body';
+import {SignupError} from './signup-server';
 import {receivePartnerTransferWebhook} from './partner-payments';
 import {receiveEmployeeTransferWebhook} from './employee-payments';
 // This receiver records delivery evidence only. It cannot credit a booking,
@@ -11,11 +13,8 @@ export async function receivePaystackTest(request:Request,runtime:Runtime):Promi
  if(!secret?.startsWith('sk_test_')||!runtime.DB)return reply('Paystack test receiver is awaiting secure configuration.',503);
  const signature=request.headers.get('x-paystack-signature')??'';
  if(!/^[a-f0-9]{128}$/i.test(signature))return reply('Invalid webhook signature.',401);
- // Bound the actual stream, including requests without Content-Length.
- const reader=request.body?.getReader();if(!reader)return reply('Missing event.',400);
- const chunks:Uint8Array[]=[];let size=0;
- for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>262144){await reader.cancel();return reply('Event too large.',413);}chunks.push(value);}
- const raw=new Uint8Array(size);let offset=0;for(const chunk of chunks){raw.set(chunk,offset);offset+=chunk.length;}
+ let raw:Uint8Array<ArrayBuffer>;
+ try{raw=await readFinanceWebhookBytes(request);}catch(error){if(error instanceof SignupError)return reply(error.message,error.status);throw error;}
  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-512'},false,['verify']);
  const sig=Uint8Array.from(signature.match(/../g)!,part=>parseInt(part,16));
  if(!await crypto.subtle.verify('HMAC',key,sig,raw))return reply('Invalid webhook signature.',401);

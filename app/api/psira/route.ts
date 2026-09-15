@@ -1,3 +1,4 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { hasLinkedOfficerSignup } from '../../lib/signup-server';
 import { principalForEmail, principalHasRole } from '../../lib/pilot-runtime';
 import { workspaceRoleForHost } from '../../lib/public-site';
@@ -25,14 +26,14 @@ async function actor(request: Request) {
   return { userId, email, operations: scope === 'operations' };
 }
 function response(value: unknown, status = 200) { return Response.json(value,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}}); }
-function failure(error: unknown) { return error instanceof PsiraError || error instanceof PilotAccessError ? response({error:error.message},error.status) : response({error:'Verification records are temporarily unavailable. No verification was granted.'},503); }
+function failure(error: unknown) { return error instanceof PsiraError || error instanceof RequestBodyError || error instanceof PilotAccessError ? response({error:error.message},error.status) : response({error:'Verification records are temporarily unavailable. No verification was granted.'},503); }
 export async function GET(request: Request) {
   try { const principal=await actor(request); if (!env.DB) throw new PsiraError('Verification storage is unavailable.',503); return response({cases:await readPsiraCases(env.DB,principal)}); } catch(error) { return failure(error); }
 }
 export async function POST(request: Request) {
   try {
     requireSameOriginJson(request); const principal=await actor(request);
-    const text=await request.text(); if(text.length>14000) throw new PsiraError('The evidence submission is too large.',413);
+    const text = await readRequestText(request, 14000);
     let body; try{body=JSON.parse(text);}catch{throw new PsiraError('Submit a valid verification form.');}
     if (!body || typeof body!=='object' || Array.isArray(body)) throw new PsiraError('Submit a valid verification form.');
     if (!env.DB) throw new PsiraError('Verification storage is unavailable.',503);

@@ -1,3 +1,4 @@
+import {readFinanceWebhookBytes,readFinanceProviderJson} from './finance-body';
 import {refundEvidence,refundWebhookEvidence} from './booking-refund-evidence';
 import {SignupError} from './signup-server';
 import {agreementHash} from './agreement-acceptance';
@@ -34,7 +35,7 @@ export async function readBookingCollections(db:D1Database,actor:SigningActor){
 }
 async function callProvider(secret:string,path:string,body:unknown,transport:typeof fetch){
  const res=await transport('https://api.paystack.co'+path,{method:body?'POST':'GET',redirect:'error',signal:AbortSignal.timeout(20000),headers:{Authorization:'Bearer '+secret,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
- const p=await res.json() as {status?:boolean;data?:unknown};if(!res.ok||p.status!==true||!p.data)throw new SignupError('Provider response is uncertain. Verify the saved reference before taking further action.',503);return p.data;
+ const p=await readFinanceProviderJson(res);if(!res.ok||p.status!==true||!p.data)throw new SignupError('Provider response is uncertain. Verify the saved reference before taking further action.',503);return p.data;
 }
 export async function operateBookingCollection(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,runtime:CollectionRuntime={},transport:typeof fetch=fetch){
  const action=String(input.action),now=new Date().toISOString();
@@ -94,9 +95,7 @@ export async function operateBookingCollection(db:D1Database,actor:SigningActor,
 export async function receiveBookingCollectionWebhook(request:Request,db:D1Database,runtime:CollectionRuntime,mode:'test'|'live'){
  const secret=collectionKey(runtime,mode,true),signature=request.headers.get('x-paystack-signature')??'';
  if(!/^[a-f0-9]{128}$/i.test(signature))throw new SignupError('Invalid webhook signature.',401);
- const reader=request.body?.getReader();if(!reader)throw new SignupError('Missing event.');const parts:Uint8Array[]=[];let size=0;
- for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>262144){await reader.cancel();throw new SignupError('Event too large.',413);}parts.push(value);}
- const raw=new Uint8Array(size);let offset=0;for(const p of parts){raw.set(p,offset);offset+=p.length;}
+ const raw=await readFinanceWebhookBytes(request);
  const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-512'},false,['verify']);
  if(!await crypto.subtle.verify('HMAC',k,Uint8Array.from(signature.match(/../g)!,v=>parseInt(v,16)),raw))throw new SignupError('Invalid webhook signature.',401);
  let p;try{p=JSON.parse(new TextDecoder().decode(raw));}catch{throw new SignupError('Invalid event JSON.');}

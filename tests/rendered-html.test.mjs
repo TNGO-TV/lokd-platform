@@ -35,3 +35,20 @@ test("renders the canonical public LOKD launch identity with real signup entry p
   assert.doesNotMatch(html, /<dd>R800<\/dd>|Prototype offer|Passport preview ready/i);
   assert.doesNotMatch(html, /Starter Project/i);
 });
+
+test("built Worker HTML nonces every executable bootstrap script and replaces attacker CSP", async () => {
+  const {default: worker}=await import(new URL('../dist/server/index.js',import.meta.url).href);
+  const environment={ASSETS:{fetch:async()=>new Response('not found',{status:404})}},context={waitUntil(){},passThroughOnException(){}};
+  const request=()=>new Request('https://lokd.example/',{headers:{accept:'text/html','content-security-policy':"script-src 'nonce-attacker'",'x-lokd-script-nonce':'attacker'}});
+  const first=await worker.fetch(request(),environment,context),second=await worker.fetch(request(),environment,context);
+  assert.equal(first.status,200);assert.equal(second.status,200);
+  const policy=first.headers.get('content-security-policy');
+  const nonce=policy?.match(/'nonce-([^']+)'/)?.[1];assert.ok(nonce);assert.notEqual(nonce,'attacker');
+  assert.ok(!policy.split('; ').find(d=>d.startsWith('script-src')).includes('unsafe-inline'));
+  assert.notEqual(policy,second.headers.get('content-security-policy'));
+  assert.equal(first.headers.get('cache-control'),'private, no-store');
+  const html=await first.text(),scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
+  assert.ok(scripts.length>2,'actual SSR includes bootstrap and RSC scripts');
+  for(const [,attributes] of scripts){assert.ok(attributes.includes(`nonce="${nonce}"`),`script lacks response nonce: ${attributes}`);}
+  assert.match(html,/self\.__VINEXT_RSC/);
+});

@@ -1,3 +1,4 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from 'cloudflare:workers';
 import { principalForEmail, principalHasRole, requirePilotApiRole, requireSameOriginJson, PilotAccessError } from '../../lib/pilot-runtime';
 import { workspaceRoleForHost } from '../../lib/public-site';
@@ -21,7 +22,7 @@ function kind(request:Request,operations:boolean) {
   if(value!=='client'&&value!=='officer')throw new SignupError('Choose Client or Officer intake.');return value;
 }
 function reply(value:unknown,status=200){return Response.json(value,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});}
-function failure(error:unknown){return error instanceof SignupError||error instanceof PilotAccessError?reply({error:error.message},error.status):reply({error:'Your submissions could not be loaded or saved. Please try again.'},503);}
+function failure(error:unknown){return error instanceof SignupError||error instanceof RequestBodyError || error instanceof PilotAccessError?reply({error:error.message},error.status):reply({error:'Your submissions could not be loaded or saved. Please try again.'},503);}
 export async function GET(request:Request){try{
  const user=actor(request);if(!env.DB)throw new SignupError('Submission storage is unavailable.',503);
  const offset=Number(new URL(request.url).searchParams.get('offset')??0);
@@ -31,7 +32,7 @@ export async function GET(request:Request){try{
 export async function POST(request:Request){try{
  requireSameOriginJson(request);const user=actor(request);const selectedKind=kind(request,user.operations);
  if(!env.DB)throw new SignupError('Submission storage is unavailable.',503);
- const raw=await request.text();if(raw.length>12000)throw new SignupError('This update is too large.',413);
+ const raw = await readRequestText(request, 12000);
  let body;try{body=JSON.parse(raw);}catch{throw new SignupError('Submit a valid update.');}
  if(!body||typeof body!=='object'||Array.isArray(body)||body.kind!==selectedKind)throw new SignupError('Choose the correct intake.');
  await writeSignup(env.DB,user,body);return reply({ok:true});

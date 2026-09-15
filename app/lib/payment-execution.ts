@@ -1,3 +1,4 @@
+import {readFinanceWebhookBytes,readFinanceProviderJson} from './finance-body';
 import {SignupError} from './signup-server';
 import {agreementHash} from './agreement-acceptance';
 import {productionOperatorControl} from './production-operator-control';
@@ -17,7 +18,7 @@ const expiry=(now:string,minutes=30)=>new Date(Date.parse(now)+minutes*60000).to
 const binding=(i:Instruction):EmployeeTransferBinding=>{const s=JSON.parse(i.source_json);return {reference:i.reference,mode:i.mode,amount:i.amount_cents,currency:'ZAR',recipientId:s.recipient.id,integration:s.recipient.integration};};
 const participants=(i:Instruction)=>{const s=JSON.parse(i.source_json);return [s.ownerUser,s.representativeUser,s.officerUser,s.clientUser];};
 async function provider(secret:string,path:string,transport:typeof fetch,body?:unknown){
- try{const res=await transport('https://api.paystack.co'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+secret,'content-type':'application/json'},redirect:'error',signal:AbortSignal.timeout(20000),...(body?{body:JSON.stringify(body)}:{})});const p=await res.json() as {status?:boolean;data?:unknown};if(!res.ok||p.status!==true)throw Error('unavailable');return p.data;}
+ try{const res=await transport('https://api.paystack.co'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+secret,'content-type':'application/json'},redirect:'error',signal:AbortSignal.timeout(20000),...(body?{body:JSON.stringify(body)}:{})});const p=await readFinanceProviderJson(res);if(!res.ok||p.status!==true)throw Error('unavailable');return p.data;}
  catch{throw new SignupError(body?'Provider delivery is uncertain. Keep the saved claim and verify its original reference; do not resubmit.':'Provider verification is unavailable. Keep the saved reference; this read did not submit a transfer.',503);}
 }
 async function observation(db:D1Database,i:Instruction,source:string,event:string,raw:unknown,webhooks:number|null=null){
@@ -116,9 +117,7 @@ export async function operatePaymentExecution(db:D1Database,actor:SigningActor,i
 export async function receiveLiveTransferWebhook(request:Request,db:D1Database,runtime:PaymentExecutionRuntime){
  const secret=destinationKey(runtime,'live'),signature=request.headers.get('x-paystack-signature')??'';
  if(!/^[a-f0-9]{128}$/i.test(signature))throw new SignupError('Invalid webhook signature.',401);
- const reader=request.body?.getReader();if(!reader)throw new SignupError('Missing event.');let size=0;const chunks:Uint8Array[]=[];
- for(;;){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>262144){await reader.cancel();throw new SignupError('Event too large.',413);}chunks.push(value);}
- const raw=new Uint8Array(size);let offset=0;for(const c of chunks){raw.set(c,offset);offset+=c.length;}
+ const raw=await readFinanceWebhookBytes(request);
  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-512'},false,['verify']);
  if(!await crypto.subtle.verify('HMAC',key,Uint8Array.from(signature.match(/../g)!,v=>parseInt(v,16)),raw))throw new SignupError('Invalid webhook signature.',401);
  let p;try{p=JSON.parse(new TextDecoder().decode(raw));}catch{throw new SignupError('Invalid event.');}

@@ -1,3 +1,4 @@
+import { secureRequest, secureResponse } from "../app/lib/security-headers";
 import { ownerBackup, type BackupEnv } from "./owner-backup";
 import { receivePaystackTest } from '../app/lib/paystack-test';
 import { liveSurfaceResponse } from "../app/lib/live-surface";
@@ -41,7 +42,7 @@ interface ScheduledController {
 // const imageConfig: ImageConfig = { dangerouslyAllowSVG: true };
 
 const worker = {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async handle(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const backup = await ownerBackup(request, env);
     if (backup) return backup;
     const url = new URL(request.url);
@@ -77,6 +78,11 @@ const worker = {
         status: 503, headers: { "cache-control": "no-store", "content-type": "text/plain; charset=utf-8" },
       });
     }
+  },
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const secured = secureRequest(request);
+    try { return secureResponse(await worker.handle(secured.request, env, ctx), secured.policy); }
+    catch { return secureResponse(new Response("Service temporarily unavailable.", {status: 503, headers: {"content-type": "text/plain; charset=utf-8", "cache-control": "no-store"}}), secured.policy); }
   },
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const configuredStage = env.LOKD_APP_STAGE?.trim().toLowerCase();

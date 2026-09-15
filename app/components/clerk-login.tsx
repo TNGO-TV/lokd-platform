@@ -18,8 +18,8 @@ export default function ClerkLogin({ destination, signOut = false }: {
   return signOut ? <SignOutAction /> : <SignIn routing="hash" forceRedirectUrl={destination} signUpForceRedirectUrl={destination} />;
 }
 
-export function LokdClerkProvider({ publishableKey, children }: { publishableKey?: string; children: React.ReactNode }) {
+export function LokdClerkProvider({ publishableKey, nonce, children }: { publishableKey?: string; nonce?: string; children: React.ReactNode }) {
   // Keep Clerk mounted after login so it refreshes the short-lived session
   // cookie used by the portals' existing same-origin fetch requests.
-  return publishableKey ? <ClerkProvider publishableKey={publishableKey}>{children}</ClerkProvider> : children;
+  return publishableKey ? <ClerkProvider publishableKey={publishableKey} nonce={nonce}>{children}</ClerkProvider> : children;
 }

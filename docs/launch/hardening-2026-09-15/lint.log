@@ -1,0 +1,16 @@
+
+> lokd-security@0.1.0 lint
+> bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next
+
+
+/srv/ammosync/workspaces/lokd-security/app/components/officer-app.tsx
+  116:15  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/srv/ammosync/workspaces/lokd-security/app/components/workspace-view.tsx
+  52:7  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/srv/ammosync/workspaces/lokd-security/docs/launch/release-security-2026-09-15/evidence-access-repro.mjs
+  7:15  warning  'PATCH' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 3 problems (0 errors, 3 warnings)
+

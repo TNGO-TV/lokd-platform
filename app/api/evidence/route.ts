@@ -1,5 +1,7 @@
 import { env } from "cloudflare:workers";
-import { PilotAccessError, pilotStage, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
+import { PilotAccessError, pilotStage, requirePilotApiRole, requireSameOriginJson, type PilotPrincipal } from "../../lib/pilot-runtime";
+
+import { readRequestText, RequestBodyError } from "../../lib/request-body";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +35,7 @@ function response(payload: unknown, status = 200) {
 }
 
 function errorResponse(cause: unknown) {
-  const error = cause instanceof EvidenceError || cause instanceof PilotAccessError
+  const error = cause instanceof EvidenceError || cause instanceof PilotAccessError || cause instanceof RequestBodyError
     ? cause
     : new EvidenceError("The evidence operation could not be completed.", 500);
   return response({ error: error.message }, error.status);
@@ -48,6 +50,13 @@ function requirePrivateRuntime() {
   const stage = pilotStage();
   if (stage === "demo") throw new EvidenceError("Evidence uploads are disabled in the public demo.", 423);
   return stage;
+}
+
+// Finance/compliance are labels without supported assignments in PilotPrincipal.
+// Deny them until explicit grants exist; owner does not imply an unsupported class.
+function requireArtifactAccess(actor: PilotPrincipal, accessClass: string) {
+  if (accessClass === "operations" || (accessClass === "owner" && actor.owner)) return;
+  throw new EvidenceError("This account cannot access that evidence class.", 403);
 }
 
 function decodeBase64(value: string) {
@@ -76,8 +85,7 @@ export async function POST(request: Request) {
     const actor = requirePilotApiRole(request, "operations");
     const stage = requirePrivateRuntime();
     const { db, bucket } = backend();
-    const raw = await request.text();
-    if (raw.length > 7_500_000) throw new EvidenceError("The evidence request is too large.", 413);
+    const raw = await readRequestText(request, 7_500_000);
     let body: { kind?: unknown; mimeType?: unknown; retentionClass?: unknown; accessClass?: unknown; contentBase64?: unknown };
     try {
       body = JSON.parse(raw) as typeof body;
@@ -95,6 +103,7 @@ export async function POST(request: Request) {
     }
     if (!new Set(["operations", "finance", "compliance", "owner"]).has(accessClass)) throw new EvidenceError("Choose an approved access class.");
     if (typeof body.contentBase64 !== "string") throw new EvidenceError("Evidence content is required.");
+    requireArtifactAccess(actor, accessClass);
     const bytes = decodeBase64(body.contentBase64);
     const contentHash = await hash(bytes);
     const artifactId = `ART-${crypto.randomUUID()}`;
@@ -134,7 +143,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    requirePilotApiRole(request, "operations");
+    const actor = requirePilotApiRole(request, "operations");
     const stage = requirePrivateRuntime();
     const { db, bucket } = backend();
     const url = new URL(request.url);
@@ -151,6 +160,7 @@ export async function GET(request: Request) {
         createdAt: string; verifiedAt: string | null;
       }>();
     if (!artifact || !artifact.storageReference.startsWith("BUCKET:")) throw new EvidenceError("That evidence artifact was not found.", 404);
+    requireArtifactAccess(actor, artifact.accessClass);
     if (url.searchParams.get("download") !== "1") return response({ artifact: { ...artifact, storageReference: undefined } });
     const object = await bucket.get(artifact.storageReference.slice("BUCKET:".length));
     if (!object) throw new EvidenceError("The evidence object is unavailable.", 503);
@@ -176,8 +186,7 @@ export async function PATCH(request: Request) {
     const actor = requirePilotApiRole(request, "operations");
     const stage = requirePrivateRuntime();
     const { db, bucket } = backend();
-    const raw = await request.text();
-    if (raw.length > 2_000) throw new EvidenceError("The verification request is too large.", 413);
+    const raw = await readRequestText(request, 2_000);
     let body: { artifactId?: unknown; expectedHash?: unknown };
     try {
       body = JSON.parse(raw) as typeof body;
@@ -191,16 +200,17 @@ export async function PATCH(request: Request) {
     }
     const dataEnvironment = stage === "production" ? "production" : "prelaunch";
     const artifact = await db.prepare(`SELECT artifact.id, artifact.storage_reference AS storageReference,
-      artifact.content_hash AS contentHash, artifact.size_bytes AS sizeBytes, artifact.status,
+      artifact.content_hash AS contentHash, artifact.size_bytes AS sizeBytes, artifact.status, artifact.access_class AS accessClass,
       (SELECT audit.actor_id FROM audit_events audit
         WHERE audit.entity_type = 'document_artifact' AND audit.entity_id = artifact.id
           AND audit.event_type = 'evidence_stored' ORDER BY audit.created_at LIMIT 1) AS storedBy
       FROM document_artifacts artifact WHERE artifact.id = ? AND artifact.environment = ?`)
       .bind(artifactId, dataEnvironment).first<{
         id: string; storageReference: string; contentHash: string; sizeBytes: number;
-        status: string; storedBy: string | null;
+        status: string; storedBy: string | null; accessClass: string;
       }>();
     if (!artifact || !artifact.storageReference.startsWith("BUCKET:")) throw new EvidenceError("That evidence artifact was not found.", 404);
+    requireArtifactAccess(actor, artifact.accessClass);
     if (artifact.status !== "stored_unverified") throw new EvidenceError("That evidence artifact has already left the verification queue.", 409);
     if (artifact.contentHash !== expectedHash) throw new EvidenceError("The expected evidence hash does not match the stored record.", 409);
     if (artifact.storedBy === actor.email) throw new EvidenceError("A second authorised operator must verify this evidence.", 409);

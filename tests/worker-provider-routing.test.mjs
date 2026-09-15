@@ -32,11 +32,14 @@ test('live transfer HMAC callback is independent of Clerk failure and handshake'
       globalThis.__lokdRoutingAuth=()=>{authCalls++;if(mode==='throw')throw Error('Clerk unavailable');return {response:new Response(null,{status:307,headers:{location:'/sign-in'}})};};
       const accepted=await worker.fetch(request(signature),{},{});
       assert.equal(accepted.status,200);
+      assert.equal(accepted.headers.get("x-frame-options"),"DENY");
+      assert.equal(accepted.headers.get("referrer-policy"),"no-referrer");
       assert.deepEqual(await accepted.json(),{received:true,matched:false});
       assert.equal((await worker.fetch(request('0'.repeat(128)),{},{})).status,401);
       assert.equal((await worker.fetch(new Request('https://lokd.example/api/health/live'),{},{})).status,200);
       const probe=await worker.fetch(new Request('https://lokd.example/api/health/ready'),{},{});
       assert.equal(probe.status,503);
+      assert.equal(probe.headers.get("x-content-type-options"),"nosniff");
       assert.equal((await probe.json()).status,'unavailable');
       assert.equal((await worker.fetch(new Request('https://lokd.example/api/production-operations'),{},{})).status,mode==='throw'?503:307);
     }

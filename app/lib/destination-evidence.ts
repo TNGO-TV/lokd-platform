@@ -1,3 +1,4 @@
+import {readFinanceProviderJson} from './finance-body';
 import {SignupError} from './signup-server';
 export type DestinationMode='test'|'live';
 export type DestinationRuntime={PAYSTACK_TEST_SECRET_KEY?:string;PAYSTACK_LIVE_SECRET_KEY?:string};
@@ -25,7 +26,7 @@ export async function fetchRecipient(secret:string,code:string,mode:DestinationM
  if(!/^RCP_[a-zA-Z0-9]{6,60}$/.test(code))throw new SignupError('Use an existing Paystack recipient code.');
  try{
   const response=await transport('https://api.paystack.co/transferrecipient/'+code,{method:'GET',headers:{Authorization:'Bearer '+secret},redirect:'error',signal:AbortSignal.timeout(20000)});
-  const payload=await response.json() as {status?:boolean;data?:unknown};
+  const payload=await readFinanceProviderJson(response);
   if(!response.ok||payload.status!==true)throw new Error('unavailable');
   return await recipientEvidence(payload.data,code,mode,secret);
  }catch{throw new SignupError('Recipient retrieval is unavailable. Refresh and retry the read-only check; no payment was sent.',503);}

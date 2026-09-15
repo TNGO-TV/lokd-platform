@@ -1,3 +1,4 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from "cloudflare:workers";
 import { PilotAccessError, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 
@@ -50,7 +51,7 @@ function reply(payload: unknown, status = 200) {
 }
 
 function failure(cause: unknown) {
-  const error = cause instanceof EnquiryError || cause instanceof PilotAccessError
+  const error = cause instanceof EnquiryError || cause instanceof RequestBodyError || cause instanceof PilotAccessError
     ? cause : new EnquiryError("We could not complete that enquiry request.", 500);
   return reply({ error: error.message }, error.status);
 }
@@ -63,8 +64,7 @@ function requireSignedInOperations(request: Request) {
 export async function submitClientEnquiry(request: Request,database?:D1Database) {
   try {
     requireSameOriginJson(request);
-    const raw = await request.text();
-    if (raw.length > 14_000) throw new EnquiryError("The enquiry is too large.", 413);
+    const raw = await readRequestText(request, 14_000);
     let input: Record<string, unknown>;
     try { input = JSON.parse(raw) as Record<string, unknown>; }
     catch { throw new EnquiryError("The enquiry body is not valid JSON."); }
@@ -141,8 +141,7 @@ export async function PATCH(request: Request) {
   try {
     requireSameOriginJson(request);
     const actor = requireSignedInOperations(request);
-    const raw = await request.text();
-    if (raw.length > 4_000) throw new EnquiryError("The update is too large.", 413);
+    const raw = await readRequestText(request, 4_000);
     let input: Record<string, unknown>;
     try { input = JSON.parse(raw) as Record<string, unknown>; }
     catch { throw new EnquiryError("The update body is not valid JSON."); }

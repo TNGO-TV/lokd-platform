@@ -1,3 +1,4 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from "cloudflare:workers";
 import { PilotAccessError, pilotStage, principalForEmail, principalHasRole, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 import { applySpecialistAction, readSpecialistState, specialistDocument, SpecialistWorkflowError } from "../../lib/specialist-operations-server";
@@ -7,7 +8,7 @@ import type { SpecialistAction, SpecialistEnvironment } from "../../lib/speciali
 export const dynamic="force-dynamic";
 function reply(payload:unknown,status=200) {return Response.json(payload,{status,headers:{"cache-control":"no-store, private","x-content-type-options":"nosniff","referrer-policy":"no-referrer",vary:"x-lokd-verified-email"}});}
 function failure(cause:unknown) {
-  if(cause instanceof SpecialistWorkflowError||cause instanceof PilotAccessError) return reply({error:cause.message},cause.status);
+  if(cause instanceof SpecialistWorkflowError||cause instanceof RequestBodyError || cause instanceof PilotAccessError) return reply({error:cause.message},cause.status);
   console.error("specialist_workflow_failed",cause instanceof Error?cause.message:"unknown");
   return reply({error:"The specialist workflow could not complete. Your unsaved inputs are still available; refresh the record and try again."},500);
 }
@@ -56,7 +57,7 @@ export async function POST(request:Request) {
     requireSameOriginJson(request);
     const {scope,principal,environment,db}=context(request);
     if(scope!=="operations") throw new PilotAccessError("Only Operations can change specialist records.",403);
-    const raw=await request.text(); if(raw.length>100000) throw new SpecialistWorkflowError("The request is too large.",413);
+    const raw = await readRequestText(request, 100000);
     let action:SpecialistAction; try{action=JSON.parse(raw);}catch{throw new SpecialistWorkflowError("The request must contain valid JSON.");}
     await applySpecialistAction(db,environment,principal.email,action);
     return reply({state:await readSpecialistState(db,environment,principal.email)});

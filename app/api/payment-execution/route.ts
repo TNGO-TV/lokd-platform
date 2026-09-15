@@ -1,3 +1,4 @@
+import {readFinanceText} from '../../lib/finance-body';
 import {env} from 'cloudflare:workers';
 import {SignupError} from '../../lib/signup-server';
 import {PilotAccessError,principalForEmail,principalHasRole,requirePilotApiRole,requireSameOriginJson} from '../../lib/pilot-runtime';
@@ -15,7 +16,7 @@ export async function POST(request:Request){
   requirePilotApiRole(request,'operations');
   if(!env.DB)throw new SignupError('Storage unavailable.',503);
   if(request.method==='GET')return reply(await readPaymentExecution(env.DB,{userId,email,operations:true,owner:principal.owner},request.headers,env as PaymentExecutionRuntime));
-  const raw=await request.text();if(raw.length>6000)throw new SignupError('Request too large.',413);
+  const raw=await readFinanceText(request,6000);
   let input;try{input=JSON.parse(raw);}catch{throw new SignupError('Invalid request.');}
   if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a recovery action.');
   return reply(await operatePaymentExecution(env.DB,{userId,email,operations:true,owner:principal.owner},input,request.headers,env as PaymentExecutionRuntime));

@@ -1,3 +1,4 @@
+import {readFinanceText} from '../../lib/finance-body';
 import {env} from 'cloudflare:workers';
 import {SignupError} from '../../lib/signup-server';
 import {PilotAccessError,principalForEmail,principalHasRole,requirePilotApiRole,requireSameOriginJson} from '../../lib/pilot-runtime';
@@ -13,7 +14,7 @@ export async function POST(request:Request){try{
  if(!env.DB)throw new SignupError('Storage unavailable.',503);
  const actor={userId,email,operations:true,owner:principal.owner};
  if(request.method==='GET')return Response.json(await readPayrollCorrectionReviews(env.DB,actor,request.headers,url.searchParams.get('itemId'),Number(url.searchParams.get('after')??0),Number(url.searchParams.get('pageSize')??25)),{headers});
- const raw=await request.text();if(raw.length>6000)throw new SignupError('Request too large.',413);let input;try{input=JSON.parse(raw);}catch{throw new SignupError('Invalid JSON.');}if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a correction review action.');
+ const raw=await readFinanceText(request,6000);let input;try{input=JSON.parse(raw);}catch{throw new SignupError('Invalid JSON.');}if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a correction review action.');
  if(input.action==='prepare')return Response.json(await preparePayrollCorrectionReview(env.DB,actor,input,request.headers),{headers});
  if(input.action==='decide')return Response.json(await decidePayrollCorrectionReview(env.DB,actor,input,request.headers),{headers});
  throw new SignupError('This endpoint only records and reviews correction requests.');

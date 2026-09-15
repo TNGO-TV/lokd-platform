@@ -1,3 +1,4 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from "cloudflare:workers";
 import { OperationsError, applyOperationsAction, ensureOperationsDemoData, readOperationsState } from "../../lib/operations-server";
 import type { OperationsAction } from "../../lib/operations-types";
@@ -27,7 +28,7 @@ function response(payload: unknown, status = 200) {
 }
 
 function failure(cause: unknown) {
-  const error = cause instanceof OperationsError || cause instanceof PilotAccessError
+  const error = cause instanceof OperationsError || cause instanceof RequestBodyError || cause instanceof PilotAccessError
     ? cause
     : new OperationsError("The Operations command service could not complete that request.", 500);
   return response({ error: error.message }, error.status);
@@ -50,8 +51,7 @@ export async function POST(request: Request) {
     requireSameOriginJson(request);
     const actor = requirePilotApiRole(request, "operations");
     requireSyntheticDemo();
-    const raw = await request.text();
-    if (raw.length > 8_192) throw new OperationsError("The request is too large.", 413);
+    const raw = await readRequestText(request, 8_192);
     let payload: OperationsAction;
     try {
       payload = JSON.parse(raw) as OperationsAction;

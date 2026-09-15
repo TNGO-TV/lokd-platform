@@ -1,3 +1,4 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from "cloudflare:workers";
 import {
   PilotAccessError,
@@ -3872,7 +3873,7 @@ function response(payload: unknown, status = 200) {
 
 function errorResponse(cause: unknown) {
   const error =
-    cause instanceof PilotError || cause instanceof PilotAccessError
+    cause instanceof PilotError || cause instanceof RequestBodyError || cause instanceof PilotAccessError
       ? cause
       : new PilotError(
           "The LOKD workspace could not complete that request.",
@@ -3944,9 +3945,7 @@ export async function POST(request: Request) {
     const scope = scopeFromRequest(request);
     const viewer = requirePilotApiRole(request, scope);
     requireScopedPilotEntity(viewer, scope);
-    const raw = await request.text();
-    if (raw.length > 32_768)
-      throw new PilotError("The request is too large.", 413);
+    const raw = await readRequestText(request, 32_768);
     let payload: PilotAction;
     try {
       payload = JSON.parse(raw) as PilotAction;

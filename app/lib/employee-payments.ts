@@ -1,3 +1,4 @@
+import {readFinanceWebhookBytes,readFinanceProviderJson} from './finance-body';
 import {readPaymentEvidenceAssessment} from './payment-execution';
 import {replacementReservation,readPaymentRecovery} from './payment-recovery';
 import {SignupError} from './signup-server';
@@ -19,7 +20,7 @@ async function record(db:D1Database,i:Instruction,source:string,event:string,raw
  await db.prepare('INSERT OR IGNORE INTO employee_transfer_observations VALUES(?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),i.reference,source,event,hash,json,count,new Date().toISOString()).run();
 }
 async function provider(secret:string,path:string,transport:typeof fetch,body?:unknown){
- try{const response=await transport('https://api.paystack.co'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+secret,'content-type':'application/json'},redirect:'error',signal:AbortSignal.timeout(20000),...(body?{body:JSON.stringify(body)}:{})});const payload=await response.json() as {status?:boolean;data?:unknown};if(!response.ok||payload.status!==true)throw Error('uncertain');return payload.data;}
+ try{const response=await transport('https://api.paystack.co'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+secret,'content-type':'application/json'},redirect:'error',signal:AbortSignal.timeout(20000),...(body?{body:JSON.stringify(body)}:{})});const payload=await readFinanceProviderJson(response);if(!response.ok||payload.status!==true)throw Error('uncertain');return payload.data;}
  catch{throw new SignupError('Provider delivery is uncertain. Verify this saved reference; do not submit a replacement.',503);}
 }
 export async function readEmployeePayments(db:D1Database,actor:SigningActor){
@@ -84,9 +85,7 @@ export async function operateEmployeePayment(db:D1Database,actor:SigningActor,in
 }
 export async function receiveEmployeeTransferWebhook(request:Request,db:D1Database,runtime:DestinationRuntime){
  const secret=destinationKey(runtime,'test'),signature=request.headers.get('x-paystack-signature')??'';if(!/^[a-f0-9]{128}$/i.test(signature))throw new SignupError('Invalid webhook signature.',401);
- const reader=request.body?.getReader();if(!reader)throw new SignupError('Missing event.');const parts:Uint8Array[]=[];let size=0;
- for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>262144){await reader.cancel();throw new SignupError('Event too large.',413);}parts.push(value);}
- const raw=new Uint8Array(size);let offset=0;for(const p of parts){raw.set(p,offset);offset+=p.length;}
+ const raw=await readFinanceWebhookBytes(request);
  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-512'},false,['verify']);if(!await crypto.subtle.verify('HMAC',key,Uint8Array.from(signature.match(/../g)!,v=>parseInt(v,16)),raw))throw new SignupError('Invalid webhook signature.',401);
  let p;try{p=JSON.parse(new TextDecoder().decode(raw));}catch{throw new SignupError('Invalid event.');}
  if(!p||typeof p.event!=='string'||!p.event.startsWith('transfer.')||p.event.length>100||!p.data||p.data.domain!=='test')throw new SignupError('Only explicit test transfer events are accepted.',422);

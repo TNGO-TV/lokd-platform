@@ -1,3 +1,5 @@
+// HISTORICAL pre-fix reproduction: expected to fail after ID-SEC-01 hardening.
+// Current regression: tests/request-body.test.mjs (public handlers cancel before full consumption).
 import assert from 'node:assert/strict';
 import {submitClientEnquiry} from '/srv/ammosync/workspaces/lokd-security/app/api/enquiries/route.ts';
 let pulls=0,cancelled=false;

@@ -1,3 +1,4 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from "cloudflare:workers";
 import {
   ensureOnboardingDemoData,
@@ -42,7 +43,7 @@ function response(payload: unknown, status = 200) {
 function errorResponse(cause: unknown) {
   const error =
     cause instanceof OnboardingWorkflowError ||
-    cause instanceof PilotAccessError
+    cause instanceof RequestBodyError || cause instanceof PilotAccessError
       ? cause
       : new OnboardingWorkflowError(
           "The onboarding workflow could not complete that request.",
@@ -91,9 +92,7 @@ export async function POST(request: Request) {
       );
     const principal = requirePilotApiRole(request, "operations");
     requireDemo();
-    const raw = await request.text();
-    if (raw.length > 8_000)
-      throw new OnboardingWorkflowError("The request is too large.", 413);
+    const raw = await readRequestText(request, 8_000);
     let action: OnboardingAction;
     try {
       action = JSON.parse(raw) as OnboardingAction;

@@ -1,3 +1,4 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { applicationPsiraDeclaration, psiraIntakeStatus } from '../../lib/psira-pathway';
 import { psiraNumber as validatePsiraNumber } from '../../lib/psira-verification';
 import { env } from "cloudflare:workers";
@@ -78,7 +79,7 @@ function allowedList(value: unknown, allowed: Set<string>, field: string, maximu
 }
 
 function responseError(cause: unknown) {
-  const error = cause instanceof ApplicationError || cause instanceof PilotAccessError || cause instanceof PlatformWorkflowError
+  const error = cause instanceof ApplicationError || cause instanceof RequestBodyError || cause instanceof PilotAccessError || cause instanceof PlatformWorkflowError
     ? cause
     : new ApplicationError("We could not complete that application request.", 500);
   return response({ error: error.message }, error.status);
@@ -157,8 +158,7 @@ export async function PATCH(request: Request) {
     requireSameOriginJson(request);
     const actor = requirePilotApiRole(request, "operations");
     if (pilotStage() !== "demo") throw new ApplicationError("Demo application transitions are disabled outside the isolated demo environment.", 423);
-    const raw = await request.text();
-    if (raw.length > 16_000) throw new ApplicationError("The request is too large.", 413);
+    const raw = await readRequestText(request, 16_000);
     let input: { id?: unknown; action?: unknown };
     try { input = JSON.parse(raw) as { id?: unknown; action?: unknown }; }
     catch { throw new ApplicationError("The request body is not valid JSON."); }
@@ -279,8 +279,7 @@ export async function PATCH(request: Request) {
 export async function submitOfficerApplication(request: Request, database?:D1Database) {
   try {
     requireSameOriginJson(request);
-    const raw = await request.text();
-    if (raw.length > 16_000) throw new ApplicationError("The application is too large.", 413);
+    const raw = await readRequestText(request, 16_000);
     let input: ApplicationInput;
     try { input = JSON.parse(raw) as ApplicationInput; }
     catch { throw new ApplicationError("The application body is not valid JSON."); }

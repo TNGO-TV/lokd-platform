@@ -1,0 +1,23 @@
+{
+  "folder_url": "https://drive.google.com/drive/folders/1u0JEL4nBvZpj4eUB1H6glsYlq9vRWY_i",
+  "folder_owner_only": true,
+  "files": [
+    {
+      "id": "1gq37aozIhyrN8yW8FVHYTzIFtjJ_xntC",
+      "name": "LOKD-v72-Production-Capture.tar.gpg",
+      "bytes": 354961
+    },
+    {
+      "id": "1xN9EID7D_wtxYEML2E7qnkLktgbg2hr3",
+      "name": "LOKD-v72-source-and-release.tar.gpg",
+      "bytes": 13028536
+    },
+    {
+      "id": "1lvyPGIQaj8Iz17QzOPYkHaImUZWzJE-L",
+      "name": "LOKD-v72-audit-evidence-final.tar.gz",
+      "bytes": 34909
+    }
+  ],
+  "verification": "Native upload success and metadata readback: expected parent, matching sizes, shared=false, owner permission only. Local encrypted archives previously restored and checked. Remote byte checksum not independently verified: authenticated download reference returned HTTP403.",
+  "recovery_key_uploaded": false
+}
