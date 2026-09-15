@@ -12,9 +12,9 @@ not ok 1 - canonical finance event consumption and immutable conflict matrix
   failureType: 'testCodeFailure'
   error: |-
     The input did not match the regular expression /QA_FINANCE_FIXED: test single-event reuse denied/. Input:
-    
+
     ''
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
