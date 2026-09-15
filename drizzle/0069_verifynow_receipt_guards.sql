@@ -55,8 +55,8 @@ BEGIN SELECT RAISE(ABORT,'VerifyNow receipt binding mismatch'); END;
 -- Central independent QA: REPLACE must not bypass immutable-history triggers
 -- when recursive_triggers is disabled (SQLite/D1 default).
 CREATE TRIGGER verifynow_claim_insert_binding BEFORE INSERT ON verifynow_production_claims BEGIN
- SELECT CASE WHEN EXISTS(SELECT 1 FROM verifynow_production_claims WHERE case_id=NEW.case_id) THEN RAISE(ABORT,'immutable VerifyNow claim') END;
- SELECT CASE WHEN NOT EXISTS(
+ SELECT (CASE WHEN EXISTS(SELECT 1 FROM verifynow_production_claims WHERE case_id=NEW.case_id) THEN RAISE(ABORT,'immutable VerifyNow claim') END);
+ SELECT (CASE WHEN NOT EXISTS(
   SELECT 1 FROM production_identity_cases c WHERE c.id=NEW.case_id AND c.provider='verifynow-said-production-v1'
   AND json_type(NEW.binding_json,'$.caseId')='text' AND json_extract(NEW.binding_json,'$.caseId')=c.id
   AND json_type(NEW.binding_json,'$.applicantId')='text' AND json_extract(NEW.binding_json,'$.applicantId')=c.applicant_id
@@ -65,17 +65,17 @@ CREATE TRIGGER verifynow_claim_insert_binding BEFORE INSERT ON verifynow_product
   AND json_type(NEW.binding_json,'$.bindingHash')='text' AND json_extract(NEW.binding_json,'$.bindingHash')=c.binding_hash
   AND json_type(NEW.binding_json,'$.captureReference')='text' AND json_extract(NEW.binding_json,'$.captureReference')=c.capture_reference
  ) OR (SELECT count(*) FROM json_each(NEW.binding_json))<>6 OR (SELECT count(DISTINCT key) FROM json_each(NEW.binding_json))<>6 OR EXISTS(SELECT 1 FROM json_each(NEW.binding_json) WHERE key NOT IN ('caseId','applicantId','applicantVersion','ownerUserId','bindingHash','captureReference'))
- THEN RAISE(ABORT,'VerifyNow claim binding mismatch') END;
- SELECT CASE WHEN NEW.case_id IS NULL OR typeof(NEW.request_hash)<>'text' OR length(NEW.request_hash)<>64 OR NEW.request_hash GLOB '*[^a-f0-9]*'
+ THEN RAISE(ABORT,'VerifyNow claim binding mismatch') END);
+ SELECT (CASE WHEN NEW.case_id IS NULL OR typeof(NEW.request_hash)<>'text' OR length(NEW.request_hash)<>64 OR NEW.request_hash GLOB '*[^a-f0-9]*'
   OR julianday(NEW.claimed_at) IS NULL OR NEW.claimed_at IS NOT strftime('%Y-%m-%dT%H:%M:%fZ',NEW.claimed_at) OR typeof(NEW.evidence_lifetime_ms)<>'integer' OR NEW.evidence_lifetime_ms<=0 OR length(trim(NEW.policy_reference))=0
- THEN RAISE(ABORT,'Invalid VerifyNow claim evidence') END;
+ THEN RAISE(ABORT,'Invalid VerifyNow claim evidence') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER verifynow_receipt_insert_shape BEFORE INSERT ON verifynow_production_receipts BEGIN
- SELECT CASE WHEN EXISTS(SELECT 1 FROM verifynow_production_receipts WHERE case_id=NEW.case_id)
+ SELECT (CASE WHEN EXISTS(SELECT 1 FROM verifynow_production_receipts WHERE case_id=NEW.case_id)
   OR EXISTS(SELECT 1 FROM verifynow_production_receipts WHERE json_extract(result_json,'$.providerReference')=json_extract(NEW.result_json,'$.providerReference'))
- THEN RAISE(ABORT,'immutable VerifyNow receipt UNIQUE provider reference') END;
- SELECT CASE WHEN (
+ THEN RAISE(ABORT,'immutable VerifyNow receipt UNIQUE provider reference') END);
+ SELECT (CASE WHEN (
   json_type(NEW.result_json,'$.caseId')='text' AND json_extract(NEW.result_json,'$.caseId')=NEW.case_id
   AND json_type(NEW.result_json,'$.providerReference')='text' AND length(json_extract(NEW.result_json,'$.providerReference')) BETWEEN 1 AND 300
   AND substr(json_extract(NEW.result_json,'$.providerReference'),1,1) GLOB '[A-Za-z0-9]'
@@ -93,5 +93,5 @@ CREATE TRIGGER verifynow_receipt_insert_shape BEFORE INSERT ON verifynow_product
  ) IS NOT TRUE OR julianday(NEW.recorded_at) IS NULL OR NEW.recorded_at IS NOT strftime('%Y-%m-%dT%H:%M:%fZ',NEW.recorded_at)
  OR (SELECT count(*) FROM json_each(NEW.result_json))<>14 OR (SELECT count(DISTINCT key) FROM json_each(NEW.result_json))<>14
  OR EXISTS(SELECT 1 FROM json_each(NEW.result_json) WHERE key NOT IN ('caseId','applicantId','applicantVersion','ownerUserId','bindingHash','captureReference','environment','provider','outcome','providerReference','evidenceReference','evidenceHash','checkedAt','expiresAt'))
- THEN RAISE(ABORT,'Invalid VerifyNow receipt evidence') END;
+ THEN RAISE(ABORT,'Invalid VerifyNow receipt evidence') END);
 END;

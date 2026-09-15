@@ -1,0 +1,27 @@
+[
+  {
+    "migration": "0069_verifynow_receipt_guards.sql",
+    "added_parentheses": 10,
+    "all_other_bytes_identical": true
+  },
+  {
+    "migration": "0070_credit_notes.sql",
+    "added_parentheses": 10,
+    "all_other_bytes_identical": true
+  },
+  {
+    "migration": "0071_refund_reconciliation.sql",
+    "added_parentheses": 14,
+    "all_other_bytes_identical": true
+  },
+  {
+    "migration": "0072_payroll_correction_reviews.sql",
+    "added_parentheses": 6,
+    "all_other_bytes_identical": true
+  },
+  {
+    "migration": "0073_finance_sandbox_workflows.sql",
+    "added_parentheses": 32,
+    "all_other_bytes_identical": true
+  }
+]

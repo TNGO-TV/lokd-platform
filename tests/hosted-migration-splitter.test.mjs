@@ -19,6 +19,16 @@ test('Post-v69 migrations survive the hosted SQL splitter as complete individual
         continue;
       }
       const statements = unstable_splitSqlQuery(sql);
+      // The deployed historical migrations wrap SELECT CASE expressions. Keep
+      // that shape: an END; boundary must close the trigger, not an inner CASE.
+      // This is a conservative compatibility rule, not the opaque host parser.
+      for (const part of sql.split('--> statement-breakpoint')) {
+        const unquoted = part.replace(/'(?:''|[^'])*'/g, 'literal').replace(/--[^\n]*/g, '');
+        if (/CREATE\s+TRIGGER\b/i.test(unquoted)) {
+          assert.equal((unquoted.match(/\bEND\s*;/g) ?? []).length, 1,
+            `${name}: preserve the historical single bare END; trigger boundary`);
+        }
+      }
       assert.equal(statements.length, sql.split('--> statement-breakpoint').filter(part => part.trim()).length,
         `${name}: splitter must neither truncate triggers nor combine separate statements`);
       for (const [index, statement] of statements.entries()) {
