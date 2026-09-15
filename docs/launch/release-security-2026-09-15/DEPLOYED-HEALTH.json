@@ -1,0 +1,47 @@
+{
+  "at": "2026-09-15T09:10:25.756918+00:00",
+  "initial_default_python_user_agent": "403 Cloudflare1010; retained separately",
+  "checks": [
+    {
+      "path": "/api/health/live",
+      "status": 200,
+      "body": {
+        "status": "live",
+        "service": "lokd-security",
+        "checkedAt": "2026-09-15T09:10:21.861Z"
+      },
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/api/health/ready",
+      "status": 200,
+      "body": {
+        "status": "ready",
+        "service": "lokd-security",
+        "checkedAt": "2026-09-15T09:10:25.740Z",
+        "productionActivationAuthorized": false,
+        "payrollMode": "shadow_settlement_locked",
+        "readinessScope": "current_schema_objects_and_evidence_binding",
+        "schemaMigration": "0074_specialist_calendar_wage.sql",
+        "expectedSchema": {
+          "requiredTables": 210,
+          "requiredTriggers": 759,
+          "requiredViews": 67,
+          "requiredIndexes": 304
+        },
+        "infrastructureReady": true,
+        "providerConnectivity": "not_assessed",
+        "operationalAcceptance": "not_assessed",
+        "checks": {
+          "requiredTables": 210,
+          "requiredTriggers": 759,
+          "requiredViews": 67,
+          "requiredIndexes": 304,
+          "schemaComplete": true,
+          "evidenceStoreBound": true
+        }
+      },
+      "cacheControl": "no-store"
+    }
+  ]
+}
