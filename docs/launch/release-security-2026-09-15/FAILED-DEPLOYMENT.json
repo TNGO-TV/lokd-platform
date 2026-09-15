@@ -1,0 +1,7 @@
+{
+  "failed_deployment": "appgdep_6aa907bd1f5c81918e8e14937141492e",
+  "error": "incomplete input: SQLITE_ERROR",
+  "schema_unchanged": true,
+  "all_table_rows_unchanged": true,
+  "comparison": "fresh encrypted snapshots before and after deployment failure"
+}
