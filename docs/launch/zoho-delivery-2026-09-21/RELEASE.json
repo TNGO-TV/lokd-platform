@@ -1,0 +1,38 @@
+{
+  "date": "2026-09-21",
+  "pr": "https://github.com/zenascapetown-code/lokd-platform/pull/3",
+  "tested_head": "c7d88a1fb20049eb5130763927751629d00d4c5a",
+  "base_before_merge": "da5e5639d98ad5b3e01f7c66ec502b228b907628",
+  "merge": "b1430ab073b1ad210a9b2f48f69b2932f90ed47b",
+  "merge_tree_identical": true,
+  "security_run": "https://github.com/zenascapetown-code/lokd-platform/actions/runs/35624639701",
+  "security_job": 106415873454,
+  "security_conclusion": "success",
+  "local_regression_passed": 526,
+  "focused_browser_passed": 16,
+  "provider_evidence": "Authenticated CRM connector org/users and synthetic lead insert/replay/search only. Email, Books and runtime CRM tests simulated.",
+  "deployment": {
+    "id": "appgdep_6ab15a58acec8191a3a2349ce2c68b69",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "title": "LOKD Security",
+    "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_8ac74d2d20a88191bf2904918d52cc0c",
+    "type": "publish",
+    "status": "succeeded",
+    "url": "https://lokd-security.zenas-capetown.chatgpt.site",
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6a88a08505548191b266e9b711562ae3",
+    "failure_message": null,
+    "env_set_revision": 20,
+    "updated_at": "2026-09-21T16:25:32.998257+00:00"
+  },
+  "delivery_enabled": false,
+  "live_transactions": "deferred",
+  "prior_release": "v74 preserved",
+  "remaining": [
+    "ZeptoMail account/domain and private send/log authorization",
+    "Books organisation/data centre and native CRM sync readback",
+    "Runtime CRM OAuth controlled verification",
+    "Reviewed Books quote/invoice mappings and financial adapters",
+    "Actual Paystack sandbox checkout/webhook verification"
+  ]
+}

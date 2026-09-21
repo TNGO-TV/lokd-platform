@@ -1,0 +1,58 @@
+{
+  "list": {
+    "status": "success",
+    "metadata": {
+      "offset": 0,
+      "count": 2
+    },
+    "data": {
+      "logs": [
+        {
+          "request_id": "request-fixture",
+          "email_info": {
+            "email_reference": "reference-fixture",
+            "subject": "Fixture connection test",
+            "from": {
+              "address": "notices@example.test"
+            },
+            "to": [
+              {
+                "address": "team@example.test"
+              }
+            ],
+            "status": "processed"
+          },
+          "email_delivery_details": {}
+        }
+      ]
+    }
+  },
+  "detail": {
+    "status": "success",
+    "data": {
+      "request_id": "request-fixture",
+      "email_info": {
+        "email_reference": "reference-fixture",
+        "subject": "Fixture connection test",
+        "from": {
+          "address": "notices@example.test"
+        },
+        "to": [
+          {
+            "address": "team@example.test"
+          }
+        ],
+        "status": "processed"
+      },
+      "email_delivery_details": {
+        "delivery": [
+          {
+            "recipient": "team@example.test",
+            "delivery_time": "2026-09-21T18:57:11+02:00"
+          }
+        ]
+      }
+    }
+  },
+  "provenance": "Shape captured from actual ZeptoMail list/detail responses on 2026-09-21. Identifiers, subjects and addresses substituted; unrelated metadata omitted."
+}

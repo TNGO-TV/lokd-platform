@@ -1,0 +1,9 @@
+{
+  "checked_at": "2026-09-21T17:49:24.522Z",
+  "reference": "LOKD-SYNTHETIC-20260921-CRM-01",
+  "expected_id": "7607722000000698001",
+  "state": "existing_synthetic_record_upsert_verified",
+  "financial_writes": false,
+  "customer_records_changed": false,
+  "provider_id": "7607722000000698001"
+}

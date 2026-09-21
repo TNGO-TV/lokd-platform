@@ -85,6 +85,14 @@ export async function sendEmail(runtime:OperationalRuntime,id:string,body:Record
  if(typeof result.id!=='string'||!result.id)throw new DeliveryError('email_acceptance_unknown','retry_wait');
  return result.id;
 }
+const recordObject=(value:unknown):Record<string,unknown>=>value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};
+function boundZeptoLog(value:unknown,body:Record<string,unknown>,providerId:string,recipient:string){
+ const record=recordObject(value),nested=recordObject(record.email_info),info=record.email_info?nested:record;
+ const from=typeof info.from==='string'?info.from:recordObject(info.from).address;
+ const to=typeof info.to==='string'?info.to:Array.isArray(info.to)&&info.to.length===1?recordObject(info.to[0]).address:null;
+ if(record.request_id!==providerId||typeof to!=='string'||to.toLowerCase()!==recipient.toLowerCase()||from!==body.from||info.subject!==body.subject)throw new DeliveryError('email_receipt_mismatch');
+ return {record,info};
+}
 export async function emailReceipt(runtime:OperationalRuntime,body:Record<string,unknown>,id:string,providerId:string,recipient:string,transport:typeof fetch){
  const provider=configuredEmailProvider(runtime);
  if(body._lokdProvider!==provider)throw new DeliveryError('email_provider_changed');
@@ -93,9 +101,26 @@ export async function emailReceipt(runtime:OperationalRuntime,body:Record<string
   if(session.origin!=='https://www.zohoapis.com')throw new DeliveryError('zeptomail_region_mismatch');
   const query=new URLSearchParams({request_id:providerId,client_reference:id,limit:'2'});
   const result=await providerJson(runtime.LOKD_ZEPTOMAIL_API_ORIGIN+'/v1.1/email?'+query,{headers:session.headers},transport);
-  const record=Array.isArray(result.data)&&result.data.length===1?result.data[0]:null;
-  if(result.status!=='success'||record?.request_id!==providerId||typeof record.to!=='string'||record.to.toLowerCase()!==recipient.toLowerCase()||record.from!==body.from||record.subject!==body.subject)throw new DeliveryError('email_receipt_mismatch');
-  return record.status==='delivered'?'delivered':['bounced','failed'].includes(record.status)?'failed':'sent';
+  if(result.status!=='success')throw new DeliveryError('email_receipt_mismatch');
+  const logs=Array.isArray(result.data)?result.data:recordObject(result.data).logs;
+  if(!Array.isArray(logs)||logs.length!==1)throw new DeliveryError('email_receipt_mismatch');
+  const listed=boundZeptoLog(logs[0],body,providerId,recipient);
+  if(!listed.record.email_info)return listed.info.status==='delivered'?'delivered':['bounced','failed'].includes(String(listed.info.status))?'failed':'sent';
+  // The real list endpoint reports processing, not per-recipient delivery.
+  const reference=listed.info.email_reference;
+  if(typeof reference!=='string'||!reference)throw new DeliveryError('email_receipt_mismatch');
+  const detail=await providerJson(runtime.LOKD_ZEPTOMAIL_API_ORIGIN+'/v1.1/email/email-reference/'+encodeURIComponent(reference),{headers:session.headers},transport);
+  if(detail.status!=='success')throw new DeliveryError('email_receipt_mismatch');
+  const matched=boundZeptoLog(detail.data,body,providerId,recipient);
+  if(matched.info.email_reference!==reference)throw new DeliveryError('email_receipt_mismatch');
+  if(['bounced','failed'].includes(String(matched.info.status)))return 'failed';
+  const events=recordObject(matched.record.email_delivery_details),deliveries=events.delivery;
+  // Unknown event categories may be later failures; leave them for review.
+  if(Object.keys(events).some(key=>key!=='delivery'))return 'sent';
+  if(!Array.isArray(deliveries)||deliveries.length!==1)return 'sent';
+  const delivery=recordObject(deliveries[0]);
+  if(typeof delivery.recipient!=='string'||delivery.recipient.toLowerCase()!==recipient.toLowerCase()||typeof delivery.delivery_time!=='string'||!Number.isFinite(Date.parse(delivery.delivery_time)))throw new DeliveryError('email_receipt_mismatch');
+  return 'delivered';
  }
  const result=await providerJson('https://api.resend.com/emails/'+encodeURIComponent(providerId),{headers:{Authorization:'Bearer '+runtime.RESEND_API_KEY}},transport);
  if(result.id!==providerId||!Array.isArray(result.to)||result.to.length!==1||result.to[0]?.toLowerCase()!==recipient.toLowerCase())throw new DeliveryError('email_receipt_mismatch');
