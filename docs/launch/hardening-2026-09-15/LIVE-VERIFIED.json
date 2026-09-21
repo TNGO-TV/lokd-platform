@@ -1,0 +1,28 @@
+{
+  "/api/health/live": {
+    "status": 200,
+    "nosniff": "nosniff",
+    "frame": "DENY",
+    "cache": "no-store"
+  },
+  "/api/health/ready": {
+    "status": 200,
+    "nosniff": "nosniff",
+    "frame": "DENY",
+    "cache": "no-store"
+  },
+  "/api/internal/owner-backup": {
+    "status": 404,
+    "nosniff": "nosniff",
+    "frame": "DENY",
+    "cache": "private, no-store, max-age=0"
+  },
+  "/": {
+    "status": 200,
+    "nosniff": "nosniff",
+    "frame": "DENY",
+    "cache": "private, no-store",
+    "nonce_csp": true,
+    "inline_scripts_allowed": false
+  }
+}

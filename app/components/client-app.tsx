@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { ServiceType } from "../lib/pilot-types";
 import {
@@ -282,7 +283,7 @@ export default function ClientApp() {
       <main className="portal-shell client-shell">
         <header className="portal-header client-header">
           <a href={PUBLIC_SITE_URL} className="portal-logo">
-            <img src="/lokd-logo.png" alt="LOKD" />
+            <Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" />
           </a>
         </header>
         <section className="portal-page client-page">
@@ -301,7 +302,7 @@ export default function ClientApp() {
     <main className="portal-shell client-shell">
       <header className="portal-header client-header">
         <a href={PUBLIC_SITE_URL} className="portal-logo">
-          <img src="/lokd-logo.png" alt="LOKD" />
+          <Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" />
         </a>
         <div className="portal-role-switch">
           <a href={OPERATIONS_PORTAL_URL}>Ops</a>
@@ -473,7 +474,7 @@ export default function ClientApp() {
               </small>
             </span>
           </div>
-          <img
+          <Image width={256} height={256} unoptimized loading="eager"
             src="/lokd-shift-passport-qr.svg"
             alt="Example assigned-officer Passport QR"
           />
@@ -1552,6 +1553,7 @@ export default function ClientApp() {
             >
               Download all service records
             </a>
+            <a href="/sign-out">Sign out</a>
           </aside>
         </div>
       )}

@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {resolveSandboxPolicy,sandboxCompletionPolicy,requireSandboxCompletion} from '../app/lib/sandbox-completion-policy.ts';
+import {sandboxApplicant} from './fixtures/sandbox-completion.mjs';
+test('bounded alternative rules require their own immutable installation hash',async()=>{const x=await sandboxApplicant();try{const alternative=resolveSandboxPolicy('{"trainingPassPercent":90,"evidenceHours":12}');assert.equal(alternative.trainingPassPercent,90);assert.equal(alternative.evidenceHours,12);assert.equal(sandboxCompletionPolicy.trainingPassPercent,80);await assert.rejects(requireSandboxCompletion({...x.runtime,LOKD_SANDBOX_POLICY_JSON:JSON.stringify({trainingPassPercent:90})}),/Version-bound/);for(const bad of ['null','[]','{"environment":"production"}','{"trainingPassPercent":0}','{"scanRadiusMetres":100000}'])assert.throws(()=>resolveSandboxPolicy(bad));}finally{x.close();}});

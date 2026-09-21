@@ -4,7 +4,7 @@ import {
   type WorkforceModel,
 } from "./workforce-core";
 
-export const ACTIVATION_POLICY_VERSION = "LOKD-ACTIVATION-2026.08-v1";
+export const ACTIVATION_POLICY_VERSION = "LOKD-ACTIVATION-2026.09-v2";
 export const MINIMUM_REST_MINUTES = 8 * 60;
 export const REQUIRED_EMPLOYER_EVIDENCE = [
   "psira",
@@ -79,7 +79,8 @@ export type AssignmentActivationFacts = {
     verifiedAt: string | null;
     expiresAt: string | null;
   };
-  client: { id: string; approvalStatus: string };
+  agreements?: { ready: boolean; missing: string[]; receipts: Array<{id:string;hash:string;documentId:string;documentVersion:string;contextHash:string}> };
+  client: { id: string; approvalStatus: string; contractingEntityId?: string | null; orderVersion?: number; orderDetails?: string };
   site: { id: string; status: string; version: number; risk: DatedEvidence };
   post: {
     id: string;
@@ -281,6 +282,8 @@ export function evaluateAssignmentActivation(facts: AssignmentActivationFacts) {
   if (facts.environment !== "production") {
     add("PRODUCTION_ENVIRONMENT_REQUIRED", "launch", "Synthetic demo records cannot authorise a live paid deployment.");
   }
+
+  if (!facts.agreements?.ready) add("SIGNED_AGREEMENTS_REQUIRED", "workforce", `Approved signatures for the current order and employer arrangement are required: ${facts.agreements?.missing.join(', ') || 'client MSA, service order and workforce agreement'}.`);
 
   const launch = launchGateDecision(facts.launchGates, facts.shift.endsAt, facts.evaluatedAt);
   for (const code of launch.blockers) {

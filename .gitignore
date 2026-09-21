@@ -34,9 +34,23 @@ yarn-error.log*
 .vercel
 
 # typescript
+*.tsbuildinfo
 next-env.d.ts
 /dist/
 /.wrangler/
 /.sites-runtime/
 /outputs/
 /work/
+
+# Local Worker secrets and Clerk project link
+.dev.vars*
+.clerk/
+
+# Automated account test reports (may contain test identities)
+/test-results/
+/playwright-report/
+
+/tests/accounts/test-results/
+
+# Local combined browser diagnostics
+/tests/integrated-browser/test-results/

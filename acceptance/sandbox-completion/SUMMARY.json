@@ -1,0 +1,29 @@
+{
+  "base": "c0f6c62",
+  "policy": "lokd-sandbox-completion-v1",
+  "regression": {
+    "passed": 478,
+    "failed": 0,
+    "skipped": 0
+  },
+  "newSandboxTests": 32,
+  "build": "passed",
+  "types": "passed",
+  "lint": "passed",
+  "hostedDevelopment": {
+    "distinctAcceptedScenarios": 13,
+    "finalMergedRun": {
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "verifynow": {
+    "actualSandboxRequests": 8,
+    "productionRequests": 0,
+    "captureCompositeRecovery": "simulator-only"
+  },
+  "productionEnabled": false,
+  "publishedCredentialScan": "passed",
+  "primarySchemaChangesByOwner": false
+}

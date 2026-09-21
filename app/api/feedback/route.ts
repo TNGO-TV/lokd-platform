@@ -1,3 +1,4 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from "cloudflare:workers";
 import { PilotAccessError, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
       ORDER BY created_at DESC LIMIT 100`).all();
     return response({ feedback: result.results ?? [] });
   } catch (cause) {
-    if (cause instanceof PilotAccessError) return response({ error: cause.message }, cause.status);
+    if (cause instanceof RequestBodyError || cause instanceof PilotAccessError) return response({ error: cause.message }, cause.status);
     return response({ error: "Feedback could not be loaded." }, 503);
   }
 }
@@ -29,8 +30,7 @@ export async function POST(request: Request) {
   try {
     requireSameOriginJson(request);
     const principal = requirePilotApiRole(request, ["operations", "client", "officer", "reviewer"]);
-    const raw = await request.text();
-    if (raw.length > 8_192) return response({ error: "Feedback is too large." }, 413);
+    const raw = await readRequestText(request, 8_192);
     const body = JSON.parse(raw) as { route?: string; category?: string; score?: number; note?: string };
     const route = typeof body.route === "string" && body.route.startsWith("/") && !body.route.startsWith("//") ? body.route.slice(0, 160) : "/";
     const role = principal.owner ? "Owner" : principal.roles.join("+").slice(0, 40);
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       .bind(id, reviewerEmail, route, role, category, score, note, now).run();
     return response({ ok: true, id }, 201);
   } catch (cause) {
-    if (cause instanceof PilotAccessError) return response({ error: cause.message }, cause.status);
+    if (cause instanceof RequestBodyError || cause instanceof PilotAccessError) return response({ error: cause.message }, cause.status);
     return response({ error: "Feedback could not be saved." }, 503);
   }
 }

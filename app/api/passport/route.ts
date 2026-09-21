@@ -1,3 +1,4 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from "cloudflare:workers";
 import { liveShiftScanEnabled, PilotAccessError, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 import { evaluateBookingReadiness, readPublicPassport, tokenHash } from "../../lib/passport-server";
@@ -37,8 +38,7 @@ export async function POST(request: Request) {
     if (!liveShiftScanEnabled()) return response({ error: "Shift arrival recording is locked until the controlled pilot is activated." }, 423);
     requireSameOriginJson(request);
     const principal = requirePilotApiRole(request, "client");
-    const raw = await request.text();
-    if (raw.length > 8_192) return response({ error: "The verification request is too large." }, 413);
+    const raw = await readRequestText(request, 8_192);
     const payload = JSON.parse(raw) as { token?: string; bookingId?: string; shiftId?: string };
     const token = payload.token?.trim() ?? "";
     const bookingId = payload.bookingId?.trim() ?? "";
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     const passport = await readPublicPassport(database, token, bookingId, shiftId);
     return response({ passport, readiness });
   } catch (cause) {
-    if (cause instanceof PilotAccessError) return response({ error: cause.message }, cause.status);
+    if (cause instanceof RequestBodyError || cause instanceof PilotAccessError) return response({ error: cause.message }, cause.status);
     return response({ error: "Passport verification could not be recorded." }, 503);
   }
 }

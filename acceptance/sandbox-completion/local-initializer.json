@@ -1,0 +1,10 @@
+{
+  "mode": "local-only",
+  "freshInstall": true,
+  "idempotent": true,
+  "changedSchemaRefused": true,
+  "integrity": "ok",
+  "foreignKeys": 0,
+  "existingLocalDatabasesUnchanged": true,
+  "existingDatabaseCount": 3
+}

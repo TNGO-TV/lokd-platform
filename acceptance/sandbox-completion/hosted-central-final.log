@@ -1,0 +1,195 @@
+(node:1801259) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Created isolated Clerk development identities. No inboxes or invitations required.
+[WebServer] (node:1801302) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:1801315) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:1801315) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+
+Running 5 tests using 1 worker
+
+(node:1801364) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:48:06 PM [vite] (client) [console.warn] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview
+[WebServer] 10:48:07 PM [vite] (client) [console.warn] Clerk: Structural CSS detected that may break on updates.
+[WebServer]
+[WebServer] Found:
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   - CSS ".pilot-access-card .cl-card"
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   (+1 more)
+[WebServer]
+[WebServer] These selectors depend on the internal DOM structure of Clerk's components, which may change when Clerk deploys component updates.
+[WebServer] To prevent breaking changes, install @clerk/ui and pass it to ClerkProvider:
+[WebServer]
+[WebServer]   import { ui } from '@clerk/ui'
+[WebServer]   <ClerkProvider ui={ui}>
+[WebServer]
+[WebServer] Learn more: https://clerk.com/docs/reference/components/versioning
+[WebServer] (code=structural_css_pin_clerk_ui)
+[WebServer] 10:48:13 PM [vite] (client) [console.warn] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview
+[WebServer] 10:48:14 PM [vite] (client) [console.warn] Clerk: Structural CSS detected that may break on updates.
+[WebServer]
+[WebServer] Found:
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   - CSS ".pilot-access-card .cl-card"
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   (+1 more)
+[WebServer]
+[WebServer] These selectors depend on the internal DOM structure of Clerk's components, which may change when Clerk deploys component updates.
+[WebServer] To prevent breaking changes, install @clerk/ui and pass it to ClerkProvider:
+[WebServer]
+[WebServer]   import { ui } from '@clerk/ui'
+[WebServer]   <ClerkProvider ui={ui}>
+[WebServer]
+[WebServer] Learn more: https://clerk.com/docs/reference/components/versioning
+[WebServer] (code=structural_css_pin_clerk_ui)
+[WebServer] 10:48:16 PM [vite] (client) [console.warn] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview
+[WebServer] 10:48:16 PM [vite] (client) [console.warn] Clerk: Structural CSS detected that may break on updates.
+[WebServer]
+[WebServer] Found:
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   - CSS ".pilot-access-card .cl-card"
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   (+1 more)
+[WebServer]
+[WebServer] These selectors depend on the internal DOM structure of Clerk's components, which may change when Clerk deploys component updates.
+[WebServer] To prevent breaking changes, install @clerk/ui and pass it to ClerkProvider:
+[WebServer]
+[WebServer]   import { ui } from '@clerk/ui'
+[WebServer]   <ClerkProvider ui={ui}>
+[WebServer]
+[WebServer] Learn more: https://clerk.com/docs/reference/components/versioning
+[WebServer] (code=structural_css_pin_clerk_ui)
+[WebServer] 10:48:17 PM [vite] (client) [console.warn] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview
+  ✓  1 tests/accounts/hosted-identity.spec.mjs:7:1 › hosted development sign-up verifies a test email through the actual embedded Clerk form (11.8s)
+[WebServer] 10:48:17 PM [vite] (client) [console.warn] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview
+[WebServer] 10:48:18 PM [vite] (client) [console.warn] Clerk: Structural CSS detected that may break on updates.
+[WebServer]
+[WebServer] Found:
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   - CSS ".pilot-access-card .cl-card"
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   (+1 more)
+[WebServer]
+[WebServer] These selectors depend on the internal DOM structure of Clerk's components, which may change when Clerk deploys component updates.
+[WebServer] To prevent breaking changes, install @clerk/ui and pass it to ClerkProvider:
+[WebServer]
+[WebServer]   import { ui } from '@clerk/ui'
+[WebServer]   <ClerkProvider ui={ui}>
+[WebServer]
+[WebServer] Learn more: https://clerk.com/docs/reference/components/versioning
+[WebServer] (code=structural_css_pin_clerk_ui)
+[Clerk Testing] FAPI request failed after 4 attempts: https://awake-gorilla-7447.clerk.accounts.dev/v1/client (Error: route.fetch: Test ended.)
+[Clerk Testing] FAPI request failed after 4 attempts: https://awake-gorilla-7447.clerk.accounts.dev/v1/environment (Error: route.fetch: Test ended.)
+  ✓  2 tests/accounts/hosted-identity.spec.mjs:25:1 › hosted session revocation prevents reuse of an otherwise unexpired bearer (6.4s)
+[WebServer] 10:48:24 PM [vite] (client) [console.warn] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview
+[WebServer] 10:48:25 PM [vite] (client) [console.warn] Clerk: Structural CSS detected that may break on updates.
+[WebServer]
+[WebServer] Found:
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   - CSS ".pilot-access-card .cl-card"
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   (+1 more)
+[WebServer]
+[WebServer] These selectors depend on the internal DOM structure of Clerk's components, which may change when Clerk deploys component updates.
+[WebServer] To prevent breaking changes, install @clerk/ui and pass it to ClerkProvider:
+[WebServer]
+[WebServer]   import { ui } from '@clerk/ui'
+[WebServer]   <ClerkProvider ui={ui}>
+[WebServer]
+[WebServer] Learn more: https://clerk.com/docs/reference/components/versioning
+[WebServer] (code=structural_css_pin_clerk_ui)
+  ✓  3 tests/accounts/hosted-identity.spec.mjs:33:1 › an expired hosted development bearer is denied while the active session can obtain a fresh token (1.3m)
+[WebServer] 10:49:39 PM [vite] (client) [console.warn] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview
+[WebServer] 10:49:40 PM [vite] (client) [console.warn] Clerk: Structural CSS detected that may break on updates.
+[WebServer]
+[WebServer] Found:
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   - CSS ".pilot-access-card .cl-card"
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   (+1 more)
+[WebServer]
+[WebServer] These selectors depend on the internal DOM structure of Clerk's components, which may change when Clerk deploys component updates.
+[WebServer] To prevent breaking changes, install @clerk/ui and pass it to ClerkProvider:
+[WebServer]
+[WebServer]   import { ui } from '@clerk/ui'
+[WebServer]   <ClerkProvider ui={ui}>
+[WebServer]
+[WebServer] Learn more: https://clerk.com/docs/reference/components/versioning
+[WebServer] (code=structural_css_pin_clerk_ui)
+[WebServer] 10:49:42 PM [vite] (client) [console.warn] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview
+[WebServer] 10:49:43 PM [vite] (client) [console.warn] Clerk: Structural CSS detected that may break on updates.
+[WebServer]
+[WebServer] Found:
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   - CSS ".pilot-access-card .cl-card"
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   (+1 more)
+[WebServer]
+[WebServer] These selectors depend on the internal DOM structure of Clerk's components, which may change when Clerk deploys component updates.
+[WebServer] To prevent breaking changes, install @clerk/ui and pass it to ClerkProvider:
+[WebServer]
+[WebServer]   import { ui } from '@clerk/ui'
+[WebServer]   <ClerkProvider ui={ui}>
+[WebServer]
+[WebServer] Learn more: https://clerk.com/docs/reference/components/versioning
+[WebServer] (code=structural_css_pin_clerk_ui)
+[WebServer] 10:49:46 PM [vite] (client) [console.warn] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview
+[WebServer] 10:49:46 PM [vite] (client) [console.warn] Clerk: Structural CSS detected that may break on updates.
+[WebServer]
+[WebServer] Found:
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   - CSS ".pilot-access-card .cl-card"
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   (+1 more)
+[WebServer]
+[WebServer] These selectors depend on the internal DOM structure of Clerk's components, which may change when Clerk deploys component updates.
+[WebServer] To prevent breaking changes, install @clerk/ui and pass it to ClerkProvider:
+[WebServer]
+[WebServer]   import { ui } from '@clerk/ui'
+[WebServer]   <ClerkProvider ui={ui}>
+[WebServer]
+[WebServer] Learn more: https://clerk.com/docs/reference/components/versioning
+[WebServer] (code=structural_css_pin_clerk_ui)
+  ✓  4 tests/accounts/sandbox-identity.spec.mjs:6:1 › hosted development identities use guarded sandbox intake, capture, independent review and private download (19.0s)
+[WebServer] 10:49:58 PM [vite] (client) [console.warn] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview
+[WebServer] 10:49:59 PM [vite] (client) [console.warn] Clerk: Structural CSS detected that may break on updates.
+[WebServer]
+[WebServer] Found:
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   - CSS ".pilot-access-card .cl-card"
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   (+1 more)
+[WebServer]
+[WebServer] These selectors depend on the internal DOM structure of Clerk's components, which may change when Clerk deploys component updates.
+[WebServer] To prevent breaking changes, install @clerk/ui and pass it to ClerkProvider:
+[WebServer]
+[WebServer]   import { ui } from '@clerk/ui'
+[WebServer]   <ClerkProvider ui={ui}>
+[WebServer]
+[WebServer] Learn more: https://clerk.com/docs/reference/components/versioning
+[WebServer] (code=structural_css_pin_clerk_ui)
+  ✓  5 tests/accounts/sandbox-identity.spec.mjs:24:1 › real hosted development bearer respects workspace host routing through the local server (7.7s)
+
+  5 passed (2.1m)
+Development test identities and temporary local configuration cleaned up.

@@ -1,0 +1,298 @@
+TAP version 13
+# (node:1971785) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1971785) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: Independent regression: paid order cannot extend entitlement
+ok 1 - Independent regression: paid order cannot extend entitlement
+  ---
+  duration_ms: 330.559602
+  type: 'test'
+  ...
+# Subtest: Independent regression: corrected application cannot receive completion
+ok 2 - Independent regression: corrected application cannot receive completion
+  ---
+  duration_ms: 297.717203
+  type: 'test'
+  ...
+# Subtest: Independent regression: evidence-held course cannot receive completion
+ok 3 - Independent regression: evidence-held course cannot receive completion
+  ---
+  duration_ms: 272.3688
+  type: 'test'
+  ...
+# Subtest: Independent regression: application correction after preparation rejects approval
+ok 4 - Independent regression: application correction after preparation rejects approval
+  ---
+  duration_ms: 302.455018
+  type: 'test'
+  ...
+# (node:1971786) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1971786) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: canonical finance event consumption and immutable conflict matrix
+ok 5 - canonical finance event consumption and immutable conflict matrix
+  ---
+  duration_ms: 1141.525369
+  type: 'test'
+  ...
+# Subtest: original inbox late-link triggers preserve identity on duplicate projection
+ok 6 - original inbox late-link triggers preserve identity on duplicate projection
+  ---
+  duration_ms: 1.873567
+  type: 'test'
+  ...
+# (node:1971853) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1971853) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: QA: privileged workspace member cannot bypass canonical Operations classification
+ok 7 - QA: privileged workspace member cannot bypass canonical Operations classification
+  ---
+  duration_ms: 283.621676
+  type: 'test'
+  ...
+# Subtest: QA: new liability invalidates prepared release; truly excess allocation remains releasable
+ok 8 - QA: new liability invalidates prepared release; truly excess allocation remains releasable
+  ---
+  duration_ms: 277.271825
+  type: 'test'
+  ...
+# Subtest: QA: multiple recovery requests share one cumulative cap
+ok 9 - QA: multiple recovery requests share one cumulative cap
+  ---
+  duration_ms: 281.104397
+  type: 'test'
+  ...
+# Subtest: QA: disabled webhook reads zero bytes
+ok 10 - QA: disabled webhook reads zero bytes
+  ---
+  duration_ms: 0.953774
+  type: 'test'
+  ...
+# Subtest: QA: UTF8 byte cap and stalled input cancel and release the reader
+ok 11 - QA: UTF8 byte cap and stalled input cancel and release the reader
+  ---
+  duration_ms: 10.429964
+  type: 'test'
+  ...
+# Subtest: QA: isolated finance DB with exact installed policy is selected
+ok 12 - QA: isolated finance DB with exact installed policy is selected
+  ---
+  duration_ms: 258.644574
+  type: 'test'
+  ...
+# Subtest: QA: aliases, production stage and primary sandbox marker fail closed
+ok 13 - QA: aliases, production stage and primary sandbox marker fail closed
+  ---
+  duration_ms: 259.010304
+  type: 'test'
+  ...
+# Subtest: QA: absent or altered sandbox policy never selects finance DB
+ok 14 - QA: absent or altered sandbox policy never selects finance DB
+  ---
+  duration_ms: 0.650282
+  type: 'test'
+  ...
+# (node:1971861) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1971861) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: FI sandbox partial receipt, independent approval, exact replay, concurrent allocation and private immutable history
+ok 15 - FI sandbox partial receipt, independent approval, exact replay, concurrent allocation and private immutable history
+  ---
+  duration_ms: 268.123436
+  type: 'test'
+  ...
+# Subtest: FI unknown submission is durably claimed and recovered without a second transaction
+ok 16 - FI unknown submission is durably claimed and recovered without a second transaction
+  ---
+  duration_ms: 259.427926
+  type: 'test'
+  ...
+# Subtest: FI wrong authority, stale evidence and evidence arriving after preparation cannot authorize payment
+ok 17 - FI wrong authority, stale evidence and evidence arriving after preparation cannot authorize payment
+  ---
+  duration_ms: 256.080195
+  type: 'test'
+  ...
+# Subtest: FI credit notes, refund recipient correction, retry, reversal and original-reference preservation
+ok 18 - FI credit notes, refund recipient correction, retry, reversal and original-reference preservation
+  ---
+  duration_ms: 268.582056
+  type: 'test'
+  ...
+# Subtest: FI final chargeback preserves liabilities and supports reconciled residual funding
+ok 19 - FI final chargeback preserves liabilities and supports reconciled residual funding
+  ---
+  duration_ms: 272.800791
+  type: 'test'
+  ...
+# Subtest: EX03/04 versioned R350 enrolment and training remain separate from work eligibility through expiry/refund/suspension
+ok 20 - EX03/04 versioned R350 enrolment and training remain separate from work eligibility through expiry/refund/suspension
+  ---
+  duration_ms: 376.534113
+  type: 'test'
+  ...
+# Subtest: FI sandbox policy branches, exact minor units and South African midnight
+ok 21 - FI sandbox policy branches, exact minor units and South African midnight
+  ---
+  duration_ms: 250.380406
+  type: 'test'
+  ...
+# Subtest: EX01/02 split employers, partial subsequent settlement, consent-limited recovery, taxes and partner replacement history
+ok 22 - EX01/02 split employers, partial subsequent settlement, consent-limited recovery, taxes and partner replacement history
+  ---
+  duration_ms: 288.455383
+  type: 'test'
+  ...
+# Subtest: FI source-version and revoked-authority races roll back decisions; unsubmitted cancellation cannot race a durable claim
+ok 23 - FI source-version and revoked-authority races roll back decisions; unsubmitted cancellation cannot race a durable claim
+  ---
+  duration_ms: 259.000096
+  type: 'test'
+  ...
+# Subtest: FI real HTTP routes enforce private identity, same origin, workspace, sandbox and Operations MFA policy
+ok 24 - FI real HTTP routes enforce private identity, same origin, workspace, sandbox and Operations MFA policy
+  ---
+  duration_ms: 276.963464
+  type: 'test'
+  ...
+# Subtest: FI contradictory evidence after payment holds documents and unused funding until final reversal is independently reconciled
+ok 25 - FI contradictory evidence after payment holds documents and unused funding until final reversal is independently reconciled
+  ---
+  duration_ms: 262.807898
+  type: 'test'
+  ...
+# (node:1971861) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: FI evidence expires at approval time without changing the ledger
+ok 26 - FI evidence expires at approval time without changing the ledger
+  ---
+  duration_ms: 252.427303
+  type: 'test'
+  ...
+# Subtest: FI canonical finance migration applies under hosted SQLite limits
+ok 27 - FI canonical finance migration applies under hosted SQLite limits
+  ---
+  duration_ms: 332.880599
+  type: 'test'
+  ...
+# Subtest: FI contradictory evidence racing provider submission prevents the external boundary call
+ok 28 - FI contradictory evidence racing provider submission prevents the external boundary call
+  ---
+  duration_ms: 263.61419
+  type: 'test'
+  ...
+# (node:1971919) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: payroll correction review proposal preserves canonical history and hosted SQLite limits
+ok 29 - payroll correction review proposal preserves canonical history and hosted SQLite limits
+  ---
+  duration_ms: 320.885319
+  type: 'test'
+  ...
+# Subtest: payroll correction endpoint rejects unsigned and foreign-origin requests
+ok 30 - payroll correction endpoint rejects unsigned and foreign-origin requests
+  ---
+  duration_ms: 14.031786
+  type: 'test'
+  ...
+# (node:1971935) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1971935) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: documented registry success remains review-only; receipt recovers across adapter restart with no network
+ok 31 - documented registry success remains review-only; receipt recovers across adapter restart with no network
+  ---
+  duration_ms: 19.638525
+  type: 'test'
+  ...
+# Subtest: concurrent submission atomically claims once
+ok 32 - concurrent submission atomically claims once
+  ---
+  duration_ms: 1.948907
+  type: 'test'
+  ...
+# Subtest: capture binds exact owner, applicant, version, consent and reference before I/O
+ok 33 - capture binds exact owner, applicant, version, consent and reference before I/O
+  ---
+  duration_ms: 1.882206
+  type: 'test'
+  ...
+# Subtest: withdrawn, expired, future and sandbox captures fail closed
+ok 34 - withdrawn, expired, future and sandbox captures fail closed
+  ---
+  duration_ms: 3.092029
+  type: 'test'
+  ...
+# Subtest: wrong person/environment, replayed timestamp and unsupported result envelopes never become evidence
+ok 35 - wrong person/environment, replayed timestamp and unsupported result envelopes never become evidence
+  ---
+  duration_ms: 21.360721
+  type: 'test'
+  ...
+# Subtest: timeouts, server errors and uncertain delivery remain held with no retry
+ok 36 - timeouts, server errors and uncertain delivery remain held with no retry
+  ---
+  duration_ms: 11.697937
+  type: 'test'
+  ...
+# Subtest: capture withdrawal during request and receipt write failure cannot authorise retry
+ok 37 - capture withdrawal during request and receipt write failure cannot authorise retry
+  ---
+  duration_ms: 3.516182
+  type: 'test'
+  ...
+# Subtest: expired or mismatched receipts cannot recover, including a different provider reference replacement
+ok 38 - expired or mismatched receipts cannot recover, including a different provider reference replacement
+  ---
+  duration_ms: 1.597205
+  type: 'test'
+  ...
+# Subtest: no default policy; private evidence URLs rejected; request claims exclude raw identity
+ok 39 - no default policy; private evidence URLs rejected; request claims exclude raw identity
+  ---
+  duration_ms: 1.369725
+  type: 'test'
+  ...
+# Subtest: claim requires the exact persisted production case and provider
+ok 40 - claim requires the exact persisted production case and provider
+  ---
+  duration_ms: 1.372814
+  type: 'test'
+  ...
+# Subtest: SQL rejects mismatched receipt binding, verified promotion and reused provider reference
+ok 41 - SQL rejects mismatched receipt binding, verified promotion and reused provider reference
+  ---
+  duration_ms: 3.053731
+  type: 'test'
+  ...
+# Subtest: canonical identity receipt migration preserves every existing table row
+ok 42 - canonical identity receipt migration preserves every existing table row
+  ---
+  duration_ms: 239.096819
+  type: 'test'
+  ...
+# Subtest: SQL protects permanent claims and receipts from REPLACE with recursive triggers disabled
+ok 43 - SQL protects permanent claims and receipts from REPLACE with recursive triggers disabled
+  ---
+  duration_ms: 2.493208
+  type: 'test'
+  ...
+# Subtest: direct SQL cannot forge claim binding or omit receipt evidence
+ok 44 - direct SQL cannot forge claim binding or omit receipt evidence
+  ---
+  duration_ms: 2.209408
+  type: 'test'
+  ...
+1..44
+# tests 44
+# suites 0
+# pass 44
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5401.494591

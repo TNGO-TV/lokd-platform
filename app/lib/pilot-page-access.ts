@@ -1,4 +1,4 @@
-import { getChatGPTUser, requireChatGPTUser, type ChatGPTUser } from "../chatgpt-auth";
+import { getLokdUser, requireLokdUser, type LokdUser } from "../lokd-auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
@@ -16,8 +16,8 @@ import {
 
 export { pilotStage, principalHasRole, type PilotRole };
 
-export async function requirePilotPageRole(role: PilotRole, returnTo: string): Promise<{ user: ChatGPTUser; principal: PilotPrincipal }> {
-  const optionalUser = await getChatGPTUser();
+export async function requirePilotPageRole(role: PilotRole, returnTo: string): Promise<{ user: LokdUser; principal: PilotPrincipal }> {
+  const optionalUser = await getLokdUser();
   const requestHeaders = await headers();
   const hostname = requestHostname(requestHeaders.get("host"));
   if (role !== "reviewer") {
@@ -40,7 +40,7 @@ export async function requirePilotPageRole(role: PilotRole, returnTo: string): P
       : publicDemoPrincipal();
     return { user, principal };
   }
-  const user = optionalUser ?? await requireChatGPTUser(returnTo);
+  const user = optionalUser ?? await requireLokdUser(returnTo);
   const principal = principalForEmail(user.email, user.displayName);
   // The wrapper performs the role-specific denied render so an authenticated,
   // unassigned reviewer sees a helpful page rather than a redirect loop.

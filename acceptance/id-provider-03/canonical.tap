@@ -1,0 +1,86 @@
+TAP version 13
+# (node:1620006) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1620006) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: production is locked without adapter; exact owner and capture provenance required
+ok 1 - production is locked without adapter; exact owner and capture provenance required
+  ---
+  duration_ms: 266.109779
+  type: 'test'
+  ...
+# Subtest: concurrent start dispatches once; independent current review is required and private references stay private
+ok 2 - concurrent start dispatches once; independent current review is required and private references stay private
+  ---
+  duration_ms: 336.967516
+  type: 'test'
+  ...
+# Subtest: sandbox, mismatched person, stale and unsupported provider outcomes never approve
+ok 3 - sandbox, mismatched person, stale and unsupported provider outcomes never approve
+  ---
+  duration_ms: 3359.091913
+  type: 'test'
+  ...
+# Subtest: negative, review and outage results are retained and cannot be manually promoted
+ok 4 - negative, review and outage results are retained and cannot be manually promoted
+  ---
+  duration_ms: 1219.683044
+  type: 'test'
+  ...
+# Subtest: uncertain delivery and crash-pending recover by lookup only; null and failure never authorise a resubmit
+ok 5 - uncertain delivery and crash-pending recover by lookup only; null and failure never authorise a resubmit
+  ---
+  duration_ms: 330.683166
+  type: 'test'
+  ...
+# Subtest: correction and withdrawal invalidate approved evidence and block review at database commit
+ok 6 - correction and withdrawal invalidate approved evidence and block review at database commit
+  ---
+  duration_ms: 716.592348
+  type: 'test'
+  ...
+# Subtest: concurrent reconciliation permits one successor, invalidates prior review, and rejects stale decision
+ok 7 - concurrent reconciliation permits one successor, invalidates prior review, and rejects stale decision
+  ---
+  duration_ms: 356.95444
+  type: 'test'
+  ...
+# Subtest: correction cannot create another dispatch while previous delivery is unknown; stale lookup is still possible
+ok 8 - correction cannot create another dispatch while previous delivery is unknown; stale lookup is still possible
+  ---
+  duration_ms: 358.390994
+  type: 'test'
+  ...
+# Subtest: expiry and stale outcome are rejected at commit, including null evidence
+ok 9 - expiry and stale outcome are rejected at commit, including null evidence
+  ---
+  duration_ms: 420.686922
+  type: 'test'
+  ...
+# Subtest: replayed provider reference cannot bind a second case, and capture races fail before dispatch
+ok 10 - replayed provider reference cannot bind a second case, and capture races fail before dispatch
+  ---
+  duration_ms: 659.211744
+  type: 'test'
+  ...
+# Subtest: VerifyNow receipt survives ID-01 projection failure and recovers without dispatch or approval
+ok 11 - VerifyNow receipt survives ID-01 projection failure and recovers without dispatch or approval
+  ---
+  duration_ms: 311.068644
+  type: 'test'
+  ...
+# Subtest: private reader uses canonical provider receipt, applicant currentness and suspension audit
+ok 12 - private reader uses canonical provider receipt, applicant currentness and suspension audit
+  ---
+  duration_ms: 337.715558
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8808.917782

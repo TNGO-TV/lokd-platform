@@ -1,0 +1,93 @@
+TAP version 13
+# (node:1772587) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1772587) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (node:1772587) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: sandbox direct_flex/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+ok 1 - sandbox direct_flex/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1333.629378
+  type: 'test'
+  ...
+# Subtest: sandbox managed/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+ok 2 - sandbox managed/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1027.87412
+  type: 'test'
+  ...
+# Subtest: sandbox partner/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+ok 3 - sandbox partner/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1031.769983
+  type: 'test'
+  ...
+# Subtest: sandbox direct_flex/Armed/default: captured person through signed workforce, assignment and application-produced service input
+ok 4 - sandbox direct_flex/Armed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1066.10286
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/default: captured person through signed workforce, assignment and application-produced service input
+ok 5 - sandbox managed/VIP/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1071.014915
+  type: 'test'
+  ...
+# Subtest: sandbox managed/Armed/armed_movement: captured person through signed workforce, assignment and application-produced service input
+not ok 6 - sandbox managed/Armed/armed_movement: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 853.740074
+  type: 'test'
+  location: '/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:13:298'
+  failureType: 'testCodeFailure'
+  error: 'Armed movement protection does not support that vehicle option.'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    normalizeSpecialistConfiguration (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/app/lib/specialist-pricing.ts:241:11)
+    quoteBooking (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/app/lib/pilot-pricing.ts:393:42)
+    priceSpecialistFixture (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/sandbox-specialist.mjs:11:10)
+    sandboxConnected (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/sandbox-connected.mjs:27:3)
+    async TestContext.<anonymous> (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:14:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: sandbox managed/VIP/vip_armed: captured person through signed workforce, assignment and application-produced service input
+ok 7 - sandbox managed/VIP/vip_armed: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1089.440713
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/vip_protective_driver: captured person through signed workforce, assignment and application-produced service input
+not ok 8 - sandbox managed/VIP/vip_protective_driver: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 845.539128
+  type: 'test'
+  location: '/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:13:298'
+  failureType: 'testCodeFailure'
+  error: 'Protective driver does not support that vehicle option.'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    normalizeSpecialistConfiguration (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/app/lib/specialist-pricing.ts:241:11)
+    quoteBooking (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/app/lib/pilot-pricing.ts:393:42)
+    priceSpecialistFixture (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/sandbox-specialist.mjs:11:10)
+    sandboxConnected (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/sandbox-connected.mjs:27:3)
+    async TestContext.<anonymous> (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:14:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: sandbox managed/VIP/vip_team: captured person through signed workforce, assignment and application-produced service input
+ok 9 - sandbox managed/VIP/vip_team: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1384.742238
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 7
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9927.526042

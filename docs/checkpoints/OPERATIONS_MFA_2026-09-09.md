@@ -1,0 +1,12 @@
+# Operations MFA release checkpoint
+
+- Implementation commit: `a7ae90d11540261cf4dc7f89e2916c41d0124db0` (uploaded and deployed).
+- Build passed; 224 regression tests passed; nine browser journeys passed, including real development authenticator enrollment and verification. Temporary users/configuration cleaned up.
+- Validated archive: `/tmp/lokd-operations-mfa.tar.gz`; SHA-256 `46888dd673502cff5092b7bb4413fb06b2bfd0c94fb6de943ed68980e82a155b`. 144 entries. No private PSiRA evidence or secret keys.
+- Version 40 deployed successfully: `appgprj_6a88a08505548191b266e9b711562ae3~appgver_53d5adfdf67c8191b9577b4dcd6b7d1d`. Deployment `appgdep_6aa1696062e48191a15f8a1ce0408a37` succeeded 2026-09-09T14:13:06.760472Z; existing environment revision 5 preserved.
+- Source destination returned by Sites for this exact project: `https://git.chatgpt-team.site/bad06f87-41e9-4a3e-92b8-fb8d722f80a0/appgprj_6a88a08505548191b266e9b711562ae3.git`, branch `main`.
+- Automatic approval review rejected the push twice. After the first rejection the mapping to `.openai/hosting.json` and prior v39 authorization was verified. The second rejection stated that the broad deployment request did not specifically authorize exporting the private source payload to that external repository using a write credential. The user then explicitly approved “upload including to LOKD”; the source upload succeeded. This publication blocker is resolved.
+- Published to the existing LOKD site and domains. Resume with AUTH-003 entitlement resolution and named production-account acceptance; do not describe development MFA success as completed production enrollment.
+- Separate blocker AUTH-003: production Clerk MFA configuration preview returned 402 for missing `app:mfa_totp` and `app:mfa_backup_code` plan entitlements. No production configuration changed and no billing upgrade purchased. Development enrollment settings were enabled and tested. See `../OPERATIONS_MFA_ACCEPTANCE_2026-09-09.md`.
+- Original task acceptance and remaining external/real-account/signature gates: `../IMPLEMENTATION_ACCEPTANCE_2026-09-09.md`. Legal handover prepared, not dispatched: `../LEGAL_DOCUMENT_HANDOVER_2026-09-09.md`.
+- Live acceptance checks passed on `lokd.co.za` and `operations.lokd.co.za`: `/ops/security` returned 307 to sign-in; `/api/operations/security?verify=1` with forged identity/MFA headers returned 401. No production account or record was created.

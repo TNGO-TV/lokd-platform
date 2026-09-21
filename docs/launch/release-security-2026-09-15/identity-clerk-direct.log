@@ -1,0 +1,43 @@
+(node:3) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+TAP version 13
+# Subtest: each Clerk portal returns to its own workspace regardless of a supplied redirect
+ok 1 - each Clerk portal returns to its own workspace regardless of a supplied redirect
+  ---
+  duration_ms: 1.174804
+  type: 'test'
+  ...
+# Subtest: the Worker removes forged Clerk and legacy identity headers even without configuration
+ok 2 - the Worker removes forged Clerk and legacy identity headers even without configuration
+  ---
+  duration_ms: 1.534355
+  type: 'test'
+  ...
+# Subtest: only a verified primary Clerk email can resolve existing account permissions
+ok 3 - only a verified primary Clerk email can resolve existing account permissions
+  ---
+  duration_ms: 0.506252
+  type: 'test'
+  ...
+# Subtest: Clerk verifies signatures, expiry and trusted origins before forwarding identity
+ok 4 - Clerk verifies signatures, expiry and trusted origins before forwarding identity
+  ---
+  duration_ms: 116.548765
+  type: 'test'
+  ...
+# Subtest: safe workspace deep links preserve only record selectors without granting cross-workspace access
+ok 5 - safe workspace deep links preserve only record selectors without granting cross-workspace access
+  ---
+  duration_ms: 0.377522
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 123.118596

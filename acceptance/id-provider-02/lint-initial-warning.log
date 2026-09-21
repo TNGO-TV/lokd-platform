@@ -1,0 +1,5 @@
+
+/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/id-provider-02/app/lib/verifynow-receipts.ts
+  1:30  warning  'IdentityResult' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 1 problem (0 errors, 1 warning)

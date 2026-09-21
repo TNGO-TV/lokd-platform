@@ -1,0 +1,58 @@
+(node:1705957) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Created isolated Clerk development identities. No inboxes or invitations required.
+[WebServer] (node:1706111) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:1706127) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:1706127) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+
+Running 2 tests using 1 worker
+
+(node:1706296) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 9:24:47 PM [vite] (client) [console.warn] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview
+[WebServer] 9:24:48 PM [vite] (client) [console.warn] Clerk: Structural CSS detected that may break on updates.
+[WebServer]
+[WebServer] Found:
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   - CSS ".pilot-access-card .cl-card"
+[WebServer]   - CSS ".pilot-access-card .cl-rootBox"
+[WebServer]   - CSS ".pilot-access-card .cl-cardBox"
+[WebServer]   (+1 more)
+[WebServer]
+[WebServer] These selectors depend on the internal DOM structure of Clerk's components, which may change when Clerk deploys component updates.
+[WebServer] To prevent breaking changes, install @clerk/ui and pass it to ClerkProvider:
+[WebServer]
+[WebServer]   import { ui } from '@clerk/ui'
+[WebServer]   <ClerkProvider ui={ui}>
+[WebServer]
+[WebServer] Learn more: https://clerk.com/docs/reference/components/versioning
+[WebServer] (code=structural_css_pin_clerk_ui)
+[WebServer] 9:24:53 PM [vite] (client) [console.warn] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview
+  ✘  1 tests/accounts/hosted-identity.spec.mjs:7:1 › hosted development sign-up verifies a test email through the actual embedded Clerk form (8.1s)
+Testing stopped early after 1 maximum allowed failures.
+
+
+  1) tests/accounts/hosted-identity.spec.mjs:7:1 › hosted development sign-up verifies a test email through the actual embedded Clerk form
+
+    Error: page.evaluate: Execution context was destroyed, most likely because of a navigation
+
+      14 |   await page.getByRole('button',{name:'Continue',exact:true}).click();
+      15 |   await page.getByRole('textbox',{name:/verification code/i}).fill('424242');
+    > 16 |   await expect.poll(()=>page.evaluate(()=>window.Clerk.user?.id??null)).not.toBeNull();id=await page.evaluate(()=>window.Clerk.user.id);
+         |                              ^
+      17 |   const user=await client.users.getUser(id);expect(user.emailAddresses.find(x=>x.emailAddress===email)?.verification?.status).toBe('verified');
+      18 |   await page.goto('/ops');await expect(page.getByRole('heading',{name:/access is not assigned/})).toBeVisible();
+      19 |   await clerk.signOut({page});await page.goto('/officer');await expect(page).toHaveURL(/sign-in/);
+        at /home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/accounts/hosted-identity.spec.mjs:16:30
+        at /home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/accounts/hosted-identity.spec.mjs:16:3
+
+    Error Context: test-results/hosted-identity-hosted-dev-d6fec--actual-embedded-Clerk-form/error-context.md
+
+  1 failed
+    tests/accounts/hosted-identity.spec.mjs:7:1 › hosted development sign-up verifies a test email through the actual embedded Clerk form
+  1 did not run
+  1 error was not a part of any test, see above for details
+Development test identities and temporary local configuration cleaned up.

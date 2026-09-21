@@ -41,10 +41,6 @@ async function sha256(value: string) {
     .join("");
 }
 
-function normaliseEmail(value: string) {
-  return value.trim().toLowerCase();
-}
-
 function jsonList(value: string): string[] {
   try {
     const parsed = JSON.parse(value) as unknown;

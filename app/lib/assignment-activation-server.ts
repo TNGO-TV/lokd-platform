@@ -1,3 +1,6 @@
+import {currentClientReview} from './production-client-review';
+import { readActivationAgreements } from './agreement-activation';
+import { officerHasCurrentPsiraVerification } from './psira-server';
 import {
   ACTIVATION_POLICY_VERSION,
   evaluateAssignmentActivation as evaluateActivationFacts,
@@ -42,6 +45,9 @@ type CandidateRow = {
   bookingId: string;
   clientId: string;
   clientApprovalStatus: string;
+  contractingEntityId: string | null;
+  orderVersion: number;
+  orderDetails: string;
   clientPriceCents: number;
   officerRateCents: number;
   pricingVersion: string;
@@ -151,7 +157,7 @@ async function readActivationEvidenceRevision(db: D1Database) {
 function evidencePayloads(facts: AssignmentActivationFacts) {
   return {
     funding: JSON.stringify(facts.funding),
-    site: JSON.stringify({ client: facts.client, site: facts.site, post: facts.post, induction: facts.induction }),
+    site: JSON.stringify({ client: facts.client, site: facts.site, post: facts.post, induction: facts.induction, agreements: facts.agreements }),
     launch: JSON.stringify(facts.launchGates),
     officer: JSON.stringify(facts.officer),
     employer: JSON.stringify(facts.workforce),
@@ -168,7 +174,13 @@ async function readCandidate(db: D1Database, rosterSlotId: string, environment: 
   const integrityState = environment === "production" ? "production_verified" : "synthetic";
   return db.prepare(`SELECT rs.id AS rosterSlotId, rs.version AS slotVersion, rs.status AS slotStatus, rs.booking_id AS bookingId,
     rs.starts_at AS startsAt, rs.ends_at AS endsAt, rs.check_in_due_at AS checkInDueAt, rs.service_date AS serviceDate,
-    b.client_id AS clientId, c.approval_status AS clientApprovalStatus, b.client_price_cents AS clientPriceCents,
+    b.client_id AS clientId, c.approval_status AS clientApprovalStatus, b.contracting_entity_id AS contractingEntityId, b.agreement_version AS orderVersion,
+    json_object('clientName',c.organisation_name,'siteName',b.site_name,'siteArea',b.site_area,'postName',b.post_name,
+      'startDate',b.start_date,'endDate',b.end_date,'shiftStart',b.shift_start,'shiftEnd',b.shift_end,
+      'headcount',b.headcount,'contractMonths',b.contract_months,'rosterPattern',b.roster_pattern,
+      'serviceDayCount',b.service_day_count,'shiftCount',b.shift_count,'pricingBreakdown',b.pricing_breakdown,
+      'specialistConfiguration',b.specialist_configuration,'creditTermsDays',b.credit_terms_days,
+      'fundingModel',b.funding_model,'releaseCadence',b.release_cadence) AS orderDetails, b.client_price_cents AS clientPriceCents,
     rs.officer_offer_cents AS officerRateCents, b.pricing_version AS pricingVersion,
     b.specialist_service_code AS specialistServiceCode,
     rs.calendar_category AS calendarCategory, b.engagement_model AS engagementModel, b.risk_band AS riskBand,
@@ -215,6 +227,7 @@ async function loadAssignmentActivationFacts(
   const environment = request.environment ?? "production";
   const candidate = await readCandidate(db, request.rosterSlotId, environment);
   if (!candidate) throw new AssignmentActivationError("The roster slot, site or post is unavailable.", 404);
+  if (environment === 'production' && !await currentClientReview(db,candidate.clientId,evaluatedAt)) candidate.clientApprovalStatus='pending';
   if (candidate.slotVersion !== request.expectedSlotVersion) throw new AssignmentActivationError("The roster slot changed before evaluation.", 409);
 
   const dataEnvironment = environment === "production" ? "production" : "demo";
@@ -392,7 +405,9 @@ async function loadAssignmentActivationFacts(
   const officerOfferCents = shiftEconomics?.officerOfferCents ?? 0;
   const statutoryCostCents = workforce?.model === "partner" ? 0 : Math.round(officerOfferCents * 0.15);
 
-  return {
+  const mandatoryPsiraVerified = environment !== 'production'
+    || await officerHasCurrentPsiraVerification(db, request.officerId, candidate.endsAt);
+  const facts: AssignmentActivationFacts = {
     environment,
     checkpoint: request.checkpoint ?? "activation",
     evaluatedAt,
@@ -426,7 +441,7 @@ async function loadAssignmentActivationFacts(
       verifiedAt: funding?.verifiedAt ?? null,
       expiresAt: funding?.expiresAt ?? null,
     },
-    client: { id: candidate.clientId, approvalStatus: candidate.clientApprovalStatus },
+    client: { id: candidate.clientId, approvalStatus: candidate.clientApprovalStatus, contractingEntityId: candidate.contractingEntityId, orderVersion: candidate.orderVersion, orderDetails: candidate.orderDetails },
     site: {
       id: candidate.siteId,
       status: candidate.siteStatus,
@@ -458,7 +473,7 @@ async function loadAssignmentActivationFacts(
       identity: evidence({ id: identityRecord?.id ?? null, status: identityRecord?.status ?? null,
         environment: identityRecord?.environment, integrityState: identityRecord?.integrityState,
         evidenceReference: identityRecord?.evidenceReference, verifiedAt: identityRecord?.verifiedAt, expiresAt: identityRecord?.expiresAt }),
-      psira: evidence({ id: psiraRecord?.id ?? null, status: psiraRecord?.status ?? null,
+      psira: evidence({ id: psiraRecord?.id ?? null, status: mandatoryPsiraVerified ? psiraRecord?.status ?? null : "unverified",
         environment: psiraRecord?.environment, integrityState: psiraRecord?.integrityState,
         evidenceReference: psiraRecord?.evidenceReference, verifiedAt: psiraRecord?.verifiedAt, expiresAt: psiraRecord?.expiresAt }),
       core: evidence({ id: core?.id ?? null, status: core?.status ?? null,
@@ -541,6 +556,8 @@ async function loadAssignmentActivationFacts(
       fundedOfferCents: officerOfferCents,
     },
   };
+  facts.agreements = await readActivationAgreements(db, facts);
+  return facts;
 }
 
 /** The only assignment-readiness service. Every command and revalidation calls this function. */

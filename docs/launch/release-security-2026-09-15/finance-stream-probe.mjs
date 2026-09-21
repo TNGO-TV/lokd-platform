@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {receivePaystackTest} from '../../../app/lib/paystack-test.ts';
+import {readFinanceBody} from '../../../app/lib/finance-workflow-request.ts';
+let controller, settled=false, writes=0;
+const body=new ReadableStream({start(c){controller=c;}});
+const request=new Request('https://example.test/api/paystack/test/webhook',{method:'POST',headers:{'x-paystack-signature':'0'.repeat(128)},body,duplex:'half'});
+const pending=receivePaystackTest(request,{PAYSTACK_TEST_SECRET_KEY:'sk_test_fictional_offline_probe',DB:{prepare(){writes++;throw Error('Unexpected database access');}}}).then(response=>{settled=true;return response;});
+await new Promise(resolve=>setTimeout(resolve,75));
+assert.equal(settled,false);
+controller.close();
+assert.equal((await pending).status,401);
+assert.equal(writes,0);
+const bounded=new Request('https://example.test/',{method:'POST',body:new ReadableStream({}),duplex:'half'});
+await assert.rejects(readFinanceBody(bounded,262144,20),error=>error.status===408);
+console.log(JSON.stringify({legacyWebhookPendingUntilCallerClosesStream:true,invalidSignatureRejectedAfterBodyEnds:true,databaseWrites:writes,boundedFinanceReaderTimeout:408,scope:'offline synthetic request, no provider/network call'}));

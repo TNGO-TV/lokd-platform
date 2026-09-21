@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { projectGautengCoordinate } from "../lib/operations-core";
 import type {
@@ -95,7 +96,7 @@ function MiniMark() {
   return <div className="mini-mark" aria-hidden="true"><span /><span /><span /></div>;
 }
 
-export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "prelaunch" | "pilot" | "production"; actorEmail: string }) {
+export default function OperationsApp({ stage, actorEmail, owner = false }: { owner?: boolean; stage: "demo" | "prelaunch" | "pilot" | "production"; actorEmail: string }) {
   const pilot = usePilot("operations");
   const operations = useOperations();
   const [activeNav, setActiveNav] = useState("Control");
@@ -143,13 +144,16 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
   return (
     <main className="app-shell ops-premium-shell">
       <aside className="side-rail">
-        <a className="brand-lockup" href={PUBLIC_SITE_URL} aria-label="LOKD home"><img src="/lokd-logo-reverse.png" alt="LOKD" /></a>
+        <a className="brand-lockup" href={PUBLIC_SITE_URL} aria-label="LOKD home"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo-reverse.png" alt="LOKD" /></a>
         <div className="pilot-chip"><span className="pulse-dot" /><span><strong>Johannesburg pilot</strong>Operations command · Synthetic</span></div>
         <div className="experience-switcher" aria-label="Preview experience">
           <a className="experience-active" href={OPERATIONS_PORTAL_URL}>Ops</a><a href={OFFICER_PORTAL_URL}>Officer</a><a href={CLIENT_PORTAL_URL}>Client</a>
         </div>
         <nav aria-label="LOKD operations">
           <p className="nav-label">Workspace</p>
+          <a className="nav-item" href="/ops/intake">Live application review</a>
+          <a className="nav-item" href="/ops/security">Account security</a>
+          <a className="nav-item" href="/ops/psira">PSiRA verification</a>
           {navItems.map((item) => <button className={activeNav === item ? "nav-item nav-item--active" : "nav-item"} key={item} onClick={() => setActiveNav(item)}>
             <span>{item}</span>
             {item === "Coverage" && (operations.state?.summary.arrivalWatch ?? 0) > 0 && <em className="nav-warning">{operations.state?.summary.arrivalWatch}</em>}
@@ -163,12 +167,12 @@ export default function OperationsApp({ stage, actorEmail }: { stage: "demo" | "
           </button>)}
         </nav>
         <div className="rail-footer"><div className="avatar avatar--dark">Z</div><span><strong>Operations</strong>{actorEmail}</span><button aria-label="Account and access status" aria-expanded={accountOpen} onClick={() => setAccountOpen((value) => !value)}>•••</button></div>
-        {accountOpen && <aside className="ops-account-popover"><header><strong>Operations access</strong><button aria-label="Close account details" onClick={() => setAccountOpen(false)}>×</button></header><dl><div><dt>Signed in as</dt><dd>{actorEmail}</dd></div><div><dt>Current role</dt><dd>Operations owner</dd></div><div><dt>Environment</dt><dd>{stage} · synthetic</dd></div></dl><p>Version 32 preserves role limits, recent MFA, maker/checker controls, controlled onboarding evidence and shadow-payroll settlement locks. Production identity and step-up MFA are still activation gates.</p><nav aria-label="Switch pilot workspace"><a href={CLIENT_PORTAL_URL}>Client workspace</a><a href={OFFICER_PORTAL_URL}>Officer workspace</a></nav></aside>}
+        {accountOpen && <aside className="ops-account-popover"><header><strong>Operations access</strong><button aria-label="Close account details" onClick={() => setAccountOpen(false)}>×</button></header><dl><div><dt>Signed in as</dt><dd>{actorEmail}</dd></div><div><dt>Current role</dt><dd>{owner ? "Operations owner" : "Operations"}</dd></div><div><dt>Environment</dt><dd>{stage} · synthetic</dd></div></dl><p>Version 32 preserves role limits, recent MFA, maker/checker controls, controlled onboarding evidence and shadow-payroll settlement locks. Production identity and step-up MFA are still activation gates.</p><nav aria-label="Switch pilot workspace"><a href={CLIENT_PORTAL_URL}>Client workspace</a><a href={OFFICER_PORTAL_URL}>Officer workspace</a><a href="/sign-out">Sign out</a></nav></aside>}
       </aside>
 
       <section className="main-stage">
         <header className="top-bar ops-command-topbar">
-          <a className="mobile-brand" href={PUBLIC_SITE_URL} aria-label="LOKD home"><img src="/lokd-logo.png" alt="LOKD" /></a>
+          <a className="mobile-brand" href={PUBLIC_SITE_URL} aria-label="LOKD home"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" /></a>
           <div className="breadcrumb"><span>Operations</span><b>/</b><strong>{activeNav}</strong></div>
           <div className="top-actions">
             <button className="icon-button" aria-label="Search" aria-expanded={searchOpen} onClick={() => { setSearchOpen((value) => !value); setNotificationsOpen(false); }}><Icon name="search" /></button>

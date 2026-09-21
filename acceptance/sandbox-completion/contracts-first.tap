@@ -1,0 +1,32 @@
+TAP version 13
+# (node:1778894) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1778894) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: pre-check-in replacement preserves immutable assignment history and releases only the old reservations
+ok 1 - pre-check-in replacement preserves immutable assignment history and releases only the old reservations
+  ---
+  duration_ms: 1036.655665
+  type: 'test'
+  ...
+# Subtest: private read contracts isolate officers and HTTP bridge never generates an Operations passport token
+ok 2 - private read contracts isolate officers and HTTP bridge never generates an Operations passport token
+  ---
+  duration_ms: 844.811334
+  type: 'test'
+  ...
+# Subtest: simulated funding boundary retains source integrity and rejects self-approval and changed amounts
+ok 3 - simulated funding boundary retains source integrity and rejects self-approval and changed amounts
+  ---
+  duration_ms: 910.819572
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2994.053481

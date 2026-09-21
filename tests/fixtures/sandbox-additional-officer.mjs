@@ -1,0 +1,29 @@
+import assert from 'node:assert/strict';
+import {submitOfficerApplication} from '../../app/api/applications/route.ts';
+import {writeSignup} from '../../app/lib/signup-server.ts';
+import {createSandboxCapture,sandboxIdentityProvider} from '../../app/lib/sandbox-identity.ts';
+import {startProductionIdentity,decideProductionIdentity} from '../../app/lib/production-identity.ts';
+import {prepareProductionEntity} from '../../app/lib/production-intake.ts';
+import {writePsiraCase} from '../../app/lib/psira-server.ts';
+import {PSIRA_SOURCE} from '../../app/lib/psira-verification.ts';
+import {prepareOfficerReview,decideOfficerReview} from '../../app/lib/production-officer-review.ts';
+import {prepareReadinessReview,setReadinessOptIn,prepareReadinessPassport} from '../../app/lib/production-readiness.ts';
+import {manageProductionEvidence} from '../../app/lib/production-evidence.ts';
+import {maker,checker,reviewer,assessor,decision} from './production-identity-journey.mjs';
+import {seedOfficerSupport} from './identity-activation-environment.mjs';
+import {declareProductionSchedule} from '../../app/lib/production-schedule.ts';
+export async function additionalSandboxOfficer(x,index,serviceType){
+ const actor={userId:'sandbox-team-'+index,email:'team-'+index+'@example.test',operations:false,owner:false},name='Fictional Team Officer '+index;
+ const r=await submitOfficerApplication(new Request('http://localhost/api/applications',{method:'POST',headers:{origin:'http://localhost','content-type':'application/json'},body:JSON.stringify({pathway:'qualified',fullName:name,mobile:'099000000'+index,email:actor.email,city:'Johannesburg',province:'Gauteng',psiraStatus:'active',psiraNumber:'123456'+index,psiraGrade:'Grade A',services:[serviceType],purposes:['Commercial access'],training:[],over18Confirmed:true,eligibilityAcknowledged:true,contactConsent:true})}),x.db);assert.equal(r.status,202);const applicantId=(await r.json()).reference;
+ await writeSignup(x.db,actor,{action:'link',kind:'officer',id:applicantId,expectedVersion:0});await writeSignup(x.db,maker,{action:'review',kind:'officer',id:applicantId,expectedVersion:1,status:'reviewed',note:'Separate fictional team intake'});
+ const capture=await createSandboxCapture(x.runtime,actor,{applicantId,applicantVersion:2,consentVersion:'lokd-sandbox-consent-v1',consented:true,scenario:'verified'});const identity=await startProductionIdentity(x.db,actor,{applicantId,applicantVersion:2,captureReference:capture.captureReference,consentVersion:capture.consentVersion},await sandboxIdentityProvider(x.runtime));await decideProductionIdentity(x.db,reviewer,{id:identity.id,outcomeId:identity.outcomeId,decision:'approve',reason:'Independent fictional person evidence',independentlyChecked:true});
+ const entity=await prepareProductionEntity(x.db,maker,{kind:'officer',caseId:applicantId,caseVersion:2}),officerId=entity.entityId,psiraId=await writePsiraCase(x.db,actor,{action:'submit',declaration:'registered',psiraNumber:'123456'+index});
+ await writePsiraCase(x.db,reviewer,{action:'review',caseId:psiraId,expectedVersion:1,registrationStatus:'registered',identityMatch:'confirmed',recheckAt:new Date(Date.now()+86400000).toISOString(),evidence:{source:PSIRA_SOURCE,checkedAt:new Date().toISOString(),returnedNumber:'123456'+index,returnedName:name,returnedStatus:'Registered',grade:'A',certificateExpiry:'2099-01-01',employmentStatus:'Inactive',excerpt:'Fictional sandbox registry boundary; no registration claim.',identityEvidence:'production-identity:'+identity.outcomeId}});
+ const event=x.database.prepare('SELECT latest_event_id FROM psira_verification_cases WHERE id=?').get(psiraId).latest_event_id,p=await prepareOfficerReview(x.db,maker,{officerId,applicantVersion:2,identityOutcomeId:identity.outcomeId,psiraEventId:event,reason:'Independent team source review'});await decideOfficerReview(x.db,checker,{reviewId:p.reviewId,decision:'approve',independentlyChecked:true,reason:'Independent fictional identity and registration inspection'});
+ const reviewIds=[];for(const source of [x.core,x.service,x.purpose]){const review=await prepareReadinessReview(x.db,assessor,{officerId,officerReviewId:p.reviewId,ruleId:source.rule.id,sourcesActuallyInspected:true,evidence:[{requirement:'fixture assessment',ownerUserId:actor.userId,reference:'sandbox:team-assessment:'+index,sha256:'d'.repeat(64),checkedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+86400000).toISOString()}]});await decision(x.db,'review',review.id);reviewIds.push(review.id);}
+ await setReadinessOptIn(x.db,actor,{officerId,serviceType,expectedRevision:0,optedIn:true});const passport=await prepareReadinessPassport(x.db,assessor,{officerId,officerReviewId:p.reviewId,reviewIds,expectedSequence:0});await decision(x.db,'passport',passport.id);
+ const fields={...x.fields,officerId,engagementId:'TEAM-ENGAGEMENT-'+index,model:'managed',weeklyHourCap:'48'};const engagement=await manageProductionEvidence(x.db,maker,{action:'prepare_evidence',kind:'engagement',fields,sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString()});await manageProductionEvidence(x.db,checker,{action:'decide_evidence',reviewId:engagement.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Fictional independently reviewed team engagement'});
+ seedOfficerSupport(x.database,officerId,fields.engagementId,'TEAM-INITIAL-TERMS-'+index);x.database.prepare("UPDATE officers SET banking_status='verified',flex_available=1,external_work_acknowledged=1,rest_window_confirmed=1 WHERE id=?").run(officerId);
+ await declareProductionSchedule(x.db,actor,{action:'declare_schedule',expectedVersion:1,availability:{startsAt:x.times.starts,endsAt:x.times.ends},outsideWork:[],allWorkDeclared:true,restConfirmed:true});
+ return {officerId,actor,fields,passport,identity};
+}

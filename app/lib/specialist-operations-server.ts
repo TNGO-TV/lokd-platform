@@ -1,3 +1,6 @@
+import {operationsMfaStatus} from './operations-mfa';
+import {productionOperatorControl} from './production-operator-control';
+import type {SigningActor} from './production-signing';
 import { ensureDemoOperator } from "./integration-server";
 import { SPECIALIST_PRICING_VERSION, specialistProfiles, type SpecialistServiceCode } from "./specialist-pricing";
 import { SPECIALIST_TERMS_VERSION, evaluateSpecialistPack, quoteFingerprint, requiredSpecialistChecks, runSpecialistRehearsals, specialistProductionBlockers } from "./specialist-operations-core";
@@ -110,13 +113,21 @@ function normaliseContent(value:SpecialistPackContent,booking:SpecialistBooking,
   return content;
 }
 
-export async function applySpecialistAction(db:D1Database,environment:SpecialistEnvironment,actorEmail:string,action:SpecialistAction) {
+export async function applySpecialistAction(db:D1Database,environment:SpecialistEnvironment,actorEmail:string,action:SpecialistAction,authorization?:{actor:SigningActor;headers:Headers}) {
   if(!action||typeof action!=="object"||typeof action.action!=="string") throw new SpecialistWorkflowError("Choose a specialist action.");
   const state=await readSpecialistState(db,environment,actorEmail);
   const review=action.action.startsWith("approve_") || action.action.startsWith("revoke_");
   const pack="id" in action?state.packs.find(p=>p.id===action.id):undefined;
   const booking=state.bookings.find(b=>b.id===("bookingId" in action?action.bookingId:pack?.bookingId));
-  const actor=await requireActor(db,actorEmail,environment,review,booking?.totalCents??0);
+  let actor:string;
+  if(authorization){
+    if(environment!=='production'||authorization.actor.email.toLowerCase()!==actorEmail.toLowerCase())throw new SpecialistWorkflowError('Exact specialist actor binding required.',403);
+    const account=await productionOperatorControl(db,authorization.actor,authorization.headers,review?'specialist.review':'specialist.prepare',booking?.totalCents??0);
+    // Persist only fresh verified middleware proof for the existing SQL guard.
+    // A disabled global MFA requirement does not manufacture a second factor.
+    if(operationsMfaStatus(authorization.headers).fresh)await db.prepare("UPDATE operator_accounts SET mfa_status='verified',mfa_verified_at=? WHERE id=?").bind(new Date(Math.floor(Date.parse(authorization.headers.get('x-lokd-verified-second-factor-at')!)/1000)*1000).toISOString(),account.id).run();
+    actor=actorEmail.toLowerCase();
+  }else actor=await requireActor(db,actorEmail,environment,review,booking?.totalCents??0);
   const now=stamp();
   if(action.action==="save_pack") {
     if(!booking) throw new SpecialistWorkflowError("Select an existing specialist booking in this environment.",404);

@@ -1,0 +1,62 @@
+(node:5) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+TAP version 13
+# Subtest: refund sources keyset pages expose every authorized row beyond old caps
+ok 1 - refund sources keyset pages expose every authorized row beyond old caps
+  ---
+  duration_ms: 61.318139
+  type: 'test'
+  ...
+# Subtest: refund cases keyset pages expose every authorized row beyond old caps
+ok 2 - refund cases keyset pages expose every authorized row beyond old caps
+  ---
+  duration_ms: 41.479389
+  type: 'test'
+  ...
+# Subtest: refund receipts keyset pages expose every authorized row beyond old caps
+ok 3 - refund receipts keyset pages expose every authorized row beyond old caps
+  ---
+  duration_ms: 44.667808
+  type: 'test'
+  ...
+# Subtest: refund observations keyset pages expose every authorized row beyond old caps
+ok 4 - refund observations keyset pages expose every authorized row beyond old caps
+  ---
+  duration_ms: 34.058746
+  type: 'test'
+  ...
+# Subtest: refund states keyset pages expose every authorized row beyond old caps
+ok 5 - refund states keyset pages expose every authorized row beyond old caps
+  ---
+  duration_ms: 34.357736
+  type: 'test'
+  ...
+# Subtest: independent cursors, concurrent insertion, exact reference lookup and cursor validation
+ok 6 - independent cursors, concurrent insertion, exact reference lookup and cursor validation
+  ---
+  duration_ms: 37.697666
+  type: 'test'
+  ...
+# Subtest: authority revocation/limit changes prevent disclosure across and during pages
+ok 7 - authority revocation/limit changes prevent disclosure across and during pages
+  ---
+  duration_ms: 34.674997
+  type: 'test'
+  ...
+# Subtest: refund GET validates pagination and retains private no-store responses
+ok 8 - refund GET validates pagination and retains private no-store responses
+  ---
+  duration_ms: 38.237348
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 330.957863

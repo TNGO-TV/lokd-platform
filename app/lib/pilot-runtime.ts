@@ -1,3 +1,5 @@
+import { operationsMfaRequired } from "./operations-mfa-policy";
+import { operationsMfaStatus } from "./operations-mfa";
 import { env } from "cloudflare:workers";
 import {
   PilotAccessError,
@@ -35,7 +37,7 @@ export function principalForEmail(email: string, displayName = email): PilotPrin
 }
 
 export function requirePilotApiRole(request: Request, allowed: PilotRole | PilotRole[]) {
-  const email = request.headers.get("oai-authenticated-user-email");
+  const email = request.headers.get("x-lokd-verified-email");
   const roles = Array.isArray(allowed) ? allowed : [allowed];
   const hostname = requestHostname(new URL(request.url).hostname);
   const hostnameRole = workspaceRoleForHost(hostname);
@@ -55,6 +57,10 @@ export function requirePilotApiRole(request: Request, allowed: PilotRole | Pilot
   if (!roles.some((role) => principalHasRole(principal, role))) {
     if (publicDemoFallback) return publicDemoPrincipal();
     throw new PilotAccessError("This account does not have access to that LOKD workspace.", 403);
+  }
+  if (operationsMfaRequired() && pilotStage() !== "demo" && roles.includes("operations") && principalHasRole(principal, "operations")
+    && !["GET", "HEAD", "OPTIONS"].includes(request.method) && !operationsMfaStatus(request.headers).fresh) {
+    throw new PilotAccessError("Verify your Operations second factor at /ops/security before changing live records.", 403);
   }
   return principal;
 }

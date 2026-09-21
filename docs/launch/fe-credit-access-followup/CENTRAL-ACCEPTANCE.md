@@ -1,0 +1,9 @@
+# Central acceptance — incremental credit access fix
+
+Owner commit: a7a710e935462a60cb215257b824ab39e27810f1. Central base:8b5a9b509cb1c43c1bd8ae6be539df94450b9a06. Supplied patch SHA-256 db20e10e192a0d8c22c03d62ef7957c5a1353608306f5106cababd03ee46114d verified before clean apply. Only this incremental patch was imported; FE-BUILD-02 was not reapplied.
+
+Credit GET401/403 now removes cached private credit records, downloads and source-bound forms/drafts. Fresh authorized recovery starts a blank form. Temporary read503 retains drafts and exact prior unknown-submission body/key; no automatic POST retry occurs. The client view accurately explains an empty issued-note list. Central additionally corrected the shared status message so cleared records are not described as retained, with an explicit assertion.
+
+Independent review accepted the integrated source:46/46 affected finance browser cases passed in32.7s, plus4/4 final-wording cases in5.3s, zero failed/flaky/skipped. These are46 distinct cases with4 targeted repetitions, not50 distinct cases. The isolated local fixture was stopped and its port verified closed before build. Central TypeScript noEmit/incrementalfalse, changed-file lint and required Sites production bundle build passed. Evidence in central-checks. Prior broad404 regression/170 browser evidence remains a baseline receipt; those full suites were not rerun for this UI-only delta. Owner's2 contract checks remain owner evidence; backend/schema did not change.
+
+No API, schema, migration, provider, financial policy, runtime configuration or hosting change. No deployment, live testing, provider submissions, transfers or new checkouts. Existing approved-contract and unfinished-workflow gates remain open in CENTRAL-REMAINING-BUILD-INPUTS-2026-09-14.md. This bounded acceptance does not complete the entire product build. Stored logs normalize only trailing whitespace/blank EOF lines.

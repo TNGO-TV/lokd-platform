@@ -199,7 +199,7 @@
 .public-kicker { margin: 0; color: #78820e; font-size: var(--type-secondary); font-weight: 900; text-transform: uppercase; letter-spacing: .14em; }
 .public-kicker i { width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--lime); display: inline-block; box-shadow: 0 0 0 6px rgba(126,219,4,.1); }
 .public-hero { min-height: 690px; padding: 80px max(24px, calc((100vw - 1280px) / 2)); background: #151718; color: #fff; display: grid; grid-template-columns: minmax(0,1.05fr) minmax(450px,.95fr); gap: 80px; align-items: center; position: relative; isolation: isolate; }
-.public-hero::before { content: ""; width: 650px; height: 650px; position: absolute; right: -200px; top: -300px; z-index: -1; border-radius: 50%; background: radial-gradient(circle,rgba(126,219,4,.12),transparent 67%); }
+.public-hero::before { content: ""; pointer-events: none; width: 650px; height: 650px; position: absolute; right: -200px; top: -300px; z-index: -1; border-radius: 50%; background: radial-gradient(circle,rgba(126,219,4,.12),transparent 67%); }
 .public-hero-copy { max-width: 680px; }
 .public-hero-copy h1 { margin: 26px 0 25px; font-size: clamp(54px,6vw,86px); line-height: .94; letter-spacing: -.065em; }
 .public-hero-copy h1 span { color: var(--lime); }
@@ -1765,8 +1765,9 @@ button { color: inherit; }
   .booking-row--action > span:nth-child(4) button { margin-top: 0; }
 }
 
-.pilot-access-shell { min-height: 100vh; padding: 32px; background: #f3f5f3; display: grid; place-items: center; }
-.pilot-access-card { width: min(620px, 100%); padding: 42px; border: 1px solid #e0e5df; border-radius: 24px; background: #fff; box-shadow: 0 24px 70px rgba(18,25,20,.1); }
+.pilot-access-shell { min-height: 100vh; padding: 32px; background: #f3f5f3; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; }
+.pilot-access-card { min-width: 0; width: min(620px, 100%); padding: 42px; border: 1px solid #e0e5df; border-radius: 24px; background: #fff; box-shadow: 0 24px 70px rgba(18,25,20,.1); }
+.pilot-access-card .cl-rootBox, .pilot-access-card .cl-cardBox { width: 100%; max-width: 100%; min-width: 0; }
 .pilot-access-card > a:first-child { display: inline-flex; width: 132px; margin-bottom: 42px; }
 .pilot-access-card img { width: 100%; height: auto; }
 .pilot-access-card h1 { margin: 12px 0 14px; color: var(--carbon); font-size: clamp(30px, 5vw, 50px); line-height: 1.02; letter-spacing: -.045em; }
@@ -1777,6 +1778,7 @@ button { color: inherit; }
 @media (max-width: 620px) {
   .pilot-access-shell { padding: 16px; }
   .pilot-access-card { padding: 28px 22px; }
+  .pilot-access-card .cl-card { padding: 24px 16px; }
   .pilot-access-card > div { flex-direction: column; }
   .pilot-access-card .public-button { width: 100%; justify-content: center; }
 }
@@ -2594,3 +2596,43 @@ button { color: inherit; }
  .specialist-evidence-list fieldset {grid-template-columns:1fr;}
  .specialist-terms>div {grid-template-columns:1fr;gap:.3rem;}
 }
+
+/* Registration follow-up and readable readiness states. */
+.journey-next { text-align: left; padding: 18px; border: 1px solid #d4ddcc; border-radius: 14px; background: #fff; color: #303a30; overflow-wrap: anywhere; }
+.journey-next h2, .journey-next h3 { margin: 0 0 10px; font-size: 18px; }
+.journey-next p { font-size: 16px; line-height: 1.6; margin: 10px 0; }
+.agreement-readiness { grid-column: 1 / -1; }
+.portal-onboarding-progress-card ul { max-height: none; }
+.portal-onboarding-progress-card li { padding: 9px 0; font-size: 14px; align-items: start; }
+.portal-onboarding-progress-card li small { display: block; margin-top: 4px; font-size: 13px; font-weight: 400; }
+.portal-onboarding-copy > p:not(.eyebrow), .portal-onboarding-boundary { font-size: 14px; }
+.portal-onboarding-progress-card > span small { font-size: 13px; }
+.enquiry-form > header p, .enquiry-form label { font-size: 14px; }
+.enquiry-success dd, .join-success dd { overflow-wrap: anywhere; }
+.join-intro h1:focus, .join-success h1:focus, .enquiry-success h2:focus { outline: none; }
+@media (max-width: 480px) {
+  .join-form-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .join-form-actions button { flex: 1 1 auto; min-height: 48px; }
+  .portal-onboarding-card--error { flex-wrap: wrap; }
+}
+
+/* Public navigation remains available at every viewport, including keyboard zoom. */
+.public-header { height: auto; min-height: 82px; grid-template-columns: 110px minmax(0, 1fr) auto; gap: 18px; padding-block: 16px; }
+.public-header > nav { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.public-header nav a { display: flex; align-items: center; min-height: 44px; padding: 8px 4px; }
+.public-header nav a[aria-current="page"]::after { bottom: 2px; background: #557c1b; }
+.public-home :focus-visible { outline: 3px solid #557c1b; outline-offset: 3px; }
+@media (max-width: 1100px) {
+  .public-header { grid-template-columns: 1fr auto; }
+  .public-header > nav { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; border-top: 1px solid #d4ddd4; padding-top: 8px; }
+  .public-header-actions { grid-column: 2; grid-row: 1; }
+  .public-header-actions .public-login { display: block; }
+}
+@media (max-width: 600px) {
+  .public-header > nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+  .public-header nav a { font-size: 14px; }
+}
+
+/* Keep the authentication card inside the mobile workspace viewport. */
+.pilot-access-card .cl-rootBox, .pilot-access-card .cl-cardBox { width: 100%; max-width: 100%; min-width: 0; }
+@media (max-width: 620px) { .pilot-access-card .cl-card { padding: 24px 16px; } }

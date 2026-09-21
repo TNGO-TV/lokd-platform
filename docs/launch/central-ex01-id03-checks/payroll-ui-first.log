@@ -1,0 +1,62 @@
+
+Running 14 tests using 1 worker
+
+(node:1652960) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   1 [mobile-360] › tests/frontend/payroll-correction-reviews.spec.mjs:12:1 › only Operations exported items mount item-scoped review; original/current evidence and nonmonetary wording stay distinct (45.0s)
+(node:1653485) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   2 [mobile-360] › tests/frontend/payroll-correction-reviews.spec.mjs:13:1 › uncertain report retries same key and facts after failed refresh without replay or edited original (28.9s)
+
+
+  1) [mobile-360] › tests/frontend/payroll-correction-reviews.spec.mjs:12:1 › only Operations exported items mount item-scoped review; original/current evidence and nonmonetary wording stay distinct
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.click: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByText('Check a problem with this payslip', { exact: true })
+
+
+       7 | let pageData,posts,gets,readStatus,postStatus,service;
+       8 | test.beforeEach(async({page})=>{pageData={...outcome,source:{...originalSource},reviews:[{...originalReview}],nextAfter:null};posts=[];gets=[];readStatus=200;postStatus=200;service={...Object.fromEntries(keys.map(k=>[k,[]])),owner:false,payrollRuns:[{id:'RUN-ONE',status:'exported',version:1,payload_hash:hash,payload_json:JSON.stringify({policyId:'POLICY',policyHash:hash,items:[]}),period_start:'2026-09-01',period_end:'2026-09-14',gross_cents:15000,net_pay_cents:12000,item_count:1}],payrollItems:[{id:'PAYROLL-ITEM-ONE',payroll_run_id:'RUN-ONE',officer_id:'OFFICER-ONE',status:'calculated',period_start:'2026-09-01',period_end:'2026-09-14',gross_wage_cents:15000,net_pay_cents:12000,calculation_json:'{"netPayCents":12000}',financial_state:'paid'}]};await page.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());await page.route('**/api/**',r=>{const u=new URL(r.request().url());if(u.pathname==='/api/production-operations')return r.fulfill({json:service});if(u.pathname==='/api/finance-documents')return r.fulfill({json:{documents:[],sources:[],calendar:'Africa/Johannesburg'}});if(u.pathname==='/api/booking-refunds')return r.fulfill({json:{sources:[],refundCases:[],refundReceipts:[],refundObservations:[],refundStates:[],liveRefundsEnabled:false,pagination:{}}});if(u.pathname==='/api/payroll-correction-reviews'){if(r.request().method()==='POST'){const body=r.request().postDataJSON();posts.push(body);if(postStatus!==200)return r.fulfill({status:postStatus,json:{error:'Synthetic review failure'}});if(body.action==='decide')pageData.reviews=pageData.reviews.map(review=>review.id===body.reviewId?{...review,decision:body.decision,reviewer_user_id:'REVIEWER-TWO',reviewer_findings:body.findings,reviewed_at:'2026-09-14T14:00:00Z'}:review);return r.fulfill({json:{reviewId:'REVIEW-SAVED',...outcome}});}gets.push(u.searchParams.toString());return r.fulfill(readStatus===200?{json:pageData}:{status:readStatus,json:{error:'Synthetic history unavailable'}});}return r.fulfill({json:{}});});});
+    >  9 | async function open(page){await page.goto('/ops/service#payroll');await page.getByText('Check a problem with this payslip',{exact:true}).click();await expect(page.getByRole('button',{name:'Refresh payslip problem reviews',exact:true})).toBeEnabled();}
+         |                                                                                                                                          ^
+      10 | async function report(page){await page.getByText('Report a payslip problem',{exact:true}).click();const form=page.locator('form').filter({has:page.getByLabel('What is wrong?',{exact:true})}).first();await form.getByLabel('What is wrong?',{exact:true}).fill('Original unsent finding');await form.getByLabel('What needs checking?',{exact:true}).fill('Inspect recorded service minutes');await form.getByLabel('Supporting record reference',{exact:true}).fill('PRIVATE-SUPPORT-ONE');await form.getByLabel('Supporting record SHA-256',{exact:true}).fill(hash);await form.getByRole('checkbox').check();return form;}
+      11 |
+      12 | test('only Operations exported items mount item-scoped review; original/current evidence and nonmonetary wording stay distinct',async({page})=>{await page.goto('/officer/service#payroll');await expect(page.getByText('Check a problem with this payslip',{exact:true})).toHaveCount(0);expect(gets).toHaveLength(0);service.payrollRuns[0].status='first_approved';await page.goto('/ops/service#payroll');await expect(page.getByText('Check a problem with this payslip',{exact:true})).toHaveCount(0);service.payrollRuns[0].status='exported';pageData.reviews[0].currentPaymentState='reversed';pageData.reviews[0].sourceChanged=true;await open(page);expect(gets[0]).toBe('itemId=PAYROLL-ITEM-ONE&after=0&pageSize=25');await expect(page.getByText('Payment when reported:',{exact:false})).toContainText('paid. Current payment state: reversed.');await expect(page.getByRole('button',{name:'Mark supporting records reviewed'})).toBeDisabled();await expect(page.getByRole('button',{name:'Reject this review'})).toBeEnabled();await expect(page.getByText(/does not change wages, recover money, send a payment or replace/)).toBeVisible();});
+        at open (/srv/ammosync/workspaces/lokd-security/tests/frontend/payroll-correction-reviews.spec.mjs:9:138)
+        at /srv/ammosync/workspaces/lokd-security/tests/frontend/payroll-correction-reviews.spec.mjs:12:624
+
+    Error Context: test-results/frontend-run/payroll-correction-reviews-9358d-etary-wording-stay-distinct-mobile-360/error-context.md
+
+  2) [mobile-360] › tests/frontend/payroll-correction-reviews.spec.mjs:13:1 › uncertain report retries same key and facts after failed refresh without replay or edited original
+
+    Test was interrupted.
+
+    Error: locator.click: Test ended.
+    Call log:
+      - waiting for getByText('Check a problem with this payslip', { exact: true })
+        - locator resolved to <summary>Check a problem with this payslip</summary>
+      - attempting click action
+        - waiting for element to be visible, enabled and stable
+      - element was detached from the DOM, retrying
+
+
+       7 | let pageData,posts,gets,readStatus,postStatus,service;
+       8 | test.beforeEach(async({page})=>{pageData={...outcome,source:{...originalSource},reviews:[{...originalReview}],nextAfter:null};posts=[];gets=[];readStatus=200;postStatus=200;service={...Object.fromEntries(keys.map(k=>[k,[]])),owner:false,payrollRuns:[{id:'RUN-ONE',status:'exported',version:1,payload_hash:hash,payload_json:JSON.stringify({policyId:'POLICY',policyHash:hash,items:[]}),period_start:'2026-09-01',period_end:'2026-09-14',gross_cents:15000,net_pay_cents:12000,item_count:1}],payrollItems:[{id:'PAYROLL-ITEM-ONE',payroll_run_id:'RUN-ONE',officer_id:'OFFICER-ONE',status:'calculated',period_start:'2026-09-01',period_end:'2026-09-14',gross_wage_cents:15000,net_pay_cents:12000,calculation_json:'{"netPayCents":12000}',financial_state:'paid'}]};await page.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());await page.route('**/api/**',r=>{const u=new URL(r.request().url());if(u.pathname==='/api/production-operations')return r.fulfill({json:service});if(u.pathname==='/api/finance-documents')return r.fulfill({json:{documents:[],sources:[],calendar:'Africa/Johannesburg'}});if(u.pathname==='/api/booking-refunds')return r.fulfill({json:{sources:[],refundCases:[],refundReceipts:[],refundObservations:[],refundStates:[],liveRefundsEnabled:false,pagination:{}}});if(u.pathname==='/api/payroll-correction-reviews'){if(r.request().method()==='POST'){const body=r.request().postDataJSON();posts.push(body);if(postStatus!==200)return r.fulfill({status:postStatus,json:{error:'Synthetic review failure'}});if(body.action==='decide')pageData.reviews=pageData.reviews.map(review=>review.id===body.reviewId?{...review,decision:body.decision,reviewer_user_id:'REVIEWER-TWO',reviewer_findings:body.findings,reviewed_at:'2026-09-14T14:00:00Z'}:review);return r.fulfill({json:{reviewId:'REVIEW-SAVED',...outcome}});}gets.push(u.searchParams.toString());return r.fulfill(readStatus===200?{json:pageData}:{status:readStatus,json:{error:'Synthetic history unavailable'}});}return r.fulfill({json:{}});});});
+    >  9 | async function open(page){await page.goto('/ops/service#payroll');await page.getByText('Check a problem with this payslip',{exact:true}).click();await expect(page.getByRole('button',{name:'Refresh payslip problem reviews',exact:true})).toBeEnabled();}
+         |                                                                                                                                          ^
+      10 | async function report(page){await page.getByText('Report a payslip problem',{exact:true}).click();const form=page.locator('form').filter({has:page.getByLabel('What is wrong?',{exact:true})}).first();await form.getByLabel('What is wrong?',{exact:true}).fill('Original unsent finding');await form.getByLabel('What needs checking?',{exact:true}).fill('Inspect recorded service minutes');await form.getByLabel('Supporting record reference',{exact:true}).fill('PRIVATE-SUPPORT-ONE');await form.getByLabel('Supporting record SHA-256',{exact:true}).fill(hash);await form.getByRole('checkbox').check();return form;}
+      11 |
+      12 | test('only Operations exported items mount item-scoped review; original/current evidence and nonmonetary wording stay distinct',async({page})=>{await page.goto('/officer/service#payroll');await expect(page.getByText('Check a problem with this payslip',{exact:true})).toHaveCount(0);expect(gets).toHaveLength(0);service.payrollRuns[0].status='first_approved';await page.goto('/ops/service#payroll');await expect(page.getByText('Check a problem with this payslip',{exact:true})).toHaveCount(0);service.payrollRuns[0].status='exported';pageData.reviews[0].currentPaymentState='reversed';pageData.reviews[0].sourceChanged=true;await open(page);expect(gets[0]).toBe('itemId=PAYROLL-ITEM-ONE&after=0&pageSize=25');await expect(page.getByText('Payment when reported:',{exact:false})).toContainText('paid. Current payment state: reversed.');await expect(page.getByRole('button',{name:'Mark supporting records reviewed'})).toBeDisabled();await expect(page.getByRole('button',{name:'Reject this review'})).toBeEnabled();await expect(page.getByText(/does not change wages, recover money, send a payment or replace/)).toBeVisible();});
+        at open (/srv/ammosync/workspaces/lokd-security/tests/frontend/payroll-correction-reviews.spec.mjs:9:138)
+        at /srv/ammosync/workspaces/lokd-security/tests/frontend/payroll-correction-reviews.spec.mjs:13:123
+
+    Error Context: test-results/frontend-run/payroll-correction-reviews-dc66c-t-replay-or-edited-original-mobile-360/error-context.md
+
+  1 failed
+    [mobile-360] › tests/frontend/payroll-correction-reviews.spec.mjs:12:1 › only Operations exported items mount item-scoped review; original/current evidence and nonmonetary wording stay distinct
+  1 interrupted
+    [mobile-360] › tests/frontend/payroll-correction-reviews.spec.mjs:13:1 › uncertain report retries same key and facts after failed refresh without replay or edited original
+  12 did not run

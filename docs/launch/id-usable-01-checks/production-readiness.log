@@ -1,0 +1,80 @@
+(node:35) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:35) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+TAP version 13
+# Subtest: no implied policy, no self approval or evidence fabrication, and opt-in belongs to officer
+ok 1 - no implied policy, no self approval or evidence fabrication, and opt-in belongs to officer
+  ---
+  duration_ms: 431.632197
+  type: 'test'
+  ...
+# Subtest: current reviewed sources produce scoped passport, private token and existing activation projections
+ok 2 - current reviewed sources produce scoped passport, private token and existing activation projections
+  ---
+  duration_ms: 642.896662
+  type: 'test'
+  ...
+# Subtest: wrong-person, incomplete, duplicated and expired assessment evidence cannot create readiness
+ok 3 - wrong-person, incomplete, duplicated and expired assessment evidence cannot create readiness
+  ---
+  duration_ms: 497.79684
+  type: 'test'
+  ...
+# Subtest: old tokens and old assessment approvals cannot replace later independently approved versions
+ok 4 - old tokens and old assessment approvals cannot replace later independently approved versions
+  ---
+  duration_ms: 739.739758
+  type: 'test'
+  ...
+# Subtest: opt-out, identity/PSiRA change, policy hold and readiness suspension invalidate without rewriting history
+ok 5 - opt-out, identity/PSiRA change, policy hold and readiness suspension invalidate without rewriting history
+  ---
+  duration_ms: 3208.644497
+  type: 'test'
+  ...
+# Subtest: revoked passport cannot be renewed and direct projection edits cannot revive or extend evidence
+ok 6 - revoked passport cannot be renewed and direct projection edits cannot revive or extend evidence
+  ---
+  duration_ms: 637.318315
+  type: 'test'
+  ...
+# Subtest: concurrent passport preparation and decisions claim once; source race fails at commit
+ok 7 - concurrent passport preparation and decisions claim once; source race fails at commit
+  ---
+  duration_ms: 679.792435
+  type: 'test'
+  ...
+# Subtest: sandbox passport and endorsements cannot be converted by production issuance
+ok 8 - sandbox passport and endorsements cannot be converted by production issuance
+  ---
+  duration_ms: 1011.914169
+  type: 'test'
+  ...
+# Subtest: policy replacement, withdrawal and late decisions never revive old versions
+ok 9 - policy replacement, withdrawal and late decisions never revive old versions
+  ---
+  duration_ms: 644.742859
+  type: 'test'
+  ...
+# Subtest: same-day evidence expiry immediately invalidates public passport and deadline contract
+ok 10 - same-day evidence expiry immediately invalidates public passport and deadline contract
+  ---
+  duration_ms: 3610.990225
+  type: 'test'
+  ...
+# Subtest: passport suspension cannot be bypassed by issuing a new sequence
+ok 11 - passport suspension cannot be bypassed by issuing a new sequence
+  ---
+  duration_ms: 636.292142
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12746.483948

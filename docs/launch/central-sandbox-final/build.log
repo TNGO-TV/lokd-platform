@@ -1,0 +1,118 @@
+Required Sites local build: node /home/ammosync/.codex/plugins/cache/openai-curated-remote/sites/0.1.62/scripts/build-site.mjs
+Exit code: 0. Captured completion output below (initial startup chunk omitted).
+✓ 393 modules transformed.
+rendering chunks...
+✓ built in 876ms
+[2/5] analyze server references...
+transforming...✓ 267 modules transformed.
+rendering chunks...
+✓ built in 297ms
+[3/5] build rsc environment...
+transforming...✓ 399 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 980ms
+[4/5] build client environment...
+transforming...✓ 273 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 299ms
+[5/5] build ssr environment...
+transforming...✓ 276 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 421ms
+
+  Route (app)
+  ┌ ƒ /
+  ├ ? /about
+  ├ λ /api/agreements/production
+  ├ λ /api/agreements/test
+  ├ λ /api/applications
+  ├ λ /api/booking-refunds
+  ├ λ /api/credit-notes
+  ├ λ /api/enquiries
+  ├ λ /api/enrolment
+  ├ λ /api/evidence
+  ├ λ /api/feedback
+  ├ λ /api/finance-documents
+  ├ λ /api/finance-workflows
+  ├ λ /api/finance-workflows/webhook
+  ├ λ /api/health/live
+  ├ λ /api/health/ready
+  ├ λ /api/identity
+  ├ λ /api/onboarding
+  ├ λ /api/operations
+  ├ λ /api/operations/security
+  ├ λ /api/passport
+  ├ λ /api/passport/verify
+  ├ λ /api/payment-execution
+  ├ λ /api/payment-recovery
+  ├ λ /api/payroll-correction-reviews
+  ├ λ /api/paystack/booking/webhook
+  ├ λ /api/paystack/test/webhook
+  ├ λ /api/paystack/transfers/live/webhook
+  ├ λ /api/pilot
+  ├ λ /api/platform
+  ├ λ /api/platform/export
+  ├ λ /api/presence
+  ├ λ /api/production-identity
+  ├ λ /api/production-operations
+  ├ λ /api/psira
+  ├ λ /api/sandbox/application
+  ├ λ /api/sandbox/discovery
+  ├ λ /api/sandbox/identity
+  ├ λ /api/service-record
+  ├ λ /api/signup
+  ├ λ /api/specialist
+  ├ λ /api/test-cycle
+  ├ ? /armed-security
+  ├ ƒ /client
+  ├ ƒ /client/agreements
+  ├ ƒ /client/sandbox
+  ├ ƒ /client/service
+  ├ ƒ /client/test-cycle
+  ├ ? /clients
+  ├ ? /compliance
+  ├ ? /contact
+  ├ ? /industries
+  ├ ? /join
+  ├ ? /locations/johannesburg
+  ├ ƒ /officer
+  ├ ƒ /officer/agreements
+  ├ ƒ /officer/identity
+  ├ ƒ /officer/psira
+  ├ ƒ /officer/readiness
+  ├ ƒ /officer/sandbox
+  ├ ƒ /officer/service
+  ├ ƒ /officer/test-cycle
+  ├ ? /officers
+  ├ ? /operations
+  ├ ƒ /ops
+  ├ ƒ /ops/agreements
+  ├ ƒ /ops/identity
+  ├ ƒ /ops/intake
+  ├ ƒ /ops/psira
+  ├ ƒ /ops/readiness
+  ├ ƒ /ops/sandbox
+  ├ ƒ /ops/security
+  ├ ƒ /ops/service
+  ├ ƒ /ops/test-cycle
+  ├ ? /payments/paystack/test/callback
+  ├ ? /portal
+  ├ ? /privacy
+  ├ ? /security-services
+  ├ ƒ /sign-in
+  ├ ƒ /sign-out
+  ├ ƒ /signup
+  ├ ? /training
+  ├ ƒ /verify
+  └ ? /vip-protection
+
+  λ API  ƒ Dynamic  ? Unknown
+
+  ? Some routes could not be classified. vinext currently uses static analysis
+    and cannot detect dynamic API usage (headers(), cookies(), etc.) at build time.
+    Automatic classification will be improved in a future release.
+
+  Build complete. Run `vinext start` to start the production server.

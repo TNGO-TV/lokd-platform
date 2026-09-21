@@ -1,0 +1,32 @@
+TAP version 13
+# (node:1770461) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1770461) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (node:1770461) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: two application-produced service inputs retain distinct employer/engagement attribution within one SAST payroll period
+not ok 1 - two application-produced service inputs retain distinct employer/engagement attribution within one SAST payroll period
+  ---
+  duration_ms: 1119.379856
+  type: 'test'
+  location: '/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-period.test.mjs:15:1'
+  failureType: 'testCodeFailure'
+  error: 'Readiness decision evidence changed or expired'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    Object.run (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/production-identity-journey.mjs:15:264)
+    decideReadiness (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/app/lib/production-readiness.ts:55:176)
+    decision (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/production-identity-journey.mjs:57:48)
+    TestContext.<anonymous> (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-period.test.mjs:23:102)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1297.503784

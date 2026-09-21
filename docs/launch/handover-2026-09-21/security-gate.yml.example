@@ -1,0 +1,33 @@
+# Prepared only: see CI-STATUS.md before activating in .github/workflows/.
+name: LOKD security gate
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lokd-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  security:
+    name: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.22.1'
+          package-manager-cache: false
+      - name: Match accepted npm toolchain
+        run: npm install --global npm@9.2.0
+      - name: Install locked dependencies
+        run: npm run install:ci
+      - name: Run security gate
+        run: npm run check:security
+      - name: Ensure validation did not change tracked source
+        run: git diff --exit-code HEAD

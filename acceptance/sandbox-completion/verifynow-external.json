@@ -1,0 +1,86 @@
+{
+  "productionRequests": 0,
+  "simulated": false,
+  "results": [
+    {
+      "scenario": "id-found",
+      "mode": "actual-provider-sandbox",
+      "startedAt": "2026-09-14T19:16:57.882Z",
+      "requestAttempted": true,
+      "outcome": "mock_approved",
+      "httpStatus": 200,
+      "retryAt": "2026-09-14T19:17:59.170Z",
+      "responseHash": "a850ddb31a52f25893e0ffa6058e53bc6bf85a1e08cf690928d942ae37636d48"
+    },
+    {
+      "scenario": "id-no-record",
+      "mode": "actual-provider-sandbox",
+      "startedAt": "2026-09-14T19:17:01.373Z",
+      "requestAttempted": true,
+      "outcome": "no_record",
+      "httpStatus": 502,
+      "retryAt": "2026-09-14T19:18:02.712Z",
+      "responseHash": "21b3e3de0f110dd2db5a99b3dffbd662a84f1523eaa70ff464c5f4aa71ea709c"
+    },
+    {
+      "scenario": "id-unavailable",
+      "mode": "actual-provider-sandbox",
+      "startedAt": "2026-09-14T19:17:04.913Z",
+      "requestAttempted": true,
+      "outcome": "unavailable",
+      "httpStatus": 502,
+      "retryAt": "2026-09-14T19:17:11.089Z",
+      "responseHash": "aab0c135c20aebbde9c1645c1835e8db50216e56d576dc0758915de811595385"
+    },
+    {
+      "scenario": "face-reference",
+      "mode": "actual-provider-sandbox",
+      "startedAt": "2026-09-14T19:17:08.292Z",
+      "requestAttempted": true,
+      "outcome": "mock_approved",
+      "httpStatus": 200,
+      "retryAt": "2026-09-14T19:18:09.495Z",
+      "responseHash": "af550cbca4cd31b6ca3171453bded4bd40848f02abaa9e0d2bece72a37a99ac6"
+    },
+    {
+      "scenario": "face-upload",
+      "mode": "actual-provider-sandbox",
+      "startedAt": "2026-09-14T19:17:11.697Z",
+      "requestAttempted": true,
+      "outcome": "manual_review",
+      "httpStatus": 200,
+      "retryAt": "2026-09-14T19:18:13.104Z",
+      "responseHash": "1cac2e7100f53922e944b4fdf0558671f085e2b5890c405016b52dbc105a0209"
+    },
+    {
+      "scenario": "liveness",
+      "mode": "actual-provider-sandbox",
+      "startedAt": "2026-09-14T19:17:15.305Z",
+      "requestAttempted": true,
+      "outcome": "mock_approved",
+      "httpStatus": 200,
+      "retryAt": "2026-09-14T19:18:15.963Z",
+      "responseHash": "5273ebe93396f8bc4af0ca559ac7ee42dc0f38e79fdd750e109b791af3e4fe2a"
+    },
+    {
+      "scenario": "document-ocr",
+      "mode": "actual-provider-sandbox",
+      "startedAt": "2026-09-14T19:17:18.164Z",
+      "requestAttempted": true,
+      "outcome": "mock_approved",
+      "httpStatus": 200,
+      "retryAt": "2026-09-14T19:18:19.390Z",
+      "responseHash": "ae1d3473cbba10f3df42aedd575a2b32b78e15d9867a22f911209252f75fb7ea"
+    },
+    {
+      "scenario": "drivers-licence",
+      "mode": "actual-provider-sandbox",
+      "startedAt": "2026-09-14T19:17:21.592Z",
+      "requestAttempted": true,
+      "outcome": "mock_approved",
+      "httpStatus": 200,
+      "retryAt": "2026-09-14T19:18:22.230Z",
+      "responseHash": "6ac3ae9a936620b4258c931cdebeded23fbd1a1bde66afdee396fc91562a8126"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+(node:21) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+TAP version 13
+# Subtest: current owner-bound identity and PSiRA produce only independently approved officer/compliance records
+ok 1 - current owner-bound identity and PSiRA produce only independently approved officer/compliance records
+  ---
+  duration_ms: 411.423417
+  type: 'test'
+  ...
+# Subtest: authorization and maker separation include applicant, entity preparer, identity and PSiRA reviewer
+ok 2 - authorization and maker separation include applicant, entity preparer, identity and PSiRA reviewer
+  ---
+  duration_ms: 354.140582
+  type: 'test'
+  ...
+# Subtest: identity suspension and PSiRA recheck between preparation and decision reject stale evidence
+ok 3 - identity suspension and PSiRA recheck between preparation and decision reject stale evidence
+  ---
+  duration_ms: 1499.797748
+  type: 'test'
+  ...
+# Subtest: wrong-owner PSiRA, unmatched name/grade and generic identity evidence cannot prepare a bridge
+ok 4 - wrong-owner PSiRA, unmatched name/grade and generic identity evidence cannot prepare a bridge
+  ---
+  duration_ms: 1480.56927
+  type: 'test'
+  ...
+# Subtest: source invalidation suspends approved officer, preserves consumed evidence and advances activation epoch
+ok 5 - source invalidation suspends approved officer, preserves consumed evidence and advances activation epoch
+  ---
+  duration_ms: 1997.254388
+  type: 'test'
+  ...
+# Subtest: concurrent decisions project once; rejection never creates compliance and direct approval bypass fails
+ok 6 - concurrent decisions project once; rejection never creates compliance and direct approval bypass fails
+  ---
+  duration_ms: 780.859715
+  type: 'test'
+  ...
+# Subtest: commit-time race rejects the decision after its application-level source read
+ok 7 - commit-time race rejects the decision after its application-level source read
+  ---
+  duration_ms: 394.823235
+  type: 'test'
+  ...
+# Subtest: expired certificate cannot prepare; evidence expiry bounds approval and assignment deadline
+ok 8 - expired certificate cannot prepare; evidence expiry bounds approval and assignment deadline
+  ---
+  duration_ms: 444.918069
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7369.63977

@@ -1,0 +1,109 @@
+{
+  "centralBaseline": "c0f6c620624d73b4d338859c92b4009371794273",
+  "reviewDeployment": "v69",
+  "finance": {
+    "ownerRevision": "e4fd8f4b7e2e07c3d78efc32a09fc7a4b4144617",
+    "status": "already integrated in Central baseline; not reapplied"
+  },
+  "frontend": {
+    "ownerRevision": "220b5b53048cd8f5480ae066dde44a0d88947bd8",
+    "patchSha256": "f41a86512b7eedc567322c86899040a764bffbad78a8ab8871e514ffc0dd29e2",
+    "status": "imported; Central guided recovery and review additions follow"
+  },
+  "identity": {
+    "ownerRevision": "6f8857ed9012905cb9eec5efdf660323b31693c4",
+    "patchSha256": "865a5daaeab4e2f8576391b6f3063d3c8f6a81665ed99568e215c4dadf592ecc",
+    "status": "imported; canonical migration0074 and separate sandbox migrations0001/0002/0003"
+  },
+  "ownerDeliveryEvidence": "User supplied frozen revision, exact patch and handoff for each owner. Owner checkpoint delivery is confirmed; prepared followup prompts are not counted as sent.",
+  "deploymentPerformed": false,
+  "liveEnablementPerformed": false,
+  "providerEvidence": {
+    "Clerk": "owner-run13 distinct development scenarios; final5 rerun overlaps",
+    "VerifyNow": "owner-run8 actual sandbox requests; capture/recovery composites simulated",
+    "Paystack": "no actual provider checks executed; simulated finance only"
+  },
+  "acceptanceStatus": "accepted for complete local sandbox review; genuine provider and production acceptance remain separate",
+  "sandboxMigrations": [
+    {
+      "file": "sandbox-migrations/0001_identity_workforce.sql",
+      "sha256": "0e98d8832695bb2a6a41fcd484fffb0a4985a5fc7cc6a2aea673fe12ff97f389"
+    },
+    {
+      "file": "sandbox-migrations/0002_command_journal.sql",
+      "sha256": "afa326a04c246f3d954e2eea2317d8250bc99b95a1fbcfd273c812844bf43ca6"
+    },
+    {
+      "file": "sandbox-migrations/0003_evidence_retention.sql",
+      "sha256": "21f7d79d003684ec7fd3069f90766d03d8b0db0e0113fba3eed522fd8520308c"
+    }
+  ],
+  "financePolicyVersion": "lokd-sandbox-completion-v1-services-2",
+  "backendRegression": {
+    "passed": 487,
+    "failed": 0,
+    "skipped": 0,
+    "log": "backend-full.log",
+    "excludes": "final rendered-html check and subsequently added independent retention and Operations rehearsal regressions"
+  },
+  "operationsRehearsal": {
+    "passed": 1,
+    "failed": 0,
+    "log": "operations-rehearsal.log"
+  },
+  "independentRetention": {
+    "passed": 1,
+    "failed": 0,
+    "log": "retention-independent.log"
+  },
+  "deployedVersionVerified": 69,
+  "staticChecks": {
+    "typescript": "passed",
+    "lint": "passed",
+    "logs": [
+      "types.log",
+      "lint.log"
+    ]
+  },
+  "actualHandlerBrowser": {
+    "passed": 48,
+    "failed": 0,
+    "log": "browser/integrated-final-full.log",
+    "note": "48 actual-handler cases in the74-case run; supplementary response-mocked failures tracked separately"
+  },
+  "backendRenderedTotal": 490,
+  "renderedHtml": {
+    "passed": 1,
+    "failed": 0,
+    "log": "rendered-html.log"
+  },
+  "finalBuild": {
+    "exitCode": 0,
+    "log": "build-final.log",
+    "after": "finance early-rejection fix"
+  },
+  "frontendRegression": {
+    "distinctPassed": 206,
+    "initialPassed": 176,
+    "publicFixtureRerunPassed": 30,
+    "navigationRerunPassed": 8,
+    "note": "navigation rerun overlaps206"
+  },
+  "integratedBrowser": {
+    "distinctPassed": 76,
+    "actualHandler": 48,
+    "responseMocked": 28,
+    "initial74CaseRun": {
+      "passed": 70,
+      "failed": 4
+    },
+    "correctedMockedRerun": {
+      "passed": 26
+    },
+    "finalFinanceRejectionRerun": {
+      "passed": 4,
+      "newDistinctCases": 2
+    },
+    "report": "../../finance-sandbox/central-checks/CONNECTED-BROWSER-QA.md"
+  }
+}

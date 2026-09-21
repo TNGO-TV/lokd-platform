@@ -1,0 +1,1 @@
+ALTER TABLE `bookings` ADD `agreement_version` integer DEFAULT 1 NOT NULL;

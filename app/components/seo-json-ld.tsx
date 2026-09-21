@@ -1,11 +1,13 @@
+import { headers } from "next/headers";
 import { canonicalUrl } from "../lib/public-site";
 
 function json(value: unknown) {
   return JSON.stringify(value).replaceAll("<", "\\u003c");
 }
 
-export function OrganisationJsonLd() {
-  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: json({
+export async function OrganisationJsonLd() {
+  const nonce = (await headers()).get("x-lokd-script-nonce") ?? undefined;
+  return <script nonce={nonce} type="application/ld+json" dangerouslySetInnerHTML={{ __html: json({
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": canonicalUrl("/#organization"),
@@ -17,8 +19,9 @@ export function OrganisationJsonLd() {
   }) }} />;
 }
 
-export function ServiceJsonLd({ name, description, path }: { name: string; description: string; path: string }) {
-  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: json({
+export async function ServiceJsonLd({ name, description, path }: { name: string; description: string; path: string }) {
+  const nonce = (await headers()).get("x-lokd-script-nonce") ?? undefined;
+  return <script nonce={nonce} type="application/ld+json" dangerouslySetInnerHTML={{ __html: json({
     "@context": "https://schema.org",
     "@type": "Service",
     "@id": `${canonicalUrl(path)}#service`,

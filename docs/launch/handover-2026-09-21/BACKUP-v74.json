@@ -1,0 +1,33 @@
+{
+  "source_head": "d8358077b7dc300774bf9408c5e6647bd5eae3ff",
+  "deployed_source": "0f7215b90940bfdeb7a552c1b184450c5a596f97",
+  "release": 74,
+  "scope": "Source history and tree including acceptance evidence and handover, plus exact local v74 built release. No fresh production database, object or runtime capture. Existing v73 production snapshot remains separate.",
+  "files": {
+    "source.tar.gz": "d109d3f324996ac28d49a088206e1beb3205c07a573dc5a845a12c4343dfe1a3",
+    "source.bundle": "196ee0a27987677e4f06f51e7707d6707f2a0ea82172d5cbafa723af7cbd4c9f",
+    "release-v74.tar": "5b05a262ae6ef51bb08e2f10e634426822bf7f6b698f6b0fb86576cd76d03f21"
+  },
+  "archive": "/home/ammosync/.codex/visualizations/2026/09/21/01a0c3cb-1998-7941-a925-1fb96bcda4c1/lokd-v74-backup/LOKD-v74-source-release-evidence.tar.gpg",
+  "archive_sha256": "34f5425b3c3f2051316d9e563168adaee721b5d01447e13187e8faba64c4cfcd",
+  "archive_md5": "da81449de673a19524e96701de9cc6af",
+  "archive_bytes": 18940164,
+  "decryption_match": true,
+  "file_hashes_match": true,
+  "git_restore_verified": true,
+  "recovery_key_uploaded": false,
+  "offhost_uploaded": true,
+  "local_retry": "GPG agent unavailable inside sandbox; retried with approved execution outside sandbox.",
+  "verified_date": "2026-09-21",
+  "drive_file_id": "1vEx1Ny7Qw4BHxo9yGvcUP8W_M1XD6i6V",
+  "drive_url": "https://drive.google.com/file/d/1vEx1Ny7Qw4BHxo9yGvcUP8W_M1XD6i6V/view?usp=drivesdk",
+  "drive_parent_id": "1u0JEL4nBvZpj4eUB1H6glsYlq9vRWY_i",
+  "offhost_metadata_verified": true,
+  "offhost_owner_only": true,
+  "offhost_size_matches": true,
+  "offhost_bytes_checksum_verified": false,
+  "offhost_restore_verified": false,
+  "remote_check_limitation": "Connector metadata omitted requested checksum fields. Streamed fetch supplied a download reference, but independent network download returned HTTP 403 after sandbox DNS restriction was bypassed through approved escalation. No repeated unchanged retry.",
+  "production_snapshot": "Existing separate v73 production capture dated 2026-09-15 remains unchanged; no new production data or runtime capture.",
+  "excludes": "Untracked/ignored workspace files, recovery key, external provider recovery records, and operational receipts/CI candidate added after d8358077b7dc300774bf9408c5e6647bd5eae3ff."
+}

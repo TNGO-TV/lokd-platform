@@ -1,0 +1,85 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import test from 'node:test';
+import {DatabaseSync} from 'node:sqlite';
+import {createVerifyNowProductionProvider,identityDigest} from '../app/lib/verifynow-production.ts';
+import {verifyNowD1Receipts} from '../app/lib/verifynow-receipts.ts';
+
+const epoch=Date.parse('2026-09-14T12:00:00.000Z');
+class D1 {
+ constructor(){this.sql=new DatabaseSync(':memory:');this.sql.exec('PRAGMA foreign_keys=ON; CREATE TABLE production_identity_cases(id TEXT PRIMARY KEY,applicant_id TEXT,applicant_version INTEGER,owner_user_id TEXT,binding_hash TEXT,capture_reference TEXT,provider TEXT);');this.sql.exec(fs.readFileSync('drizzle/0069_verifynow_receipt_guards.sql','utf8'));}
+ prepare(sql){const make=(values=[])=>({bind:(...v)=>make(v),first:async()=>this.sql.prepare(sql).get(...values)??null,run:async()=>({meta:{changes:Number(this.sql.prepare(sql).run(...values).changes)}})});return make();}
+}
+async function fixture(){
+ const db=new D1(),receipts=verifyNowD1Receipts(db),objects=new Map();let calls=0,clock=epoch,reply;
+ // Intentionally synthetic, never sent to any network.
+ const capture={applicantId:'fixture-applicant',applicantVersion:1,ownerUserId:'fixture-owner',captureReference:'fixture-capture',consentVersion:'fixture-consent',environment:'production',idNumber:'0000000000000',capturedAt:new Date(epoch-1000).toISOString(),expiresAt:new Date(epoch+60000).toISOString(),consentEvidenceReference:'fixture-consent-evidence'};
+ const envelope=()=>({success:true,requestId:'fixture-provider-request',mode:'production',reportType:'said_verification',input:{idNumber:capture.idNumber},results:{said_verification:{Status:'Success',realTimeResults:{Status:'ID Number Valid'},meta:{environment:'production',timestamp:new Date(clock).toISOString()}}}});
+ const config={apiKey:'fixture-key-not-a-credential',policyReference:'fixture-policy-only',evidenceLifetimeMs:30000,now:()=>clock,captures:{read:async()=>({...capture})},receipts,evidence:{put:async(id,bytes,hash)=>{objects.set(id,{bytes,hash});return 'private-fixture:'+id;}},transport:async(url,options)=>{calls++;assert.equal(url,'https://www.verifynow.co.za/api/external/verify');assert.equal(options.method,'POST');assert.equal(options.redirect,'error');assert.equal(options.headers['Idempotency-Key'],'fixture-case');assert.deepEqual(JSON.parse(options.body),{reportType:'said_verification',idNumber:capture.idNumber,mode:'production'});return reply?await reply():Response.json(envelope());}};
+ const port=createVerifyNowProductionProvider(config),request={applicantId:capture.applicantId,applicantVersion:1,ownerUserId:capture.ownerUserId,captureReference:capture.captureReference,consentVersion:capture.consentVersion};
+ const bound=await port.capture(request),binding={...request,caseId:'fixture-case',bindingHash:bound.bindingHash};delete binding.consentVersion;
+ db.sql.prepare('INSERT INTO production_identity_cases VALUES(?,?,?,?,?,?,?)').run(binding.caseId,binding.applicantId,binding.applicantVersion,binding.ownerUserId,binding.bindingHash,binding.captureReference,port.key);
+ return {db,port,config,capture,request,binding,objects,receipts,envelope,calls:()=>calls,reply:f=>{reply=f;},time:n=>{clock=n;}};
+}
+test('documented registry success remains review-only; receipt recovers across adapter restart with no network',async()=>{
+ const f=await fixture();try{const r=await f.port.submit(f.binding);assert.equal(r.outcome,'manual_review');assert.equal(r.providerReference,'fixture-provider-request');assert.equal(r.expiresAt,new Date(epoch+30000).toISOString());assert.equal(r.evidenceHash,await identityDigest(f.objects.get('fixture-case').bytes));assert.equal(JSON.stringify(r).includes(f.capture.idNumber),false);
+ const restarted=createVerifyNowProductionProvider({...f.config,transport:async()=>{throw Error('Recovery attempted network');}});assert.deepEqual(await restarted.lookup(f.binding),r);assert.equal(f.calls(),1);
+ await assert.rejects(f.port.submit(f.binding));assert.equal(f.calls(),1);
+ for(const table of ['verifynow_production_claims','verifynow_production_receipts']){assert.throws(()=>f.db.sql.exec('DELETE FROM '+table),/immutable/);assert.throws(()=>f.db.sql.exec('UPDATE '+table+' SET case_id=case_id'),/immutable/);}
+ }finally{f.db.sql.close();}
+});
+test('concurrent submission atomically claims once',async()=>{const f=await fixture();try{const results=await Promise.allSettled([f.port.submit(f.binding),f.port.submit(f.binding)]);assert.equal(results.filter(r=>r.status==='fulfilled').length,1);assert.equal(f.calls(),1);}finally{f.db.sql.close();}});
+test('capture binds exact owner, applicant, version, consent and reference before I/O',async()=>{const f=await fixture();try{for(const field of ['applicantId','ownerUserId','applicantVersion','consentVersion','captureReference'])await assert.rejects(f.port.capture({...f.request,[field]:field==='applicantVersion'?2:'wrong'}));for(const field of ['applicantId','ownerUserId','applicantVersion','bindingHash','captureReference'])await assert.rejects(f.port.submit({...f.binding,[field]:field==='applicantVersion'?2:'wrong'}));assert.equal(f.calls(),0);}finally{f.db.sql.close();}});
+test('withdrawn, expired, future and sandbox captures fail closed',async()=>{for(const change of [{environment:'sandbox'},{expiresAt:new Date(epoch).toISOString()},{capturedAt:new Date(epoch+1).toISOString()},{consentEvidenceReference:''},{idNumber:'bad'}]){const f=await fixture();try{Object.assign(f.capture,change);await assert.rejects(f.port.submit(f.binding));assert.equal(f.calls(),0);}finally{f.db.sql.close();}}});
+test('wrong person/environment, replayed timestamp and unsupported result envelopes never become evidence',async()=>{
+ const mutations=[e=>{e.input.idNumber='1111111111111';},e=>{e.mode='sandbox';},e=>{e.results.said_verification.meta.environment='sandbox';},e=>{e.results.said_verification.meta.timestamp=new Date(epoch-1).toISOString();},e=>{e.results.said_verification.meta.timestamp=new Date(epoch+1).toISOString();},e=>{e.requestId='';},e=>{e.reportType='facematch';},e=>{e.results.said_verification.Status='Declined';},e=>{e.results.said_verification.Status='In Review';},e=>{e.success=false;e.code='NO_RECORD_FOUND';},e=>{delete e.results.said_verification.meta;},e=>{e.results.said_verification.realTimeResults.Status='mock_approved';}];
+ for(const mutate of mutations){const f=await fixture();try{f.reply(()=>{const e=f.envelope();mutate(e);return Response.json(e);});await assert.rejects(f.port.submit(f.binding));assert.equal(await f.port.lookup(f.binding),null);await assert.rejects(f.port.submit(f.binding));assert.equal(f.calls(),1);assert.equal(f.objects.size,1);}finally{f.db.sql.close();}}
+});
+test('timeouts, server errors and uncertain delivery remain held with no retry',async()=>{for(const response of [()=>{throw Error('fixture timeout');},()=>new Response('{}',{status:503}),()=>new Response('bad json'),()=>new Response('x'.repeat(1024*1024+1))]){const f=await fixture();try{f.reply(response);await assert.rejects(f.port.submit(f.binding));assert.equal(await f.port.lookup(f.binding),null);await assert.rejects(f.port.submit(f.binding));assert.equal(f.calls(),1);}finally{f.db.sql.close();}}});
+test('capture withdrawal during request and receipt write failure cannot authorise retry',async()=>{for(const phase of ['withdraw','receipt','vault']){const f=await fixture();try{if(phase==='withdraw')f.reply(()=>{const result=f.envelope();f.capture.consentVersion='withdrawn';return Response.json(result);});if(phase==='receipt')f.config.receipts.save=async()=>{throw Error('fixture write failure');};if(phase==='vault')f.config.evidence.put=async()=>{throw Error('fixture vault failure');};await assert.rejects(f.port.submit(f.binding));await assert.rejects(f.port.submit(f.binding));assert.equal(f.calls(),1);}finally{f.db.sql.close();}}});
+test('expired or mismatched receipts cannot recover, including a different provider reference replacement',async()=>{const f=await fixture();try{const r=await f.port.submit(f.binding);await assert.rejects(f.receipts.save(f.binding,{...r,providerReference:'replacement'}));await assert.rejects(f.port.lookup({...f.binding,ownerUserId:'wrong'}));f.time(epoch+30001);await assert.rejects(f.port.lookup(f.binding));}finally{f.db.sql.close();}});
+test('no default policy; private evidence URLs rejected; request claims exclude raw identity',async()=>{const f=await fixture();try{for(const overrides of [{apiKey:''},{policyReference:''},{evidenceLifetimeMs:0},{evidenceLifetimeMs:NaN}])assert.throws(()=>createVerifyNowProductionProvider({...f.config,...overrides}));f.config.evidence.put=async()=> 'https://public.example.test/evidence';await assert.rejects(f.port.submit(f.binding));const row=f.db.sql.prepare('SELECT * FROM verifynow_production_claims').get();assert.equal(JSON.stringify(row).includes(f.capture.idNumber),false);assert.equal(row.policy_reference,'fixture-policy-only');assert.equal(row.evidence_lifetime_ms,30000);}finally{f.db.sql.close();}});
+
+test('claim requires the exact persisted production case and provider',async()=>{const f=await fixture();try{await assert.rejects(f.port.submit({...f.binding,caseId:'absent-case'}));f.db.sql.exec("UPDATE production_identity_cases SET provider='sandbox'");await assert.rejects(f.port.submit(f.binding));assert.equal(f.calls(),0);}finally{f.db.sql.close();}});
+test('SQL rejects mismatched receipt binding, verified promotion and reused provider reference',async()=>{const f=await fixture();try{
+ const r=await f.port.submit(f.binding);const second={...f.binding,caseId:'fixture-case-2'};
+ f.db.sql.prepare('INSERT INTO production_identity_cases VALUES(?,?,?,?,?,?,?)').run(second.caseId,second.applicantId,second.applicantVersion,second.ownerUserId,second.bindingHash,second.captureReference,f.port.key);
+ assert.equal(await f.receipts.claim(second,'a'.repeat(64),'fixture-policy',30000),true);
+ await assert.rejects(f.receipts.save(second,{...r,...second,providerReference:'different-for-verified',outcome:'verified'}),/binding|CHECK/);
+ await assert.rejects(f.receipts.save(second,{...r,...second}),/UNIQUE/);
+ assert.throws(()=>f.db.sql.prepare('INSERT INTO verifynow_production_receipts VALUES(?,?,?)').run(second.caseId,JSON.stringify({...r,...second,providerReference:'different-for-binding',ownerUserId:'wrong'}),new Date(epoch).toISOString()),/binding/);
+ }finally{f.db.sql.close();}});
+test('canonical identity receipt migration preserves every existing table row',()=>{const db=new DatabaseSync(':memory:');try{
+ const files=fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')&&Number(f.slice(0,4))<69).sort();assert.equal(files.length,69);for(const file of files)db.exec(fs.readFileSync('drizzle/'+file,'utf8').replaceAll('--> statement-breakpoint',''));
+ const tables=db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(x=>x.name);const snapshot=()=>tables.map(name=>[name,db.prepare('SELECT * FROM "'+name+'"').all()]);const before=snapshot();db.exec(fs.readFileSync('drizzle/0069_verifynow_receipt_guards.sql','utf8'));assert.deepEqual(snapshot(),before);assert.equal(db.prepare('PRAGMA integrity_check').get().integrity_check,'ok');assert.equal(db.prepare('SELECT count(*) n FROM verifynow_production_claims').get().n,0);
+ }finally{db.close();}});
+
+test('SQL protects permanent claims and receipts from REPLACE with recursive triggers disabled',async()=>{
+ const f=await fixture();try{
+  f.db.sql.exec('PRAGMA recursive_triggers=OFF');
+  const r=await f.port.submit(f.binding);
+  const claim=f.db.sql.prepare('SELECT * FROM verifynow_production_claims').get();
+  assert.throws(()=>f.db.sql.prepare('INSERT OR REPLACE INTO verifynow_production_claims VALUES(?,?,?,?,?,?)').run(claim.case_id,claim.binding_json,'b'.repeat(64),claim.claimed_at,'changed-policy',60000),/immutable/);
+  assert.throws(()=>f.db.sql.prepare('INSERT OR REPLACE INTO verifynow_production_receipts VALUES(?,?,?)').run(r.caseId,JSON.stringify({...r,providerReference:'replacement'}),new Date(epoch).toISOString()),/immutable/);
+  assert.deepEqual(f.db.sql.prepare('SELECT * FROM verifynow_production_claims').get(),claim);
+  assert.deepEqual(await f.receipts.read(f.binding),r);
+ }finally{f.db.sql.close();}
+});
+test('direct SQL cannot forge claim binding or omit receipt evidence',async()=>{
+ const f=await fixture();try{
+  const insert=f.db.sql.prepare('INSERT INTO verifynow_production_claims VALUES(?,?,?,?,?,?)');
+  for(const key of ['caseId','applicantId','applicantVersion','ownerUserId','bindingHash','captureReference']){
+   assert.throws(()=>insert.run(f.binding.caseId,JSON.stringify({...f.binding,[key]:key==='applicantVersion'?9:'wrong'}),'a'.repeat(64),new Date(epoch).toISOString(),'fixture-policy',30000),/binding/);
+  }
+  assert.equal(await f.receipts.claim(f.binding,'a'.repeat(64),'fixture-policy',30000),true);
+  const receipt={...f.binding,environment:'production',provider:f.port.key,outcome:'manual_review',providerReference:'fixture-ref',evidenceReference:'private:fixture',evidenceHash:'a'.repeat(64),checkedAt:new Date(epoch).toISOString(),expiresAt:new Date(epoch+30000).toISOString()};
+  for(const key of ['caseId','evidenceReference','evidenceHash','checkedAt','expiresAt']){
+   const invalid={...receipt};delete invalid[key];
+   assert.throws(()=>f.db.sql.prepare('INSERT INTO verifynow_production_receipts VALUES(?,?,?)').run(f.binding.caseId,JSON.stringify(invalid),new Date(epoch).toISOString()),/evidence/);
+  }
+  const write=value=>f.db.sql.prepare('INSERT INTO verifynow_production_receipts VALUES(?,?,?)').run(f.binding.caseId,value,new Date(epoch).toISOString());
+  for(const invalid of [{...receipt,checkedAt:'2451545.0',expiresAt:'2451545.0001'},{...receipt,expiresAt:new Date(epoch+60000).toISOString()},{...receipt,evidenceReference:':bad'},{...receipt,providerReference:'_bad'}])assert.throws(()=>write(JSON.stringify(invalid)),/evidence/);
+  assert.throws(()=>write(JSON.stringify(receipt).slice(0,-1)+',"caseId":"wrong"}'),/evidence/);
+  await f.receipts.save(f.binding,receipt);
+ }finally{f.db.sql.close();}
+});

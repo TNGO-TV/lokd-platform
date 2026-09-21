@@ -1,0 +1,58 @@
+{
+  "source_commit": "4b8e12f4f2bd428940676b31a6298326bb2a32f2",
+  "encrypted_source_release_sha256": "5ccd584c2f96a1e5373313ae4da9e38945ca04f421773bfaa0d9215d4b371d77",
+  "encrypted_source_release_bytes": 13028536,
+  "decrypted_files_match": true,
+  "bundle_clone_and_fsck": "passed",
+  "existing_application_tables_unchanged": 185,
+  "migration_journal": "__appgarden_migrations grew from69 to75 rows; no old rows removed",
+  "postdeploy_application_capture": {
+    "tables": 212,
+    "rows": 163,
+    "schema_match": true,
+    "cells_match": true,
+    "integrity": "ok",
+    "foreign_keys": "ok",
+    "excluded_provider_internal": [
+      "_cf_KV"
+    ],
+    "objects": 0,
+    "object_bytes": 0,
+    "database_object_references": 0,
+    "runtime_keys": [
+      "CLERK_PUBLISHABLE_KEY",
+      "CLERK_SECRET_KEY",
+      "LOKD_APP_STAGE",
+      "LOKD_LIVE_SHIFT_SCAN",
+      "LOKD_OPERATIONS_MFA_REQUIRED",
+      "LOKD_PILOT_ACCESS_JSON",
+      "PAYSTACK_TEST_PUBLIC_KEY",
+      "PAYSTACK_TEST_SECRET_KEY",
+      "VERIFYNOW_API_KEY",
+      "VERIFYNOW_SANDBOX_ENABLED"
+    ],
+    "archive_sha256": "e2526312ce8df617cb2ecedd6ceafaf7171c378e244674e3a80d6f30d7944b2d",
+    "archive_bytes": 354961,
+    "decrypted_files_match": true,
+    "application_data_restore_verified": true,
+    "full_production_recovery_complete": false,
+    "remaining": [
+      "Independent off-host copy",
+      "Fresh external provider recovery export deferred under no-real-accounts instruction"
+    ]
+  },
+  "off_host_copy": false,
+  "external_provider_records": "existing September13 records retained, not refreshed; no account operations performed",
+  "verification_note": "Initial sandbox GPG command returned nonzero; elevated decrypt/extract/hash/Git restore passed. Initial table comparison included migration journal; all preexisting application rows unchanged after excluding journal.",
+  "backup_window_revoked": {
+    "at": "2026-09-15T09:13:38.694501+00:00",
+    "backup_endpoint_status": 404,
+    "expected": 404,
+    "environment_revision": 17,
+    "deployment": "appgdep_6aa90b9b62588191af8acd1090f09f61"
+  },
+  "application_recovery_backup_verified": true,
+  "private_backup_directory": "/home/ammosync/.codex/visualizations/2026/09/15/01a0a401-d875-7531-9e17-b6ce0ca9a2f2/lokd-release-backup",
+  "plaintext_runtime_database_copies_removed": true,
+  "temporary_backup_token_removed": true
+}

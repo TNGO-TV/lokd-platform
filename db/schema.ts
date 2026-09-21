@@ -1,5 +1,44 @@
 import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, real, primaryKey, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+
+export const bookingProviderRecoveryInbox = sqliteTable('booking_provider_recovery_inbox', {
+ id:text('id').primaryKey(),mode:text('mode').notNull(),providerId:text('provider_id'),
+ transactionReference:text('transaction_reference'),event:text('event').notNull(),
+ payloadHash:text('payload_hash').notNull(),detail:text('detail').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('booking_provider_recovery_hash_idx').on(t.mode,t.payloadHash),index('booking_provider_recovery_transaction_idx').on(t.mode,t.providerId),index('booking_provider_recovery_reference_idx').on(t.mode,t.transactionReference)]);
+
+export const bookingSettlementReviews = sqliteTable('booking_settlement_reviews', {
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>bookingCollectionRequests.reference),
+ collectionRevision:integer('collection_revision').notNull(),mode:text('mode').notNull(),
+ settlementId:text('settlement_id').notNull(),providerId:text('provider_id').notNull(),
+ payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),
+ preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),expiresAt:text('expires_at').notNull(),
+},t=>[uniqueIndex('booking_settlement_reference_revision_idx').on(t.reference,t.collectionRevision)]);
+export const bookingSettlementDecisions = sqliteTable('booking_settlement_decisions', {
+ id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>bookingSettlementReviews.id),
+ decision:text('decision').notNull(),actorId:text('actor_id').notNull(),operatorId:text('operator_id').notNull(),
+ note:text('note').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('booking_settlement_one_decision_idx').on(t.reviewId)]);
+export const bookingCollectionRecoveries = sqliteTable('booking_collection_recoveries', {
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>bookingCollectionRequests.reference),
+ source:text('source').notNull(),event:text('event').notNull(),payloadHash:text('payload_hash').notNull(),
+ detail:text('detail').notNull(),actorId:text('actor_id'),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('booking_recovery_event_idx').on(t.reference,t.source,t.payloadHash)]);
+
+export const bookingCollectionRequests = sqliteTable('booking_collection_requests', {
+ reference:text('reference').primaryKey(), orderId:text('order_id').notNull().references(()=>bookings.id),
+ clientId:text('client_id').notNull(), applicantId:text('applicant_id').notNull(), caseId:text('case_id').notNull(),
+ caseVersion:integer('case_version').notNull(), sourceHash:text('source_hash').notNull(),
+ amountMinor:integer('amount_minor').notNull(), currency:text('currency').notNull(), mode:text('mode').notNull(),
+ state:text('state').notNull(), providerId:text('provider_id'), checkoutUrl:text('checkout_url'),
+ preparedBy:text('prepared_by').notNull(), approvedBy:text('approved_by'),
+ revision:integer('revision').notNull().default(1), createdAt:text('created_at').notNull(), updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('booking_collection_order_mode_idx').on(t.orderId,t.mode),uniqueIndex('booking_collection_transaction_idx').on(t.mode,t.providerId)]);
+export const bookingCollectionEvidence = sqliteTable('booking_collection_evidence', {
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>bookingCollectionRequests.reference),
+ source:text('source').notNull(),event:text('event').notNull(),payloadHash:text('payload_hash').notNull(),
+ transactionJson:text('transaction_json').notNull(),actorId:text('actor_id'),recordedAt:text('recorded_at').notNull(),
+},t=>[index('booking_collection_evidence_reference_idx').on(t.reference,t.source),uniqueIndex('booking_collection_evidence_delivery_idx').on(t.reference,t.source,t.payloadHash)]);
 
 export const specialistCommercialReviews = sqliteTable("specialist_commercial_reviews", {
   id: text("id").primaryKey(),
@@ -638,6 +677,8 @@ export const bookings = sqliteTable(
   "bookings",
   {
     id: text("id").primaryKey(),
+    contractingEntityId: text('contracting_entity_id'),
+    agreementVersion: integer('agreement_version').notNull().default(1),
     clientId: text("client_id").notNull().references(() => clients.id),
     siteName: text("site_name").notNull(),
     siteArea: text("site_area").notNull(),
@@ -1796,6 +1837,7 @@ export const clientInvoices = sqliteTable(
   },
   (table) => [
     uniqueIndex("client_invoices_number_idx").on(table.invoiceNumber),
+    uniqueIndex("finance_document_invoice_booking_once").on(table.bookingId).where(sql`environment='production' AND document_type='invoice'`),
     index("client_invoices_booking_idx").on(table.bookingId, table.status),
     index("client_invoices_status_idx").on(table.environment, table.status, table.createdAt),
     index("client_invoices_client_idx").on(table.clientId, table.createdAt),
@@ -2356,3 +2398,764 @@ export const controlledPilotRehearsals = sqliteTable(
     index("controlled_pilot_rehearsal_status_idx").on(table.environment, table.status, table.createdAt),
   ],
 );
+
+// Genuine account-bound PSiRA reviews. Never seeded from public demo records.
+export const psiraVerificationCases = sqliteTable("psira_verification_cases", {
+  id: text("id").primaryKey(),
+  ownerUserId: text("owner_user_id").notNull(),
+  ownerEmail: text("owner_email").notNull(),
+  psiraNumber: text("psira_number").notNull(),
+  declaration: text("declaration").notNull().default("registered"),
+  version: integer("version").notNull(),
+  latestEventId: text("latest_event_id").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, table => [uniqueIndex("psira_case_owner_idx").on(table.ownerUserId)]);
+
+export const psiraVerificationEvents = sqliteTable("psira_verification_events", {
+  id: text("id").primaryKey(),
+  caseId: text("case_id").notNull().references(() => psiraVerificationCases.id),
+  version: integer("version").notNull(),
+  psiraNumber: text("psira_number").notNull(),
+  declaration: text("declaration").notNull().default("registered"),
+  kind: text("kind").notNull(),
+  registrationStatus: text("registration_status").notNull(),
+  identityMatch: text("identity_match").notNull(),
+  evidenceJson: text("evidence_json").notNull(),
+  evidenceHash: text("evidence_hash").notNull(),
+  recordedBy: text("recorded_by").notNull(),
+  recordedAt: text("recorded_at").notNull(),
+  recheckAt: text("recheck_at"),
+}, table => [uniqueIndex("psira_event_case_version_idx").on(table.caseId, table.version)]);
+
+// Prepared signing integration; no public acceptance endpoint until legal approval.
+export const agreementAcceptanceReceipts = sqliteTable('agreement_acceptance_receipts', {
+  id: text('id').primaryKey(),
+  receiptJson: text('receipt_json').notNull(),
+  receiptHash: text('receipt_hash').notNull(),
+  contextHash: text('context_hash').notNull(),
+}, table => [index('agreement_receipt_context_idx').on(table.contextHash)]);
+
+export const agreementReceiptRevocations = sqliteTable('agreement_receipt_revocations', {
+  receiptId: text('receipt_id').primaryKey().references(() => agreementAcceptanceReceipts.id),
+  reason: text('reason').notNull(),
+  revokedBy: text('revoked_by').notNull(),
+  revokedAt: text('revoked_at').notNull(),
+});
+
+// Production legal versions are separate from the intentionally demo-only envelopes.
+export const agreementDocumentVersions = sqliteTable('agreement_document_versions', {
+  id: text('id').primaryKey(),
+  documentCode: text('document_code').notNull(),
+  documentVersion: text('document_version').notNull(),
+  entityId: text('entity_id').notNull(),
+  locale: text('locale').notNull(),
+  contentHash: text('content_hash').notNull(),
+  documentReference: text('document_reference').notNull(),
+  status: text('status').notNull(),
+  approvedBy: text('approved_by').notNull(),
+  approvedAt: text('approved_at').notNull(),
+  effectiveFrom: text('effective_from').notNull(),
+  effectiveTo: text('effective_to'),
+  environment: text('environment').notNull(),
+  integrityState: text('integrity_state').notNull(),
+}, table => [uniqueIndex('agreement_document_version_idx').on(table.documentCode,table.documentVersion,table.entityId,table.locale)]);
+
+// Signup-only review and account linking; never grants operational roles/eligibility.
+export const signupCases = sqliteTable('signup_cases', {
+  kind:text('kind').notNull(), sourceId:text('source_id').notNull(), ownerUserId:text('owner_user_id'),
+  status:text('status').notNull(), publicNote:text('public_note').notNull(), correctionsJson:text('corrections_json').notNull(),
+  version:integer('version').notNull(), latestEventId:text('latest_event_id').notNull(), updatedAt:text('updated_at').notNull(),
+},table=>[primaryKey({columns:[table.kind,table.sourceId]}),index('signup_owner_idx').on(table.ownerUserId,table.kind)]);
+export const signupEvents = sqliteTable('signup_events', {
+  id:text('id').primaryKey(), kind:text('kind').notNull(), sourceId:text('source_id').notNull(),version:integer('version').notNull(),
+  action:text('action').notNull(),actorUserId:text('actor_user_id').notNull(),publicNote:text('public_note').notNull(),
+  detailsJson:text('details_json').notNull(),recordedAt:text('recorded_at').notNull(),
+},table=>[uniqueIndex('signup_event_version_idx').on(table.kind,table.sourceId,table.version)]);
+
+// Signed Paystack test delivery evidence; deliberately separate from live ledgers.
+export const paystackTestDeliveries = sqliteTable('paystack_test_deliveries', {
+ payloadHash:text('payload_hash').primaryKey(), eventType:text('event_type').notNull(),
+ providerId:text('provider_id'), reference:text('reference'), providerStatus:text('provider_status'),
+ metadataJson:text('metadata_json').notNull().default('{}'), amountMinor:integer('amount_minor'), currency:text('currency'), receivedAt:text('received_at').notNull(),
+});
+
+export const applicantVerificationChecks=sqliteTable('applicant_verification_checks',{
+ id:text('id').primaryKey(),caseId:text('case_id').notNull(),ownerUserId:text('owner_user_id').notNull(),
+ caseVersion:integer('case_version').notNull(),scenario:text('scenario').notNull(),signal:text('signal').notNull(),
+ mode:text('mode').notNull().default('sandbox'),state:text('state').notNull(),attempts:integer('attempts').notNull().default(1),
+ recoveryNote:text('recovery_note').notNull().default(''),recoveryActor:text('recovery_actor'),responseHash:text('response_hash'),httpStatus:integer('http_status'),retryAt:text('retry_at'),
+ createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('applicant_verification_request_idx').on(t.caseId,t.ownerUserId,t.caseVersion,t.scenario)]);
+
+export const verificationRecoveryEvents=sqliteTable('verification_recovery_events',{
+ id:text('id').primaryKey(),checkId:text('check_id').notNull(),snapshot:text('snapshot').notNull(),recordedAt:text('recorded_at').notNull(),
+});
+export const testEnrolmentOrders=sqliteTable('test_enrolment_orders',{
+ reference:text('reference').primaryKey(),caseId:text('case_id').notNull(),ownerUserId:text('owner_user_id').notNull(),caseVersion:integer('case_version').notNull(),
+ packageId:text('package_id').notNull(),packageVersion:text('package_version').notNull(),amountMinor:integer('amount_minor').notNull(),currency:text('currency').notNull(),
+ state:text('state').notNull(),checkoutUrl:text('checkout_url'),providerId:text('provider_id'),revision:integer('revision').notNull().default(1),
+ note:text('note').notNull().default(''),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('test_enrolment_case_package_idx').on(t.caseId,t.ownerUserId,t.caseVersion,t.packageId,t.packageVersion)]);
+export const testEnrolmentEvents=sqliteTable('test_enrolment_events',{
+ id:text('id').primaryKey(),reference:text('reference').notNull(),snapshot:text('snapshot').notNull(),recordedAt:text('recorded_at').notNull(),
+});
+
+export const testAgreementEnvelopes=sqliteTable('test_agreement_envelopes',{
+ id:text('id').primaryKey(),kind:text('kind').notNull(),caseId:text('case_id').notNull(),ownerUserId:text('owner_user_id').notNull(),caseVersion:integer('case_version').notNull(),
+ documentVersion:text('document_version').notNull(),wording:text('wording').notNull(),contentHash:text('content_hash').notNull(),contextHash:text('context_hash').notNull(),
+ state:text('state').notNull(),revision:integer('revision').notNull().default(1),issuedBy:text('issued_by').notNull(),issuedAt:text('issued_at').notNull(),expiresAt:text('expires_at').notNull(),
+ signedBy:text('signed_by'),signerName:text('signer_name'),signedAt:text('signed_at'),reviewedBy:text('reviewed_by'),reviewedAt:text('reviewed_at'),note:text('note').notNull().default(''),updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('test_agreement_case_version_idx').on(t.kind,t.caseId,t.caseVersion,t.documentVersion)]);
+export const testAgreementEvents=sqliteTable('test_agreement_events',{
+ id:text('id').primaryKey(),envelopeId:text('envelope_id').notNull(),snapshot:text('snapshot').notNull(),recordedAt:text('recorded_at').notNull(),
+});
+export const testOperatingCycles=sqliteTable('test_operating_cycles',{
+ id:text('id').primaryKey(),clientCaseId:text('client_case_id').notNull(),officerCaseId:text('officer_case_id').notNull(),clientUserId:text('client_user_id').notNull(),officerUserId:text('officer_user_id').notNull(),
+ clientVersion:integer('client_version').notNull(),officerVersion:integer('officer_version').notNull(),clientEnvelopeId:text('client_envelope_id').notNull(),officerEnvelopeId:text('officer_envelope_id').notNull(),
+ siteBrief:text('site_brief').notNull(),amountMinor:integer('amount_minor').notNull(),officerAmountMinor:integer('officer_amount_minor').notNull(),state:text('state').notNull(),revision:integer('revision').notNull().default(1),
+ createdBy:text('created_by').notNull(),lastActor:text('last_actor').notNull(),note:text('note').notNull(),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+});
+export const testOperatingEvents=sqliteTable('test_operating_events',{
+ id:text('id').primaryKey(),cycleId:text('cycle_id').notNull(),snapshot:text('snapshot').notNull(),recordedAt:text('recorded_at').notNull(),
+});
+export const publicOfficerPresence=sqliteTable('public_officer_presence',{
+ id:text('id').primaryKey(),userId:text('user_id').notNull(),officerId:text('officer_id'),mode:text('mode').notNull(),latitude:real('latitude').notNull(),longitude:real('longitude').notNull(),consentedAt:text('consented_at').notNull(),updatedAt:text('updated_at').notNull(),expiresAt:text('expires_at').notNull(),
+},t=>[uniqueIndex('public_presence_user_mode_idx').on(t.userId,t.mode)]);
+
+export const productionEntityLinks=sqliteTable('production_entity_links',{
+ kind:text('kind').notNull(),caseId:text('case_id').notNull(),caseVersion:integer('case_version').notNull(),ownerUserId:text('owner_user_id').notNull(),entityId:text('entity_id').notNull(),preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),
+},t=>[primaryKey({columns:[t.kind,t.caseId]}),uniqueIndex('production_entity_link_idx').on(t.kind,t.entityId)]);
+export const signingDocumentBodies=sqliteTable('signing_document_bodies',{
+ id:text('id').primaryKey(),documentCode:text('document_code').notNull(),documentVersion:text('document_version').notNull(),entityId:text('entity_id').notNull(),locale:text('locale').notNull(),wording:text('wording').notNull(),contentHash:text('content_hash').notNull(),preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),
+});
+export const signingDocumentWithdrawals=sqliteTable('signing_document_withdrawals',{
+ documentId:text('document_id').primaryKey(),withdrawnBy:text('withdrawn_by').notNull(),reason:text('reason').notNull(),withdrawnAt:text('withdrawn_at').notNull(),
+});
+export const productionSigningEnvelopes=sqliteTable('production_signing_envelopes',{
+ id:text('id').primaryKey(),issuanceNumber:integer('issuance_number').notNull().default(1),documentId:text('document_id').notNull(),role:text('role').notNull(),ownerUserId:text('owner_user_id').notNull(),caseKind:text('case_kind').notNull(),caseId:text('case_id').notNull(),caseVersion:integer('case_version').notNull(),rosterSlotId:text('roster_slot_id').notNull(),officerId:text('officer_id').notNull(),slotVersion:integer('slot_version').notNull(),contextJson:text('context_json').notNull(),contextHash:text('context_hash').notNull(),contentHash:text('content_hash').notNull(),identityEvidence:text('identity_evidence').notNull(),authorityEvidence:text('authority_evidence'),issuedBy:text('issued_by').notNull(),issuedAt:text('issued_at').notNull(),expiresAt:text('expires_at').notNull(),
+},t=>[index('production_envelope_owner_idx').on(t.ownerUserId,t.issuedAt),uniqueIndex('production_envelope_binding_idx').on(t.ownerUserId,t.documentId,t.contextHash,t.issuanceNumber)]);
+export const productionEnvelopeCancellations=sqliteTable('production_envelope_cancellations',{
+ envelopeId:text('envelope_id').primaryKey(),actorId:text('actor_id').notNull(),reason:text('reason').notNull(),cancelledAt:text('cancelled_at').notNull(),
+});
+export const productionActivationApprovals=sqliteTable('production_activation_approvals',{
+ id:text('id').primaryKey(),requestJson:text('request_json').notNull(),requestHash:text('request_hash').notNull(),makerId:text('maker_id').notNull(),state:text('state').notNull(),approverId:text('approver_id'),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+});
+
+export const productionClientReviews=sqliteTable('production_client_reviews',{
+ id:text('id').primaryKey(),clientId:text('client_id').notNull().references(()=>clients.id),caseId:text('case_id').notNull(),caseVersion:integer('case_version').notNull(),ownerUserId:text('owner_user_id').notNull(),snapshotJson:text('snapshot_json').notNull(),snapshotHash:text('snapshot_hash').notNull(),evidenceJson:text('evidence_json').notNull(),preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),expiresAt:text('expires_at').notNull(),
+});
+export const productionClientDecisions=sqliteTable('production_client_decisions',{
+ reviewId:text('review_id').primaryKey().references(()=>productionClientReviews.id),decision:text('decision').notNull(),actorId:text('actor_id').notNull(),reason:text('reason').notNull(),decidedAt:text('decided_at').notNull(),
+});
+export const productionClientSuspensions=sqliteTable('production_client_suspensions',{
+ id:text('id').primaryKey(),clientId:text('client_id').notNull().references(()=>clients.id),actorId:text('actor_id').notNull(),reason:text('reason').notNull(),createdAt:text('created_at').notNull(),
+});
+export const productionOrderSetups=sqliteTable('production_order_setups',{
+ id:text('id').primaryKey(),clientId:text('client_id').notNull().references(()=>clients.id),caseVersion:integer('case_version').notNull(),requestHash:text('request_hash').notNull(),requestJson:text('request_json').notNull(),quoteJson:text('quote_json').notNull(),preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),
+});
+export const productionEvidenceReviews=sqliteTable('production_evidence_reviews',{
+ id:text('id').primaryKey(),kind:text('kind').notNull(),payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),sourceRevision:integer('source_revision').notNull(),preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),expiresAt:text('expires_at').notNull(),state:text('state').notNull().default('pending'),decidedBy:text('decided_by'),decidedAt:text('decided_at'),reason:text('reason'),
+});
+export const productionServiceEvents=sqliteTable('production_service_events',{
+ id:text('id').primaryKey(),shiftId:text('shift_id').notNull().references(()=>shifts.id),action:text('action').notNull(),actorId:text('actor_id').notNull(),detail:text('detail').notNull(),createdAt:text('created_at').notNull(),
+});
+export const productionPayrollSnapshots=sqliteTable('production_payroll_snapshots',{
+ runId:text('run_id').primaryKey().references(()=>payrollRuns.id),policyId:text('policy_id').notNull().references(()=>payrollPolicyVersions.id),payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),createdAt:text('created_at').notNull(),
+});
+export const productionPayrollDecisions=sqliteTable('production_payroll_decisions',{
+ id:text('id').primaryKey(),runId:text('run_id').notNull().references(()=>payrollRuns.id),runVersion:integer('run_version').notNull(),action:text('action').notNull(),operatorId:text('operator_id').notNull().references(()=>operatorAccounts.id),actorUserId:text('actor_user_id').notNull(),authBasis:text('auth_basis').notNull(),amountCents:integer('amount_cents').notNull(),calculationHash:text('calculation_hash').notNull(),note:text('note').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('production_payroll_decision_version').on(t.runId,t.runVersion)]);
+
+export const paymentDestinationReviews=sqliteTable('payment_destination_reviews',{
+ id:text('id').primaryKey(),officerId:text('officer_id').notNull().references(()=>officers.id),profileId:text('profile_id').notNull().references(()=>payrollProfiles.id),
+ mode:text('mode').notNull(),revision:integer('revision').notNull(),requestKey:text('request_key').notNull(),requestHash:text('request_hash').notNull(),
+ payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),preparedBy:text('prepared_by').notNull(),preparedUser:text('prepared_user').notNull(),
+ preparedAt:text('prepared_at').notNull(),reviewUntil:text('review_until').notNull(),expiresAt:text('expires_at').notNull(),
+},t=>[uniqueIndex('destination_request_idx').on(t.requestKey),uniqueIndex('destination_revision_idx').on(t.officerId,t.mode,t.revision)]);
+export const paymentDestinationDecisions=sqliteTable('payment_destination_decisions',{
+ id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>paymentDestinationReviews.id),decision:text('decision').notNull(),
+ operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),payloadHash:text('payload_hash').notNull(),providerHash:text('provider_hash'),
+ note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('destination_decision_idx').on(t.reviewId)]);
+export const paymentDestinationHolds=sqliteTable('payment_destination_holds',{
+ id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>paymentDestinationReviews.id),operatorId:text('operator_id').notNull(),
+ userId:text('user_id').notNull(),reason:text('reason').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('destination_hold_idx').on(t.reviewId)]);
+
+export const employeePaymentInstructions=sqliteTable('employee_payment_instructions',{
+ reference:text('reference').primaryKey(),payrollItemId:text('payroll_item_id').notNull().references(()=>payrollItems.id),destinationId:text('destination_id').notNull().references(()=>paymentDestinationReviews.id),
+ mode:text('mode').notNull(),amountCents:integer('amount_cents').notNull(),sourceJson:text('source_json').notNull(),sourceHash:text('source_hash').notNull(),
+ requestKey:text('request_key').notNull(),requestHash:text('request_hash').notNull(),status:text('status').notNull(),version:integer('version').notNull().default(1),
+ preparedBy:text('prepared_by').notNull(),preparedUser:text('prepared_user').notNull(),approvedBy:text('approved_by'),activeKey:text('active_key'),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('employee_payment_request_idx').on(t.requestKey),uniqueIndex('employee_payment_active_idx').on(t.activeKey)]);
+export const employeePaymentCommands=sqliteTable('employee_payment_commands',{
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>employeePaymentInstructions.reference),version:integer('version').notNull(),action:text('action').notNull(),
+ operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),sourceHash:text('source_hash').notNull(),recipientHash:text('recipient_hash'),note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('employee_payment_command_version_idx').on(t.reference,t.version)]);
+export const employeeTransferObservations=sqliteTable('employee_transfer_observations',{
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>employeePaymentInstructions.reference),source:text('source').notNull(),event:text('event').notNull(),
+ payloadHash:text('payload_hash').notNull(),transferJson:text('transfer_json').notNull(),webhookCount:integer('webhook_count'),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('employee_transfer_delivery_idx').on(t.reference,t.source,t.payloadHash),index('employee_transfer_reference_idx').on(t.reference)]);
+
+export const productionPartnerPayableReviews=sqliteTable('production_partner_payable_reviews',{
+ id:text('id').primaryKey(),timesheetId:text('timesheet_id').notNull().references(()=>shiftTimesheets.id),employerId:text('employer_id').notNull().references(()=>workforceEmployers.id),
+ requestKey:text('request_key').notNull(),requestHash:text('request_hash').notNull(),sourceJson:text('source_json').notNull(),payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),
+ amountCents:integer('amount_cents').notNull(),preparedBy:text('prepared_by').notNull(),preparedUser:text('prepared_user').notNull(),preparedAt:text('prepared_at').notNull(),expiresAt:text('expires_at').notNull(),
+},t=>[uniqueIndex('partner_review_request_idx').on(t.requestKey),index('partner_review_timesheet_idx').on(t.timesheetId)]);
+export const productionPartnerPayableDecisions=sqliteTable('production_partner_payable_decisions',{
+ id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>productionPartnerPayableReviews.id),decision:text('decision').notNull(),operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),payloadHash:text('payload_hash').notNull(),note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('partner_payable_decision_idx').on(t.reviewId)]);
+export const productionPartnerPayableHolds=sqliteTable('production_partner_payable_holds',{
+ reviewId:text('review_id').primaryKey().references(()=>productionPartnerPayableReviews.id),operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),note:text('note').notNull(),createdAt:text('created_at').notNull(),
+});
+export const productionPartnerPayableExports=sqliteTable('production_partner_payable_exports',{
+ reviewId:text('review_id').primaryKey().references(()=>productionPartnerPayableReviews.id),operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),payloadHash:text('payload_hash').notNull(),createdAt:text('created_at').notNull(),
+});
+
+export const partnerDestinationReviews=sqliteTable('partner_destination_reviews',{
+ id:text('id').primaryKey(),employerId:text('employer_id').notNull().references(()=>workforceEmployers.id),
+ mode:text('mode').notNull(),revision:integer('revision').notNull(),requestKey:text('request_key').notNull(),requestHash:text('request_hash').notNull(),
+ payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),preparedBy:text('prepared_by').notNull(),preparedUser:text('prepared_user').notNull(),
+ preparedAt:text('prepared_at').notNull(),reviewUntil:text('review_until').notNull(),expiresAt:text('expires_at').notNull(),
+},t=>[uniqueIndex('partner_destination_request_idx').on(t.requestKey),uniqueIndex('partner_destination_revision_idx').on(t.employerId,t.mode,t.revision)]);
+export const partnerDestinationDecisions=sqliteTable('partner_destination_decisions',{
+ id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>partnerDestinationReviews.id),decision:text('decision').notNull(),
+ operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),payloadHash:text('payload_hash').notNull(),providerHash:text('provider_hash'),
+ note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('partner_destination_decision_idx').on(t.reviewId)]);
+export const partnerDestinationHolds=sqliteTable('partner_destination_holds',{
+ id:text('id').primaryKey(),reviewId:text('review_id').notNull().references(()=>partnerDestinationReviews.id),operatorId:text('operator_id').notNull(),
+ userId:text('user_id').notNull(),reason:text('reason').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('partner_destination_hold_idx').on(t.reviewId)]);
+
+export const partnerPaymentInstructions=sqliteTable('partner_payment_instructions',{
+ reference:text('reference').primaryKey(),payableId:text('payable_id').notNull().references(()=>partnerPayables.id),destinationId:text('destination_id').notNull().references(()=>partnerDestinationReviews.id),
+ mode:text('mode').notNull(),amountCents:integer('amount_cents').notNull(),sourceJson:text('source_json').notNull(),sourceHash:text('source_hash').notNull(),
+ requestKey:text('request_key').notNull(),requestHash:text('request_hash').notNull(),status:text('status').notNull(),version:integer('version').notNull().default(1),
+ preparedBy:text('prepared_by').notNull(),preparedUser:text('prepared_user').notNull(),approvedBy:text('approved_by'),activeKey:text('active_key'),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('partner_payment_request_idx').on(t.requestKey),uniqueIndex('partner_payment_active_idx').on(t.activeKey)]);
+export const partnerPaymentCommands=sqliteTable('partner_payment_commands',{
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>partnerPaymentInstructions.reference),version:integer('version').notNull(),action:text('action').notNull(),
+ operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),sourceHash:text('source_hash').notNull(),recipientHash:text('recipient_hash'),note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('partner_payment_command_version_idx').on(t.reference,t.version)]);
+export const partnerTransferObservations=sqliteTable('partner_transfer_observations',{
+ id:text('id').primaryKey(),reference:text('reference').notNull().references(()=>partnerPaymentInstructions.reference),source:text('source').notNull(),event:text('event').notNull(),
+ payloadHash:text('payload_hash').notNull(),transferJson:text('transfer_json').notNull(),webhookCount:integer('webhook_count'),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('partner_transfer_delivery_idx').on(t.reference,t.source,t.payloadHash),index('partner_transfer_reference_idx').on(t.reference)]);
+
+export const employeeRecoveryProposals=sqliteTable('employee_recovery_proposals',{
+ id:text('id').primaryKey().notNull(),reference:text('reference').notNull().references(()=>employeePaymentInstructions.reference),
+ instructionVersion:integer('instruction_version').notNull(),evidenceId:text('evidence_id').notNull().references(()=>employeeTransferObservations.id),
+ disposition:text('disposition').notNull(),sourceHash:text('source_hash').notNull(),
+ operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+},t=>[check('employee_recovery_disposition',sql`${t.disposition} IN ('failed','reversed')`)]);
+export const employeeRecoveryApprovals=sqliteTable('employee_recovery_approvals',{
+ id:text('id').primaryKey().notNull(),proposalId:text('proposal_id').notNull().unique().references(()=>employeeRecoveryProposals.id),
+ operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+});
+export const employeeRecoveryReplacements=sqliteTable('employee_recovery_replacements',{
+ reference:text('reference').primaryKey().notNull(),predecessor:text('predecessor').notNull().unique().references(()=>employeePaymentInstructions.reference),
+ approvalId:text('approval_id').notNull().unique().references(()=>employeeRecoveryApprovals.id),createdAt:text('created_at').notNull(),
+});
+
+export const partnerRecoveryProposals=sqliteTable('partner_recovery_proposals',{
+ id:text('id').primaryKey().notNull(),reference:text('reference').notNull().references(()=>partnerPaymentInstructions.reference),
+ instructionVersion:integer('instruction_version').notNull(),evidenceId:text('evidence_id').notNull().references(()=>partnerTransferObservations.id),
+ disposition:text('disposition').notNull(),sourceHash:text('source_hash').notNull(),
+ operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+},t=>[check('partner_recovery_disposition',sql`${t.disposition} IN ('failed','reversed')`)]);
+export const partnerRecoveryApprovals=sqliteTable('partner_recovery_approvals',{
+ id:text('id').primaryKey().notNull(),proposalId:text('proposal_id').notNull().unique().references(()=>partnerRecoveryProposals.id),
+ operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull(),
+});
+export const partnerRecoveryReplacements=sqliteTable('partner_recovery_replacements',{
+ reference:text('reference').primaryKey().notNull(),predecessor:text('predecessor').notNull().unique().references(()=>partnerPaymentInstructions.reference),
+ approvalId:text('approval_id').notNull().unique().references(()=>partnerRecoveryApprovals.id),createdAt:text('created_at').notNull(),
+});
+
+// ID-01: immutable production identity/readiness ledger.
+export const productionIdentityCases=sqliteTable('production_identity_cases',{
+ id:text('id').primaryKey(),
+ applicantId:text('applicant_id').notNull(),
+ applicantVersion:integer('applicant_version').notNull(),
+ ownerUserId:text('owner_user_id').notNull(),
+ provider:text('provider').notNull(),
+ bindingHash:text('binding_hash').notNull(),
+ captureReference:text('capture_reference').notNull(),
+ consentVersion:text('consent_version').notNull(),
+ createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('production_identity_cases_provider_capture_reference_unique').on(t.provider,t.captureReference),uniqueIndex('production_identity_cases_applicant_id_applicant_version_unique').on(t.applicantId,t.applicantVersion)]);
+
+export const productionIdentityOutcomes=sqliteTable('production_identity_outcomes',{
+ id:text('id').primaryKey(),
+ caseId:text('case_id').notNull().references(()=>productionIdentityCases.id),
+ sequence:integer('sequence').notNull(),
+ outcome:text('outcome').notNull(),
+ providerReference:text('provider_reference'),
+ evidenceReference:text('evidence_reference'),
+ evidenceHash:text('evidence_hash'),
+ checkedAt:text('checked_at'),
+ expiresAt:text('expires_at'),
+ recordedAt:text('recorded_at').notNull(),
+ recordedBy:text('recorded_by').notNull(),
+},t=>[uniqueIndex('production_identity_outcomes_case_id_sequence_unique').on(t.caseId,t.sequence),check('production_identity_outcomes_check_1',sql`${t.outcome} IN ('pending','delivery_unknown','no_record','declined','manual_review','unavailable','verified')`)]);
+
+export const productionIdentityDecisions=sqliteTable('production_identity_decisions',{
+ outcomeId:text('outcome_id').primaryKey().references(()=>productionIdentityOutcomes.id),
+ decision:text('decision').notNull(),
+ actorId:text('actor_id').notNull(),
+ reason:text('reason').notNull(),
+ recordedAt:text('recorded_at').notNull(),
+},t=>[check('production_identity_decisions_check_1',sql`${t.decision} IN ('approve','reject')`)]);
+
+export const productionIdentitySuspensions=sqliteTable('production_identity_suspensions',{
+ id:text('id').primaryKey(),
+ caseId:text('case_id').notNull().references(()=>productionIdentityCases.id),
+ actorId:text('actor_id').notNull(),
+ reason:text('reason').notNull(),
+ recordedAt:text('recorded_at').notNull(),
+});
+
+// ID-02: immutable production identity/readiness ledger.
+export const productionOfficerReviews=sqliteTable('production_officer_reviews',{
+ id:text('id').primaryKey(),
+ officerId:text('officer_id').notNull().references(()=>officers.id),
+ sourceJson:text('source_json').notNull(),
+ sourceHash:text('source_hash').notNull(),
+ preparedBy:text('prepared_by').notNull(),
+ preparedAt:text('prepared_at').notNull(),
+ reason:text('reason').notNull(),
+});
+
+export const productionOfficerDecisions=sqliteTable('production_officer_decisions',{
+ reviewId:text('review_id').primaryKey().references(()=>productionOfficerReviews.id),
+ decision:text('decision').notNull(),
+ actorId:text('actor_id').notNull(),
+ actorEmail:text('actor_email').notNull(),
+ reason:text('reason').notNull(),
+ decidedAt:text('decided_at').notNull(),
+},t=>[check('production_officer_decisions_check_1',sql`${t.decision} IN ('approve','reject')`)]);
+
+export const productionOfficerSuspensions=sqliteTable('production_officer_suspensions',{
+ id:text('id').primaryKey(),
+ officerId:text('officer_id').notNull().references(()=>officers.id),
+ actorId:text('actor_id').notNull(),
+ reason:text('reason').notNull(),
+ createdAt:text('created_at').notNull(),
+});
+
+// ID-03: immutable production identity/readiness ledger.
+export const productionReadinessRules=sqliteTable('production_readiness_rules',{
+ id:text('id').primaryKey(),
+ code:text('code').notNull(),
+ label:text('label').notNull(),
+ category:text('category').notNull(),
+ serviceType:text('service_type'),
+ purposeCode:text('purpose_code'),
+ requirementsJson:text('requirements_json').notNull(),
+ maxDays:integer('max_days').notNull(),
+ evidenceReference:text('evidence_reference').notNull(),
+ expiresAt:text('expires_at').notNull(),
+ preparedBy:text('prepared_by').notNull(),
+ preparedAt:text('prepared_at').notNull(),
+},t=>[check('production_readiness_rules_check_1',sql`${t.category} IN ('core','service','purpose')`),check('production_readiness_rules_check_2',sql`${t.maxDays}>0`)]);
+
+export const productionReadinessReviews=sqliteTable('production_readiness_reviews',{
+ id:text('id').primaryKey(),
+ officerId:text('officer_id').notNull().references(()=>officers.id),
+ officerReviewId:text('officer_review_id').notNull().references(()=>productionOfficerReviews.id),
+ ruleId:text('rule_id').notNull().references(()=>productionReadinessRules.id),
+ evidenceJson:text('evidence_json').notNull(),
+ expiresAt:text('expires_at').notNull(),
+ preparedBy:text('prepared_by').notNull(),
+ preparedAt:text('prepared_at').notNull(),
+});
+
+export const productionReadinessOptins=sqliteTable('production_readiness_optins',{
+ id:text('id').primaryKey(),
+ officerId:text('officer_id').notNull().references(()=>officers.id),
+ serviceType:text('service_type').notNull(),
+ revision:integer('revision').notNull(),
+ optedIn:integer('opted_in').notNull(),
+ actorId:text('actor_id').notNull(),
+ recordedAt:text('recorded_at').notNull(),
+},t=>[uniqueIndex('production_readiness_optins_officer_id_service_type_revision_unique').on(t.officerId,t.serviceType,t.revision),check('production_readiness_optins_check_1',sql`${t.optedIn} IN (0,1)`)]);
+
+export const productionReadinessPassports=sqliteTable('production_readiness_passports',{
+ id:text('id').primaryKey(),
+ officerId:text('officer_id').notNull().references(()=>officers.id),
+ sequence:integer('sequence').notNull(),
+ officerReviewId:text('officer_review_id').notNull().references(()=>productionOfficerReviews.id),
+ itemsJson:text('items_json').notNull(),
+ optinsJson:text('optins_json').notNull(),
+ tokenHash:text('token_hash').notNull(),
+ expiresAt:text('expires_at').notNull(),
+ preparedBy:text('prepared_by').notNull(),
+ preparedAt:text('prepared_at').notNull(),
+},t=>[uniqueIndex('production_readiness_passports_officer_id_sequence_unique').on(t.officerId,t.sequence),uniqueIndex('production_readiness_passports_token_hash_unique').on(t.tokenHash)]);
+
+export const productionReadinessDecisions=sqliteTable('production_readiness_decisions',{
+ kind:text('kind').notNull(),
+ targetId:text('target_id').notNull(),
+ decision:text('decision').notNull(),
+ actorId:text('actor_id').notNull(),
+ reason:text('reason').notNull(),
+ decidedAt:text('decided_at').notNull(),
+},t=>[primaryKey({columns:[t.kind,t.targetId]}),check('production_readiness_decisions_check_1',sql`${t.kind} IN ('rule','review','passport')`),check('production_readiness_decisions_check_2',sql`${t.decision} IN ('approve','reject')`)]);
+
+export const productionReadinessHolds=sqliteTable('production_readiness_holds',{
+ id:text('id').primaryKey(),
+ kind:text('kind').notNull(),
+ targetId:text('target_id').notNull(),
+ disposition:text('disposition').notNull(),
+ actorId:text('actor_id').notNull(),
+ reason:text('reason').notNull(),
+ recordedAt:text('recorded_at').notNull(),
+},t=>[check('production_readiness_holds_check_1',sql`${t.kind} IN ('rule','review','passport')`),check('production_readiness_holds_check_2',sql`${t.disposition} IN ('suspend','revoke')`)]);
+
+// ID-04: immutable production identity/readiness ledger.
+export const productionWorkforceHolds=sqliteTable('production_workforce_holds',{
+ id:text('id').primaryKey(),
+ engagementId:text('engagement_id').notNull().references(()=>workforceEngagements.id),
+ officerId:text('officer_id').notNull().references(()=>officers.id),
+ snapshotJson:text('snapshot_json').notNull(),
+ actorId:text('actor_id').notNull(),
+ reason:text('reason').notNull(),
+ recordedAt:text('recorded_at').notNull(),
+});
+
+export const productionRereviewProposals=sqliteTable('production_rereview_proposals',{
+ id:text('id').primaryKey(),
+ kind:text('kind').notNull(),
+ holdId:text('hold_id').notNull(),
+ applicantId:text('applicant_id').notNull(),
+ applicantVersion:integer('applicant_version').notNull(),
+ ownerUserId:text('owner_user_id').notNull(),
+ sourceEpoch:integer('source_epoch').notNull(),
+ sourceJson:text('source_json').notNull(),
+ sourceHash:text('source_hash').notNull(),
+ evidenceReference:text('evidence_reference').notNull(),
+ evidenceHash:text('evidence_hash').notNull(),
+ checkedAt:text('checked_at').notNull(),
+ expiresAt:text('expires_at').notNull(),
+ preparedBy:text('prepared_by').notNull(),
+ preparedAt:text('prepared_at').notNull(),
+},t=>[check('production_rereview_proposals_check_1',sql`${t.kind} IN ('identity','officer','workforce','review','passport')`)]);
+
+export const productionRereviewDecisions=sqliteTable('production_rereview_decisions',{
+ proposalId:text('proposal_id').primaryKey().references(()=>productionRereviewProposals.id),
+ decision:text('decision').notNull(),
+ actorId:text('actor_id').notNull(),
+ reason:text('reason').notNull(),
+ decidedAt:text('decided_at').notNull(),
+},t=>[check('production_rereview_decisions_check_1',sql`${t.decision} IN ('allow_replacement','keep_held')`)]);
+
+export const productionRereviewCutoffs=sqliteTable('production_rereview_cutoffs',{
+ proposalId:text('proposal_id').primaryKey().references(()=>productionRereviewProposals.id),
+ passportSequence:integer('passport_sequence').notNull(),
+ officerRowid:integer('officer_rowid').notNull(),
+ readinessRowid:integer('readiness_rowid').notNull(),
+ workforceRowid:integer('workforce_rowid').notNull(),
+});
+
+// FI-02 immutable payment execution and reconciliation records.
+const paymentExecutionActor=()=>({operatorId:text('operator_id').notNull(),userId:text('user_id').notNull(),note:text('note').notNull(),authMethod:text('auth_method').notNull(),createdAt:text('created_at').notNull()});
+export const paymentLiveControl=sqliteTable('payment_live_control',{id:integer('id').primaryKey(),enabled:integer('enabled').notNull()},t=>[check('live_control_id',sql`${t.id}=1`),check('live_control_enabled',sql`${t.enabled} IN (0,1)`)]);
+export const paymentLiveReserves=sqliteTable('payment_live_reserves',{
+ id:text('id').primaryKey().notNull(),requestKey:text('request_key').notNull().unique(),integration:text('integration').notNull(),amountCents:integer('amount_cents').notNull(),fundingReference:text('funding_reference').notNull().unique(),payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),expiresAt:text('expires_at').notNull(),...paymentExecutionActor(),
+},t=>[uniqueIndex('payment_live_funding_evidence_once').on(t.integration,sql`json_extract(${t.payloadJson},'$.fundingHash')`),check('live_reserve_amount',sql`typeof(${t.amountCents})='integer' AND ${t.amountCents}>0 AND ${t.amountCents}<=25000000`)]);
+export const paymentLiveReserveDecisions=sqliteTable('payment_live_reserve_decisions',{
+ id:text('id').primaryKey().notNull(),reserveId:text('reserve_id').notNull().unique().references(()=>paymentLiveReserves.id),payloadHash:text('payload_hash').notNull(),decision:text('decision').notNull(),...paymentExecutionActor(),
+},t=>[check('live_reserve_decision',sql`${t.decision} IN ('approved','rejected')`)]);
+export const paymentLiveReleases=sqliteTable('payment_live_releases',{
+ id:text('id').primaryKey().notNull(),requestKey:text('request_key').notNull().unique(),kind:text('kind').notNull(),reference:text('reference').notNull(),reserveId:text('reserve_id').notNull().references(()=>paymentLiveReserves.id),sourceHash:text('source_hash').notNull(),feeCeilingCents:integer('fee_ceiling_cents').notNull(),payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),expiresAt:text('expires_at').notNull(),...paymentExecutionActor(),
+},t=>[check('live_release_kind',sql`${t.kind} IN ('employee','partner')`),check('live_fee_ceiling',sql`typeof(${t.feeCeilingCents})='integer' AND ${t.feeCeilingCents}>=0 AND ${t.feeCeilingCents}<=100000`)]);
+export const paymentLiveReleaseDecisions=sqliteTable('payment_live_release_decisions',{
+ id:text('id').primaryKey().notNull(),releaseId:text('release_id').notNull().unique().references(()=>paymentLiveReleases.id),payloadHash:text('payload_hash').notNull(),decision:text('decision').notNull(),...paymentExecutionActor(),
+},t=>[check('live_release_decision',sql`${t.decision} IN ('approved','rejected')`)]);
+export const paymentLiveClaims=sqliteTable('payment_live_claims',{
+ kind:text('kind').notNull(),reference:text('reference').notNull(),releaseId:text('release_id').notNull().unique().references(()=>paymentLiveReleases.id),version:integer('version').notNull(),sourceHash:text('source_hash').notNull(),recipientHash:text('recipient_hash').notNull(),balanceCents:integer('balance_cents').notNull(),...paymentExecutionActor(),
+},t=>[primaryKey({columns:[t.kind,t.reference]}),check('live_claim_kind',sql`${t.kind} IN ('employee','partner')`),check('live_claim_balance',sql`typeof(${t.balanceCents})='integer' AND ${t.balanceCents}>=0`)]);
+export const paymentLiveReconciliationReviews=sqliteTable('payment_live_reconciliation_reviews',{
+ id:text('id').primaryKey().notNull(),requestKey:text('request_key').notNull().unique(),kind:text('kind').notNull(),reference:text('reference').notNull(),sourceHash:text('source_hash').notNull(),evidenceId:text('evidence_id').notNull(),disposition:text('disposition').notNull(),bankReference:text('bank_reference').notNull(),bankHash:text('bank_hash').notNull(),bankAmountCents:integer('bank_amount_cents').notNull(),payloadJson:text('payload_json').notNull(),payloadHash:text('payload_hash').notNull(),expiresAt:text('expires_at').notNull(),...paymentExecutionActor(),
+},t=>[check('live_reconciliation_kind',sql`${t.kind} IN ('employee','partner')`),check('live_reconciliation_disposition',sql`${t.disposition} IN ('success','reversed')`),check('live_bank_amount',sql`typeof(${t.bankAmountCents})='integer' AND ${t.bankAmountCents}>0`)]);
+export const paymentLiveReconciliationDecisions=sqliteTable('payment_live_reconciliation_decisions',{
+ id:text('id').primaryKey().notNull(),reviewId:text('review_id').notNull().unique().references(()=>paymentLiveReconciliationReviews.id),kind:text('kind').notNull(),reference:text('reference').notNull(),disposition:text('disposition').notNull(),bankReference:text('bank_reference').notNull(),payloadHash:text('payload_hash').notNull(),decision:text('decision').notNull(),...paymentExecutionActor(),
+},t=>[check('live_reconciliation_decision',sql`${t.decision} IN ('approved','rejected')`),uniqueIndex('payment_live_reconciled_once').on(t.kind,t.reference,t.disposition).where(sql`${t.decision}='approved'`),uniqueIndex('payment_bank_allocation_once').on(t.bankReference).where(sql`${t.decision}='approved'`)]);
+export const paymentUnsentReplacements=sqliteTable('payment_unsent_replacements',{
+ kind:text('kind').notNull(),reference:text('reference').notNull(),predecessor:text('predecessor').notNull(),createdAt:text('created_at').notNull(),
+},t=>[primaryKey({columns:[t.kind,t.reference]}),uniqueIndex('payment_unsent_predecessor').on(t.kind,t.predecessor),check('unsent_replacement_kind',sql`${t.kind} IN ('employee','partner')`)]);
+
+// Finance document immutable versions and independent publication decisions.
+export const financeDocumentVersions=sqliteTable('finance_document_versions',{
+ id:text('id').primaryKey().notNull(),
+ kind:text('kind').notNull(),
+ sourceId:text('source_id').notNull(),
+ partyId:text('party_id').notNull(),
+ recipientUser:text('recipient_user').notNull(),
+ requestKey:text('request_key').notNull(),
+ parentId:text('parent_id').references(():AnySQLiteColumn=>financeDocumentVersions.id),
+ version:integer('version').notNull(),
+ sourceJson:text('source_json').notNull(),
+ financialJson:text('financial_json').notNull(),
+ payloadHash:text('payload_hash').notNull(),
+ amountCents:integer('amount_cents').notNull(),
+ note:text('note').notNull(),
+ operatorId:text('operator_id').notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text('user_id').notNull(),
+ authContext:text('auth_context').notNull(),
+ createdAt:text('created_at').notNull(),
+},(t)=>[uniqueIndex('finance_document_successor').on(t.parentId).where(sql`parent_id IS NOT NULL`),uniqueIndex('finance_document_root').on(t.kind,t.sourceId).where(sql`parent_id IS NULL`),uniqueIndex('finance_document_versions_request_key_idx').on(t.requestKey),check('finance_document_versions_check_0',sql`kind IN('payslip','invoice','remittance')`),check('finance_document_versions_check_1',sql`version>=1`),check('finance_document_versions_check_2',sql`json_valid(source_json)`),check('finance_document_versions_check_3',sql`json_valid(financial_json)`),check('finance_document_versions_check_4',sql`length(payload_hash)=64`),check('finance_document_versions_check_5',sql`typeof(amount_cents)='integer' AND amount_cents>=0`),check('finance_document_versions_check_6',sql`length(trim(note))>=3`),check('finance_document_versions_check_7',sql`auth_context IN('mfa_verified','owner_mfa_exception')`)]);
+export const financeDocumentDecisions=sqliteTable('finance_document_decisions',{
+ id:text('id').primaryKey().notNull(),
+ documentId:text('document_id').notNull().references(():AnySQLiteColumn=>financeDocumentVersions.id),
+ decision:text('decision').notNull(),
+ payloadHash:text('payload_hash').notNull(),
+ operatorId:text('operator_id').notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text('user_id').notNull(),
+ note:text('note').notNull(),
+ authContext:text('auth_context').notNull(),
+ createdAt:text('created_at').notNull(),
+},(t)=>[uniqueIndex('finance_document_decisions_document_id_idx').on(t.documentId),check('finance_document_decisions_check_0',sql`decision IN('approved','rejected')`),check('finance_document_decisions_check_1',sql`length(trim(note))>=3`),check('finance_document_decisions_check_2',sql`auth_context IN('mfa_verified','owner_mfa_exception')`)]);
+export const financeDocumentIssues=sqliteTable('finance_document_issues',{
+ documentId:text('document_id').primaryKey().notNull().references(():AnySQLiteColumn=>financeDocumentVersions.id),
+ number:text('number').notNull(),
+ issuedAt:text('issued_at').notNull(),
+},(t)=>[uniqueIndex('finance_document_issues_number_idx').on(t.number)]);
+
+// ID-USABLE-01 private passport delivery and immutable human hold provenance.
+export const productionPassportDeliveries=sqliteTable('production_passport_deliveries',{
+ id:text('id').primaryKey(),officerId:text('officer_id').notNull().references(()=>officers.id),ownerUserId:text('owner_user_id').notNull(),applicantId:text('applicant_id').notNull(),applicantVersion:integer('applicant_version').notNull(),requestKey:text('request_key').notNull(),tokenHash:text('token_hash').notNull().unique(),createdAt:text('created_at').notNull(),expiresAt:text('expires_at').notNull(),
+},t=>[uniqueIndex('production_passport_deliveries_owner_request_idx').on(t.ownerUserId,t.requestKey),check('production_passport_delivery_token_hash',sql`length(${t.tokenHash})=64 AND ${t.tokenHash} NOT GLOB '*[^a-f0-9]*'`)]);
+export const productionPassportDeliveryBindings=sqliteTable('production_passport_delivery_bindings',{
+ deliveryId:text('delivery_id').primaryKey().references(()=>productionPassportDeliveries.id),passportId:text('passport_id').notNull().unique().references(()=>productionReadinessPassports.id),boundAt:text('bound_at').notNull(),
+});
+export const productionHoldProvenance=sqliteTable('production_hold_provenance',{
+ kind:text('kind').notNull(),holdId:text('hold_id').notNull(),auditEventId:text('audit_event_id').notNull().references(()=>auditEvents.id),
+},t=>[primaryKey({columns:[t.kind,t.holdId,t.auditEventId]}),check('production_hold_provenance_kind',sql`${t.kind} IN ('workforce','passport')`)]);
+
+// Dormant VerifyNow SAID transport: permanent dispatch claims and private receipts.
+export const verifynowProductionClaims=sqliteTable('verifynow_production_claims',{
+ caseId:text('case_id').primaryKey().references(()=>productionIdentityCases.id),
+ bindingJson:text('binding_json').notNull(),requestHash:text('request_hash').notNull(),claimedAt:text('claimed_at').notNull(),policyReference:text('policy_reference').notNull(),evidenceLifetimeMs:integer('evidence_lifetime_ms').notNull(),
+},t=>[check('verifynow_claim_binding_json',sql`json_valid(${t.bindingJson})`),check('verifynow_claim_request_hash',sql`length(${t.requestHash})=64`),check('verifynow_claim_policy',sql`length(${t.policyReference})>0`),check('verifynow_claim_lifetime',sql`${t.evidenceLifetimeMs}>0`),check('verifynow_claim_case',sql`json_extract(${t.bindingJson},'$.caseId')=${t.caseId}`)]);
+export const verifynowProductionReceipts=sqliteTable('verifynow_production_receipts',{
+ caseId:text('case_id').primaryKey().references(()=>verifynowProductionClaims.caseId),resultJson:text('result_json').notNull(),recordedAt:text('recorded_at').notNull(),
+},t=>[uniqueIndex('verifynow_receipt_provider_reference').on(sql`json_extract(${t.resultJson},'$.providerReference')`),check('verifynow_receipt_json',sql`json_valid(${t.resultJson})`),check('verifynow_receipt_case',sql`json_extract(${t.resultJson},'$.caseId')=${t.caseId}`),check('verifynow_receipt_environment',sql`json_extract(${t.resultJson},'$.environment')='production'`),check('verifynow_receipt_provider',sql`json_extract(${t.resultJson},'$.provider')='verifynow-said-production-v1'`),check('verifynow_receipt_outcome',sql`json_extract(${t.resultJson},'$.outcome')='manual_review'`)]);
+
+// Canonical finance exception sources; reviewed rules remain explicit evidence.
+export const creditNoteDecisions=sqliteTable('credit_note_decisions',{
+ id:text("id").primaryKey().notNull(),
+ creditId:text("credit_id").notNull().references(():AnySQLiteColumn=>creditNotes.id),
+ decision:text("decision").notNull(),
+ payloadHash:text("payload_hash").notNull(),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ note:text("note").notNull(),
+ authContext:text("auth_context").notNull(),
+ createdAt:text("created_at").notNull(),
+},t=>[uniqueIndex("credit_note_decisions_credit_id_idx").on(t.creditId),check("credit_note_decisions_check_0",sql.raw("decision IN('approved','rejected')")),check("credit_note_decisions_check_1",sql.raw("length(trim(note))>=3")),check("credit_note_decisions_check_2",sql.raw("auth_context IN('mfa_verified','owner_mfa_exception')"))]);
+export const creditNoteIssues=sqliteTable('credit_note_issues',{
+ creditId:text("credit_id").primaryKey().notNull().references(():AnySQLiteColumn=>creditNotes.id),
+ number:text("number").notNull(),
+ issuedAt:text("issued_at").notNull(),
+},t=>[uniqueIndex("credit_note_issues_number_idx").on(t.number)]);
+export const creditNotes=sqliteTable('credit_notes',{
+ id:text("id").primaryKey().notNull(),
+ requestKey:text("request_key").notNull(),
+ invoiceId:text("invoice_id").notNull().references(():AnySQLiteColumn=>clientInvoices.id),
+ reversesId:text("reverses_id").references(():AnySQLiteColumn=>creditNotes.id),
+ direction:integer("direction").notNull(),
+ netCents:integer("net_cents").notNull(),
+ taxCents:integer("tax_cents").notNull(),
+ sourceJson:text("source_json").notNull(),
+ payloadJson:text("payload_json").notNull(),
+ payloadHash:text("payload_hash").notNull(),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ createdAt:text("created_at").notNull(),
+},t=>[uniqueIndex("credit_notes_request_key_idx").on(t.requestKey),check("credit_notes_check_0",sql.raw("direction IN(1,-1)")),check("credit_notes_check_1",sql.raw("typeof(net_cents)='integer' AND net_cents>=0")),check("credit_notes_check_2",sql.raw("typeof(tax_cents)='integer' AND tax_cents>=0")),check("credit_notes_check_3",sql.raw("json_valid(source_json)")),check("credit_notes_check_4",sql.raw("json_valid(payload_json)")),check("credit_notes_check_5",sql.raw("length(payload_hash)=64")),check("credit_notes_check_6",sql.raw("net_cents+tax_cents>0")),check("credit_notes_check_7",sql.raw("(direction=1 AND reverses_id IS NULL) OR (direction=-1 AND reverses_id IS NOT NULL)"))]);
+
+// Canonical finance exception sources; reviewed rules remain explicit evidence.
+export const bookingRefundCases=sqliteTable('booking_refund_cases',{
+ id:text("id").primaryKey().notNull(),
+ requestKey:text("request_key").notNull(),
+ reference:text("reference").notNull().references(():AnySQLiteColumn=>bookingCollectionRequests.reference),
+ payloadJson:text("payload_json").notNull(),
+ payloadHash:text("payload_hash").notNull(),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ note:text("note").notNull(),
+ authContext:text("auth_context").notNull(),
+ createdAt:text("created_at").notNull(),
+ expiresAt:text("expires_at").notNull(),
+},t=>[uniqueIndex("booking_refund_cases_request_key_idx").on(t.requestKey),check("booking_refund_cases_check_0",sql.raw("json_valid(payload_json)")),check("booking_refund_cases_check_1",sql.raw("length(payload_hash)=64")),check("booking_refund_cases_check_2",sql.raw("length(trim(note))>=3")),check("booking_refund_cases_check_3",sql.raw("auth_context IN('mfa_verified','owner_mfa_exception')"))]);
+export const bookingRefundClaims=sqliteTable('booking_refund_claims',{
+ id:text("id").primaryKey().notNull(),
+ caseId:text("case_id").notNull().references(():AnySQLiteColumn=>bookingRefundCases.id),
+ reference:text("reference").notNull().references(():AnySQLiteColumn=>bookingCollectionRequests.reference),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ authContext:text("auth_context").notNull(),
+ createdAt:text("created_at").notNull(),
+ holdWatermark:integer("hold_watermark").notNull(),
+},t=>[uniqueIndex("booking_refund_claims_case_id_idx").on(t.caseId),check("booking_refund_claims_check_0",sql.raw("auth_context IN('mfa_verified','owner_mfa_exception')")),check("booking_refund_claims_check_1",sql.raw("hold_watermark>=0"))]);
+export const bookingRefundControl=sqliteTable('booking_refund_control',{
+ id:integer("id").primaryKey(),
+ enabled:integer("enabled").notNull().default(sql.raw("0")),
+},()=>[check("booking_refund_control_check_0",sql.raw("id=1")),check("booking_refund_control_check_1",sql.raw("enabled IN(0,1)"))]);
+export const bookingRefundDecisions=sqliteTable('booking_refund_decisions',{
+ id:text("id").primaryKey().notNull(),
+ caseId:text("case_id").notNull().references(():AnySQLiteColumn=>bookingRefundCases.id),
+ payloadHash:text("payload_hash").notNull(),
+ decision:text("decision").notNull(),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ note:text("note").notNull(),
+ authContext:text("auth_context").notNull(),
+ createdAt:text("created_at").notNull(),
+},t=>[uniqueIndex("booking_refund_decisions_case_id_idx").on(t.caseId),check("booking_refund_decisions_check_0",sql.raw("decision IN('approved','rejected')")),check("booking_refund_decisions_check_1",sql.raw("length(trim(note))>=3")),check("booking_refund_decisions_check_2",sql.raw("auth_context IN('mfa_verified','owner_mfa_exception')"))]);
+export const bookingRefundObservations=sqliteTable('booking_refund_observations',{
+ id:text("id").primaryKey().notNull(),
+ caseId:text("case_id").notNull().references(():AnySQLiteColumn=>bookingRefundCases.id),
+ source:text("source").notNull(),
+ evidenceJson:text("evidence_json").notNull(),
+ holdWatermark:integer("hold_watermark").notNull(),
+ createdAt:text("created_at").notNull(),
+},()=>[check("booking_refund_observations_check_0",sql.raw("source IN('initiate','verify')")),check("booking_refund_observations_check_1",sql.raw("json_valid(evidence_json)")),check("booking_refund_observations_check_2",sql.raw("typeof(hold_watermark)='integer' AND hold_watermark>=0"))]);
+export const bookingRefundReceiptDecisions=sqliteTable('booking_refund_receipt_decisions',{
+ id:text("id").primaryKey().notNull(),
+ receiptId:text("receipt_id").notNull().references(():AnySQLiteColumn=>bookingRefundReceipts.id),
+ decision:text("decision").notNull(),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ note:text("note").notNull(),
+ authContext:text("auth_context").notNull(),
+ createdAt:text("created_at").notNull(),
+},t=>[uniqueIndex("booking_refund_receipt_decisions_receipt_id_idx").on(t.receiptId),check("booking_refund_receipt_decisions_check_0",sql.raw("decision IN('approved','rejected')")),check("booking_refund_receipt_decisions_check_1",sql.raw("length(trim(note))>=3")),check("booking_refund_receipt_decisions_check_2",sql.raw("auth_context IN('mfa_verified','owner_mfa_exception')"))]);
+export const bookingRefundReceipts=sqliteTable('booking_refund_receipts',{
+ id:text("id").primaryKey().notNull(),
+ caseId:text("case_id").notNull().references(():AnySQLiteColumn=>bookingRefundCases.id),
+ observationId:text("observation_id").notNull().references(():AnySQLiteColumn=>bookingRefundObservations.id),
+ bankReference:text("bank_reference").notNull(),
+ bankHash:text("bank_hash").notNull(),
+ bankAmountMinor:integer("bank_amount_minor").notNull(),
+ payloadJson:text("payload_json").notNull(),
+ payloadHash:text("payload_hash").notNull(),
+ operatorId:text("operator_id").notNull().references(():AnySQLiteColumn=>operatorAccounts.id),
+ userId:text("user_id").notNull(),
+ note:text("note").notNull(),
+ authContext:text("auth_context").notNull(),
+ createdAt:text("created_at").notNull(),
+},()=>[check("booking_refund_receipts_check_0",sql.raw("length(bank_hash)=64")),check("booking_refund_receipts_check_1",sql.raw("typeof(bank_amount_minor)='integer' AND bank_amount_minor>0")),check("booking_refund_receipts_check_2",sql.raw("json_valid(payload_json)")),check("booking_refund_receipts_check_3",sql.raw("length(payload_hash)=64")),check("booking_refund_receipts_check_4",sql.raw("length(trim(note))>=3")),check("booking_refund_receipts_check_5",sql.raw("auth_context IN('mfa_verified','owner_mfa_exception')"))]);
+
+export const payrollCorrectionReviews=sqliteTable('payroll_correction_reviews',{
+ id:text('id').primaryKey().notNull(),requestKey:text('request_key').notNull(),itemId:text('item_id').notNull().references(()=>payrollItems.id),
+ parentId:text('parent_id').references(():AnySQLiteColumn=>payrollCorrectionReviews.id),sourceJson:text('source_json').notNull(),financialJson:text('financial_json').notNull(),
+ exportReference:text('export_reference').notNull(),requestJson:text('request_json').notNull(),payloadHash:text('payload_hash').notNull(),
+ operatorId:text('operator_id').notNull().references(()=>operatorAccounts.id),userId:text('user_id').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('payroll_correction_request_key').on(t.requestKey),uniqueIndex('payroll_correction_successor').on(t.parentId).where(sql`${t.parentId} IS NOT NULL`),
+ check('payroll_correction_source_json',sql`json_valid(${t.sourceJson})`),check('payroll_correction_financial_json',sql`json_valid(${t.financialJson})`),check('payroll_correction_request_json',sql`json_valid(${t.requestJson})`),check('payroll_correction_payload_hash',sql`length(${t.payloadHash})=64`)]);
+export const payrollCorrectionDecisions=sqliteTable('payroll_correction_decisions',{
+ id:text('id').primaryKey().notNull(),reviewId:text('review_id').notNull().references(()=>payrollCorrectionReviews.id),decision:text('decision').notNull(),payloadHash:text('payload_hash').notNull(),
+ operatorId:text('operator_id').notNull().references(()=>operatorAccounts.id),userId:text('user_id').notNull(),findings:text('findings').notNull(),authContext:text('auth_context').notNull(),createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('payroll_correction_one_decision').on(t.reviewId),check('payroll_correction_decision_value',sql`${t.decision} IN ('evidence_reviewed','rejected')`),check('payroll_correction_findings',sql`length(trim(${t.findings}))>=3`),check('payroll_correction_auth_context',sql`${t.authContext} IN ('mfa_verified','owner_mfa_exception')`)]);
+
+// Canonical finance sandbox workflow schema; column order preserves handler contracts.
+export const financeCommandApplications=sqliteTable('finance_command_applications',{
+ commandId:text('command_id').primaryKey().notNull().references(():AnySQLiteColumn=>financeWorkflowCommands.id),
+ reviewerUserId:text('reviewer_user_id').notNull(),
+ reviewerVersion:integer('reviewer_version').notNull(),
+ decision:text('decision').notNull(),
+ digest:text('digest').notNull(),
+ findings:text('findings').notNull(),
+ createdAt:text('created_at').notNull(),
+},()=>[check('finance_command_applications_check_0',sql.raw("decision IN('approved','rejected')")),check('finance_command_applications_check_1',sql.raw('length(trim(findings))>=3'))]);
+export const financeJournals=sqliteTable('finance_journals',{
+ id:text('id').primaryKey().notNull(),
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ commandId:text('command_id').notNull().references(():AnySQLiteColumn=>financeWorkflowCommands.id),
+ entriesJson:text('entries_json').notNull(),
+ createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('finance_journals_unique_0').on(t.commandId),check('finance_journals_check_0',sql.raw('json_valid(entries_json)'))]);
+export const financeMembers=sqliteTable('finance_members',{
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ userId:text('user_id').notNull(),
+ version:integer('version').notNull(),
+ role:text('role').notNull(),
+ limitCents:integer('limit_cents').notNull(),
+ active:integer('active').notNull(),
+},t=>[primaryKey({columns:[t.workspaceId,t.userId,t.version]}),check('finance_members_check_0',sql.raw('version>0')),check('finance_members_check_1',sql.raw("role IN('preparer','reviewer','client','officer','trainer')")),check('finance_members_check_2',sql.raw("typeof(limit_cents)='integer' AND limit_cents>=0")),check('finance_members_check_3',sql.raw('active IN(0,1)'))]);
+export const financeProviderClaims=sqliteTable('finance_provider_claims',{
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ operationId:text('operation_id').notNull(),
+ attempt:integer('attempt').notNull(),
+ reference:text('reference').notNull(),
+ providerMode:text('provider_mode').notNull(),
+ payloadJson:text('payload_json').notNull(),
+ createdAt:text('created_at').notNull(),
+},t=>[primaryKey({columns:[t.workspaceId,t.operationId,t.attempt]}),uniqueIndex('finance_provider_claims_unique_0').on(t.workspaceId,t.reference,t.attempt),check('finance_provider_claims_check_0',sql.raw('attempt>0')),check('finance_provider_claims_check_1',sql.raw("provider_mode IN('simulator','paystack_test')")),check('finance_provider_claims_check_2',sql.raw('json_valid(payload_json)'))]);
+export const financeProviderConflicts=sqliteTable('finance_provider_conflicts',{
+ id:text('id').primaryKey().notNull(),
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ operationId:text('operation_id').notNull(),
+ eventKey:text('event_key').notNull(),
+ digest:text('digest').notNull(),
+},()=>[]);
+export const financeProviderEvidence=sqliteTable('finance_provider_evidence',{
+ sequence:integer('sequence').primaryKey({autoIncrement:true}),
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ operationId:text('operation_id').notNull(),
+ source:text('source').notNull(),
+ eventKey:text('event_key').notNull(),
+ bodyJson:text('body_json').notNull(),
+ digest:text('digest').notNull(),
+ createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('finance_provider_evidence_unique_0').on(t.workspaceId,t.source,t.eventKey),check('finance_provider_evidence_check_0',sql.raw("source IN('api','webhook','bank')")),check('finance_provider_evidence_check_1',sql.raw('json_valid(body_json)'))]);
+export const financeRecords=sqliteTable('finance_records',{
+ sequence:integer('sequence').primaryKey({autoIncrement:true}),
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ id:text('id').notNull(),
+ kind:text('kind').notNull(),
+ version:integer('version').notNull(),
+ ownerUserId:text('owner_user_id').notNull(),
+ policyVersion:text('policy_version').notNull().references(():AnySQLiteColumn=>financeWorkflowPolicies.version),
+ dataJson:text('data_json').notNull(),
+ digest:text('digest').notNull(),
+ commandId:text('command_id').notNull(),
+ createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('finance_records_unique_0').on(t.workspaceId,t.id,t.version),check('finance_records_check_0',sql.raw('version>0')),check('finance_records_check_1',sql.raw('json_valid(data_json)'))]);
+export const financeSourceClaims=sqliteTable('finance_source_claims',{
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ sourceType:text('source_type').notNull(),
+ sourceId:text('source_id').notNull(),
+ sourceVersion:text('source_version').notNull(),
+ consumerId:text('consumer_id').notNull(),
+ commandId:text('command_id').notNull().references(():AnySQLiteColumn=>financeWorkflowCommands.id),
+},t=>[primaryKey({columns:[t.workspaceId,t.sourceType,t.sourceId]}),uniqueIndex('finance_provider_identity_unique').on(t.sourceId).where(sql.raw("source_type='provider-identity'"))]);
+export const financeWorkflowCommands=sqliteTable('finance_workflow_commands',{
+ id:text('id').primaryKey().notNull(),
+ workspaceId:text('workspace_id').notNull().references(():AnySQLiteColumn=>financeWorkspaces.id),
+ requestKey:text('request_key').notNull(),
+ inputJson:text('input_json').notNull(),
+ planJson:text('plan_json').notNull(),
+ digest:text('digest').notNull(),
+ policyVersion:text('policy_version').notNull().references(():AnySQLiteColumn=>financeWorkflowPolicies.version),
+ makerUserId:text('maker_user_id').notNull(),
+ makerVersion:integer('maker_version').notNull(),
+ amountCents:integer('amount_cents').notNull(),
+ createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('finance_workflow_commands_unique_0').on(t.workspaceId,t.requestKey),check('finance_workflow_commands_check_0',sql.raw('json_valid(input_json)')),check('finance_workflow_commands_check_1',sql.raw('json_valid(plan_json)')),check('finance_workflow_commands_check_2',sql.raw("typeof(amount_cents)='integer' AND amount_cents>=0"))]);
+export const financeWorkflowPolicies=sqliteTable('finance_workflow_policies',{
+ version:text('version').primaryKey().notNull(),
+ environment:text('environment').notNull(),
+ rulesJson:text('rules_json').notNull(),
+ digest:text('digest').notNull(),
+ createdAt:text('created_at').notNull(),
+},t=>[uniqueIndex('finance_workflow_policies_unique_0').on(t.digest),check('finance_workflow_policies_check_0',sql.raw("environment='sandbox'")),check('finance_workflow_policies_check_1',sql.raw("json_valid(rules_json) AND json_extract(rules_json,'$.environment')='sandbox' AND json_extract(rules_json,'$.fictional')=1"))]);
+export const financeWorkspaces=sqliteTable('finance_workspaces',{
+ id:text('id').primaryKey().notNull(),
+ environment:text('environment').notNull(),
+ createdBy:text('created_by').notNull(),
+ createdAt:text('created_at').notNull(),
+},()=>[check('finance_workspaces_check_0',sql.raw("environment='sandbox'"))]);

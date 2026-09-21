@@ -1,0 +1,4 @@
+(node:5) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"route":"/api/enquiries","authentication":"none","databaseAccess":"none","configuredCharacterLimit":14000,"bodyBytesRead":1048576,"status":413,"cancelledBeforeEnd":false}

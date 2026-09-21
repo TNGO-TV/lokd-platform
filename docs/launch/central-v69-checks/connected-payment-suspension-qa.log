@@ -1,0 +1,21 @@
+(node:1585465) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1585465) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+TAP version 13
+(node:1585465) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: completed linked service is consumed by independently approved payroll and preserves history after workforce suspension
+ok 1 - completed linked service is consumed by independently approved payroll and preserves history after workforce suspension
+  ---
+  duration_ms: 974.374331
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 978.462864

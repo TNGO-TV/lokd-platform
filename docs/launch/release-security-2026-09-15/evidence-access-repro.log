@@ -1,0 +1,27 @@
+(node:4) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+TAP version 13
+# Subtest: public demo visitors cannot upload evidence objects
+ok 1 - public demo visitors cannot upload evidence objects
+  ---
+  duration_ms: 14.600479
+  type: 'test'
+  ...
+{"scenario":"non-owner reads owner-class evidence","metadataStatus":200,"accessClass":"owner","downloadStatus":200,"exactSyntheticContent":"controlled evidence"}
+# Subtest: CONFIRMED: a non-owner Operations user downloads owner-class evidence uploaded by owner
+ok 2 - CONFIRMED: a non-owner Operations user downloads owner-class evidence uploaded by owner
+  ---
+  duration_ms: 256.108236
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 273.856094

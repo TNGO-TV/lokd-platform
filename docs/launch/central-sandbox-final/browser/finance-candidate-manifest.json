@@ -1,0 +1,50 @@
+{
+  "root": "/srv/ammosync/workspaces/lokd-security",
+  "mode": "Central merged root; local synthetic authentication",
+  "files": [
+    {
+      "file": "app/api/finance-workflows/route.ts",
+      "sha256": "2199c5691ce79f3c27893badaee7175ab00d875ecd4f3806ffad070a23649444"
+    },
+    {
+      "file": "app/api/finance-workflows/webhook/route.ts",
+      "sha256": "5e4a6a0dc1324f73b7ffa4290194c6c9e4f58c6c29dc2e9c9ebae889d3d58872"
+    },
+    {
+      "file": "app/lib/finance-sandbox-policy.ts",
+      "sha256": "a9ab275a8b64fd856e202205cd7f7b4f87a288eb4b826af662e1b02db5f48cdd"
+    },
+    {
+      "file": "app/lib/finance-workflow-accounting.ts",
+      "sha256": "00b382b7134552c1ac7c1fc7ad383bb3273dfe3097e7ea5ac82aaf8b2058afe2"
+    },
+    {
+      "file": "app/lib/finance-workflow-commercial.ts",
+      "sha256": "5e74df47f0c6bfd3c6a91f95fe096d021bf058ca85fda31fef6b6e4fd2e55423"
+    },
+    {
+      "file": "app/lib/finance-workflow-discovery.ts",
+      "sha256": "b35998a095facc256430403d86bf19a675d52293780387f17489045a311fba3b"
+    },
+    {
+      "file": "app/lib/finance-workflow-provider.ts",
+      "sha256": "f9d41c78d8ebb5a15f241f6409daaa999b1c3ba982287ce3a6cee4b8bbfc0215"
+    },
+    {
+      "file": "app/lib/finance-workflow-request.ts",
+      "sha256": "416514dd1bbf7457c34d291b75f4c841004006456f1444d04b28e3a016fd8e9b"
+    },
+    {
+      "file": "app/lib/finance-workflow-store.ts",
+      "sha256": "5f9f4e5887cd428d59fc4482cf415dcf22787aade49b8366b6fc5258e1a0bf6b"
+    },
+    {
+      "file": "app/lib/finance-workflows.ts",
+      "sha256": "d7e74cd5ec7e22bca80eae63ecfee1c4be7c05c7e9e78c07001d28492d8be3f7"
+    },
+    {
+      "file": "docs/migration-proposals/finance-workflows.sql",
+      "sha256": "21525a73a4994151b34e8acfd79df0723001d248ed6cb195eec2dee850c11d36"
+    }
+  ]
+}

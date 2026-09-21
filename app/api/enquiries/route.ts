@@ -1,3 +1,4 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from "cloudflare:workers";
 import { PilotAccessError, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 
@@ -45,26 +46,25 @@ function reply(payload: unknown, status = 200) {
     "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer",
     "x-robots-tag": "noindex, nofollow",
-    vary: "oai-authenticated-user-email",
+    vary: "x-lokd-verified-email",
   } });
 }
 
 function failure(cause: unknown) {
-  const error = cause instanceof EnquiryError || cause instanceof PilotAccessError
+  const error = cause instanceof EnquiryError || cause instanceof RequestBodyError || cause instanceof PilotAccessError
     ? cause : new EnquiryError("We could not complete that enquiry request.", 500);
   return reply({ error: error.message }, error.status);
 }
 
 function requireSignedInOperations(request: Request) {
-  if (!request.headers.get("oai-authenticated-user-email")) throw new EnquiryError("Sign in to Operations to continue.", 401);
+  if (!request.headers.get("x-lokd-verified-email")) throw new EnquiryError("Sign in to Operations to continue.", 401);
   return requirePilotApiRole(request, "operations");
 }
 
-export async function POST(request: Request) {
+export async function submitClientEnquiry(request: Request,database?:D1Database) {
   try {
     requireSameOriginJson(request);
-    const raw = await request.text();
-    if (raw.length > 14_000) throw new EnquiryError("The enquiry is too large.", 413);
+    const raw = await readRequestText(request, 14_000);
     let input: Record<string, unknown>;
     try { input = JSON.parse(raw) as Record<string, unknown>; }
     catch { throw new EnquiryError("The enquiry body is not valid JSON."); }
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     if (input.advanceFundingAcknowledged !== true) throw new EnquiryError("Confirm that LOKD offers no credit terms and requires cleared advance funding.");
     if (input.privacyConsent !== true) throw new EnquiryError("Consent is required to save and respond to this enquiry.");
 
-    const db = getDb();
+    const db = database??getDb();
     const existing = await db.prepare(`SELECT id FROM client_enquiries
       WHERE email_normalized = ? AND organisation_name = ?
         AND environment = 'prelaunch' AND integrity_state = 'user_submitted'
@@ -120,6 +120,8 @@ export async function POST(request: Request) {
   } catch (cause) { return failure(cause); }
 }
 
+export async function POST(request:Request){return submitClientEnquiry(request);}
+
 export async function GET(request: Request) {
   try {
     requireSignedInOperations(request);
@@ -139,8 +141,7 @@ export async function PATCH(request: Request) {
   try {
     requireSameOriginJson(request);
     const actor = requireSignedInOperations(request);
-    const raw = await request.text();
-    if (raw.length > 4_000) throw new EnquiryError("The update is too large.", 413);
+    const raw = await readRequestText(request, 4_000);
     let input: Record<string, unknown>;
     try { input = JSON.parse(raw) as Record<string, unknown>; }
     catch { throw new EnquiryError("The update body is not valid JSON."); }
@@ -148,7 +149,13 @@ export async function PATCH(request: Request) {
     const action = clean(input.action, "Action", 4, 20);
     const version = typeof input.version === "number" && Number.isSafeInteger(input.version) ? input.version : 0;
     if (version < 1) throw new EnquiryError("Refresh the enquiry before updating it.", 409);
-    const now = new Date().toISOString();
+    const current = await getDb().prepare(`SELECT updated_at AS updatedAt FROM client_enquiries
+      WHERE id=? AND version=? AND environment='prelaunch' AND integrity_state='user_submitted'`)
+      .bind(id, version).first<{ updatedAt: string }>();
+    if (!current) throw new EnquiryError("That enquiry changed. Refresh before trying again.", 409);
+    // Consecutive valid reviews may share a clock millisecond. Preserve the
+    // database's strictly increasing audit timestamp without asking for a retry.
+    const now = new Date(Math.max(Date.now(), Date.parse(current.updatedAt) + 1)).toISOString();
     let result: D1Result<unknown>;
     if (action === "triage") {
       result = await getDb().prepare(`UPDATE client_enquiries SET status='triaged', owner_id=?,

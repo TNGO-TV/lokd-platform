@@ -1,0 +1,49 @@
+TAP version 13
+# (node:1827119) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1827119) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: authorization fails closed without touching bindings
+ok 1 - authorization fails closed without touching bindings
+  ---
+  duration_ms: 36.506583
+  type: 'test'
+  ...
+# Subtest: real SQLite snapshot and restored schema/cells match exactly
+ok 2 - real SQLite snapshot and restored schema/cells match exactly
+  ---
+  duration_ms: 6.135629
+  type: 'test'
+  ...
+# Subtest: unsupported schemas and oversized snapshots fail without partial success
+ok 3 - unsupported schemas and oversized snapshots fail without partial success
+  ---
+  duration_ms: 12.049527
+  type: 'test'
+  ...
+# Subtest: object version changes are rejected and runtime is private
+ok 4 - object version changes are rejected and runtime is private
+  ---
+  duration_ms: 1.941376
+  type: 'test'
+  ...
+# (node:1827120) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1827120) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# {"mode":"synthetic-local-separated-directories","offHostAcceptance":false,"tables":234,"rows":72,"encryptedCopyHash":"33b00daf15160d96eaaf001e7c37f54d975e344f1dbaab0fa3f09297ce68843b","wrongKeyRejected":true,"tamperRejected":true,"exactRestore":true}
+# Subtest: synthetic full-schema encrypted recovery uses a separated key, detects damage, and restores exact typed cells
+ok 5 - synthetic full-schema encrypted recovery uses a separated key, detects damage, and restores exact typed cells
+  ---
+  duration_ms: 2582.198482
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2757.155612

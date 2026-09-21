@@ -41,6 +41,7 @@ function validFacts() {
     checkpoint: "activation",
     evaluatedAt: "2026-08-28T10:00:00.000Z",
     shift: { rosterSlotId: "SLOT-1", bookingId: "BK-1", siteId: "SITE-1", postId: "POST-1", officerId: "OFF-1", startsAt: start, endsAt: end, slotVersion: 1, slotStatus: "uncovered" },
+    agreements: {ready:true,missing:[],receipts:[]},
     launchGates: gates(),
     funding: { reconciliationId: "FR-1", environment: "production", integrityState: "verified", provider: "bank_api", providerReference: "BANK-SETTLEMENT-1", status: "cleared_reconciled", currency: "ZAR", bookingAmountCents: 140000, expectedAmountCents: 140000, clearedAmountCents: 140000, clearedAt: verifiedAt, reconciledAt: verifiedAt, evidenceReference: "bank:FR-1", verifiedAt, expiresAt: expiry },
     client: { id: "CL-1", approvalStatus: "approved" },

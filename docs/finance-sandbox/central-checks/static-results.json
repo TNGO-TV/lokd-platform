@@ -1,0 +1,21 @@
+{
+  "typescript": {
+    "command": "npx tsc --noEmit --incremental false",
+    "exitCode": 0,
+    "output": "no diagnostics"
+  },
+  "schema": {
+    "command": "npm run db:generate -- --name finance_sandbox_drift",
+    "exitCode": 0,
+    "result": "No schema changes, nothing to migrate"
+  },
+  "readiness": {
+    "requiredObjects": 1340,
+    "migration": "0073_finance_sandbox_workflows.sql"
+  },
+  "build": {
+    "command": "node /home/ammosync/.codex/plugins/cache/openai-curated-remote/sites/0.1.62/scripts/build-site.mjs",
+    "exitCode": 0
+  },
+  "scratchNote": "Empty quota-affected redirected scratch logs were not used to establish results; direct named/tool runs verified outcomes."
+}

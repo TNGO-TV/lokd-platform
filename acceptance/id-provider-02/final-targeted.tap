@@ -1,0 +1,571 @@
+TAP version 13
+# (node:1542578) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1542578) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: evaluation retries a torn fact read and returns the current source revision
+ok 1 - evaluation retries a torn fact read and returns the current source revision
+  ---
+  duration_ms: 294.091045
+  type: 'test'
+  ...
+# Subtest: evaluation fails closed after three unstable fact reads without creating a command
+ok 2 - evaluation fails closed after three unstable fact reads without creating a command
+  ---
+  duration_ms: 275.819689
+  type: 'test'
+  ...
+# Subtest: successful activation creates every final record exactly once and is idempotent
+ok 3 - successful activation creates every final record exactly once and is idempotent
+  ---
+  duration_ms: 316.078562
+  type: 'test'
+  ...
+# Subtest: Christmas work stored as ordinary is blocked and server-prices the Christmas wage
+ok 4 - Christmas work stored as ordinary is blocked and server-prices the Christmas wage
+  ---
+  duration_ms: 264.877835
+  type: 'test'
+  ...
+# Subtest: ordinary work stored as Christmas is blocked and server-prices the ordinary wage
+ok 5 - ordinary work stored as Christmas is blocked and server-prices the ordinary wage
+  ---
+  duration_ms: 265.773799
+  type: 'test'
+  ...
+# Subtest: the database rejects a roster service date differing from the Johannesburg start date
+ok 6 - the database rejects a roster service date differing from the Johannesburg start date
+  ---
+  duration_ms: 261.240044
+  type: 'test'
+  ...
+# Subtest: a saved Ready evaluation activates with the same idempotency key exactly once
+ok 7 - a saved Ready evaluation activates with the same idempotency key exactly once
+  ---
+  duration_ms: 292.55849
+  type: 'test'
+  ...
+# Subtest: concurrent duplicate activation keys converge on one complete activation
+ok 8 - concurrent duplicate activation keys converge on one complete activation
+  ---
+  duration_ms: 303.184902
+  type: 'test'
+  ...
+# Subtest: same idempotency key with a different request is rejected without new records
+ok 9 - same idempotency key with a different request is rejected without new records
+  ---
+  duration_ms: 300.470813
+  type: 'test'
+  ...
+# Subtest: a TOCTOU gate change aborts the entire activation batch
+ok 10 - a TOCTOU gate change aborts the entire activation batch
+  ---
+  duration_ms: 282.295278
+  type: 'test'
+  ...
+# Subtest: concurrent claims for one slot produce exactly one activated assignment
+ok 11 - concurrent claims for one slot produce exactly one activated assignment
+  ---
+  duration_ms: 347.190186
+  type: 'test'
+  ...
+# Subtest: simultaneous different-slot claims cannot violate one officer's rest window
+ok 12 - simultaneous different-slot claims cannot violate one officer's rest window
+  ---
+  duration_ms: 324.903218
+  type: 'test'
+  ...
+# Subtest: stale concurrent Direct Flex activations cannot exceed the same-week ceiling
+ok 13 - stale concurrent Direct Flex activations cannot exceed the same-week ceiling
+  ---
+  duration_ms: 333.606255
+  type: 'test'
+  ...
+# Subtest: managed activation freezes the correct employer and payroll route
+ok 14 - managed activation freezes the correct employer and payroll route
+  ---
+  duration_ms: 298.773599
+  type: 'test'
+  ...
+# Subtest: partner activation freezes the correct employer and payroll route
+ok 15 - partner activation freezes the correct employer and payroll route
+  ---
+  duration_ms: 296.965354
+  type: 'test'
+  ...
+# Subtest: synthetic commands cannot invoke production activation
+ok 16 - synthetic commands cannot invoke production activation
+  ---
+  duration_ms: 260.580972
+  type: 'test'
+  ...
+# Subtest: a production candidate command cannot reference synthetic client, booking, site, post or slot records
+ok 17 - a production candidate command cannot reference synthetic client, booking, site, post or slot records
+  ---
+  duration_ms: 256.951782
+  type: 'test'
+  ...
+# Subtest: commit-time funding clearing provenance mutation rolls the activation back completely
+ok 18 - commit-time funding clearing provenance mutation rolls the activation back completely
+  ---
+  duration_ms: 302.229629
+  type: 'test'
+  ...
+# Subtest: commit-time officer grade mutation rolls the activation back completely
+ok 19 - commit-time officer grade mutation rolls the activation back completely
+  ---
+  duration_ms: 316.240232
+  type: 'test'
+  ...
+# Subtest: commit-time Passport environment mutation rolls the activation back completely
+ok 20 - commit-time Passport environment mutation rolls the activation back completely
+  ---
+  duration_ms: 289.722111
+  type: 'test'
+  ...
+# Subtest: relief reservations are included in the weekly ceiling
+ok 21 - relief reservations are included in the weekly ceiling
+  ---
+  duration_ms: 269.52502
+  type: 'test'
+  ...
+# Subtest: completed relief stays counted while cancelled relief releases hours
+ok 22 - completed relief stays counted while cancelled relief releases hours
+  ---
+  duration_ms: 517.962825
+  type: 'test'
+  ...
+# Subtest: cancellation releases reservations without deleting their history
+ok 23 - cancellation releases reservations without deleting their history
+  ---
+  duration_ms: 302.990422
+  type: 'test'
+  ...
+# Subtest: replacement releases reservations without deleting their history
+ok 24 - replacement releases reservations without deleting their history
+  ---
+  duration_ms: 302.74058
+  type: 'test'
+  ...
+# Subtest: on-post, completed and verified work cannot be released or lose reserved hours
+ok 25 - on-post, completed and verified work cannot be released or lose reserved hours
+  ---
+  duration_ms: 372.028182
+  type: 'test'
+  ...
+# Subtest: active reservations cannot be released while their assignment source remains active
+ok 26 - active reservations cannot be released while their assignment source remains active
+  ---
+  duration_ms: 299.357721
+  type: 'test'
+  ...
+# Subtest: a terminal activated assignment cannot be resurrected after its hours are released
+ok 27 - a terminal activated assignment cannot be resurrected after its hours are released
+  ---
+  duration_ms: 327.608696
+  type: 'test'
+  ...
+# Subtest: final snapshots and decisions reject updates and deletes
+ok 28 - final snapshots and decisions reject updates and deletes
+  ---
+  duration_ms: 307.009374
+  type: 'test'
+  ...
+# Subtest: evidence tokens reject updates and deletes
+ok 29 - evidence tokens reject updates and deletes
+  ---
+  duration_ms: 307.897336
+  type: 'test'
+  ...
+# Subtest: t_minus_24 rejects a stale evidence token and records the authoritative blocker on retry
+ok 30 - t_minus_24 rejects a stale evidence token and records the authoritative blocker on retry
+  ---
+  duration_ms: 322.871832
+  type: 'test'
+  ...
+# Subtest: t_minus_2 rejects a stale evidence token and records the authoritative blocker on retry
+ok 31 - t_minus_2 rejects a stale evidence token and records the authoritative blocker on retry
+  ---
+  duration_ms: 322.07117
+  type: 'test'
+  ...
+# Subtest: check_in rejects a stale evidence token and records the authoritative blocker on retry
+ok 32 - check_in rejects a stale evidence token and records the authoritative blocker on retry
+  ---
+  duration_ms: 346.523644
+  type: 'test'
+  ...
+# Subtest: revalidations reject early execution and the due runner processes T-24 and T-2 once
+ok 33 - revalidations reject early execution and the due runner processes T-24 and T-2 once
+  ---
+  duration_ms: 621.40954
+  type: 'test'
+  ...
+# Subtest: T-2 and check-in fail closed while their scheduled prerequisites remain pending
+ok 34 - T-2 and check-in fail closed while their scheduled prerequisites remain pending
+  ---
+  duration_ms: 310.006803
+  type: 'test'
+  ...
+# Subtest: check-in closes at the roster deadline in both the server and database guards
+ok 35 - check-in closes at the roster deadline in both the server and database guards
+  ---
+  duration_ms: 319.429401
+  type: 'test'
+  ...
+# (node:1542578) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: primary activation cannot cross the scheduled start boundary
+ok 36 - primary activation cannot cross the scheduled start boundary
+  ---
+  duration_ms: 283.398513
+  type: 'test'
+  ...
+# Subtest: a revalidation cannot borrow a passed decision from another activation command
+ok 37 - a revalidation cannot borrow a passed decision from another activation command
+  ---
+  duration_ms: 377.925529
+  type: 'test'
+  ...
+# Subtest: successful check-in revalidation and shift transition commit atomically
+ok 38 - successful check-in revalidation and shift transition commit atomically
+  ---
+  duration_ms: 334.641727
+  type: 'test'
+  ...
+# Subtest: a production work commitment added after activation enforces the exact eight-hour rest boundary
+ok 39 - a production work commitment added after activation enforces the exact eight-hour rest boundary
+  ---
+  duration_ms: 297.109624
+  type: 'test'
+  ...
+# Subtest: a production work commitment conflicting with relief work is rejected
+ok 40 - a production work commitment conflicting with relief work is rejected
+  ---
+  duration_ms: 294.849186
+  type: 'test'
+  ...
+# Subtest: a production work commitment cannot push Direct Flex work above the weekly ceiling
+ok 41 - a production work commitment cannot push Direct Flex work above the weekly ceiling
+  ---
+  duration_ms: 302.887331
+  type: 'test'
+  ...
+# Subtest: production work commitments reject mutation, invalid provenance and deletion
+ok 42 - production work commitments reject mutation, invalid provenance and deletion
+  ---
+  duration_ms: 270.852204
+  type: 'test'
+  ...
+# Subtest: cancelled production work commitments are excluded from activation conflicts and hours
+ok 43 - cancelled production work commitments are excluded from activation conflicts and hours
+  ---
+  duration_ms: 302.739641
+  type: 'test'
+  ...
+# Subtest: synthetic demo commitments do not block a production activation
+ok 44 - synthetic demo commitments do not block a production activation
+  ---
+  duration_ms: 298.477037
+  type: 'test'
+  ...
+# Subtest: demo and production schedule declarations keep independent append-only version chains
+ok 45 - demo and production schedule declarations keep independent append-only version chains
+  ---
+  duration_ms: 258.199395
+  type: 'test'
+  ...
+# Subtest: PSiRA pathway withdrawal blocks production activation
+ok 46 - PSiRA pathway withdrawal blocks production activation
+  ---
+  duration_ms: 289.829001
+  type: 'test'
+  ...
+# Subtest: PSiRA pathway withdrawal blocks production activation during commit
+ok 47 - PSiRA pathway withdrawal blocks production activation during commit
+  ---
+  duration_ms: 315.345728
+  type: 'test'
+  ...
+# Subtest: signed agreement gate rejects changed contracting_entity without rewriting accepted evidence
+ok 48 - signed agreement gate rejects changed contracting_entity without rewriting accepted evidence
+  ---
+  duration_ms: 259.289739
+  type: 'test'
+  ...
+# Subtest: signed agreement gate rejects changed order_scope without rewriting accepted evidence
+ok 49 - signed agreement gate rejects changed order_scope without rewriting accepted evidence
+  ---
+  duration_ms: 273.782953
+  type: 'test'
+  ...
+# Subtest: signed agreement gate rejects changed shift_time without rewriting accepted evidence
+ok 50 - signed agreement gate rejects changed shift_time without rewriting accepted evidence
+  ---
+  duration_ms: 263.641472
+  type: 'test'
+  ...
+# Subtest: signed agreement gate rejects changed employer without rewriting accepted evidence
+ok 51 - signed agreement gate rejects changed employer without rewriting accepted evidence
+  ---
+  duration_ms: 260.364792
+  type: 'test'
+  ...
+# Subtest: signed agreement gate rejects changed receipt_revoked without rewriting accepted evidence
+ok 52 - signed agreement gate rejects changed receipt_revoked without rewriting accepted evidence
+  ---
+  duration_ms: 260.199991
+  type: 'test'
+  ...
+# Subtest: agreement revocation during commit rolls back activation and is immutable
+ok 53 - agreement revocation during commit rolls back activation and is immutable
+  ---
+  duration_ms: 294.968868
+  type: 'test'
+  ...
+# Subtest: production signing delivers exact approved wording and feeds the existing activation agreement gate
+ok 54 - production signing delivers exact approved wording and feeds the existing activation agreement gate
+  ---
+  duration_ms: 309.044409
+  type: 'test'
+  ...
+# Subtest: production Operations enforces real grants, maker separation and idempotent activation
+ok 55 - production Operations enforces real grants, maker separation and idempotent activation
+  ---
+  duration_ms: 363.090265
+  type: 'test'
+  ...
+# Subtest: production intake prepares pending records and reconciles reviewed corrections without granting eligibility
+ok 56 - production intake prepares pending records and reconciles reviewed corrections without granting eligibility
+  ---
+  duration_ms: 531.969447
+  type: 'test'
+  ...
+# Subtest: linked production officer cannot check in without current identity and scoped readiness
+ok 57 - linked production officer cannot check in without current identity and scoped readiness
+  ---
+  duration_ms: 334.904908
+  type: 'test'
+  ...
+# Subtest: legacy service history retains disputed checkout and pay review after account linking
+ok 58 - legacy service history retains disputed checkout and pay review after account linking
+  ---
+  duration_ms: 354.924679
+  type: 'test'
+  ...
+# Subtest: production site evidence requires independent approval and rejects a stale source revision
+ok 59 - production site evidence requires independent approval and rejects a stale source revision
+  ---
+  duration_ms: 264.498635
+  type: 'test'
+  ...
+# Subtest: officer schedule replaces declared work atomically, retains history and rejects stale or conflicting declarations
+ok 60 - officer schedule replaces declared work atomically, retains history and rejects stale or conflicting declarations
+  ---
+  duration_ms: 267.152083
+  type: 'test'
+  ...
+# Subtest: bound officer signature projects workforce terms with replay, cancellation and document withdrawal recovery
+ok 61 - bound officer signature projects workforce terms with replay, cancellation and document withdrawal recovery
+  ---
+  duration_ms: 284.423555
+  type: 'test'
+  ...
+# Subtest: production payroll policy requires three separately granted actors and preserves immutable versions
+ok 62 - production payroll policy requires three separately granted actors and preserves immutable versions
+  ---
+  duration_ms: 250.423372
+  type: 'test'
+  ...
+# Subtest: production period payroll binds reviewed sources and profiles, enforces independent approval and exports without settlement
+    # Subtest: employee payment instructions and test transfer recovery preserve live salary locks
+    ok 1 - employee payment instructions and test transfer recovery preserve live salary locks
+      ---
+      duration_ms: 332.107
+      type: 'test'
+      ...
+    1..1
+ok 63 - production period payroll binds reviewed sources and profiles, enforces independent approval and exports without settlement
+  ---
+  duration_ms: 689.699477
+  type: 'test'
+  ...
+# Subtest: production destinations bind exact employee evidence with independent fresh provider review and terminal recovery
+ok 64 - production destinations bind exact employee evidence with independent fresh provider review and terminal recovery
+  ---
+  duration_ms: 1412.850017
+  type: 'test'
+  ...
+# Subtest: legacy partner service history independently allocates invoice evidence and suspends unpaid exports
+    # Subtest: partner payment instructions bind invoice and mandate with durable isolated test recovery
+    ok 1 - partner payment instructions bind invoice and mandate with durable isolated test recovery
+      ---
+      duration_ms: 359.945505
+      type: 'test'
+      ...
+    1..1
+ok 65 - legacy partner service history independently allocates invoice evidence and suspends unpaid exports
+  ---
+  duration_ms: 725.658727
+  type: 'test'
+  ...
+# Subtest: production partner destinations bind exact company evidence with independent fresh provider review and terminal recovery
+ok 66 - production partner destinations bind exact company evidence with independent fresh provider review and terminal recovery
+  ---
+  duration_ms: 1403.457959
+  type: 'test'
+  ...
+# (node:1542579) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1542579) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: passport disposition never revives old token; fresh assessments and independent issuance are required
+ok 67 - passport disposition never revives old token; fresh assessments and independent issuance are required
+  ---
+  duration_ms: 820.811536
+  type: 'test'
+  ...
+# Subtest: disposition enforces access, independence, immutable history and one concurrent approval
+ok 68 - disposition enforces access, independence, immutable history and one concurrent approval
+  ---
+  duration_ms: 628.403051
+  type: 'test'
+  ...
+# Subtest: intake changes and a late hold invalidate a prepared disposition at commit
+ok 69 - intake changes and a late hold invalidate a prepared disposition at commit
+  ---
+  duration_ms: 1298.79967
+  type: 'test'
+  ...
+# Subtest: correction and genuine fresh identity/PSiRA review replace approval without altering prior evidence
+ok 70 - correction and genuine fresh identity/PSiRA review replace approval without altering prior evidence
+  ---
+  duration_ms: 658.528972
+  type: 'test'
+  ...
+# Subtest: workforce suspension freezes the old engagement and requires a fresh reviewed replacement
+ok 71 - workforce suspension freezes the old engagement and requires a fresh reviewed replacement
+  ---
+  duration_ms: 654.36917
+  type: 'test'
+  ...
+# Subtest: replacement disposition cannot override uncertain identity delivery or submit twice
+ok 72 - replacement disposition cannot override uncertain identity delivery or submit twice
+  ---
+  duration_ms: 380.430576
+  type: 'test'
+  ...
+# Subtest: assessment disposition rejects old drafts and requires newly checked evidence
+ok 73 - assessment disposition rejects old drafts and requires newly checked evidence
+  ---
+  duration_ms: 648.940273
+  type: 'test'
+  ...
+# Subtest: keep-held disposition grants nothing and expired or wrong-version investigations fail
+ok 74 - keep-held disposition grants nothing and expired or wrong-version investigations fail
+  ---
+  duration_ms: 632.811494
+  type: 'test'
+  ...
+# Subtest: intake correction and officer suspension preserve and suspend workforce records
+ok 75 - intake correction and officer suspension preserve and suspend workforce records
+  ---
+  duration_ms: 804.452416
+  type: 'test'
+  ...
+# Subtest: a new hold racing replacement issuance blocks the independent approval
+ok 76 - a new hold racing replacement issuance blocks the independent approval
+  ---
+  duration_ms: 758.901168
+  type: 'test'
+  ...
+# Subtest: investigation expiry is rechecked at the independent decision commit
+ok 77 - investigation expiry is rechecked at the independent decision commit
+  ---
+  duration_ms: 1652.881838
+  type: 'test'
+  ...
+# (node:1542581) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1542581) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: documented registry success remains review-only; receipt recovers across adapter restart with no network
+ok 78 - documented registry success remains review-only; receipt recovers across adapter restart with no network
+  ---
+  duration_ms: 33.12636
+  type: 'test'
+  ...
+# Subtest: concurrent submission atomically claims once
+ok 79 - concurrent submission atomically claims once
+  ---
+  duration_ms: 1.793735
+  type: 'test'
+  ...
+# Subtest: capture binds exact owner, applicant, version, consent and reference before I/O
+ok 80 - capture binds exact owner, applicant, version, consent and reference before I/O
+  ---
+  duration_ms: 2.008196
+  type: 'test'
+  ...
+# Subtest: withdrawn, expired, future and sandbox captures fail closed
+ok 81 - withdrawn, expired, future and sandbox captures fail closed
+  ---
+  duration_ms: 2.222277
+  type: 'test'
+  ...
+# Subtest: wrong person/environment, replayed timestamp and unsupported result envelopes never become evidence
+ok 82 - wrong person/environment, replayed timestamp and unsupported result envelopes never become evidence
+  ---
+  duration_ms: 22.571989
+  type: 'test'
+  ...
+# Subtest: timeouts, server errors and uncertain delivery remain held with no retry
+ok 83 - timeouts, server errors and uncertain delivery remain held with no retry
+  ---
+  duration_ms: 9.95339
+  type: 'test'
+  ...
+# Subtest: capture withdrawal during request and receipt write failure cannot authorise retry
+ok 84 - capture withdrawal during request and receipt write failure cannot authorise retry
+  ---
+  duration_ms: 2.795339
+  type: 'test'
+  ...
+# Subtest: expired or mismatched receipts cannot recover, including a different provider reference replacement
+ok 85 - expired or mismatched receipts cannot recover, including a different provider reference replacement
+  ---
+  duration_ms: 1.660174
+  type: 'test'
+  ...
+# Subtest: no default policy; private evidence URLs rejected; request claims exclude raw identity
+ok 86 - no default policy; private evidence URLs rejected; request claims exclude raw identity
+  ---
+  duration_ms: 1.326813
+  type: 'test'
+  ...
+# Subtest: claim requires the exact persisted production case and provider
+ok 87 - claim requires the exact persisted production case and provider
+  ---
+  duration_ms: 2.657737
+  type: 'test'
+  ...
+# Subtest: SQL rejects mismatched receipt binding, verified promotion and reused provider reference
+ok 88 - SQL rejects mismatched receipt binding, verified promotion and reused provider reference
+  ---
+  duration_ms: 1.522996
+  type: 'test'
+  ...
+# Subtest: additive proposal loads after all 69 canonical migrations without changing existing rows
+ok 89 - additive proposal loads after all 69 canonical migrations without changing existing rows
+  ---
+  duration_ms: 246.86612
+  type: 'test'
+  ...
+1..89
+# tests 91
+# suites 0
+# pass 91
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 23726.596975

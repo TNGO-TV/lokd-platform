@@ -1,5 +1,8 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
+import { applicationPsiraDeclaration, psiraIntakeStatus } from '../../lib/psira-pathway';
+import { psiraNumber as validatePsiraNumber } from '../../lib/psira-verification';
 import { env } from "cloudflare:workers";
-import { completeDemoIdentityVerification, startDemoIdentityVerification } from "../../lib/integration-server";
+import { completeDemoIdentityVerification, PlatformWorkflowError, recordDemoIdentityOutcome, startDemoIdentityVerification } from "../../lib/integration-server";
 import { tokenHash } from "../../lib/passport-server";
 import { PilotAccessError, pilotStage, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 
@@ -76,7 +79,7 @@ function allowedList(value: unknown, allowed: Set<string>, field: string, maximu
 }
 
 function responseError(cause: unknown) {
-  const error = cause instanceof ApplicationError || cause instanceof PilotAccessError
+  const error = cause instanceof ApplicationError || cause instanceof RequestBodyError || cause instanceof PilotAccessError || cause instanceof PlatformWorkflowError
     ? cause
     : new ApplicationError("We could not complete that application request.", 500);
   return response({ error: error.message }, error.status);
@@ -87,7 +90,7 @@ function response(payload: unknown, status = 200) {
     "cache-control": "no-store, private",
     "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer",
-    vary: "oai-authenticated-user-email",
+    vary: "x-lokd-verified-email",
   } });
 }
 
@@ -140,6 +143,7 @@ export async function GET(request: Request) {
       }>();
     return response({ applications: (result.results ?? []).map((item) => ({
       ...item,
+      psiraVerificationRequired: applicationPsiraDeclaration(item.pathway, item.psiraStatus) === "registered",
       services: JSON.parse(item.services) as string[],
       purposes: JSON.parse(item.purposes) as string[],
       training: JSON.parse(item.training) as string[],
@@ -154,8 +158,7 @@ export async function PATCH(request: Request) {
     requireSameOriginJson(request);
     const actor = requirePilotApiRole(request, "operations");
     if (pilotStage() !== "demo") throw new ApplicationError("Demo application transitions are disabled outside the isolated demo environment.", 423);
-    const raw = await request.text();
-    if (raw.length > 16_000) throw new ApplicationError("The request is too large.", 413);
+    const raw = await readRequestText(request, 16_000);
     let input: { id?: unknown; action?: unknown };
     try { input = JSON.parse(raw) as { id?: unknown; action?: unknown }; }
     catch { throw new ApplicationError("The request body is not valid JSON."); }
@@ -168,6 +171,11 @@ export async function PATCH(request: Request) {
     }
     if (action === "complete_demo_identity") {
       await completeDemoIdentityVerification(db, id, actor.email);
+      return response({ ok: true });
+    }
+    if (["demo_identity_manual_review", "demo_identity_rejected", "demo_identity_expired"].includes(action)) {
+      const outcome = action.replace("demo_identity_", "") as "manual_review" | "rejected" | "expired";
+      await recordDemoIdentityOutcome(db, id, actor.email, outcome);
       return response({ ok: true });
     }
     if (action === "issue_demo_network_profile") {
@@ -268,11 +276,10 @@ export async function PATCH(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function submitOfficerApplication(request: Request, database?:D1Database) {
   try {
     requireSameOriginJson(request);
-    const raw = await request.text();
-    if (raw.length > 16_000) throw new ApplicationError("The application is too large.", 413);
+    const raw = await readRequestText(request, 16_000);
     let input: ApplicationInput;
     try { input = JSON.parse(raw) as ApplicationInput; }
     catch { throw new ApplicationError("The application body is not valid JSON."); }
@@ -288,10 +295,15 @@ export async function POST(request: Request) {
     if (!provinces.has(province)) throw new ApplicationError("Choose a valid province.");
     const psiraStatus = cleanText(input.psiraStatus, "PSiRA position", 4, 30);
     if (!psiraStatuses.has(psiraStatus)) throw new ApplicationError("Choose a valid PSiRA position.");
-    const psiraNumber = typeof input.psiraNumber === "string" && input.psiraNumber.trim() ? cleanText(input.psiraNumber, "PSiRA number", 3, 40) : null;
-    if ((psiraStatus === "active" || psiraStatus === "expired") && !psiraNumber) throw new ApplicationError("Enter your PSiRA number.");
-    const requestedGrade = typeof input.psiraGrade === "string" ? input.psiraGrade.trim() : "";
-    const psiraGrade = (psiraStatus === "active" || psiraStatus === "expired") && grades.has(requestedGrade) ? requestedGrade : null;
+    const declaration = applicationPsiraDeclaration(pathway, psiraStatus);
+    const psiraRequired = declaration === 'registered';
+    let psiraNumber: string | null = null;
+    if (psiraRequired) {
+      try { psiraNumber = validatePsiraNumber(input.psiraNumber); }
+      catch { throw new ApplicationError('Enter your numeric PSiRA number. Verification is mandatory for registered-officer applications.'); }
+    }
+    const requestedGrade = typeof input.psiraGrade === 'string' ? input.psiraGrade.trim() : '';
+    const psiraGrade = psiraRequired && grades.has(requestedGrade) ? requestedGrade : null;
     const services = allowedList(input.services, serviceOptions, "Work category", 3);
     const purposes = allowedList(input.purposes, purposeOptions, "Work environment", 7);
     const training = pathway === "training" ? allowedList(input.training, trainingOptions, "Training area", 5) : [];
@@ -299,7 +311,7 @@ export async function POST(request: Request) {
     if (input.eligibilityAcknowledged !== true) throw new ApplicationError("Confirm that you understand the PSiRA eligibility requirements.");
     if (input.contactConsent !== true) throw new ApplicationError("Consent is required to save and respond to this application.");
 
-    const db = getDb();
+    const db = database??getDb();
     const now = new Date();
     const nowIso = now.toISOString();
     const retentionReview = new Date(now);
@@ -318,18 +330,20 @@ export async function POST(request: Request) {
        identity_verification_status, identity_consent_version, identity_consented_at,
        environment, integrity_state, status, source, retention_review_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, 'consent_pending', NULL, NULL,
-       'prelaunch', 'user_submitted', 'submitted', 'homepage', ?, ?, ?)`)
+       'prelaunch', 'user_submitted', ?, 'homepage', ?, ?, ?)`)
       .bind(id, pathway, fullName, mobile, email, city, province, psiraStatus, psiraNumber, psiraGrade,
         JSON.stringify(services), JSON.stringify(purposes), JSON.stringify(training), privacyNoticeVersion, nowIso,
-        retentionReview.toISOString(), nowIso, nowIso).run();
+        psiraIntakeStatus(declaration), retentionReview.toISOString(), nowIso, nowIso).run();
 
     await db.prepare(`INSERT INTO audit_events
       (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
       VALUES (?, 'applicant', ?, 'officer_interest_submitted', 'officer_application', ?, ?, ?)`)
       .bind(`AUD-${crypto.randomUUID()}`, id, id, "Homepage work, purpose and training interests received; identity and credentials remain unverified.", nowIso).run();
 
-    return response({ reference: id }, 202);
+    return response({ reference: id, psiraVerificationRequired: psiraRequired, pathwayStatus: psiraIntakeStatus(declaration) }, 202);
   } catch (cause) {
     return responseError(cause);
   }
 }
+
+export async function POST(request:Request){return submitOfficerApplication(request);}

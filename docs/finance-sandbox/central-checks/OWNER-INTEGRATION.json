@@ -1,0 +1,39 @@
+{
+  "base": "213f0e99ffbe142f4718624ef38c127f05366fb1",
+  "commit": "e4fd8f4b7e2e07c3d78efc32a09fc7a4b4144617",
+  "branch": "codex/finance-sandbox-completion",
+  "source": "/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-788a-7a83-a458-2aaa4e604d8a/finance-sandbox/source",
+  "patch": "/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-788a-7a83-a458-2aaa4e604d8a/finance-sandbox/finance-integration.patch",
+  "patchSha256": "27733dd27ca0f5d92491f15f3be73a196e40b769445b484b80246ca7deab941b",
+  "validation": {
+    "build": "passed; npm test build in handoff-tests.log",
+    "tests": 429,
+    "passed": 429,
+    "failed": 0,
+    "skipped": 0,
+    "lint": "passed; handoff-lint-final.log",
+    "typescript": "passed; handoff-types-final.log",
+    "testLog": "/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-788a-7a83-a458-2aaa4e604d8a/finance-sandbox/handoff-tests-final.log"
+  },
+  "migration": {
+    "proposal": "/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-788a-7a83-a458-2aaa4e604d8a/finance-sandbox/source/docs/migration-proposals/finance-workflows.sql",
+    "canonicalNumber": null,
+    "owner": "Central",
+    "tables": 11,
+    "views": 3,
+    "triggers": 46,
+    "appliedRemotely": false
+  },
+  "providerMode": "simulator",
+  "actualProviderTransactions": 0,
+  "policyVersions": [
+    "lokd-sandbox-completion-v1",
+    "lokd-sandbox-completion-v1-alternative"
+  ],
+  "documentJourney": "/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-788a-7a83-a458-2aaa4e604d8a/finance-sandbox/document-journey.html",
+  "handoff": "/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-788a-7a83-a458-2aaa4e604d8a/finance-sandbox/source/docs/finance-sandbox/HANDOFF.md",
+  "contract": "/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-788a-7a83-a458-2aaa4e604d8a/finance-sandbox/source/docs/finance-sandbox/CONTRACT.md",
+  "liveLocksChanged": false,
+  "deployed": false,
+  "next": "Central integrates/numbers schema, frontend wires contracts, identity consumes separate hook, independent merged QA and external test-provider acceptance follow."
+}

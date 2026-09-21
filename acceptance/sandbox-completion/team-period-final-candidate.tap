@@ -1,0 +1,80 @@
+TAP version 13
+# (node:1776773) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1776773) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (node:1776773) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: sandbox direct_flex/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+ok 1 - sandbox direct_flex/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1332.959992
+  type: 'test'
+  ...
+# Subtest: sandbox managed/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+ok 2 - sandbox managed/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1038.24897
+  type: 'test'
+  ...
+# Subtest: sandbox partner/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+ok 3 - sandbox partner/Unarmed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1058.251912
+  type: 'test'
+  ...
+# Subtest: sandbox direct_flex/Armed/default: captured person through signed workforce, assignment and application-produced service input
+ok 4 - sandbox direct_flex/Armed/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1077.981834
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/default: captured person through signed workforce, assignment and application-produced service input
+ok 5 - sandbox managed/VIP/default: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1073.102159
+  type: 'test'
+  ...
+# Subtest: sandbox managed/Armed/armed_movement: captured person through signed workforce, assignment and application-produced service input
+ok 6 - sandbox managed/Armed/armed_movement: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1074.784364
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/vip_armed: captured person through signed workforce, assignment and application-produced service input
+ok 7 - sandbox managed/VIP/vip_armed: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1073.118249
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/vip_protective_driver: captured person through signed workforce, assignment and application-produced service input
+ok 8 - sandbox managed/VIP/vip_protective_driver: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1105.822352
+  type: 'test'
+  ...
+# Subtest: sandbox managed/VIP/vip_team: captured person through signed workforce, assignment and application-produced service input
+ok 9 - sandbox managed/VIP/vip_team: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1555.228108
+  type: 'test'
+  ...
+# (node:1776774) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1776774) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (node:1776774) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: two application-produced service inputs retain distinct employer/engagement attribution within one SAST payroll period
+ok 10 - two application-produced service inputs retain distinct employer/engagement attribution within one SAST payroll period
+  ---
+  duration_ms: 1353.764768
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10611.859227

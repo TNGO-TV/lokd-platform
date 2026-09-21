@@ -320,6 +320,7 @@ export type PlatformState = {
     exceptions: PlatformPayrollException[];
   };
   operatorControls: {
+    mfaRequired: boolean;
     currentActorId: string;
     currentActorRoles: string[];
     currentActorMfaStatus: string;

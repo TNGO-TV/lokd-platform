@@ -1,0 +1,10 @@
+{
+  "mode": "development",
+  "method": "GET",
+  "path": "/environment",
+  "cliExit": 2,
+  "receivedJson": false,
+  "error": null,
+  "topLevelFields": [],
+  "diagnostic": "CLI did not return a JSON environment; production settings unchanged"
+}

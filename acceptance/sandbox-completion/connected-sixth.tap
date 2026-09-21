@@ -1,0 +1,81 @@
+TAP version 13
+# (node:1732554) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1732554) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (node:1732554) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: sandbox direct_flex/Unarmed: captured person through signed workforce, assignment and application-produced service input
+ok 1 - sandbox direct_flex/Unarmed: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1063.93376
+  type: 'test'
+  ...
+# Subtest: sandbox managed/Unarmed: captured person through signed workforce, assignment and application-produced service input
+ok 2 - sandbox managed/Unarmed: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1213.116158
+  type: 'test'
+  ...
+# Subtest: sandbox partner/Unarmed: captured person through signed workforce, assignment and application-produced service input
+ok 3 - sandbox partner/Unarmed: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 1123.515061
+  type: 'test'
+  ...
+# Subtest: sandbox direct_flex/Armed: captured person through signed workforce, assignment and application-produced service input
+not ok 4 - sandbox direct_flex/Armed: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 970.19361
+  type: 'test'
+  location: '/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:11:148'
+  failureType: 'testCodeFailure'
+  error: 'specialist_assignment_plan_not_current'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    priceSpecialistFixture (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/sandbox-specialist.mjs:11:107)
+    sandboxConnected (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/sandbox-connected.mjs:26:3)
+    async TestContext.<anonymous> (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:12:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: sandbox managed/VIP: captured person through signed workforce, assignment and application-produced service input
+not ok 5 - sandbox managed/VIP: captured person through signed workforce, assignment and application-produced service input
+  ---
+  duration_ms: 857.032107
+  type: 'test'
+  location: '/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:11:148'
+  failureType: 'testCodeFailure'
+  error: 'specialist_assignment_plan_not_current'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    priceSpecialistFixture (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/sandbox-specialist.mjs:11:107)
+    sandboxConnected (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/fixtures/sandbox-connected.mjs:26:3)
+    async TestContext.<anonymous> (file:///home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/tests/sandbox-connected.test.mjs:12:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# (node:1732555) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1732555) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: training purchase is not qualification; score, current source and separate approval produce actual readiness
+ok 6 - training purchase is not qualification; score, current source and separate approval produce actual readiness
+  ---
+  duration_ms: 1086.629603
+  type: 'test'
+  ...
+# Subtest: a caller cannot replace training completion with a typed evidence claim
+ok 7 - a caller cannot replace training completion with a typed evidence claim
+  ---
+  duration_ms: 917.05426
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 5
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5555.427647

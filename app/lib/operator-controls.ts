@@ -8,6 +8,19 @@ export type OperatorRole =
   | "compliance_reviewer";
 
 export type OperatorActionCode =
+  | "specialist.prepare"
+  | "specialist.review"
+  | "partner_payment.prepare"
+  | "partner_payment.approve"
+  | "partner_payment.dispatch_test"
+  | "partner_payment.cancel"
+  | "partner.prepare"
+  | "partner.approve"
+  | "partner.export"
+  | "payment.prepare"
+  | "payment.approve"
+  | "payment.dispatch_test"
+  | "payment.cancel"
   | "payroll.calculate"
   | "payroll.first_approve"
   | "payroll.second_approve"
@@ -27,6 +40,20 @@ export type OperatorActionPolicy = {
 };
 
 export const OPERATOR_ACTION_POLICIES: OperatorActionPolicy[] = [
+  { actionCode: "specialist.prepare", label: "Prepare specialist deployment evidence", requiredRole: "operations_controller", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "specialist.review", label: "Independently review specialist deployment evidence", requiredRole: "compliance_reviewer", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "partner_payment.prepare", label: "Prepare partner company payment instruction", requiredRole: "operations_controller", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "partner_payment.approve", label: "Approve partner company payment instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "partner_payment.dispatch_test", label: "Submit approved test transfer", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "partner_payment.cancel", label: "Cancel an unsent partner company instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: false },
+
+  { actionCode: "partner.prepare", label: "Prepare partner invoice payable", requiredRole: "operations_controller", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "partner.approve", label: "Review or suspend partner payable", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "partner.export", label: "Export approved partner payable", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: false },
+  { actionCode: "payment.prepare", label: "Prepare employee payment instruction", requiredRole: "payroll_preparer", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "payment.approve", label: "Approve employee payment instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "payment.dispatch_test", label: "Submit approved test transfer", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
+  { actionCode: "payment.cancel", label: "Cancel an unsent employee instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: false },
   { actionCode: "payroll.calculate", label: "Calculate payroll", requiredRole: "payroll_preparer", mfaMaxAgeMinutes: 30, maxAmountCents: 100_000_000, secondApprovalRequired: false },
   { actionCode: "payroll.first_approve", label: "First payroll approval", requiredRole: "payroll_reviewer", mfaMaxAgeMinutes: 15, maxAmountCents: 50_000_000, secondApprovalRequired: true },
   { actionCode: "payroll.second_approve", label: "Second payroll approval", requiredRole: "finance_approver", mfaMaxAgeMinutes: 15, maxAmountCents: 50_000_000, secondApprovalRequired: true },
@@ -43,6 +70,7 @@ export type OperatorControlInput = {
   roles: OperatorRole[];
   accountStatus: string;
   mfaStatus: string;
+  mfaRequired?: boolean;
   mfaVerifiedAt: string | null;
   amountCents: number;
   makerId?: string | null;
@@ -63,12 +91,14 @@ export function operatorControlDecision(input: OperatorControlInput): OperatorCo
   const blockers: string[] = [];
   if (input.accountStatus !== "active") blockers.push("The operator account is not active.");
   if (!input.roles.includes(policy.requiredRole)) blockers.push(`The ${policy.requiredRole.replaceAll("_", " ")} role is required.`);
-  if (input.mfaStatus !== "verified" || !input.mfaVerifiedAt) {
-    blockers.push("A verified Operations MFA challenge is required.");
-  } else {
-    const ageMs = (input.now ?? new Date()).getTime() - new Date(input.mfaVerifiedAt).getTime();
-    if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > policy.mfaMaxAgeMinutes * 60_000) {
-      blockers.push(`Operations MFA must be refreshed within ${policy.mfaMaxAgeMinutes} minutes.`);
+  if (input.mfaRequired !== false) {
+    if (input.mfaStatus !== "verified" || !input.mfaVerifiedAt) {
+      blockers.push("A verified Operations MFA challenge is required.");
+    } else {
+      const ageMs = (input.now ?? new Date()).getTime() - new Date(input.mfaVerifiedAt).getTime();
+      if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > policy.mfaMaxAgeMinutes * 60_000) {
+        blockers.push(`Operations MFA must be refreshed within ${policy.mfaMaxAgeMinutes} minutes.`);
+      }
     }
   }
   if (policy.maxAmountCents !== null && input.amountCents > policy.maxAmountCents) {

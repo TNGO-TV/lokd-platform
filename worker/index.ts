@@ -1,10 +1,16 @@
+import { secureRequest, secureResponse } from "../app/lib/security-headers";
+import { ownerBackup, type BackupEnv } from "./owner-backup";
+import { receivePaystackTest } from '../app/lib/paystack-test';
+import { liveSurfaceResponse } from "../app/lib/live-surface";
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { runDueAssignmentRevalidations } from "../app/lib/assignment-activation-server";
 import { runPlatformMaintenance } from "../app/lib/platform-jobs";
+import { authenticateClerkRequest, type ClerkEnv } from "./clerk-auth";
 
-interface Env {
+interface Env extends ClerkEnv, BackupEnv {
+  PAYSTACK_TEST_SECRET_KEY?: string;
   ASSETS: Fetcher;
   DB: D1Database;
   BUCKET: R2Bucket;
@@ -36,7 +42,9 @@ interface ScheduledController {
 // const imageConfig: ImageConfig = { dangerouslyAllowSVG: true };
 
 const worker = {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async handle(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const backup = await ownerBackup(request, env);
+    if (backup) return backup;
     const url = new URL(request.url);
 
     if (url.pathname === "/_vinext/image") {
@@ -50,7 +58,31 @@ const worker = {
       }, allowedWidths);
     }
 
-    return handler.fetch(request, env, ctx);
+    try {
+      // Infrastructure probes must remain usable when browser authentication fails.
+      if (url.pathname === '/api/health/live' || url.pathname === '/api/health/ready') return await handler.fetch(request, env, ctx);
+      // Provider authentication is HMAC, independent of browser sessions.
+      if (url.pathname === '/api/finance-workflows/webhook' || url.pathname === '/api/paystack/booking/webhook' || url.pathname === '/api/paystack/transfers/live/webhook') return await handler.fetch(request, env, ctx);
+      if (url.pathname === '/api/paystack/test/webhook') return await receivePaystackTest(request, env);
+      const auth = await authenticateClerkRequest(request, env);
+      if (auth.response) return auth.response;
+      const response = liveSurfaceResponse(url.pathname, env.LOKD_APP_STAGE, auth.request.headers.has("x-lokd-verified-user-id"), request.method) ?? await handler.fetch(auth.request, env, ctx);
+      const forwarded = new Response(response.body, response);
+      auth.headers.forEach((value, key) => forwarded.headers.append(key, value));
+      if (auth.request.headers.has("x-lokd-verified-email") || url.pathname.startsWith("/sign-")) {
+        forwarded.headers.set("cache-control", "private, no-store");
+      }
+      return forwarded;
+    } catch {
+      return new Response("Sign-in is temporarily unavailable. Please try again.", {
+        status: 503, headers: { "cache-control": "no-store", "content-type": "text/plain; charset=utf-8" },
+      });
+    }
+  },
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const secured = secureRequest(request);
+    try { return secureResponse(await worker.handle(secured.request, env, ctx), secured.policy); }
+    catch { return secureResponse(new Response("Service temporarily unavailable.", {status: 503, headers: {"content-type": "text/plain; charset=utf-8", "cache-control": "no-store"}}), secured.policy); }
   },
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const configuredStage = env.LOKD_APP_STAGE?.trim().toLowerCase();

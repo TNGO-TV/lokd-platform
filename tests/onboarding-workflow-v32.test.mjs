@@ -72,7 +72,7 @@ function request(host, path, method = "GET", body, email = "owner@lokd.example")
       ...(body ? { "content-type": "application/json" } : {}),
       origin: `https://${host}`,
       "sec-fetch-site": "same-origin",
-      "oai-authenticated-user-email": email,
+      "x-lokd-verified-email": email,
     },
     body: body ? JSON.stringify(body) : undefined,
   });

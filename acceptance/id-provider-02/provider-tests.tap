@@ -1,0 +1,68 @@
+TAP version 13
+# (node:1539701) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1539701) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: documented registry success remains review-only; receipt recovers across adapter restart with no network
+ok 1 - documented registry success remains review-only; receipt recovers across adapter restart with no network
+  ---
+  duration_ms: 18.796628
+  type: 'test'
+  ...
+# Subtest: concurrent submission atomically claims once
+ok 2 - concurrent submission atomically claims once
+  ---
+  duration_ms: 1.438704
+  type: 'test'
+  ...
+# Subtest: capture binds exact owner, applicant, version, consent and reference before I/O
+ok 3 - capture binds exact owner, applicant, version, consent and reference before I/O
+  ---
+  duration_ms: 1.804736
+  type: 'test'
+  ...
+# Subtest: withdrawn, expired, future and sandbox captures fail closed
+ok 4 - withdrawn, expired, future and sandbox captures fail closed
+  ---
+  duration_ms: 2.307607
+  type: 'test'
+  ...
+# Subtest: wrong person/environment, replayed timestamp and unsupported result envelopes never become evidence
+ok 5 - wrong person/environment, replayed timestamp and unsupported result envelopes never become evidence
+  ---
+  duration_ms: 11.984207
+  type: 'test'
+  ...
+# Subtest: timeouts, server errors and uncertain delivery remain held with no retry
+ok 6 - timeouts, server errors and uncertain delivery remain held with no retry
+  ---
+  duration_ms: 5.289677
+  type: 'test'
+  ...
+# Subtest: capture withdrawal during request and receipt write failure cannot authorise retry
+ok 7 - capture withdrawal during request and receipt write failure cannot authorise retry
+  ---
+  duration_ms: 2.222976
+  type: 'test'
+  ...
+# Subtest: expired or mismatched receipts cannot recover, including a different provider reference replacement
+ok 8 - expired or mismatched receipts cannot recover, including a different provider reference replacement
+  ---
+  duration_ms: 1.034513
+  type: 'test'
+  ...
+# Subtest: no default policy; private evidence URLs rejected; request claims exclude raw identity
+ok 9 - no default policy; private evidence URLs rejected; request claims exclude raw identity
+  ---
+  duration_ms: 1.033223
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 134.811961

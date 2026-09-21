@@ -1,0 +1,23 @@
+
+Running 14 tests using 1 worker
+
+(node:1582395) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [mobile-360] › tests/frontend/finance-adjustments.spec.mjs:13:1 › client receives issued private printable credit with signed amounts and authentic review evidence (691ms)
+  ✓   2 [mobile-360] › tests/frontend/finance-adjustments.spec.mjs:15:1 › credit unknown outcome retains immutable submitted facts and key; read failure blocks actions without losing draft (910ms)
+  ✓   3 [mobile-360] › tests/frontend/finance-adjustments.spec.mjs:17:1 › live gates block dispatch; a test dispatch timeout cannot be replayed after refresh (751ms)
+  ✓   4 [mobile-360] › tests/frontend/finance-adjustments.spec.mjs:18:1 › claimed refund uses numeric-string GET recovery then exact bank receipt and independent decision (834ms)
+  ✓   5 [mobile-360] › tests/frontend/finance-adjustments.spec.mjs:19:1 › existing provider binding offers GET-only adoption while live dispatch is locked (465ms)
+  ✓   6 [mobile-360] › tests/frontend/finance-adjustments.spec.mjs:23:1 › explicit server rejection permits corrected reviewed facts without reusing rejected key (894ms)
+  ✓   7 [mobile-360] › tests/frontend/finance-adjustments.spec.mjs:24:1 › single-digit provider IDs remain exact strings and forms fit a narrow viewport (797ms)
+(node:1582907) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   8 [desktop] › tests/frontend/finance-adjustments.spec.mjs:13:1 › client receives issued private printable credit with signed amounts and authentic review evidence (461ms)
+  ✓   9 [desktop] › tests/frontend/finance-adjustments.spec.mjs:15:1 › credit unknown outcome retains immutable submitted facts and key; read failure blocks actions without losing draft (991ms)
+  ✓  10 [desktop] › tests/frontend/finance-adjustments.spec.mjs:17:1 › live gates block dispatch; a test dispatch timeout cannot be replayed after refresh (723ms)
+  ✓  11 [desktop] › tests/frontend/finance-adjustments.spec.mjs:18:1 › claimed refund uses numeric-string GET recovery then exact bank receipt and independent decision (979ms)
+  ✓  12 [desktop] › tests/frontend/finance-adjustments.spec.mjs:19:1 › existing provider binding offers GET-only adoption while live dispatch is locked (537ms)
+  ✓  13 [desktop] › tests/frontend/finance-adjustments.spec.mjs:23:1 › explicit server rejection permits corrected reviewed facts without reusing rejected key (922ms)
+  ✓  14 [desktop] › tests/frontend/finance-adjustments.spec.mjs:24:1 › single-digit provider IDs remain exact strings and forms fit a narrow viewport (738ms)
+
+  14 passed (12.0s)

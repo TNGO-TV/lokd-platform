@@ -1,0 +1,6 @@
+(node:3) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+MFA_ROLE_PROBE 200 {"commandId":"ff961245-4c22-4413-b5c4-974b97c86637","decision":"approved","applied":true,"environment":"sandbox","policyVersion":"lokd-sandbox-completion-v1","orderId":"mfa-order"}
+RELEASE_PHANTOM_PROBE {"accepted":true,"allocation":0,"liability":85000,"tax":16000}

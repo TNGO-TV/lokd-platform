@@ -1,0 +1,17 @@
+
+Running 8 tests using 1 worker
+
+(node:2630404) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [mobile-360] › tests/journeys/mobile.spec.mjs:22:1 › registered officer: early validation, Enter advances, pending evidence and recoverable submission (1.5s)
+  ✓  2 [mobile-360] › tests/journeys/mobile.spec.mjs:52:51 › training: no registration lookup requirement or rejection (1.3s)
+  ✓  3 [mobile-360] › tests/journeys/mobile.spec.mjs:52:51 › not_registered: no registration lookup requirement or rejection (1.3s)
+  ✓  4 [mobile-360] › tests/journeys/mobile.spec.mjs:63:1 › client: failed submission preserves details; receipt explains account, agreement and funding gates (1.2s)
+(node:2630731) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [desktop] › tests/journeys/mobile.spec.mjs:22:1 › registered officer: early validation, Enter advances, pending evidence and recoverable submission (1.3s)
+  ✓  6 [desktop] › tests/journeys/mobile.spec.mjs:52:51 › training: no registration lookup requirement or rejection (935ms)
+  ✓  7 [desktop] › tests/journeys/mobile.spec.mjs:52:51 › not_registered: no registration lookup requirement or rejection (859ms)
+  ✓  8 [desktop] › tests/journeys/mobile.spec.mjs:63:1 › client: failed submission preserves details; receipt explains account, agreement and funding gates (719ms)
+
+  8 passed (10.4s)

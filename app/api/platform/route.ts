@@ -1,3 +1,4 @@
+import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from "cloudflare:workers";
 import { applyPlatformAction, ensureIntegrationDemoData, PlatformWorkflowError, readPlatformState } from "../../lib/integration-server";
 import type { PlatformAction } from "../../lib/platform-types";
@@ -17,13 +18,13 @@ function response(payload: unknown, status = 200) {
       "cache-control": "no-store, private",
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
-      vary: "oai-authenticated-user-email",
+      vary: "x-lokd-verified-email",
     },
   });
 }
 
 function errorResponse(cause: unknown) {
-  const error = cause instanceof PlatformWorkflowError || cause instanceof PilotAccessError
+  const error = cause instanceof PlatformWorkflowError || cause instanceof RequestBodyError || cause instanceof PilotAccessError
     ? cause
     : new PlatformWorkflowError("The platform workflow could not complete that request.", 500);
   return response({ error: error.message }, error.status);
@@ -52,8 +53,7 @@ export async function POST(request: Request) {
     requireSameOriginJson(request);
     const actor = requirePilotApiRole(request, "operations");
     requireDemo();
-    const raw = await request.text();
-    if (raw.length > 16_000) throw new PlatformWorkflowError("The request is too large.", 413);
+    const raw = await readRequestText(request, 16_000);
     let action: PlatformAction;
     try {
       action = JSON.parse(raw) as PlatformAction;

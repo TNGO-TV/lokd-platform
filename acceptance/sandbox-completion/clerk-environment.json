@@ -1,0 +1,8 @@
+{
+  "mode": "development",
+  "transport": "direct-public-FAPI-fallback",
+  "method": "GET",
+  "path": "/v1/environment",
+  "status": 200,
+  "receivedJson": true
+}

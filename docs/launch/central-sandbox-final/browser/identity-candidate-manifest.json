@@ -1,0 +1,90 @@
+{
+  "root": "/srv/ammosync/workspaces/lokd-security",
+  "mode": "Central merged root; local synthetic authentication",
+  "files": [
+    {
+      "file": "app/api/sandbox/discovery/route.ts",
+      "sha256": "3f9549d6da421063d2ba52cefeba02eb7f5a1e5b18e3b4bd03e846b9162d0ef2"
+    },
+    {
+      "file": "app/api/sandbox/application/route.ts",
+      "sha256": "ba8088b8dda28539e3416fc4861cd149a7a3d55ec0fdcf39e7202e0f867b6974"
+    },
+    {
+      "file": "app/api/sandbox/identity/route.ts",
+      "sha256": "50cfdea60db72096bbfd0bbb22b12e98fc88fc888afe2e2350f13bbe30bd3d78"
+    },
+    {
+      "file": "app/lib/sandbox-application.ts",
+      "sha256": "5eba9564ef485fedc023333337de075df283ddd3c302741e1e761d682237521b"
+    },
+    {
+      "file": "app/lib/sandbox-command.ts",
+      "sha256": "396e4917e9d98e7d0682b419273695874f3713e89babbb2da5701fd5798ef59c"
+    },
+    {
+      "file": "app/lib/sandbox-completion-policy.ts",
+      "sha256": "1374872b1a4076d68399e3de094d640d9b7076ef05d496b4582ea38713bf0a80"
+    },
+    {
+      "file": "app/lib/sandbox-discovery.ts",
+      "sha256": "5c45cf9400671b1d64afa32b0e0c9563fda5fc3a670de9379d0f419e1cded0f9"
+    },
+    {
+      "file": "app/lib/sandbox-engagement.ts",
+      "sha256": "0af41ce8fcbcb1f9b3f00398278c6bb82459a40089a8d79875c13467e60b15e9"
+    },
+    {
+      "file": "app/lib/sandbox-funding-boundary.ts",
+      "sha256": "4f0460ce95becaaf99e5d82c6d662d62392d35eed09ee0d2bfb1b359c7c21a4e"
+    },
+    {
+      "file": "app/lib/sandbox-identity-store.ts",
+      "sha256": "ff1610c826f4407e9db77bec49ae3ff954811ac4eeb10f844f9fdaa9702911ed"
+    },
+    {
+      "file": "app/lib/sandbox-identity.ts",
+      "sha256": "9d0e2255f69b75d57f7551462a395edafe8a8dc15483f4334f033f4db2bcd2f7"
+    },
+    {
+      "file": "app/lib/sandbox-read.ts",
+      "sha256": "3c5f9d97eb0edef937a2a866b8524930299cfa89d6f0c2fa793d4e1750b993d1"
+    },
+    {
+      "file": "app/lib/sandbox-retention.ts",
+      "sha256": "c41dc2591d4a7e5c3955afff192da94cfe59b8f56c3f0c7ceded41845698e7b4"
+    },
+    {
+      "file": "app/lib/sandbox-service.ts",
+      "sha256": "370f73d5e29b0b0da21b264a19cb3cbde26dad72e7f6cc57817e757ad27cd1ae"
+    },
+    {
+      "file": "app/lib/sandbox-specialist.ts",
+      "sha256": "185eec4b32c84f2ac26cfddeb772e2b6026077c0a2df05e22ff7c7a63668dfa8"
+    },
+    {
+      "file": "app/lib/sandbox-training-finance.ts",
+      "sha256": "5a7894cd5ffe7f6dbf09341092f258c73e2b67dca8c4481797cfc642af0521b3"
+    },
+    {
+      "file": "app/lib/sandbox-training.ts",
+      "sha256": "09b2f46e734c4996e8fb05dc37b666bd0ff8fa85670f0599369d88881b06b1fa"
+    },
+    {
+      "file": "app/lib/sandbox-workforce.ts",
+      "sha256": "e31b20af56f32b5a92fd54687302cbd7a383ed1b8cc93b8ce0610a4553abbed3"
+    },
+    {
+      "file": "sandbox-migrations/0001_identity_workforce.sql",
+      "sha256": "0e98d8832695bb2a6a41fcd484fffb0a4985a5fc7cc6a2aea673fe12ff97f389"
+    },
+    {
+      "file": "sandbox-migrations/0002_command_journal.sql",
+      "sha256": "afa326a04c246f3d954e2eea2317d8250bc99b95a1fbcfd273c812844bf43ca6"
+    },
+    {
+      "file": "sandbox-migrations/0003_evidence_retention.sql",
+      "sha256": "21f7d79d003684ec7fd3069f90766d03d8b0db0e0113fba3eed522fd8520308c"
+    }
+  ]
+}

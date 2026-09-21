@@ -47,7 +47,8 @@ function request(path, init = {}) {
   return new Request(`https://demo.lokd.co.za${path}`, {
     ...init,
     headers: {
-      "oai-authenticated-user-email": "ops@lokd.example",
+      "x-lokd-verified-user-id":"user_fixture", "x-lokd-verified-mfa-enrolled":"true", "x-lokd-verified-second-factor-at":new Date(Date.now()-60000).toISOString(),
+      "x-lokd-verified-email": "ops@lokd.example",
       ...init.headers,
     },
   });
@@ -121,7 +122,7 @@ test("authorised prelaunch evidence is privately stored, hashed and downloaded t
       headers: {
         "content-type": "application/json",
         origin: "https://demo.lokd.co.za",
-        "oai-authenticated-user-email": "reviewer@lokd.example",
+        "x-lokd-verified-email": "reviewer@lokd.example",
       },
       body: JSON.stringify({ artifactId: uploaded.artifact.id, expectedHash: uploaded.artifact.contentHash }),
     }));
@@ -146,4 +147,45 @@ test("authorised prelaunch evidence is privately stored, hashed and downloaded t
     delete env.LOKD_PILOT_ACCESS_JSON;
     database.close();
   }
+});
+
+test("evidence classifications guard upload, metadata, bytes and verification before bucket access", async () => {
+  const database = migratedDatabase(), objects = new Map();
+  let reads = 0, writes = 0;
+  env.DB = new D1Adapter(database);
+  env.BUCKET = {
+    async put(key, bytes, options) { writes++; objects.set(key, { bytes, options }); },
+    async get(key) { reads++; return { body: objects.get(key).bytes }; },
+    async head(key) { reads++; const value=objects.get(key); return {size:value.bytes.byteLength,customMetadata:value.options.customMetadata}; },
+    async delete(key) { objects.delete(key); },
+  };
+  env.LOKD_APP_STAGE = "pilot";
+  env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({owners:["owner@lokd.example","owner2@lokd.example"],operations:["ops@lokd.example","reviewer@lokd.example"]});
+  const as = (email, path, method="GET", body) => request(path,{method,headers:{"x-lokd-verified-email":email,...(body?{"content-type":"application/json",origin:"https://demo.lokd.co.za"}:{})},...(body?{body:JSON.stringify(body)}:{})});
+  const upload = (email, accessClass) => POST(as(email,"/api/evidence","POST",{kind:"private_record",mimeType:"text/plain",retentionClass:"temporary_90d",accessClass,contentBase64:Buffer.from("synthetic classified bytes").toString("base64")}));
+  try {
+    for (const accessClass of ["finance","compliance"]) for (const email of ["owner@lokd.example","ops@lokd.example"]) {
+      const before=writes;assert.equal((await upload(email,accessClass)).status,403);assert.equal(writes,before);
+    }
+    assert.equal((await upload("ops@lokd.example","owner")).status,403);
+    const ownerUpload=await upload("owner@lokd.example","owner");assert.equal(ownerUpload.status,201);const {artifact}=await ownerUpload.json();
+    const verify=(email)=>PATCH(as(email,"/api/evidence","PATCH",{artifactId:artifact.id,expectedHash:artifact.contentHash}));
+    for(const accessClass of ["owner","finance","compliance"]){
+      database.prepare("UPDATE document_artifacts SET access_class=? WHERE id=?").run(accessClass,artifact.id);
+      for(const email of ["ops@lokd.example",...(accessClass==='owner'?[]:["owner@lokd.example"])]) {
+        const before=reads;
+        assert.equal((await GET(as(email,`/api/evidence?id=${artifact.id}`))).status,403);
+        assert.equal((await GET(as(email,`/api/evidence?id=${artifact.id}&download=1`))).status,403);
+        assert.equal((await verify(email)).status,403);assert.equal(reads,before,"denied classes never fetch bucket bytes or metadata");
+      }
+    }
+    database.prepare("UPDATE document_artifacts SET access_class='owner' WHERE id=?").run(artifact.id);
+    assert.equal((await GET(as("owner2@lokd.example",`/api/evidence?id=${artifact.id}`))).status,200);
+    assert.equal(await (await GET(as("owner2@lokd.example",`/api/evidence?id=${artifact.id}&download=1`))).text(),"synthetic classified bytes");
+    assert.equal((await verify("owner@lokd.example")).status,409,"classification must not bypass independent verification");
+    assert.equal((await verify("owner2@lokd.example")).status,200);
+    env.LOKD_APP_STAGE="production";const before=reads;
+    assert.equal((await GET(as("owner2@lokd.example",`/api/evidence?id=${artifact.id}&download=1`))).status,404);
+    assert.equal((await verify("owner2@lokd.example")).status,404);assert.equal(reads,before,"wrong environment never touches bucket");
+  } finally {for(const key of ['DB','BUCKET','LOKD_APP_STAGE','LOKD_PILOT_ACCESS_JSON'])delete env[key];database.close();}
 });

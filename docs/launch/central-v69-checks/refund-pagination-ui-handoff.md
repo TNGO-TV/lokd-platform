@@ -1,0 +1,19 @@
+# Refund pagination UI checkpoint — 14 September 2026
+
+Stable implementation in app/components/finance-adjustment-controls.tsx and focused tests/frontend/finance-adjustments.spec.mjs only. Backend pagination belongs to requirements_audit/Root. No schema, deployment, provider or live account changes.
+
+Implemented per-dataset load-more for authorized sources/cases/receipts/observations/states using opaque cursor URLs. Stable IDs merge pages without duplicate rows; refresh replays loaded page queries and hydrates missing previously loaded cases/sources through exact caseId/reference lookups. Newly loaded receipt/observation dependencies hydrate their authorized cases, then any missing sources. All loaded state/receipt/observation evidence is independently readable in a history details section. Missing source is explicit and blocks actions, with a dedicated authorized-source lookup.
+
+Before every refund POST, the UI freshly GETs the exact case (or preparation reference). Receipt decisions follow case-scoped receipt continuations until the selected receipt is found. Changed/missing source, case or receipt prevents the command and requires renewed review. Existing backend hash/authority/independence checks remain authoritative; preflight does not replace them. A failed preflight before any POST allows the initial preparation draft to be corrected. If an earlier POST had an unknown outcome, its original key and submitted facts remain fixed through subsequent preflight failures.
+
+Transient page/read failures preserve loaded history and keyed drafts and disable decisions until refresh. Explicit401/403 clears private refund cache and cursor state; invalid account-scoped cursor400 also clears cached pages, preventing a previous account's records from being retained after a cursor rejection. Empty authorized preflight removes the revoked collection's cached source/cases/receipt/observation/state records and sends no command. Request epochs prevent older successful pages from repopulating cache after access clearing.
+
+Known limitation: refund forms are mounted under private sources/cases. Clearing private records on401/403 or invalid account-cursor also unmounts their in-memory drafts. Do not claim draft preservation across confirmed authorization loss, expired-session clearing or cursor reset. Transient503/network failures retain drafts. This protects private records while requiring users to recover access before re-entering unsent inputs. No local/session storage was added for sensitive drafts or evidence.
+
+Verification:
+- Focused existing+pagination run:38 passed0 failed/skipped/retries,26.4s; /tmp/lokd-refund-pages-browser-final.log. Includes load-more and reference hydration, original keyed draft retention after page503 and refresh, fresh case/receipt preflight, readonly adoption/verification, gates, exact cents, client printable escaping, officer non-mounting,401/403 cache clearing, known-unsent vs earlier-unknown key recovery and empty-authorized-source clearing.
+- Last actor-cursor reset addition:2 passed0 failed/skipped/retries,2.2s; /tmp/lokd-refund-cursor-browser.log. The full file now contains20 scenarios×2 viewports=40 cases; final combined full-suite execution belongs to independent security_qa.
+- tsc --noEmit --incremental false and focused ESLint pass after final edits; logs /tmp/lokd-refund-pages-types.log and /tmp/lokd-refund-pages-lint.log.
+- Earlier2 failed checks were a dynamic test locator switching to a newly hydrated second source form. Fixed the test to the original COLLECTION-ONE article and retained the exact draft assertion; no implementation assertion was weakened.
+
+Browser fixture4294 (session52669) transferred to security_qa after all owner runs completed. Reviewer will run final suite and stop fixture; no owner browser remains active. Source stable at transfer.

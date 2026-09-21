@@ -1,0 +1,213 @@
+TAP version 13
+# (node:1774478) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1774478) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: Finance runtime requires a distinct prelaunch database and exact installed policy
+ok 1 - Finance runtime requires a distinct prelaunch database and exact installed policy
+  ---
+  duration_ms: 280.013268
+  type: 'test'
+  ...
+# Subtest: Finance workspace and capability discovery use actual membership and canonical authority
+ok 2 - Finance workspace and capability discovery use actual membership and canonical authority
+  ---
+  duration_ms: 268.642752
+  type: 'test'
+  ...
+# Subtest: Finance review pagination retains historical exact commands and rejects foreign cursors
+ok 3 - Finance review pagination retains historical exact commands and rejects foreign cursors
+  ---
+  duration_ms: 290.145809
+  type: 'test'
+  ...
+# Subtest: Finance current projection never treats an older history page as current state
+ok 4 - Finance current projection never treats an older history page as current state
+  ---
+  duration_ms: 353.412497
+  type: 'test'
+  ...
+# Subtest: Finance operation evidence is private, scoped and cursor paged
+ok 5 - Finance operation evidence is private, scoped and cursor paged
+  ---
+  duration_ms: 280.358419
+  type: 'test'
+  ...
+# (node:1774479) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1774479) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: Independent regression: paid order cannot extend entitlement
+ok 6 - Independent regression: paid order cannot extend entitlement
+  ---
+  duration_ms: 368.702205
+  type: 'test'
+  ...
+# Subtest: Independent regression: corrected application cannot receive completion
+ok 7 - Independent regression: corrected application cannot receive completion
+  ---
+  duration_ms: 312.556919
+  type: 'test'
+  ...
+# Subtest: Independent regression: evidence-held course cannot receive completion
+ok 8 - Independent regression: evidence-held course cannot receive completion
+  ---
+  duration_ms: 320.792245
+  type: 'test'
+  ...
+# Subtest: Independent regression: application correction after preparation rejects approval
+ok 9 - Independent regression: application correction after preparation rejects approval
+  ---
+  duration_ms: 335.808601
+  type: 'test'
+  ...
+# (node:1774480) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1774480) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: QA: privileged workspace member cannot bypass canonical Operations classification
+ok 10 - QA: privileged workspace member cannot bypass canonical Operations classification
+  ---
+  duration_ms: 296.618229
+  type: 'test'
+  ...
+# Subtest: QA: new liability invalidates prepared release; truly excess allocation remains releasable
+ok 11 - QA: new liability invalidates prepared release; truly excess allocation remains releasable
+  ---
+  duration_ms: 299.016666
+  type: 'test'
+  ...
+# Subtest: QA: multiple recovery requests share one cumulative cap
+ok 12 - QA: multiple recovery requests share one cumulative cap
+  ---
+  duration_ms: 296.100409
+  type: 'test'
+  ...
+# Subtest: QA: disabled webhook reads zero bytes
+ok 13 - QA: disabled webhook reads zero bytes
+  ---
+  duration_ms: 1.215403
+  type: 'test'
+  ...
+# Subtest: QA: UTF8 byte cap and stalled input cancel and release the reader
+ok 14 - QA: UTF8 byte cap and stalled input cancel and release the reader
+  ---
+  duration_ms: 12.212129
+  type: 'test'
+  ...
+# Subtest: QA: isolated finance DB with exact installed policy is selected
+ok 15 - QA: isolated finance DB with exact installed policy is selected
+  ---
+  duration_ms: 270.435037
+  type: 'test'
+  ...
+# Subtest: QA: aliases, production stage and primary sandbox marker fail closed
+ok 16 - QA: aliases, production stage and primary sandbox marker fail closed
+  ---
+  duration_ms: 267.781899
+  type: 'test'
+  ...
+# Subtest: QA: absent or altered sandbox policy never selects finance DB
+ok 17 - QA: absent or altered sandbox policy never selects finance DB
+  ---
+  duration_ms: 0.821213
+  type: 'test'
+  ...
+# (node:1774486) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:1774486) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# Subtest: FI sandbox partial receipt, independent approval, exact replay, concurrent allocation and private immutable history
+ok 18 - FI sandbox partial receipt, independent approval, exact replay, concurrent allocation and private immutable history
+  ---
+  duration_ms: 300.697942
+  type: 'test'
+  ...
+# Subtest: FI unknown submission is durably claimed and recovered without a second transaction
+ok 19 - FI unknown submission is durably claimed and recovered without a second transaction
+  ---
+  duration_ms: 284.911452
+  type: 'test'
+  ...
+# Subtest: FI wrong authority, stale evidence and evidence arriving after preparation cannot authorize payment
+ok 20 - FI wrong authority, stale evidence and evidence arriving after preparation cannot authorize payment
+  ---
+  duration_ms: 269.403184
+  type: 'test'
+  ...
+# Subtest: FI credit notes, refund recipient correction, retry, reversal and original-reference preservation
+ok 21 - FI credit notes, refund recipient correction, retry, reversal and original-reference preservation
+  ---
+  duration_ms: 331.89299
+  type: 'test'
+  ...
+# Subtest: FI final chargeback preserves liabilities and supports reconciled residual funding
+ok 22 - FI final chargeback preserves liabilities and supports reconciled residual funding
+  ---
+  duration_ms: 289.368066
+  type: 'test'
+  ...
+# Subtest: EX03/04 versioned R350 enrolment and training remain separate from work eligibility through expiry/refund/suspension
+ok 23 - EX03/04 versioned R350 enrolment and training remain separate from work eligibility through expiry/refund/suspension
+  ---
+  duration_ms: 390.460843
+  type: 'test'
+  ...
+# Subtest: FI sandbox policy branches, exact minor units and South African midnight
+ok 24 - FI sandbox policy branches, exact minor units and South African midnight
+  ---
+  duration_ms: 260.624647
+  type: 'test'
+  ...
+# Subtest: EX01/02 split employers, partial subsequent settlement, consent-limited recovery, taxes and partner replacement history
+ok 25 - EX01/02 split employers, partial subsequent settlement, consent-limited recovery, taxes and partner replacement history
+  ---
+  duration_ms: 288.227762
+  type: 'test'
+  ...
+# Subtest: FI source-version and revoked-authority races roll back decisions; unsubmitted cancellation cannot race a durable claim
+ok 26 - FI source-version and revoked-authority races roll back decisions; unsubmitted cancellation cannot race a durable claim
+  ---
+  duration_ms: 258.203688
+  type: 'test'
+  ...
+# Subtest: FI real HTTP routes enforce private identity, same origin, workspace, sandbox and Operations MFA policy
+ok 27 - FI real HTTP routes enforce private identity, same origin, workspace, sandbox and Operations MFA policy
+  ---
+  duration_ms: 281.837962
+  type: 'test'
+  ...
+# Subtest: FI contradictory evidence after payment holds documents and unused funding until final reversal is independently reconciled
+ok 28 - FI contradictory evidence after payment holds documents and unused funding until final reversal is independently reconciled
+  ---
+  duration_ms: 263.001584
+  type: 'test'
+  ...
+# (node:1774486) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# Subtest: FI evidence expires at approval time without changing the ledger
+ok 29 - FI evidence expires at approval time without changing the ledger
+  ---
+  duration_ms: 249.417122
+  type: 'test'
+  ...
+# Subtest: FI canonical finance migration applies under hosted SQLite limits
+ok 30 - FI canonical finance migration applies under hosted SQLite limits
+  ---
+  duration_ms: 319.944893
+  type: 'test'
+  ...
+# Subtest: FI contradictory evidence racing provider submission prevents the external boundary call
+ok 31 - FI contradictory evidence racing provider submission prevents the external boundary call
+  ---
+  duration_ms: 265.567992
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 31
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4280.20554

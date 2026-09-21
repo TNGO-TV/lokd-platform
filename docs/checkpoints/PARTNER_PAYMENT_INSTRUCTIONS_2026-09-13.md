@@ -1,0 +1,37 @@
+# Partner payment instructions — 13 September 2026
+
+Continues v61 company destinations. Operations can prepare one exact full invoice-line payment instruction from a current independently approved, unheld `approved_unpaid` partner payable and its exact current company destination. The amount is the company invoice allocation (including reviewed invoice tax), never officer wages. No partial allocations, live transfer release or paid/remittance projection are introduced.
+
+The immutable source binds payable/review/digest, original service evidence, legal employer, invoice number/line/due date, amount/ZAR, destination/digest, provider integration/recipient, company representative and service participants. New `partner_payment.*` policies require the production operations controller to prepare and independent finance authority to approve/submit/cancel, within active limits. The company representative, officer and client cannot prepare or approve their own instruction even if they have an Operations policy role.
+
+Migration `0059_puzzling_jack_power.sql` adds instructions, durable commands and immutable provider observations. Database guards enforce exact source and current authority at commit; versioned command transitions, active payable/mode uniqueness and no deletion preserve duplicate-payment prevention. Unsent instructions may be cancelled and replaced. A durable submission claim precedes the single test POST. Claimed instructions cannot be cancelled, replaced or resubmitted after timeouts, failures, reversals or conflicts; only same-reference verification is available. A future independently controlled terminal-disposition workflow is needed for replacement after a claim.
+
+Only explicit test-mode dispatch is supported, and only on/after the invoice due date. Live instructions can be reviewed but their dispatch and provider verification are locked with HTTP 423 even when live keys exist. Dispatch freshly retrieves the exact current recipient; a mismatch creates a durable stop observation. Same-reference API verification and matching signed test webhook evidence must agree on transfer identity, reference, amount, ZAR, integration and recipient. A new webhook invalidates earlier verification until checked again. Reversals/failures/conflicts remain explicit test evidence and never mark a payable paid. The `lokd-partner-pay-` namespace and separate tables/receiver isolate company events from employee and collection/enrolment workflows, while reusing normalized provider-evidence checks.
+
+## Validation
+
+- All **280 regression tests passed**, zero failures (19.6 seconds), including hosted SQLite migration limits, shared webhook routing, employee behavior and partner lifecycle. `/tmp/lokd-partner-payment-regression.log`.
+- Partner journey extends actual completed, client-confirmed and pay-reviewed service with approved invoice allocation and independently reviewed company destination. Tests cover participant/maker exclusion, exact digest, request retry/conflict, invalid active-key insertion, stale versions, authority/source revision races, provider mismatch and stop evidence, unsent cancellation/replacement, missing provider configuration, timeout after a single POST, no resubmit/cancel/replacement after claim, signed-webhook deduplication, live-webhook rejection, verification watermark race, reversal/conflicting transfer identity, live dispatch lock, masked read access, immutable records, held payable exclusion and unchanged unpaid financial state. Provider calls are injected fixtures, not live acceptance.
+- Separate transfer-namespace regression proves employee and company raw references cannot cross parsers or reconciliation bindings.
+- Authenticated browser: passed in 21.8 seconds (27.8 total), four distinct disposable Clerk DEVELOPMENT sessions. Maker self-approval 403; independent finance approval; masked account and invoice evidence; missing-key dispatch blocked while instruction stays approved; unsent cancellation; Client/Officer isolation; no paid payroll projection. `/tmp/lokd-partner-payment-browser.log`.
+- Browser fixture original database restored, temporary `.dev.vars` and test users removed before building. Existing enrolment checkout was not touched.
+- TypeScript, changed-file ESLint, diff check and production build passed. Global lint remains at the previously recorded seven unrelated errors and 19 warnings; no global-clean claim.
+
+## Boundaries and remaining work
+
+No actual provider POST, money movement, recipient creation, credentials/infrastructure/DNS changes, owner-account grants or messages occurred during this milestone. `LOKD_OPERATIONS_MFA_REQUIRED=false` and `LOKD_LIVE_SHIFT_SCAN=false` remain unchanged. Keep the full remaining-work list in `NEW_THREAD_RESUME_2026-09-13.md`; company destinations and isolated test instructions are now implemented. Genuine company/legal/mandate/provider/owner acceptance is still external work. Guarded live employee/company release, reconciled paid-state projection, payslips/remittances, post-export adjustments, client invoicing and held/refund/uncertain financial disposition remain outstanding.
+
+Suggested next bounded implementation: independently authorized failure/reversal disposition for claimed test transfers with proof of final status and duplicate-payment prevention, covering employee and company records. Do not unlock live dispatch or infer a final failure from a timeout, missing event or contradictory evidence. Actual operating-cycle acceptance remains separate.
+
+Reusable lesson: retain exact company invoice and mandate evidence at command commit; save the submission claim before network delivery; after uncertainty verify the original reference rather than generating another. A test confirmation is evidence of a test transfer only, never evidence that the liability was paid. This implementation reused existing safeguards without weakening them and completed its targeted, browser and regression checks without failing test runs.
+
+## Release receipt — v62
+
+- Deployed exact source: `042c237e02f69fadc896ac448bdd3b144d7d7deb`.
+- Sites project: `appgprj_6a88a08505548191b266e9b711562ae3`; existing public audience preserved.
+- Version: `appgprj_6a88a08505548191b266e9b711562ae3~appgver_f398579534908191a0199bc1e8f06d28`.
+- Deployment: `appgdep_6aa6ce6f71d8819187a3fe08700fbbe9`, succeeded `2026-09-13T16:25:34.361189+00:00`; environment revision 9 unchanged.
+- Native: https://lokd-security.zenas-capetown.chatgpt.site . Custom: https://lokd.co.za/ . Existing role hostnames preserved.
+- Archive `/tmp/lokd-partner-payments-v62.tar.gz` validated: Worker, expected project manifest, exact migration, private-file exclusions. Local gzip SHA-256 `14bf2f5fefafd25679b6754ef8e3b48f8deec7160124da0c08c532cd1a6c4b3a`; Sites normalized archive hash `sha256:ea11e9ef6b6a9ecdd7ff3fd3c51f416f138dc6efe3d7f8652772b8bdc02becda`.
+- Post-deployment acceptance: custom/native homepages 200; Client/Officer/Operations service routes 307 to the proper same-host sign-in and exact return paths; anonymous Operations API 401. `/tmp/lokd-v62-domain-acceptance.json`. These route checks are not genuine owner sign-in or live payment acceptance.
+- This release receipt and the refreshed remaining-work entry point are documentation-only; no further rebuild is required. Receipt-only commits are local until the next authorized source push, following the existing handover convention.
