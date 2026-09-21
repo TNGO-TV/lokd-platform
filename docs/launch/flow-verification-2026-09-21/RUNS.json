@@ -1,0 +1,26 @@
+{
+  "source": "be67bc32b513785c20cfa878252f9ebd09f37437",
+  "scope": "User-requested full isolated flow review. No real accounts or provider calls.",
+  "runs": {
+    "security": {
+      "exit_code": 0,
+      "seconds": 116.97
+    },
+    "built-navigation": {
+      "exit_code": 0,
+      "seconds": 1.22
+    },
+    "frontend": {
+      "exit_code": 0,
+      "seconds": 124.51
+    },
+    "intake": {
+      "exit_code": 0,
+      "seconds": 6.99
+    },
+    "integrated": {
+      "exit_code": 0,
+      "seconds": 209.31
+    }
+  }
+}

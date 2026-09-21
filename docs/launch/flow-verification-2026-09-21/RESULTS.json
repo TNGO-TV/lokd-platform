@@ -1,0 +1,79 @@
+{
+  "source": "be67bc32b513785c20cfa878252f9ebd09f37437",
+  "scope": "Fresh local isolated end-to-end flow verification requested by owner; no real-account, provider, money or physical-device acceptance.",
+  "backend": {
+    "passed": 513,
+    "failed": 0,
+    "skipped": 0
+  },
+  "built_navigation": {
+    "passed": 4,
+    "widths": [
+      360,
+      1280
+    ],
+    "inputs": [
+      "pointer",
+      "keyboard"
+    ]
+  },
+  "browser": {
+    "frontend": {
+      "startTime": "2026-09-21T12:56:53.482Z",
+      "duration": 124071.955,
+      "expected": 206,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "intake": {
+      "startTime": "2026-09-21T12:58:57.993Z",
+      "duration": 6532.877,
+      "expected": 8,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "integrated": {
+      "startTime": "2026-09-21T12:59:09.134Z",
+      "duration": 208853.503,
+      "expected": 76,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  },
+  "checks": {
+    "audit": "zero known vulnerabilities at execution time",
+    "lint": {
+      "errors": 0,
+      "warnings": 3
+    },
+    "types": "passed",
+    "readiness_schema": "passed",
+    "build": "passed"
+  },
+  "external_provider_verified": false,
+  "production_changed": false,
+  "integrated_modes": {
+    "response-mocked UI": 28,
+    "actual local handlers with synthetic prerequisites": 48
+  },
+  "sha256": {
+    "BROWSER-CASES.json": "1724dbb949c64e9a7184895d1a4ba28a3c1f0e9ea2e942e085664a7aa2d016c6",
+    "PROVIDER-BOUNDARY.md": "1d2d0e506d3b5a45b73bd6b951a50a5115bce6d4f222c32db0ad6ccb284f9be2",
+    "RUNS.json": "d353e88a215897107ec3dba499dcd16ee558ac36daa08deb5acfc63864ea156b",
+    "built-navigation.log": "57edd1ef9a23f45a68edfe7b3b49eb53b2115da18c29ad1319d15046357d8680",
+    "frontend-results.json": "1de762df9e175bcbbab470c98ad3f19bbb27d607bb8e2ebc6ad0e74b2c779c1f",
+    "frontend-server.log": "30b0d73edb9cc3f8da7fad789b4a45d5dd598db05022896fd7c7e827f5a885ab",
+    "frontend.log": "d807f86b2c3b78bc80c1721f181ed1e05af6a30315e5035d1698173ecec25992",
+    "intake-results.json": "c38d63c54dd8165f942786068afad6d8ba4e94fe2597bc605077b80725665c13",
+    "intake.log": "0f766f6ec4a83a5b7ac68b44e57e43b21c3ff34ed0b6b9bced20fd33f4df4d12",
+    "integrated-handler.log": "679cb1122f6e5074ab133ed5e0ca456e86a5aed562796aa61466e7ad476c59c8",
+    "integrated-results.json": "77b5523145801aff5c10d4bb0de5000863b6d54a61fa0407468fbd531a97f5a7",
+    "integrated-ui.log": "d1058277b71f41d71de065c2b3aaa34d0c43b42c2aa910b419734c52c97eb436",
+    "integrated.log": "98622a1a11e75aed735c84a3e364a97c962eae8ea8b65c7b48ac6058a9389c2b",
+    "public-server.log": "f5801d963cf95b31e19c8421dd34e7b732d1afe828e2263b006fedc94052e868",
+    "security.log": "5172db7cc14634b1ec695566a110f37a8e5f5523e593b3f87c33bcd2bce4b1bb"
+  }
+}

@@ -1,0 +1,456 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "../../vite.config" without a file extension (tests/frontend/public-preview.config.mjs:1:23). Add the file extension
+  - JSON import "./.openai/hosting.json" without import attributes (vite.config.ts:3:27). Add `with { type: 'json' }`
+  - import "./build/sites-vite-plugin" without a file extension (vite.config.ts:4:23). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(node:2683117) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Using secrets defined in .env.local
+
+  VITE v8.3.0  ready in 4510 ms
+
+  ➜  Local:   http://127.0.0.1:4178/
+
+The Cloudflare Vite plugin detected this dev session is running in an AI agent.
+The Local Explorer API is available at http://127.0.0.1:4178/cdn-cgi/local/explorer/api
+Useful routes:
+  GET http://127.0.0.1:4178/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings
+  GET http://127.0.0.1:4178/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces
+  GET http://127.0.0.1:4178/cdn-cgi/local/explorer/api/d1/database - D1 databases
+  GET http://127.0.0.1:4178/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets
+  GET http://127.0.0.1:4178/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces
+  GET http://127.0.0.1:4178/cdn-cgi/local/explorer/api/workflows - Workflows
+  POST http://127.0.0.1:4178/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:
+    curl -X POST http://127.0.0.1:4178/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{"sql":"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20"}'
+If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):
+  GET http://127.0.0.1:4178/cdn-cgi/local/explorer/api - OpenAPI schema
+
+ GET /client/sandbox?workspace=sbx-browser 307 in 1.6s
+ GET /sign-in?return_to=%2Fclient%2Fsandbox%3Fworkspace%3Dsbx-browser 200 in 52ms (compile: 1789995407.1s, render: 38ms)
+ GET /officer/sandbox?applicantId=APP-SYNTHETIC&applicantVersion=3 307 in 45ms
+ GET /sign-in?return_to=%2Fofficer%2Fsandbox%3FapplicantId%3DAPP-SYNTHETIC%26applicantVersion%3D3 200 in 38ms (compile: 1789995407.1s, render: 27ms)
+ GET /ops/sandbox?workspace=sbx-browser&financeSection=Payments+%26+recovery 307 in 40ms
+ GET /sign-in?return_to=%2Fops%2Fsandbox%3Fworkspace%3Dsbx-browser%26financeSection%3DPayments%2B%2526%2Brecovery 200 in 36ms (compile: 1789995407.1s, render: 26ms)
+ GET /signup?kind=client 307 in 46ms
+ GET /sign-in?return_to=%2Fsignup%3Fkind%3Dclient 200 in 39ms (compile: 1789995407.1s, render: 27ms)
+ GET /ops/intake?kind=client 307 in 43ms
+ GET /sign-in?return_to=%2Fops%2Fintake%3Fkind%3Dclient 200 in 36ms (compile: 1789995407.1s, render: 27ms)
+ GET /officer/identity?caseId=CASE-FIXTURE 307 in 40ms
+ GET /sign-in?return_to=%2Fofficer%2Fidentity%3FcaseId%3DCASE-FIXTURE 200 in 44ms (compile: 1789995407.1s, render: 35ms)
+ GET /ops/identity?caseId=CASE-FIXTURE 307 in 49ms
+ GET /sign-in?return_to=%2Fops%2Fidentity%3FcaseId%3DCASE-FIXTURE 200 in 45ms (compile: 1789995407.1s, render: 34ms)
+ GET /officer/readiness?applicantId=APP-FIXTURE&officerId=OFF-FIXTURE&identityId=ID-FIXTURE 307 in 55ms
+ GET /sign-in?return_to=%2Fofficer%2Freadiness%3FapplicantId%3DAPP-FIXTURE%26officerId%3DOFF-FIXTURE%26identityId%3DID-FIXTURE 200 in 36ms (compile: 1789995407.1s, render: 26ms)
+ GET /ops/readiness?applicantId=APP-FIXTURE&officerId=OFF-FIXTURE&identityId=ID-FIXTURE 307 in 43ms
+ GET /sign-in?return_to=%2Fops%2Freadiness%3FapplicantId%3DAPP-FIXTURE%26officerId%3DOFF-FIXTURE%26identityId%3DID-FIXTURE 200 in 35ms (compile: 1789995407.1s, render: 26ms)
+ GET /sign-out 200 in 44ms (compile: 1789995407.1s, render: 27ms)
+ GET /payments/paystack/test/callback 200 in 55ms (compile: 1789995407.1s, render: 33ms)
+ GET /verify 200 in 47ms (compile: 1789995407.1s, render: 32ms)
+ GET /portal 307 in 12ms
+ GET /client 307 in 10ms
+ GET /sign-in?return_to=%2Fclient 200 in 41ms (compile: 1789995407.1s, render: 31ms)
+ GET /operations 307 in 14ms
+ GET /ops 307 in 8ms
+ GET /sign-in?return_to=%2Fops 200 in 34ms (compile: 1789995407.1s, render: 25ms)
+ GET / 200 in 122ms (compile: 1789995407.1s, render: 105ms)
+ GET /security-services 200 in 71ms (compile: 1789995407.1s, render: 33ms)
+ GET /armed-security 200 in 88ms (compile: 1789995407.1s, render: 66ms)
+ GET /vip-protection 200 in 101ms (compile: 1789995407.1s, render: 65ms)
+2:57:35 PM [vite] (client) [console.error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <Slot id="layout:/">
+      <default>
+        <link>
+        <RemoveDuplicateServerCss>
+        <default>
+          <RootLayout>
+            <html lang="en">
+              <body>
+                <LokdClerkProvider publishableKey="pk_live_Y2..." nonce="ldWEUI3svQ...">
+                  <ClerkProvider publishableKey="pk_live_Y2..." nonce="ldWEUI3svQ...">
+                    <ClerkProviderBase publishableKey="pk_live_Y2..." nonce="ldWEUI3svQ...">
+                      <ClerkContextProvider initialState={undefined} clerk={{clerkjs:null, ...}} clerkStatus="loading">
+                        <InitialStateProvider initialState={undefined}>
+                          <__experimental_CheckoutProvider value={undefined}>
+                            ...
+                              <AwaitAppRenderDependencies>
+                                <ArmedSecurityPage>
+                                  <main className="public-hom...">
+                                    <ServiceJsonLd>
+                                      <script
++                                       nonce="ldWEUI3svQWqTIZOEaAfAtJTBeBqTxDr"
+-                                       nonce=""
+                                        type="application/ld+json"
+                                        dangerouslySetInnerHTML={{__html:"{\"@contex..."}}
+                                      >
+                                    ...
+                            <OrganisationJsonLd>
+                              <script
++                               nonce="ldWEUI3svQWqTIZOEaAfAtJTBeBqTxDr"
+-                               nonce=""
+                                type="application/ld+json"
+                                dangerouslySetInnerHTML={{__html:"{\"@contex..."}}
+                              >
+
+ GET /industries 200 in 71ms (compile: 1789995407.1s, render: 54ms)
+ GET /locations/johannesburg 200 in 74ms (compile: 1789995407.1s, render: 52ms)
+ GET /clients 200 in 97ms (compile: 1789995407.1s, render: 70ms)
+ GET /officers 200 in 63ms (compile: 1789995407.1s, render: 47ms)
+ GET /training 200 in 50ms (compile: 1789995407.1s, render: 37ms)
+ GET /compliance 200 in 85ms (compile: 1789995407.1s, render: 67ms)
+ GET /about 200 in 70ms (compile: 1789995407.1s, render: 46ms)
+ GET /contact 200 in 121ms (compile: 1789995407.1s, render: 93ms)
+ GET /privacy 200 in 58ms (compile: 1789995407.1s, render: 44ms)
+ GET /client/sandbox?workspace=sbx-browser 307 in 49ms
+ GET /sign-in?return_to=%2Fclient%2Fsandbox%3Fworkspace%3Dsbx-browser 200 in 42ms (compile: 1789995407.1s, render: 31ms)
+ GET /officer/sandbox?applicantId=APP-SYNTHETIC&applicantVersion=3 307 in 48ms
+ GET /sign-in?return_to=%2Fofficer%2Fsandbox%3FapplicantId%3DAPP-SYNTHETIC%26applicantVersion%3D3 200 in 33ms (compile: 1789995407.1s, render: 24ms)
+ GET /ops/sandbox?workspace=sbx-browser&financeSection=Payments+%26+recovery 307 in 46ms
+ GET /sign-in?return_to=%2Fops%2Fsandbox%3Fworkspace%3Dsbx-browser%26financeSection%3DPayments%2B%2526%2Brecovery 200 in 37ms (compile: 1789995407.1s, render: 29ms)
+ GET /signup?kind=client 307 in 43ms
+ GET /sign-in?return_to=%2Fsignup%3Fkind%3Dclient 200 in 41ms (compile: 1789995407.1s, render: 32ms)
+ GET /ops/intake?kind=client 307 in 47ms
+ GET /sign-in?return_to=%2Fops%2Fintake%3Fkind%3Dclient 200 in 38ms (compile: 1789995407.1s, render: 28ms)
+ GET /officer/identity?caseId=CASE-FIXTURE 307 in 39ms
+ GET /sign-in?return_to=%2Fofficer%2Fidentity%3FcaseId%3DCASE-FIXTURE 200 in 32ms (compile: 1789995407.1s, render: 24ms)
+ GET /ops/identity?caseId=CASE-FIXTURE 307 in 40ms
+ GET /sign-in?return_to=%2Fops%2Fidentity%3FcaseId%3DCASE-FIXTURE 200 in 39ms (compile: 1789995407.1s, render: 31ms)
+ GET /officer/readiness?applicantId=APP-FIXTURE&officerId=OFF-FIXTURE&identityId=ID-FIXTURE 307 in 39ms
+ GET /sign-in?return_to=%2Fofficer%2Freadiness%3FapplicantId%3DAPP-FIXTURE%26officerId%3DOFF-FIXTURE%26identityId%3DID-FIXTURE 200 in 34ms (compile: 1789995407.1s, render: 25ms)
+ GET /ops/readiness?applicantId=APP-FIXTURE&officerId=OFF-FIXTURE&identityId=ID-FIXTURE 307 in 43ms
+ GET /sign-in?return_to=%2Fops%2Freadiness%3FapplicantId%3DAPP-FIXTURE%26officerId%3DOFF-FIXTURE%26identityId%3DID-FIXTURE 200 in 33ms (compile: 1789995407.1s, render: 25ms)
+ GET /sign-out 200 in 44ms (compile: 1789995407.1s, render: 28ms)
+ GET /payments/paystack/test/callback 200 in 38ms (compile: 1789995407.1s, render: 26ms)
+ GET /verify 200 in 48ms (compile: 1789995407.1s, render: 38ms)
+ GET /portal 307 in 11ms
+ GET /client 307 in 7ms
+ GET /sign-in?return_to=%2Fclient 200 in 55ms (compile: 1789995407.1s, render: 47ms)
+ GET /operations 307 in 15ms
+ GET /ops 307 in 10ms
+ GET /sign-in?return_to=%2Fops 200 in 34ms (compile: 1789995407.1s, render: 27ms)
+ GET / 200 in 59ms (compile: 1789995407.1s, render: 43ms)
+ GET /security-services 200 in 65ms (compile: 1789995407.1s, render: 47ms)
+ GET /armed-security 200 in 81ms (compile: 1789995407.1s, render: 63ms)
+ GET /vip-protection 200 in 64ms (compile: 1789995407.1s, render: 47ms)
+ GET /industries 200 in 66ms (compile: 1789995407.1s, render: 36ms)
+ GET /locations/johannesburg 200 in 74ms (compile: 1789995407.1s, render: 57ms)
+ GET /clients 200 in 74ms (compile: 1789995407.1s, render: 55ms)
+ GET /officers 200 in 56ms (compile: 1789995407.1s, render: 41ms)
+ GET /training 200 in 56ms (compile: 1789995407.1s, render: 43ms)
+ GET /compliance 200 in 80ms (compile: 1789995407.1s, render: 58ms)
+ GET /about 200 in 62ms (compile: 1789995407.1s, render: 46ms)
+ GET /contact 200 in 57ms (compile: 1789995407.1s, render: 38ms)
+ GET /privacy 200 in 38ms (compile: 1789995407.1s, render: 27ms)
+2:58:57 PM [vite] (rsc) hmr update /app/globals.css
+2:58:57 PM [vite] (client) hmr update /app/globals.css?direct
+ GET /join 200 in 264ms (compile: 1789995407.3s, render: 65ms)
+2:58:59 PM [vite] (client) [console.error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <Slot id="layout:/">
+      <default>
+        <link>
+        <RemoveDuplicateServerCss>
+        <default>
+          <RootLayout>
+            <html lang="en">
+              <body>
+                <LokdClerkProvider publishableKey="pk_live_Y2..." nonce="Y1qv0KeUD6...">
+                  <ClerkProvider publishableKey="pk_live_Y2..." nonce="Y1qv0KeUD6...">
+                    <ClerkProviderBase publishableKey="pk_live_Y2..." nonce="Y1qv0KeUD6...">
+                      <ClerkContextProvider initialState={undefined} clerk={{clerkjs:null, ...}} clerkStatus="loading">
+                        <InitialStateProvider initialState={undefined}>
+                          <__experimental_CheckoutProvider value={undefined}>
+                            <Children>
+                            <OrganisationJsonLd>
+                              <script
++                               nonce="Y1qv0KeUD61H6DrDwxTjt1bvyNvkXm6v"
+-                               nonce=""
+                                type="application/ld+json"
+                                dangerouslySetInnerHTML={{__html:"{\"@contex..."}}
+                              >
+
+ GET /join?path=training 200 in 35ms (compile: 1789995407.1s, render: 25ms)
+2:58:59 PM [vite] (client) [console.error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <Slot id="layout:/">
+      <default>
+        <link>
+        <RemoveDuplicateServerCss>
+        <default>
+          <RootLayout>
+            <html lang="en">
+              <body>
+                <LokdClerkProvider publishableKey="pk_live_Y2..." nonce="Zdlgyu5aG0...">
+                  <ClerkProvider publishableKey="pk_live_Y2..." nonce="Zdlgyu5aG0...">
+                    <ClerkProviderBase publishableKey="pk_live_Y2..." nonce="Zdlgyu5aG0...">
+                      <ClerkContextProvider initialState={undefined} clerk={{clerkjs:null, ...}} clerkStatus="loading">
+                        <InitialStateProvider initialState={undefined}>
+                          <__experimental_CheckoutProvider value={undefined}>
+                            <Children>
+                            <OrganisationJsonLd>
+                              <script
++                               nonce="Zdlgyu5aG0/6Pfjeaaxh4gfSIMcHXrY8"
+-                               nonce=""
+                                type="application/ld+json"
+                                dangerouslySetInnerHTML={{__html:"{\"@contex..."}}
+                              >
+
+ GET /join 200 in 36ms (compile: 1789995407.1s, render: 25ms)
+2:59:00 PM [vite] (client) [console.error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <Slot id="layout:/">
+      <default>
+        <link>
+        <RemoveDuplicateServerCss>
+        <default>
+          <RootLayout>
+            <html lang="en">
+              <body>
+                <LokdClerkProvider publishableKey="pk_live_Y2..." nonce="bo6tVppPk+...">
+                  <ClerkProvider publishableKey="pk_live_Y2..." nonce="bo6tVppPk+...">
+                    <ClerkProviderBase publishableKey="pk_live_Y2..." nonce="bo6tVppPk+...">
+                      <ClerkContextProvider initialState={undefined} clerk={{clerkjs:null, ...}} clerkStatus="loading">
+                        <InitialStateProvider initialState={undefined}>
+                          <__experimental_CheckoutProvider value={undefined}>
+                            <Children>
+                            <OrganisationJsonLd>
+                              <script
++                               nonce="bo6tVppPk+1tRbOyn4NRSTUI1J94Z837"
+-                               nonce=""
+                                type="application/ld+json"
+                                dangerouslySetInnerHTML={{__html:"{\"@contex..."}}
+                              >
+
+ GET /contact 200 in 39ms (compile: 1789995407.1s, render: 29ms)
+2:59:01 PM [vite] (client) [console.error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <Slot id="layout:/">
+      <default>
+        <link>
+        <RemoveDuplicateServerCss>
+        <default>
+          <RootLayout>
+            <html lang="en">
+              <body>
+                <LokdClerkProvider publishableKey="pk_live_Y2..." nonce="lJEqsZM3cJ...">
+                  <ClerkProvider publishableKey="pk_live_Y2..." nonce="lJEqsZM3cJ...">
+                    <ClerkProviderBase publishableKey="pk_live_Y2..." nonce="lJEqsZM3cJ...">
+                      <ClerkContextProvider initialState={undefined} clerk={{clerkjs:null, ...}} clerkStatus="loading">
+                        <InitialStateProvider initialState={undefined}>
+                          <__experimental_CheckoutProvider value={undefined}>
+                            <Children>
+                            <OrganisationJsonLd>
+                              <script
++                               nonce="lJEqsZM3cJzijiL0wC/GL6r/Blw6pAXz"
+-                               nonce=""
+                                type="application/ld+json"
+                                dangerouslySetInnerHTML={{__html:"{\"@contex..."}}
+                              >
+
+ GET /clients?_rsc=h3TpfQ0FYh4cR_A6 200 in 24ms (compile: 1789995407.1s, render: 0ms)
+ GET /join 200 in 33ms (compile: 1789995407.1s, render: 23ms)
+2:59:02 PM [vite] (client) [console.error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <Slot id="layout:/">
+      <default>
+        <link>
+        <RemoveDuplicateServerCss>
+        <default>
+          <RootLayout>
+            <html lang="en">
+              <body>
+                <LokdClerkProvider publishableKey="pk_live_Y2..." nonce="5LWep8KihF...">
+                  <ClerkProvider publishableKey="pk_live_Y2..." nonce="5LWep8KihF...">
+                    <ClerkProviderBase publishableKey="pk_live_Y2..." nonce="5LWep8KihF...">
+                      <ClerkContextProvider initialState={undefined} clerk={{clerkjs:null, ...}} clerkStatus="loading">
+                        <InitialStateProvider initialState={undefined}>
+                          <__experimental_CheckoutProvider value={undefined}>
+                            <Children>
+                            <OrganisationJsonLd>
+                              <script
++                               nonce="5LWep8KihFFAJ+k/q4bqI0L08HNWDVIe"
+-                               nonce=""
+                                type="application/ld+json"
+                                dangerouslySetInnerHTML={{__html:"{\"@contex..."}}
+                              >
+
+ GET /join?path=training 200 in 32ms (compile: 1789995407.1s, render: 22ms)
+2:59:02 PM [vite] (client) [console.error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <Slot id="layout:/">
+      <default>
+        <link>
+        <RemoveDuplicateServerCss>
+        <default>
+          <RootLayout>
+            <html lang="en">
+              <body>
+                <LokdClerkProvider publishableKey="pk_live_Y2..." nonce="LzkWpK9dgG...">
+                  <ClerkProvider publishableKey="pk_live_Y2..." nonce="LzkWpK9dgG...">
+                    <ClerkProviderBase publishableKey="pk_live_Y2..." nonce="LzkWpK9dgG...">
+                      <ClerkContextProvider initialState={undefined} clerk={{clerkjs:null, ...}} clerkStatus="loading">
+                        <InitialStateProvider initialState={undefined}>
+                          <__experimental_CheckoutProvider value={undefined}>
+                            <Children>
+                            <OrganisationJsonLd>
+                              <script
++                               nonce="LzkWpK9dgGMeYwxH3ksDay22c8M2mI2C"
+-                               nonce=""
+                                type="application/ld+json"
+                                dangerouslySetInnerHTML={{__html:"{\"@contex..."}}
+                              >
+
+ GET /join 200 in 35ms (compile: 1789995407.1s, render: 26ms)
+2:59:03 PM [vite] (client) [console.error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <Slot id="layout:/">
+      <default>
+        <link>
+        <RemoveDuplicateServerCss>
+        <default>
+          <RootLayout>
+            <html lang="en">
+              <body>
+                <LokdClerkProvider publishableKey="pk_live_Y2..." nonce="0WyEBb/myJ...">
+                  <ClerkProvider publishableKey="pk_live_Y2..." nonce="0WyEBb/myJ...">
+                    <ClerkProviderBase publishableKey="pk_live_Y2..." nonce="0WyEBb/myJ...">
+                      <ClerkContextProvider initialState={undefined} clerk={{clerkjs:null, ...}} clerkStatus="loading">
+                        <InitialStateProvider initialState={undefined}>
+                          <__experimental_CheckoutProvider value={undefined}>
+                            <Children>
+                            <OrganisationJsonLd>
+                              <script
++                               nonce="0WyEBb/myJPpK8LW19RBgVhKYTjjPchk"
+-                               nonce=""
+                                type="application/ld+json"
+                                dangerouslySetInnerHTML={{__html:"{\"@contex..."}}
+                              >
+
+ GET /contact 200 in 33ms (compile: 1789995407.1s, render: 24ms)
+2:59:04 PM [vite] (client) [console.error] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <Slot id="layout:/">
+      <default>
+        <link>
+        <RemoveDuplicateServerCss>
+        <default>
+          <RootLayout>
+            <html lang="en">
+              <body>
+                <LokdClerkProvider publishableKey="pk_live_Y2..." nonce="4co/sg06u0...">
+                  <ClerkProvider publishableKey="pk_live_Y2..." nonce="4co/sg06u0...">
+                    <ClerkProviderBase publishableKey="pk_live_Y2..." nonce="4co/sg06u0...">
+                      <ClerkContextProvider initialState={undefined} clerk={{clerkjs:null, ...}} clerkStatus="loading">
+                        <InitialStateProvider initialState={undefined}>
+                          <__experimental_CheckoutProvider value={undefined}>
+                            <Children>
+                            <OrganisationJsonLd>
+                              <script
++                               nonce="4co/sg06u0IAZQZG26/9bjheZ8eD1Kfx"
+-                               nonce=""
+                                type="application/ld+json"
+                                dangerouslySetInnerHTML={{__html:"{\"@contex..."}}
+                              >
+
+ GET /clients?_rsc=h3TpfQ0FYh4cR_A6 200 in 29ms (compile: 1789995407.1s, render: 0ms)
+2:59:04 PM [vite] (rsc) hmr update /app/globals.css
+2:59:04 PM [vite] (client) hmr update /app/globals.css?direct
