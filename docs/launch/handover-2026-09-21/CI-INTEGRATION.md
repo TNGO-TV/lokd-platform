@@ -1,5 +1,7 @@
 # Hosted security CI integration — 21 September 2026
 
+Update: the owner selected manual gating while deferring the plan upgrade. PR #2 was merged after fresh exact-head CI verification. See [MANUAL-RELEASE-GATE.md](MANUAL-RELEASE-GATE.md) for the completed merge receipt and operating procedure. The candidate preparation below is retained as history.
+
 The owner asked Central to take the next operational item after the backup and local CI preparation. A draft candidate now synchronizes the accepted source into the existing private GitHub repository without modifying GitHub main or the live Sites release.
 
 - Draft: https://github.com/zenascapetown-code/lokd-platform/pull/2

@@ -1,6 +1,6 @@
 # Security gate readiness — 21 September 2026
 
-Initial preparation record. Updated state: the candidate workflow has passed hosted CI in draft PR #2; see [CI-INTEGRATION.md](CI-INTEGRATION.md). GitHub main remains unchanged; protected-branch and Sites publication enforcement are not configured.
+Update: hosted CI passed and PR #2 is now merged. The owner selected manual checks until the plan upgrade. See [MANUAL-RELEASE-GATE.md](MANUAL-RELEASE-GATE.md). GitHub main now contains the accepted source and workflow; platform-enforced branch protection and Sites publication enforcement remain unconfigured. The original preparation evidence follows.
 
 ## Verified source ownership
 
