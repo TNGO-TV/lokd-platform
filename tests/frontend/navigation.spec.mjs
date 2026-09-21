@@ -19,6 +19,7 @@ test.beforeEach(async({page})=>{
   else if(url.pathname==='/api/credit-notes')data={invoice:{invoice_id:url.searchParams.get('invoiceId'),source_json:'{}',total_cents:0,credited_cents:0},creditNotes:[],moneyMoved:false,liabilitiesCancelled:false};
   else if(url.pathname==='/api/payment-execution')data={liveDispatchEnabled:false,reserves:[],releases:[],reconciliations:[]};
   else if(url.pathname==='/api/agreements/production')data={documents:[],envelopes:[],entities:[],owner:false};
+  else if(url.pathname==='/api/operational-delivery')data={jobs:[],enabled:false};
   else if(url.pathname==='/api/psira')data={cases:[]};
   else if(url.pathname==='/api/test-cycle')data={cycles:[]};
   else if(url.pathname==='/api/identity')data={caseVersion:1,nextStep:'training_options',checks:[],history:[]};
@@ -37,7 +38,7 @@ for(const base of ['/client','/officer','/ops'])test(`${base}: navigation, direc
   await expect(nav.getByRole('link',{name:'Agreements',exact:true})).toBeVisible();
   if(base!='/ops')await expect(nav.getByRole('link',{name:'Account security'})).toHaveCount(0);
   if(suffix==='/service')await expect(page.getByText('No production roster records are available for this account.')).toBeVisible();
-  if(suffix==='/agreements')await expect(page.getByText('No approved agreements have been delivered to this account.')).toBeVisible();
+  if(suffix==='/agreements')await expect(page.getByText('No approved agreements have been issued to this account.')).toBeVisible();
   await fits(page);await shot(page,(base+suffix).slice(1).replaceAll('/','-')||'account',info);
  }
  await page.goto(base);await expect(page.locator('h1')).toBeVisible();await page.keyboard.press('Tab');await expect(page.getByRole('link',{name:'Skip to page content'})).toBeFocused();await page.keyboard.press('Enter');await expect(page.locator('#workspace-content')).toBeFocused();

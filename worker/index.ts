@@ -7,9 +7,11 @@ import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } fr
 import handler from "vinext/server/app-router-entry";
 import { runDueAssignmentRevalidations } from "../app/lib/assignment-activation-server";
 import { runPlatformMaintenance } from "../app/lib/platform-jobs";
+import { runOperationalDelivery } from "../app/lib/operational-delivery";
+import type { OperationalRuntime } from "../app/lib/operational-provider";
 import { authenticateClerkRequest, type ClerkEnv } from "./clerk-auth";
 
-interface Env extends ClerkEnv, BackupEnv {
+interface Env extends ClerkEnv, BackupEnv, OperationalRuntime {
   PAYSTACK_TEST_SECRET_KEY?: string;
   ASSETS: Fetcher;
   DB: D1Database;
@@ -96,6 +98,7 @@ const worker = {
       integrityState,
     }).then(() => undefined));
     ctx.waitUntil(runDueAssignmentRevalidations(env.DB, "system:scheduled-revalidation").then(() => undefined));
+    ctx.waitUntil(runOperationalDelivery(env.DB, env).then(() => undefined));
   },
 };
 
