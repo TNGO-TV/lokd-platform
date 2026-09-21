@@ -1,0 +1,55 @@
+{
+  "scope": "Fictional-data simulated acceptance only",
+  "baseline_source": "7375a59",
+  "fresh_browser_suites": {
+    "frontend": {
+      "startTime": "2026-09-21T11:29:41.423Z",
+      "duration": 147303.18099999998,
+      "expected": 206,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "intake": {
+      "startTime": "2026-09-21T11:31:14.654Z",
+      "duration": 10352.638,
+      "expected": 8,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "integrated": {
+      "startTime": "2026-09-21T11:28:47.757Z",
+      "duration": 254971.108,
+      "expected": 76,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  },
+  "built_navigation": {
+    "passed": 4,
+    "widths": [
+      360,
+      1280
+    ],
+    "inputs": [
+      "pointer",
+      "keyboard"
+    ],
+    "normal_csp_violations": 0,
+    "untrusted_inline_scripts": "blocked"
+  },
+  "build": "passed",
+  "focused_test_lint": "passed",
+  "defects_found": 1,
+  "defects_fixed": 1,
+  "unresolved_simulated_build_defects": 0,
+  "retained_backend_regression": {
+    "passed": 513,
+    "date": "2026-09-15",
+    "rerun": false
+  },
+  "production_changes": "Only decorative hero pointer-events CSS; no schema/runtime configuration changes",
+  "publication": "pending"
+}

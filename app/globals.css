@@ -199,7 +199,7 @@
 .public-kicker { margin: 0; color: #78820e; font-size: var(--type-secondary); font-weight: 900; text-transform: uppercase; letter-spacing: .14em; }
 .public-kicker i { width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--lime); display: inline-block; box-shadow: 0 0 0 6px rgba(126,219,4,.1); }
 .public-hero { min-height: 690px; padding: 80px max(24px, calc((100vw - 1280px) / 2)); background: #151718; color: #fff; display: grid; grid-template-columns: minmax(0,1.05fr) minmax(450px,.95fr); gap: 80px; align-items: center; position: relative; isolation: isolate; }
-.public-hero::before { content: ""; width: 650px; height: 650px; position: absolute; right: -200px; top: -300px; z-index: -1; border-radius: 50%; background: radial-gradient(circle,rgba(126,219,4,.12),transparent 67%); }
+.public-hero::before { content: ""; pointer-events: none; width: 650px; height: 650px; position: absolute; right: -200px; top: -300px; z-index: -1; border-radius: 50%; background: radial-gradient(circle,rgba(126,219,4,.12),transparent 67%); }
 .public-hero-copy { max-width: 680px; }
 .public-hero-copy h1 { margin: 26px 0 25px; font-size: clamp(54px,6vw,86px); line-height: .94; letter-spacing: -.065em; }
 .public-hero-copy h1 span { color: var(--lime); }
