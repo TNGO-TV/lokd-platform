@@ -3,6 +3,30 @@
 21 September 2026. Preserve the v74 release, real-transaction deferral and accepted
 manual security/release gate. This document supplements the original handover.
 
+## Current provider verification update
+
+The owner supplied Books organisation `940131426` and privately authorized the
+runtime OAuth client. Actual read-only API calls confirm LOKD Security (Pty) Ltd,
+South Africa, ZAR and Africa/Johannesburg. The same authorization reads CRM and
+ZeptoMail logs even though the grant UI only displayed CRM/Mail choices.
+
+The application email adapter sent one controlled message to `accounts@lokd.co.za`;
+ZeptoMail accepted it, the owner confirmed receipt, and the corrected application
+receipt reader independently verified the matching recipient delivery event.
+The real email-log response nests `data.logs[].email_info`, unlike the simplified
+documentation example. Its `processed` status is not delivery; the application
+now reads and correlates the detailed log before returning `delivered`.
+Books country is returned at the organization top level in the actual response.
+
+Runtime OAuth and Books ID are protected in hosted environment revision 22,
+with operational delivery still false. See OAUTH-PROVIDER-CHECK.json,
+ADAPTER-PROVIDER-CHECK.json, EMAIL-PROVIDER-CHECK.json and CRM-RUNTIME-CHECK.json.
+These are local executions of actual application adapters against providers;
+end-to-end hosted queue dispatch, native CRM–Books sync, quote/invoice approval
+mapping and payment acceptance remain separate unfinished checks. No financial
+record or customer record was created by this verification. Older sections below
+retain the implementation/setup history and are superseded by this update.
+
 ## Verified external evidence
 
 `PROVIDER-EVIDENCE.json` records actual authenticated CRM reads and a controlled
@@ -75,7 +99,7 @@ or ignored local environment files used by a designated test runner.
 | `LOKD_ZOHO_REFRESH_TOKEN` | Secret; use least-privilege approved scopes |
 | `LOKD_ZOHO_CRM_ORG_ID` | `7607722000000020005` |
 | `LOKD_ZOHO_CRM_OWNER_ID` | `7607722000000621001` |
-| `LOKD_ZOHO_BOOKS_ORG_ID` | Inspect the owner's existing Books organisation; currently unknown |
+| `LOKD_ZOHO_BOOKS_ORG_ID` | `940131426`, now authenticated and verified |
 | `LOKD_TEAM_EMAIL` | `accounts@lokd.co.za` (owner selected) |
 | `LOKD_EMAIL_PROVIDER` | `zeptomail`, only after domain and private setup verification |
 | `LOKD_EMAIL_FROM` | Verified sender mailbox/address on the configured sending domain |

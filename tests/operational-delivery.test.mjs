@@ -135,3 +135,29 @@ test('ZeptoMail rejects mismatched receipts and unverified API origins',async()=
  await assert.rejects(()=>sendEmail({...zeptoRuntime('test'),LOKD_ZEPTOMAIL_API_ORIGIN:'https://attacker.example'},'job',body,async()=>{requests++;}),/not_configured/);assert.equal(requests,0);
  await assert.rejects(()=>emailReceipt(zeptoRuntime('test'),body,'job','req','team@example.test',async(url)=>url.endsWith('/oauth/v2/token')?reply({access_token:'synthetic',api_domain:'https://www.zohoapis.com'}):reply({status:'success',data:[{request_id:'other',to:'team@example.test',from:body.from,subject:body.subject,status:'delivered'}]})),/receipt_mismatch/);
 });
+
+test('actual ZeptoMail log shape requires correlated per-recipient delivery detail',async()=>{
+ const {emailReceipt}=await import('../app/lib/operational-provider.ts');
+ const fixture=JSON.parse(fs.readFileSync(new URL('./fixtures/zeptomail-provider-logs.json',import.meta.url),'utf8'));
+ const body={_lokdProvider:'zeptomail',from:'notices@example.test',to:['team@example.test'],subject:'Fixture connection test',text:'Test'};
+ for(const mode of ['delivered','processing','wrong-request','wrong-reference','wrong-recipient','wrong-time','wrong-subject','extra-event','multiple-logs']){
+  const list=structuredClone(fixture.list),detail=structuredClone(fixture.detail);
+  if(mode==='processing')detail.data.email_delivery_details={};
+  if(mode==='wrong-request')detail.data.request_id='other';
+  if(mode==='wrong-reference')detail.data.email_info.email_reference='other';
+  if(mode==='wrong-recipient')detail.data.email_delivery_details.delivery[0].recipient='other@example.test';
+  if(mode==='wrong-time')detail.data.email_delivery_details.delivery[0].delivery_time='unknown';
+  if(mode==='wrong-subject')detail.data.email_info.subject='other';
+  if(mode==='extra-event')detail.data.email_delivery_details.unrecognized_failure={};
+  if(mode==='multiple-logs')list.data.logs.push(structuredClone(list.data.logs[0]));
+  const transport=async(url,init)=>{
+   if(url.endsWith('/oauth/v2/token'))return reply({access_token:'synthetic',api_domain:'https://www.zohoapis.com'});
+   assert.notEqual(init.method,'POST');
+   if(url.includes('/email/email-reference/')){assert.equal(url.endsWith('/reference-fixture'),true);return reply(detail);}
+   assert.equal(new URL(url).searchParams.get('request_id'),'request-fixture');return reply(list);
+  };
+  const action=()=>emailReceipt(zeptoRuntime('test'),body,'job','request-fixture','team@example.test',transport);
+  if(mode.startsWith('wrong-')||mode==='multiple-logs')await assert.rejects(action,/receipt_mismatch/);
+  else assert.equal(await action(),mode==='delivered'?'delivered':'sent');
+ }
+});

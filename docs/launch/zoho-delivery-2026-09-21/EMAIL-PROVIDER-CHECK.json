@@ -1,0 +1,18 @@
+{
+  "reference": "LOKD-ZEPTO-CONTROLLED-20260921165701700",
+  "started_at": "2026-09-21T16:57:01.701Z",
+  "recipient": "accounts@lokd.co.za",
+  "sender": "accounts@lokd.co.za",
+  "subject": "LOKD application email connection test",
+  "scope": "Actual application sendEmail adapter executed locally against real ZeptoMail API; not hosted queue or inbox verification",
+  "state": "provider_accepted",
+  "automated_retry": false,
+  "provider_request_id": "2d6f.68eabb28538d15c9.m1.77a49271-b5dd-11f1-aba8-525400114fe6.1a0c4e64d16",
+  "completed_at": "2026-09-21T16:57:02.676Z",
+  "inbox_receipt": {
+    "status": "owner_confirmed",
+    "statement": "Yes I got an email now",
+    "independently_polled": false
+  },
+  "hosted_queue_dispatch_verified": false
+}

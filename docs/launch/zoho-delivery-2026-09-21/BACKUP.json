@@ -1,0 +1,18 @@
+{
+  "source_head": "c7d88a1fb20049eb5130763927751629d00d4c5a",
+  "archive": "/home/ammosync/.codex/visualizations/2026/09/21/01a0c49f-ac8d-78e2-abca-48239538b448/LOKD-zoho-source-release.tar.gpg",
+  "sha256": "326e9a753ac272153392b779ff1764675a695dbaa273b9c58c4bc10ca37851b0",
+  "bytes": 19162133,
+  "local_decryption_and_file_hashes_verified": true,
+  "git_restore_verified": true,
+  "key_uploaded": false,
+  "production_snapshot": "unchanged v73; source/release only",
+  "offhost_uploaded": true,
+  "drive_file_id": "1qnxm8hkQkyNgIdux2b9JuLMY9RNJNCpM",
+  "drive_url": "https://drive.google.com/file/d/1qnxm8hkQkyNgIdux2b9JuLMY9RNJNCpM/view?usp=drivesdk",
+  "offhost_owner_only": true,
+  "offhost_size_matches": true,
+  "offhost_checksum_verified": false,
+  "offhost_restore_verified": false,
+  "limitation": "Metadata omitted requested checksums; remote byte download/restore not claimed. Local archive decrypted, member hashes matched and Git restored."
+}

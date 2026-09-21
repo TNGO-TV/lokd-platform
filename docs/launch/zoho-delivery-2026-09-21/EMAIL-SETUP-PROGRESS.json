@@ -1,0 +1,26 @@
+{
+  "date": "2026-09-21",
+  "domain": "lokd.co.za",
+  "domain_status": "verified in owner-supplied ZeptoMail screenshot",
+  "agent_name": "agent_1",
+  "dashboard_test": "Owner replied \"its done\" after instructions to send and check a test email from accounts@lokd.co.za to itself. Test completion is owner-reported; no message ID or independent inbox receipt inspected.",
+  "application_send_test": "Real application email adapter executed locally against ZeptoMail; provider accepted and owner confirmed inbox receipt. See EMAIL-PROVIDER-CHECK.json.",
+  "application_delivery_enabled": false,
+  "remaining": "Email log-read OAuth authorization and controlled hosted queue verification. CRM runtime OAuth, Books organisation and financial mapping remain separate.",
+  "private_send_token": "Stored as hosted secret at environment revision 21",
+  "hosted_deployment": {
+    "id": "appgdep_6ab1620e50d481918684cac382833ab9",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "title": "LOKD Security",
+    "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_8ac74d2d20a88191bf2904918d52cc0c",
+    "type": "publish",
+    "status": "succeeded",
+    "url": "https://lokd-security.zenas-capetown.chatgpt.site",
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6a88a08505548191b266e9b711562ae3",
+    "failure_message": null,
+    "env_set_revision": 21,
+    "updated_at": "2026-09-21T16:58:22.808066+00:00"
+  },
+  "temporary_token_copy_removed": true
+}

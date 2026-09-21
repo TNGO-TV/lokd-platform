@@ -11,7 +11,7 @@ export async function inspectBooksOrganization(runtime:OperationalRuntime,transp
  const id=providerId(runtime.LOKD_ZOHO_BOOKS_ORG_ID),session=await zohoSession(runtime,transport);
  const response=await providerJson(session.origin+'/books/v3/organizations/'+id,{headers:session.headers},transport),org=object(response.organization);
  if(response.code!==0||org.organization_id!==id||org.currency_code!=='ZAR'||org.is_org_active!==true)throw new DeliveryError('books_organization_not_verified');
- return {organizationId:id,name:String(org.name??''),currency:'ZAR',country:String(object(org.address).country??''),timezone:String(org.time_zone??''),nativeCrmSyncVerified:false,session};
+ return {organizationId:id,name:String(org.name??''),currency:'ZAR',country:String(org.country??object(org.address).country??''),timezone:String(org.time_zone??''),nativeCrmSyncVerified:false,session};
 }
 
 // Read-only comparison. No create, send, customer-sync, paid-state or funding API.
