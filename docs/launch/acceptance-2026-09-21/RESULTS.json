@@ -51,5 +51,15 @@
     "rerun": false
   },
   "production_changes": "Only decorative hero pointer-events CSS; no schema/runtime configuration changes",
-  "publication": "pending"
+  "publication": {
+    "status": "succeeded",
+    "version": 74,
+    "source_commit": "0f7215b90940bfdeb7a552c1b184450c5a596f97",
+    "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_a810922713f081918a319d5c74131cb3",
+    "deployment_id": "appgdep_6ab116886e6c8191b85671a5a12e2426",
+    "url": "https://lokd-security.zenas-capetown.chatgpt.site",
+    "environment_revision": 19,
+    "local_archive_sha256": "5b05a262ae6ef51bb08e2f10e634426822bf7f6b698f6b0fb86576cd76d03f21",
+    "saved_archive_sha256": "5b131debc60bb0a053eb3c8b427448d70812eae387e2d2dc9f3c44986f3d9baf"
+  }
 }

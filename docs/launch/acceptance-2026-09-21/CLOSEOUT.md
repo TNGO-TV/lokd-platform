@@ -24,4 +24,6 @@ No real customer data, identity submission, account provisioning, transfer or pr
 
 ## Execution and publication
 
+Fresh execution:206 frontend cases,76 integrated cases and8 public intake cases passed (290 total), with zero failures/skips/retries. Four additional built-Worker checks passed for pointer/keyboard input at360px and1280px; hydration and CSP remained correct. Required build and focused test lint passed.
+
 Final counts, built-browser results and the publication receipt are recorded in RESULTS.json when complete. Detailed flow coverage is in the browser JSON reports and the existing handler tests; this closeout does not claim exhaustive browser clicking of every model/profile combination.
