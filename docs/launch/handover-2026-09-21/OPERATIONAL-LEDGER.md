@@ -2,6 +2,10 @@
 
 The owner authorized this task to continue as Central Command after task-creation tooling was unavailable. Canonical checkout began clean on `main` at `d8358077b7dc300774bf9408c5e6647bd5eae3ff`. No application, schema, dependency, runtime, audience or production gate changes were made. No new publication was necessary.
 
+## Subsequent CI progress
+
+The owner asked to take the next item. [Draft PR #2](https://github.com/zenascapetown-code/lokd-platform/pull/2) now carries the current source and a hosted security workflow. Its corrected run passed 513 tests plus audit/lint/types/schema/build and the source-cleanliness check. GitHub private-repository branch protection requires a plan upgrade; neither main nor the live release was changed. See [CI-INTEGRATION.md](CI-INTEGRATION.md). The original milestone ledger below remains as a historical checkpoint.
+
 ## Integrated ledger
 
 | Status | Item / owner | Result or concrete next action | Acceptance evidence |

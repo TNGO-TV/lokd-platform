@@ -1,6 +1,6 @@
 # Security gate readiness — 21 September 2026
 
-Status: prepared locally; no active repository CI gate or Sites publication enforcement is claimed.
+Initial preparation record. Updated state: the candidate workflow has passed hosted CI in draft PR #2; see [CI-INTEGRATION.md](CI-INTEGRATION.md). GitHub main remains unchanged; protected-branch and Sites publication enforcement are not configured.
 
 ## Verified source ownership
 
