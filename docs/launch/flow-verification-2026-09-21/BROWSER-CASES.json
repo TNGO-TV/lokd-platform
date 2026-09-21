@@ -1,0 +1,2322 @@
+[
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "document receipt preserves the Service workspace and immutable payment history",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "document 401 read clears denied data or retains transient drafts without replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "document 403 read clears denied data or retains transient drafts without replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "document 409 read clears denied data or retains transient drafts without replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "document 423 read clears denied data or retains transient drafts without replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "document 503 read clears denied data or retains transient drafts without replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "uncertain document writes retain the original request key and cannot start a replacement",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "changed document source keeps notes and requires a fresh acknowledgement",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "client service section navigation supports direct links, keyboard and Back",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "officer service section navigation supports direct links, keyboard and Back",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "ops service section navigation supports direct links, keyboard and Back",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "private verifier outage retains only the in-memory token for read-only retry",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /client/sandbox?workspace=sbx-browser preserves the chosen intake destination",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /officer/sandbox?applicantId=APP-SYNTHETIC&applicantVersion=3 preserves the chosen intake destination",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /ops/sandbox?workspace=sbx-browser&financeSection=Payments+%26+recovery preserves the chosen intake destination",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /signup?kind=client preserves the chosen intake destination",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /ops/intake?kind=client preserves the chosen intake destination",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /officer/identity?caseId=CASE-FIXTURE preserves the chosen intake destination",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /ops/identity?caseId=CASE-FIXTURE preserves the chosen intake destination",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /officer/readiness?applicantId=APP-FIXTURE&officerId=OFF-FIXTURE&identityId=ID-FIXTURE preserves the chosen intake destination",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /ops/readiness?applicantId=APP-FIXTURE&officerId=OFF-FIXTURE&identityId=ID-FIXTURE preserves the chosen intake destination",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "service history retains every immutable field and displays SAST instants",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "public /sign-out is readable and makes no verification or payment submission",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "public /payments/paystack/test/callback is readable and makes no verification or payment submission",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "public /verify is readable and makes no verification or payment submission",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "/portal retains its canonical signed-out destination",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "/operations retains its canonical signed-out destination",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "document receipt preserves the Service workspace and immutable payment history",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "document 401 read clears denied data or retains transient drafts without replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "document 403 read clears denied data or retains transient drafts without replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "document 409 read clears denied data or retains transient drafts without replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "document 423 read clears denied data or retains transient drafts without replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "document 503 read clears denied data or retains transient drafts without replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "uncertain document writes retain the original request key and cannot start a replacement",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "changed document source keeps notes and requires a fresh acknowledgement",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "client service section navigation supports direct links, keyboard and Back",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "officer service section navigation supports direct links, keyboard and Back",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "ops service section navigation supports direct links, keyboard and Back",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "private verifier outage retains only the in-memory token for read-only retry",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /client/sandbox?workspace=sbx-browser preserves the chosen intake destination",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /officer/sandbox?applicantId=APP-SYNTHETIC&applicantVersion=3 preserves the chosen intake destination",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /ops/sandbox?workspace=sbx-browser&financeSection=Payments+%26+recovery preserves the chosen intake destination",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /signup?kind=client preserves the chosen intake destination",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /ops/intake?kind=client preserves the chosen intake destination",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /officer/identity?caseId=CASE-FIXTURE preserves the chosen intake destination",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /ops/identity?caseId=CASE-FIXTURE preserves the chosen intake destination",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /officer/readiness?applicantId=APP-FIXTURE&officerId=OFF-FIXTURE&identityId=ID-FIXTURE preserves the chosen intake destination",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "signed-out /ops/readiness?applicantId=APP-FIXTURE&officerId=OFF-FIXTURE&identityId=ID-FIXTURE preserves the chosen intake destination",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "service history retains every immutable field and displays SAST instants",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "public /sign-out is readable and makes no verification or payment submission",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "public /payments/paystack/test/callback is readable and makes no verification or payment submission",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "public /verify is readable and makes no verification or payment submission",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "/portal retains its canonical signed-out destination",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "build-audit.spec.mjs",
+    "title": "/operations retains its canonical signed-out destination",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "client receives issued private printable credit with signed amounts and authentic review evidence",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "officer workspace does not mount private client credit or refund APIs",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "credit unknown outcome retains immutable submitted facts and key; temporary read failure blocks actions without losing draft",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "independent credit decision and immutable negative reversal use exact hashes and original cents",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "live gates block dispatch; a test dispatch timeout cannot be replayed after refresh",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "claimed refund uses numeric-string GET recovery then exact bank receipt and independent decision",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "existing provider binding offers GET-only adoption while live dispatch is locked",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "refund proposal derives amount from issued credit and investigation retains explicit policy inputs",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "explicit server rejection permits corrected reviewed facts without reusing rejected key",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "single-digit provider IDs remain exact strings and forms fit a narrow viewport",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "independent history pages hydrate missing case sources and retain records and drafts after page failure",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "exact case preflight prevents a stale dispatch before any monetary POST",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "receipt decision preflight follows case-scoped continuation and blocks an already decided receipt",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "missing authorized source remains explicit and can be loaded without discarding the case",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "refund 401 clears private history and continuation while transient errors retain drafts",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "refund 403 clears private history and continuation while transient errors retain drafts",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "known-unsent initial preflight failure permits correcting a draft before first POST",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "an earlier unknown POST keeps its original key through a later unsent preflight failure",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "empty authorized preflight clears the previously loaded collection without sending a command",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "invalid account-scoped cursor clears cached history and permits fresh authorized discovery",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "credit 401 clears private records and drafts; temporary errors retain them",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "credit 403 clears private records and drafts; temporary errors retain them",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "client credit history explains when only unissued proposals exist",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "client receives issued private printable credit with signed amounts and authentic review evidence",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "officer workspace does not mount private client credit or refund APIs",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "credit unknown outcome retains immutable submitted facts and key; temporary read failure blocks actions without losing draft",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "independent credit decision and immutable negative reversal use exact hashes and original cents",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "live gates block dispatch; a test dispatch timeout cannot be replayed after refresh",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "claimed refund uses numeric-string GET recovery then exact bank receipt and independent decision",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "existing provider binding offers GET-only adoption while live dispatch is locked",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "refund proposal derives amount from issued credit and investigation retains explicit policy inputs",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "explicit server rejection permits corrected reviewed facts without reusing rejected key",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "single-digit provider IDs remain exact strings and forms fit a narrow viewport",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "independent history pages hydrate missing case sources and retain records and drafts after page failure",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "exact case preflight prevents a stale dispatch before any monetary POST",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "receipt decision preflight follows case-scoped continuation and blocks an already decided receipt",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "missing authorized source remains explicit and can be loaded without discarding the case",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "refund 401 clears private history and continuation while transient errors retain drafts",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "refund 403 clears private history and continuation while transient errors retain drafts",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "known-unsent initial preflight failure permits correcting a draft before first POST",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "an earlier unknown POST keeps its original key through a later unsent preflight failure",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "empty authorized preflight clears the previously loaded collection without sending a command",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "invalid account-scoped cursor clears cached history and permits fresh authorized discovery",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "credit 401 clears private records and drafts; temporary errors retain them",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "credit 403 clears private records and drafts; temporary errors retain them",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "finance-adjustments.spec.mjs",
+    "title": "client credit history explains when only unissued proposals exist",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "/client: navigation, direct links, empty states and keyboard",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "/officer: navigation, direct links, empty states and keyboard",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "/ops: navigation, direct links, empty states and keyboard",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "Operations intake selection survives reload and direct links",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "intake 401: denial clears private edits; transient failures preserve them",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "intake 403: denial clears private edits; transient failures preserve them",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "intake 409: denial clears private edits; transient failures preserve them",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "intake 423: denial clears private edits; transient failures preserve them",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "intake 503: denial clears private edits; transient failures preserve them",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreement expiry removes signature action without refreshing",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "public routes retain mobile navigation and one exact active destination",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "workspace reflows at 200 percent text size",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreements/production 401: access-aware recovery does not replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreements/production 403: access-aware recovery does not replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreements/production 409: access-aware recovery does not replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreements/production 423: access-aware recovery does not replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreements/production 503: access-aware recovery does not replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "production-operations 401: access-aware recovery does not replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "production-operations 403: access-aware recovery does not replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "production-operations 409: access-aware recovery does not replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "production-operations 423: access-aware recovery does not replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "production-operations 503: access-aware recovery does not replay",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "PSiRA draft survives a failed refresh and requires status review",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreement structured details preserve every source field and exact wording",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "identity session recovery preserves the case return path",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "Operations PSiRA review retains source evidence across a failed refresh",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "uncertain booking checkout keeps its original reference and offers no replacement",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "/client: navigation, direct links, empty states and keyboard",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "/officer: navigation, direct links, empty states and keyboard",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "/ops: navigation, direct links, empty states and keyboard",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "Operations intake selection survives reload and direct links",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "intake 401: denial clears private edits; transient failures preserve them",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "intake 403: denial clears private edits; transient failures preserve them",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "intake 409: denial clears private edits; transient failures preserve them",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "intake 423: denial clears private edits; transient failures preserve them",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "intake 503: denial clears private edits; transient failures preserve them",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreement expiry removes signature action without refreshing",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "public routes retain mobile navigation and one exact active destination",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "workspace reflows at 200 percent text size",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreements/production 401: access-aware recovery does not replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreements/production 403: access-aware recovery does not replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreements/production 409: access-aware recovery does not replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreements/production 423: access-aware recovery does not replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreements/production 503: access-aware recovery does not replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "production-operations 401: access-aware recovery does not replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "production-operations 403: access-aware recovery does not replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "production-operations 409: access-aware recovery does not replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "production-operations 423: access-aware recovery does not replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "production-operations 503: access-aware recovery does not replay",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "PSiRA draft survives a failed refresh and requires status review",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "agreement structured details preserve every source field and exact wording",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "identity session recovery preserves the case return path",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "Operations PSiRA review retains source evidence across a failed refresh",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "navigation.spec.mjs",
+    "title": "uncertain booking checkout keeps its original reference and offers no replacement",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "only Operations exported items mount item-scoped review; original/current evidence and nonmonetary wording stay distinct",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "uncertain report retries same key and facts after failed refresh without replay or edited original",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "supporting-record decision uses explicit allowed outcome and independent findings, never pay approval",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "changed payment evidence blocks positive review but permits rejecting stale records and linked follow-up",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "payroll review 401 clears source-bound records and drafts",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "payroll review 403 clears source-bound records and drafts",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "paged immutable review history survives transient page failure and refresh; one-successor lineage is shown",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "payroll report POST 401 clears private records and draft without automatic retry",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "payroll report POST 403 clears private records and draft without automatic retry",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "changed source preserves unknown original report key and requires renewed acknowledgment",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "malformed monetary outcome cannot be presented as a saved review",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "only Operations exported items mount item-scoped review; original/current evidence and nonmonetary wording stay distinct",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "uncertain report retries same key and facts after failed refresh without replay or edited original",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "supporting-record decision uses explicit allowed outcome and independent findings, never pay approval",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "changed payment evidence blocks positive review but permits rejecting stale records and linked follow-up",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "payroll review 401 clears source-bound records and drafts",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "payroll review 403 clears source-bound records and drafts",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "paged immutable review history survives transient page failure and refresh; one-successor lineage is shown",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "payroll report POST 401 clears private records and draft without automatic retry",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "payroll report POST 403 clears private records and draft without automatic retry",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "changed source preserves unknown original report key and requires renewed acknowledgment",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "payroll-correction-reviews.spec.mjs",
+    "title": "malformed monetary outcome cannot be presented as a saved review",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "private-passport.spec.mjs",
+    "title": "officer sends only hash and keeps token private until approved",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "private-passport.spec.mjs",
+    "title": "private verifier clears fragment and uses read-only POST body",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "private-passport.spec.mjs",
+    "title": "protected audit preserves system attribution and linked human provenance",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "private-passport.spec.mjs",
+    "title": "policy preparation sends explicit requirements and structured assessment retains rejected evidence draft",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "private-passport.spec.mjs",
+    "title": "account case discovery opens returned records, preserves dirty drafts and reports denied or empty access",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "private-passport.spec.mjs",
+    "title": "officer sends only hash and keeps token private until approved",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "private-passport.spec.mjs",
+    "title": "private verifier clears fragment and uses read-only POST body",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "private-passport.spec.mjs",
+    "title": "protected audit preserves system attribution and linked human provenance",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "private-passport.spec.mjs",
+    "title": "policy preparation sends explicit requirements and structured assessment retains rejected evidence draft",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "private-passport.spec.mjs",
+    "title": "account case discovery opens returned records, preserves dirty drafts and reports denied or empty access",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "Operations reads explicit readiness, hold limits and guarded private delivery",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "Officer changes only own service choice with the saved revision",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "failed refresh and uncertain write preserve correction draft without automatic resubmission",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "changed source requires deliberate re-review without losing notes",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "switching records requires explicit draft discard",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "private passport metadata never exposes a returned credential or fabricates delivery",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "owner decision controls are absent for ordinary Operations",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "keyboard navigation keeps drafts when leaving is cancelled",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "section links track direct hashes and browser back",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "passport access denial destroys retained material before a new request",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "Operations reads explicit readiness, hold limits and guarded private delivery",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "Officer changes only own service choice with the saved revision",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "failed refresh and uncertain write preserve correction draft without automatic resubmission",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "changed source requires deliberate re-review without losing notes",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "switching records requires explicit draft discard",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "private passport metadata never exposes a returned credential or fabricates delivery",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "owner decision controls are absent for ordinary Operations",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "keyboard navigation keeps drafts when leaving is cancelled",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "section links track direct hashes and browser back",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "frontend",
+    "file": "readiness.spec.mjs",
+    "title": "passport access denial destroys retained material before a new request",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "intake",
+    "file": "mobile.spec.mjs",
+    "title": "registered officer: early validation, Enter advances, pending evidence and recoverable submission",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "intake",
+    "file": "mobile.spec.mjs",
+    "title": "training: no registration lookup requirement or rejection",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "intake",
+    "file": "mobile.spec.mjs",
+    "title": "not_registered: no registration lookup requirement or rejection",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "intake",
+    "file": "mobile.spec.mjs",
+    "title": "client: failed submission preserves details; receipt explains account, agreement and funding gates",
+    "project": "mobile-360",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "intake",
+    "file": "mobile.spec.mjs",
+    "title": "registered officer: early validation, Enter advances, pending evidence and recoverable submission",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "intake",
+    "file": "mobile.spec.mjs",
+    "title": "training: no registration lookup requirement or rejection",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "intake",
+    "file": "mobile.spec.mjs",
+    "title": "not_registered: no registration lookup requirement or rejection",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "intake",
+    "file": "mobile.spec.mjs",
+    "title": "client: failed submission preserves details; receipt explains account, agreement and funding gates",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "UI/public-page fixture with synthetic responses"
+  },
+  {
+    "suite": "integrated",
+    "file": "connected-governance.spec.mjs",
+    "title": "merged training: paid completion is applicant-bound, separately assessed and independently decided",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "connected-governance.spec.mjs",
+    "title": "merged partner: a real representative confirms bound evidence before separate owner review",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "connected-governance.spec.mjs",
+    "title": "merged incident: actual assignment report and independent resolution preserve immutable service sources",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "connected-governance.spec.mjs",
+    "title": "merged training: paid completion is applicant-bound, separately assessed and independently decided",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "connected-governance.spec.mjs",
+    "title": "merged partner: a real representative confirms bound evidence before separate owner review",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "connected-governance.spec.mjs",
+    "title": "merged incident: actual assignment report and independent resolution preserve immutable service sources",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "connected-payroll.spec.mjs",
+    "title": "merged payroll: actual two-company service feeds one independently reviewed payroll with preserved splits",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "connected-payroll.spec.mjs",
+    "title": "merged payroll: actual two-company service feeds one independently reviewed payroll with preserved splits",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "connected-service.spec.mjs",
+    "title": "merged service: real checkout, client dispute and independent pay review retain original identity and attendance",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "connected-service.spec.mjs",
+    "title": "merged specialist: original armed pack supports separately prepared and approved isolated activation",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "connected-service.spec.mjs",
+    "title": "merged service: real checkout, client dispute and independent pay review retain original identity and attendance",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "connected-service.spec.mjs",
+    "title": "merged specialist: original armed pack supports separately prepared and approved isolated activation",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "finance.spec.mjs",
+    "title": "actual finance handler: uncertain R350 enrolment saves one command; separate review issues private unpaid invoice",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "finance.spec.mjs",
+    "title": "actual finance handler: uncertain R350 enrolment saves one command; separate review issues private unpaid invoice",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "guided-accessibility.spec.mjs",
+    "title": "guided saved review preserves keyboard navigation, one main landmark and 200 percent layout",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "guided-accessibility.spec.mjs",
+    "title": "fictional map uses actual assignment eligibility, explicit stop and server expiry with accessible map text",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "guided-accessibility.spec.mjs",
+    "title": "guided saved review preserves keyboard navigation, one main landmark and 200 percent layout",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "guided-accessibility.spec.mjs",
+    "title": "fictional map uses actual assignment eligibility, explicit stop and server expiry with accessible map text",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "identity.spec.mjs",
+    "title": "actual identity handler: recover original provider result, grant separate private reader and deny withdrawn consent",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "identity.spec.mjs",
+    "title": "actual identity handler: recover original provider result, grant separate private reader and deny withdrawn consent",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "intake.spec.mjs",
+    "title": "application, account link, Operations review and correction persist through actual handlers",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "intake.spec.mjs",
+    "title": "lost correction response commits once; stale replay cannot duplicate history",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "intake.spec.mjs",
+    "title": "revoked session clears private intake draft and rejects forged trusted headers",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "intake.spec.mjs",
+    "title": "other account cannot read or mutate a linked submission",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "intake.spec.mjs",
+    "title": "PSiRA declaration is persisted; temporary outage retains inputs and revoked access clears them",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "intake.spec.mjs",
+    "title": "Operations readiness access loss removes the protected review draft",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "intake.spec.mjs",
+    "title": "application, account link, Operations review and correction persist through actual handlers",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "intake.spec.mjs",
+    "title": "lost correction response commits once; stale replay cannot duplicate history",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "intake.spec.mjs",
+    "title": "revoked session clears private intake draft and rejects forged trusted headers",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "intake.spec.mjs",
+    "title": "other account cannot read or mutate a linked submission",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "intake.spec.mjs",
+    "title": "PSiRA declaration is persisted; temporary outage retains inputs and revoked access clears them",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "intake.spec.mjs",
+    "title": "Operations readiness access loss removes the protected review draft",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: exact finance body and request key survive an unknown write and explicit retry",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: finance access denial clears the private source and draft",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: early finance denial with delayed capabilities has no unhandled rejection and clears private data",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: identity consent and recovery retain the original applicant, case and outcome",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: Client sections support keyboard and Back without exposing Officer enrolment",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: presence requires consent, stops the original mode and shows saved expiry",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: private document download checks current access and preserves issued facts safely",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: training order binds displayed catalogue terms and exact package version",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: finance section switching and Back preserve a bound draft",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: a denied fictional scan shows the saved reason and never reveals its private token",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: ordinary Operations cannot mount owner-only training and transition decisions",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: only the applicant links a paid finance completion; assessment remains independent",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: incident retry preserves one request and owner dispositions are separate",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: specialist tabs retain drafts and confirmed access loss removes them",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: exact finance body and request key survive an unknown write and explicit retry",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: finance access denial clears the private source and draft",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: early finance denial with delayed capabilities has no unhandled rejection and clears private data",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: identity consent and recovery retain the original applicant, case and outcome",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: Client sections support keyboard and Back without exposing Officer enrolment",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: presence requires consent, stops the original mode and shows saved expiry",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: private document download checks current access and preserves issued facts safely",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: training order binds displayed catalogue terms and exact package version",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: finance section switching and Back preserve a bound draft",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: a denied fictional scan shows the saved reason and never reveals its private token",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: ordinary Operations cannot mount owner-only training and transition decisions",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: only the applicant links a paid finance completion; assessment remains independent",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: incident retry preserves one request and owner dispositions are separate",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "sandbox-contract.spec.mjs",
+    "title": "contract: specialist tabs retain drafts and confirmed access loss removes them",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "response-mocked UI"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "saved intake selector links, corrects and obtains separate Operations review through real handlers",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "lost intake response recovers original receipt without duplicate application",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "lost intake response retries exact original command without duplicate application",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "lost capture response recovers saved reference and starts exactly one original identity case",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "denied saved-review refresh clears private draft and can refresh again after sign-in",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "delayed identity discovery cannot restore private sources after denied capture",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "client intake lost response recovers one original enquiry and revoked recovery clears its private form",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "lost stale-capture rejection recovers a definitive failed receipt and unlocks corrected input",
+    "project": "mobile",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "saved intake selector links, corrects and obtains separate Operations review through real handlers",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "lost intake response recovers original receipt without duplicate application",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "lost intake response retries exact original command without duplicate application",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "lost capture response recovers saved reference and starts exactly one original identity case",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "denied saved-review refresh clears private draft and can refresh again after sign-in",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "delayed identity discovery cannot restore private sources after denied capture",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "client intake lost response recovers one original enquiry and revoked recovery clears its private form",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  },
+  {
+    "suite": "integrated",
+    "file": "security-recovery.spec.mjs",
+    "title": "lost stale-capture rejection recovers a definitive failed receipt and unlocks corrected input",
+    "project": "desktop",
+    "status": "expected",
+    "evidence_mode": "actual local handlers with synthetic prerequisites"
+  }
+]

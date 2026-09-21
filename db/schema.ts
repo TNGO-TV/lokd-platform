@@ -3159,3 +3159,19 @@ export const financeWorkspaces=sqliteTable('finance_workspaces',{
  createdBy:text('created_by').notNull(),
  createdAt:text('created_at').notNull(),
 },()=>[check('finance_workspaces_check_0',sql.raw("environment='sandbox'"))]);
+
+// Separate from the internal operator outbox: provider acceptance is not delivery.
+export const operationalDeliveryJobs=sqliteTable('operational_delivery_jobs',{
+ id:text('id').primaryKey().notNull(),kind:text('kind').notNull(),sourceId:text('source_id').notNull(),
+ environment:text('environment').notNull(),state:text('state').notNull().default('queued'),
+ attempts:integer('attempts').notNull().default(0),nextAttemptAt:text('next_attempt_at').notNull(),
+ leaseToken:text('lease_token'),leaseExpiresAt:text('lease_expires_at'),
+ requestJson:text('request_json'),recipient:text('recipient'),providerId:text('provider_id'),
+ firstAttemptAt:text('first_attempt_at'),lastError:text('last_error'),
+ createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('operational_delivery_source_idx').on(t.kind,t.sourceId),index('operational_delivery_due_idx').on(t.state,t.nextAttemptAt),
+ check('operational_delivery_kind',sql.raw("kind IN ('enquiry_crm','enquiry_email','booking_email','contract_email')")),
+ check('operational_delivery_state',sql.raw("state IN ('queued','blocked','dispatching','retry_wait','sent','delivered','failed','uncertain','cancelled')")),
+ check('operational_delivery_environment',sql.raw("environment IN ('prelaunch','production')")),
+ check('operational_delivery_attempts',sql.raw('attempts>=0 AND attempts<=5')),
+ check('operational_delivery_request',sql.raw('request_json IS NULL OR json_valid(request_json)'))]);

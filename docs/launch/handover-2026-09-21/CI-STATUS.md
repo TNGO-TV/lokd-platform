@@ -1,6 +1,6 @@
 # Security gate readiness — 21 September 2026
 
-Status: prepared locally; no active repository CI gate or Sites publication enforcement is claimed.
+Update: hosted CI passed and PR #2 is now merged. The owner selected manual checks until the plan upgrade. See [MANUAL-RELEASE-GATE.md](MANUAL-RELEASE-GATE.md). GitHub main now contains the accepted source and workflow; platform-enforced branch protection and Sites publication enforcement remain unconfigured. The original preparation evidence follows.
 
 ## Verified source ownership
 

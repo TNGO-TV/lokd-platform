@@ -10,6 +10,9 @@ import { POST } from '../app/api/paystack/transfers/live/webhook/route.ts';
 // Mount the actual Worker fetch path, replacing only framework/browser services.
 // The forwarded callback executes the real route and HMAC receiver.
 const result=await build({entryPoints:[new URL('../worker/index.ts',import.meta.url).pathname],bundle:true,write:false,format:'esm',platform:'node',packages:'external',plugins:[{name:'worker-fixture',setup(b){
+  // The fixture loads its bundle from a data URL; external SDK imports need an
+  // absolute module URL. The SDK is not invoked by these callback-routing tests.
+  b.onResolve({filter:/^@clerk\/backend$/},()=>({path:import.meta.resolve('@clerk/backend'),external:true}));
   b.onResolve({filter:/^(vinext\/server\/|\.\/clerk-auth$)/},args=>({path:args.path,namespace:'fixture'}));
   b.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='./clerk-auth'
     ? 'export async function authenticateClerkRequest(){return globalThis.__lokdRoutingAuth();}'

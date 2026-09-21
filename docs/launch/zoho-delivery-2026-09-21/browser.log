@@ -1,0 +1,25 @@
+
+Running 16 tests using 1 worker
+
+(node:2741758) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [mobile-360] › tests/frontend/navigation.spec.mjs:30:49 › /client: navigation, direct links, empty states and keyboard (1.9s)
+  ✓   2 [mobile-360] › tests/frontend/navigation.spec.mjs:30:49 › /officer: navigation, direct links, empty states and keyboard (1.9s)
+  ✓   3 [mobile-360] › tests/frontend/navigation.spec.mjs:30:49 › /ops: navigation, direct links, empty states and keyboard (2.4s)
+  ✓   4 [mobile-360] › tests/frontend/navigation.spec.mjs:48:1 › Operations intake selection survives reload and direct links (973ms)
+  ✓   5 [mobile-360] › tests/frontend/navigation.spec.mjs:58:1 › agreement expiry removes signature action without refreshing (5.7s)
+  ✓   6 [mobile-360] › tests/frontend/navigation.spec.mjs:85:1 › agreement structured details preserve every source field and exact wording (410ms)
+  ✓   7 [mobile-360] › tests/frontend/operational-delivery.spec.mjs:6:1 › delivery distinguishes accepted from delivered and keeps outbound disabled (413ms)
+  ✓   8 [mobile-360] › tests/frontend/operational-delivery.spec.mjs:12:1 › issued agreement shows queued email without claiming inbox delivery (334ms)
+(node:2742415) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   9 [desktop] › tests/frontend/navigation.spec.mjs:30:49 › /client: navigation, direct links, empty states and keyboard (1.6s)
+  ✓  10 [desktop] › tests/frontend/navigation.spec.mjs:30:49 › /officer: navigation, direct links, empty states and keyboard (2.1s)
+  ✓  11 [desktop] › tests/frontend/navigation.spec.mjs:30:49 › /ops: navigation, direct links, empty states and keyboard (2.5s)
+  ✓  12 [desktop] › tests/frontend/navigation.spec.mjs:48:1 › Operations intake selection survives reload and direct links (1.1s)
+  ✓  13 [desktop] › tests/frontend/navigation.spec.mjs:58:1 › agreement expiry removes signature action without refreshing (5.7s)
+  ✓  14 [desktop] › tests/frontend/navigation.spec.mjs:85:1 › agreement structured details preserve every source field and exact wording (378ms)
+  ✓  15 [desktop] › tests/frontend/operational-delivery.spec.mjs:6:1 › delivery distinguishes accepted from delivered and keeps outbound disabled (389ms)
+  ✓  16 [desktop] › tests/frontend/operational-delivery.spec.mjs:12:1 › issued agreement shows queued email without claiming inbox delivery (345ms)
+
+  16 passed (29.5s)

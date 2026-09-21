@@ -1500,7 +1500,7 @@ test('agreement revocation during commit rolls back activation and is immutable'
   database.close();
 });
 
-test('production signing delivers exact approved wording and feeds the existing activation agreement gate',async()=>{
+test('production signing queues exact approved wording, confirms email separately and preserves activation gates',async()=>{
  const {manageProductionDocument,issueProductionEnvelope,signProductionEnvelope}=await import('../app/lib/production-signing.ts');
  const {POST:enquire}=await import('../app/api/enquiries/route.ts');const {writeSignup}=await import('../app/lib/signup-server.ts');const {env}=await import('cloudflare:workers');
  const database=migratedDatabase();await seedValid(database);const db=new D1Adapter(database);env.DB=db;
@@ -1514,7 +1514,15 @@ test('production signing delivers exact approved wording and feeds the existing 
  await assert.rejects(()=>manageProductionDocument(db,{...ops,owner:false},{action:'approve',documentId:body.id}),/owner/);
  await manageProductionDocument(db,ops,{action:'approve',documentId:body.id,contentHash:body.content_hash,legalApprovalConfirmed:true,effectiveFrom:'2026-01-01T00:00:00Z'});
  const issue={documentId:body.id,rosterSlotId:'SLOT-1',officerId:'OFF-1',slotVersion:1,identityEvidence:'Fixture independent identity review',authorityEvidence:'Fixture corporate signing mandate'};
- await issueProductionEnvelope(db,ops,issue);await issueProductionEnvelope(db,ops,issue);assert.equal(database.prepare('SELECT count(*) AS n FROM production_signing_envelopes').get().n,1);
+ const issued=await issueProductionEnvelope(db,ops,issue);assert.equal(issued.issued,true);assert.equal(issued.delivered,false);assert.ok(issued.envelopeId);
+ await issueProductionEnvelope(db,ops,issue);assert.equal(database.prepare('SELECT count(*) AS n FROM production_signing_envelopes').get().n,1);
+ const {runOperationalDelivery,currentEnvelopeRecipient}=await import('../app/lib/operational-delivery.ts');
+ assert.equal(database.prepare("SELECT count(*) AS n FROM operational_delivery_jobs WHERE kind='contract_email'").get().n,1);
+ assert.equal((await currentEnvelopeRecipient(db,issued.envelopeId,Date.now())).owner,applicant.userId);
+ const emailCalls=[];
+ await runOperationalDelivery(db,{LOKD_OPERATIONAL_DELIVERY_ENABLED:'true',LOKD_DELIVERY_SOURCE_ALLOWLIST:issued.envelopeId,LOKD_DELIVERY_EMAIL_ALLOWLIST:applicant.email,LOKD_EMAIL_PROVIDER:'resend',LOKD_EMAIL_FROM:'notices@example.test',RESEND_API_KEY:'synthetic-only'},{verifiedEmail:async user=>{assert.equal(user,applicant.userId);return applicant.email;},transport:async(url,init)=>{emailCalls.push({url,init});return Response.json({id:'synthetic-contract-message'});}});
+ assert.equal(emailCalls.length,1);const notification=JSON.parse(emailCalls[0].init.body);assert.deepEqual(notification.to,[applicant.email]);assert.ok(notification.text.includes('/client/agreements#'+issued.envelopeId));assert.equal(notification.text.includes(body.wording),false);assert.equal(notification.text.includes(issue.identityEvidence),false);
+ assert.equal(database.prepare("SELECT state FROM operational_delivery_jobs WHERE source_id=?").get(issued.envelopeId).state,'sent');
  const e=database.prepare('SELECT * FROM production_signing_envelopes').get();const sign={action:'sign',envelopeId:e.id,affirmative:true,contentHash:e.content_hash,contextHash:e.context_hash};
  await assert.rejects(()=>signProductionEnvelope(db,{...applicant,userId:'intruder'},sign),/not found/);
  await assert.rejects(()=>signProductionEnvelope(db,ops,sign),/Only the named/);
@@ -1526,6 +1534,8 @@ test('production signing delivers exact approved wording and feeds the existing 
  await signProductionEnvelope(db,applicant,{action:'cancel',envelopeId:e.id,reason:'Fixture cancellation for reissue acceptance.'});
  await issueProductionEnvelope(db,ops,issue);await issueProductionEnvelope(db,ops,issue);assert.equal(database.prepare('SELECT count(*) AS n FROM production_signing_envelopes').get().n,2);
  await manageProductionDocument(db,ops,{action:'withdraw_document',documentId:body.id,reason:'Withdraw fixture version after the acceptance check.'});
+ assert.equal(database.prepare("SELECT state FROM operational_delivery_jobs WHERE kind='contract_email' AND source_id!=?").get(e.id).state,'cancelled');
+ await assert.rejects(()=>currentEnvelopeRecipient(db,e.id,Date.now()),/no_longer_current/);
  assert.equal((await evaluateAssignmentActivation(db,request('signed:production:withdrawn'))).facts.agreements.ready,false);
  await assert.rejects(()=>signProductionEnvelope(db,applicant,sign),/withdrawn/);
  assert.equal(database.prepare('SELECT count(*) AS n FROM agreement_acceptance_receipts WHERE id=?').get(signed.receiptId).n,1);database.close();
