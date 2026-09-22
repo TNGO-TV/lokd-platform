@@ -14,7 +14,7 @@ test('recipient snapshots retain masked evidence and detect account name bank in
 });
 test('recipient transport is read-only mode-specific and sanitizes provider errors',async()=>{
  assert.throws(()=>destinationKey({PAYSTACK_TEST_SECRET_KEY:'sk_live_wrong'},'test'),/not configured/);
- let calls=0;const transport=async(url,init)=>{calls++;assert.equal(url,'https://api.paystack.co/transferrecipient/RCP_fixture001');assert.equal(init.method,'GET');assert.equal(init.redirect,'error');assert.equal(init.headers.Authorization,'Bearer '+key);return Response.json({status:true,data:raw});};
+ let calls=0;const transport=async(url,init)=>{calls++;assert.equal(url,'https://api.paystack.co/transferrecipient/RCP_fixture001');assert.equal(init.method,'GET');assert.equal(init.redirect,'manual');assert.equal(init.headers.Authorization,'Bearer '+key);return Response.json({status:true,data:raw});};
  assert.ok(await fetchRecipient(key,raw.recipient_code,'test',transport));assert.equal(calls,1);
  await assert.rejects(()=>fetchRecipient(key,'../transfer','test',transport),/existing/);assert.equal(calls,1);
  await assert.rejects(()=>fetchRecipient(key,raw.recipient_code,'test',async()=>{throw Error('secret or account');}),e=>!e.message.includes('secret or account')&&e.status===503);

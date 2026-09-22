@@ -26,7 +26,7 @@ test('saved VerifyNow fixture signals preserve negatives, review and provider fa
  assert.equal(classifyVerifyNow('face',502,{success:true,results:{face_match:{status:'Approved'}}}),'unavailable');
 });
 test('adapter enforces fixed host, sandbox payload, redirect rejection and preserves Retry-After',async()=>{
- let calls=0;const transport=async(url,options)=>{calls++;assert.equal(url,'https://www.verifynow.co.za/api/external/verify');assert.equal(JSON.parse(options.body).mode,'sandbox');assert.equal(options.redirect,'error');assert.equal(options.headers['Idempotency-Key'],'request-id');return Response.json({},{status:429,headers:{'retry-after':'90'}});};
+ let calls=0;const transport=async(url,options)=>{calls++;assert.equal(url,'https://www.verifynow.co.za/api/external/verify');assert.equal(JSON.parse(options.body).mode,'sandbox');assert.equal(options.redirect,'manual');assert.equal(options.headers['Idempotency-Key'],'request-id');return Response.json({},{status:429,headers:{'retry-after':'90'}});};
  const r=await dispatchVerifyNow('id-found',key,'request-id',transport);assert.equal(r.outcome,'rate_limited');assert.ok(Date.parse(r.retryAt)>=Date.now()+89000);
  await assert.rejects(()=>dispatchVerifyNow('https://attacker.test',key,'x',transport));assert.equal(calls,1);
 });

@@ -1,3 +1,4 @@
+import {fetchWithoutRedirect} from './provider-fetch';
 import {readFinanceProviderJson} from './finance-body';
 import {SignupError} from './signup-server';
 export type DestinationMode='test'|'live';
@@ -25,7 +26,7 @@ export async function recipientEvidence(raw:unknown,code:string,mode:Destination
 export async function fetchRecipient(secret:string,code:string,mode:DestinationMode,transport:typeof fetch=fetch){
  if(!/^RCP_[a-zA-Z0-9]{6,60}$/.test(code))throw new SignupError('Use an existing Paystack recipient code.');
  try{
-  const response=await transport('https://api.paystack.co/transferrecipient/'+code,{method:'GET',headers:{Authorization:'Bearer '+secret},redirect:'error',signal:AbortSignal.timeout(20000)});
+  const response=await fetchWithoutRedirect(transport,'https://api.paystack.co/transferrecipient/'+code,{method:'GET',headers:{Authorization:'Bearer '+secret},signal:AbortSignal.timeout(20000)});
   const payload=await readFinanceProviderJson(response);
   if(!response.ok||payload.status!==true)throw new Error('unavailable');
   return await recipientEvidence(payload.data,code,mode,secret);

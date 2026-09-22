@@ -9,7 +9,7 @@ export async function paymentExecutionJourney({kind,database,db,maker,owner,fina
  let posts=0,status='success',timeout=false;
  const raw=()=>({id:1987,transfer_code:'TRF_livefixture001',reference,domain:'live',amount:original.amount_cents,currency:'ZAR',source:'balance',recipient:123,integration:456,status});
  const transport=async(url,options)=>{
-  assert.equal(options.redirect,'error');assert.match(options.headers.Authorization,/^Bearer sk_live_/);
+  assert.equal(options.redirect,'manual');assert.match(options.headers.Authorization,/^Bearer sk_live_/);
   if(url.includes('/transferrecipient/'))return Response.json({status:true,data:recipient});
   if(url.endsWith('/balance'))return Response.json({status:true,data:[{currency:'ZAR',balance:original.amount_cents+500}]});
   if(url.endsWith('/transfer')){posts++;assert.equal(JSON.parse(options.body).reference,reference);if(timeout)throw Error('timeout after accepted');return Response.json({status:true,data:raw()});}

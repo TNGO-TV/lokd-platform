@@ -1,3 +1,4 @@
+import {fetchWithoutRedirect} from './provider-fetch';
 import {readFinanceWebhookBytes,readFinanceProviderJson} from './finance-body';
 import {SignupError} from './signup-server';
 import {agreementHash} from './agreement-acceptance';
@@ -18,7 +19,7 @@ const expiry=(now:string,minutes=30)=>new Date(Date.parse(now)+minutes*60000).to
 const binding=(i:Instruction):EmployeeTransferBinding=>{const s=JSON.parse(i.source_json);return {reference:i.reference,mode:i.mode,amount:i.amount_cents,currency:'ZAR',recipientId:s.recipient.id,integration:s.recipient.integration};};
 const participants=(i:Instruction)=>{const s=JSON.parse(i.source_json);return [s.ownerUser,s.representativeUser,s.officerUser,s.clientUser];};
 async function provider(secret:string,path:string,transport:typeof fetch,body?:unknown){
- try{const res=await transport('https://api.paystack.co'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+secret,'content-type':'application/json'},redirect:'error',signal:AbortSignal.timeout(20000),...(body?{body:JSON.stringify(body)}:{})});const p=await readFinanceProviderJson(res);if(!res.ok||p.status!==true)throw Error('unavailable');return p.data;}
+ try{const res=await fetchWithoutRedirect(transport,'https://api.paystack.co'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+secret,'content-type':'application/json'},signal:AbortSignal.timeout(20000),...(body?{body:JSON.stringify(body)}:{})});const p=await readFinanceProviderJson(res);if(!res.ok||p.status!==true)throw Error('unavailable');return p.data;}
  catch{throw new SignupError(body?'Provider delivery is uncertain. Keep the saved claim and verify its original reference; do not resubmit.':'Provider verification is unavailable. Keep the saved reference; this read did not submit a transfer.',503);}
 }
 async function observation(db:D1Database,i:Instruction,source:string,event:string,raw:unknown,webhooks:number|null=null){

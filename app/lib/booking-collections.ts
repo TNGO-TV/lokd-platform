@@ -1,3 +1,4 @@
+import {fetchWithoutRedirect} from './provider-fetch';
 import {readFinanceWebhookBytes,readFinanceProviderJson} from './finance-body';
 import {refundEvidence,refundWebhookEvidence} from './booking-refund-evidence';
 import {SignupError} from './signup-server';
@@ -34,7 +35,7 @@ export async function readBookingCollections(db:D1Database,actor:SigningActor){
  return {collections,collectionRequiresSettlement:true};
 }
 async function callProvider(secret:string,path:string,body:unknown,transport:typeof fetch){
- const res=await transport('https://api.paystack.co'+path,{method:body?'POST':'GET',redirect:'error',signal:AbortSignal.timeout(20000),headers:{Authorization:'Bearer '+secret,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+ const res=await fetchWithoutRedirect(transport,'https://api.paystack.co'+path,{method:body?'POST':'GET',signal:AbortSignal.timeout(20000),headers:{Authorization:'Bearer '+secret,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
  const p=await readFinanceProviderJson(res);if(!res.ok||p.status!==true||!p.data)throw new SignupError('Provider response is uncertain. Verify the saved reference before taking further action.',503);return p.data;
 }
 export async function operateBookingCollection(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,runtime:CollectionRuntime={},transport:typeof fetch=fetch){

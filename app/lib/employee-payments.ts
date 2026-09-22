@@ -1,3 +1,4 @@
+import {fetchWithoutRedirect} from './provider-fetch';
 import {readFinanceWebhookBytes,readFinanceProviderJson} from './finance-body';
 import {readPaymentEvidenceAssessment} from './payment-execution';
 import {replacementReservation,readPaymentRecovery} from './payment-recovery';
@@ -20,7 +21,7 @@ async function record(db:D1Database,i:Instruction,source:string,event:string,raw
  await db.prepare('INSERT OR IGNORE INTO employee_transfer_observations VALUES(?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),i.reference,source,event,hash,json,count,new Date().toISOString()).run();
 }
 async function provider(secret:string,path:string,transport:typeof fetch,body?:unknown){
- try{const response=await transport('https://api.paystack.co'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+secret,'content-type':'application/json'},redirect:'error',signal:AbortSignal.timeout(20000),...(body?{body:JSON.stringify(body)}:{})});const payload=await readFinanceProviderJson(response);if(!response.ok||payload.status!==true)throw Error('uncertain');return payload.data;}
+ try{const response=await fetchWithoutRedirect(transport,'https://api.paystack.co'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+secret,'content-type':'application/json'},signal:AbortSignal.timeout(20000),...(body?{body:JSON.stringify(body)}:{})});const payload=await readFinanceProviderJson(response);if(!response.ok||payload.status!==true)throw Error('uncertain');return payload.data;}
  catch{throw new SignupError('Provider delivery is uncertain. Verify this saved reference; do not submit a replacement.',503);}
 }
 export async function readEmployeePayments(db:D1Database,actor:SigningActor){

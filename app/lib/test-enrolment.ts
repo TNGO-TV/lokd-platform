@@ -1,3 +1,4 @@
+import {fetchWithoutRedirect} from './provider-fetch';
 import {identityCase,readApplicantIdentity} from './applicant-identity';
 import {SignupError} from './signup-server';
 export const ENROLMENT_PACKAGE={id:'registered-officer-enrolment',version:'owner-approved-20260911-test-v1',amount:35000,currency:'ZAR'} as const;
@@ -8,7 +9,7 @@ function secret(runtime:Runtime){if(!runtime.DB||!runtime.PAYSTACK_TEST_SECRET_K
 export function expectedMetadata(order:TestOrder){return {application_id:order.case_id,applicant_id:order.owner_user_id,application_version:order.case_version,package_id:order.package_id,package_version:order.package_version,mode:'test'};}
 export function matchesMetadata(value:unknown,order:TestOrder){if(typeof value==='string'){try{value=JSON.parse(value);}catch{return false;}}if(!value||typeof value!=='object')return false;const m=value as Record<string,unknown>;return Object.entries(expectedMetadata(order)).every(([k,v])=>m[k]===v);}
 async function callPaystack(key:string,path:string,body:unknown,transport:typeof fetch){
- const response=await transport('https://api.paystack.co'+path,{method:body?'POST':'GET',redirect:'error',signal:AbortSignal.timeout(20000),headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+ const response=await fetchWithoutRedirect(transport,'https://api.paystack.co'+path,{method:body?'POST':'GET',signal:AbortSignal.timeout(20000),headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
  const payload=await response.json() as {status?:boolean;data?:Record<string,unknown>};if(!response.ok||payload.status!==true||!payload.data)throw new SignupError('Paystack did not confirm the request. Recheck the saved transaction; do not create a replacement.',503);return payload.data;
 }
 export async function readTestEnrolment(db:D1Database,user:string,caseId:string){const c=await identityCase(db,user,caseId);const order=await currentOrder(db,user,caseId,c.version);const history=await db.prepare('SELECT o.reference,o.case_version,o.state,o.created_at,o.revision,o.note,o.checkout_url FROM test_enrolment_orders o WHERE o.case_id=? AND o.owner_user_id=? ORDER BY o.created_at DESC LIMIT 20').bind(caseId,user).all();const events=order?await db.prepare('SELECT snapshot,recorded_at FROM test_enrolment_events WHERE reference=? ORDER BY rowid DESC LIMIT 40').bind(order.reference).all():{results:[]};const identity=await readApplicantIdentity(db,user,caseId);return {canInitialize:identity.nextStep==='registered_enrolment',package:ENROLMENT_PACKAGE,order,history:history.results,events:events.results,liveChargingEnabled:false,workEligible:false};}

@@ -12,7 +12,7 @@ export async function employeePaymentJourney({database,db,maker,owner,finance,of
  const recipient={id:123,integration:456,recipient_code:'RCP_fixture001',domain:'test',type:'basa',currency:'ZAR',active:true,is_deleted:false,name:'Fixture Employee',updatedAt:'2026-09-01T00:00:00.000Z',details:{account_number:'1234567890',bank_code:'632005',bank_name:'Fixture bank',account_name:'Fixture Employee'}};
  let postCalls=0,lookupCalls=0,uncertain=false,transfer;
  const transport=async(url,options)=>{
-  assert.equal(options.redirect,'error');
+  assert.equal(options.redirect,'manual');
   if(url==='https://api.paystack.co/transferrecipient/RCP_fixture001'){lookupCalls++;assert.equal(options.method,'GET');return Response.json({status:true,data:recipient});}
   if(url==='https://api.paystack.co/transfer'){postCalls++;assert.equal(options.method,'POST');const body=JSON.parse(options.body);assert.equal(body.amount,item.net_pay_cents);assert.equal(body.currency,'ZAR');assert.equal(body.recipient,recipient.recipient_code);assert.equal(body.source,'balance');transfer={id:987,transfer_code:'TRF_fixture001',reference:body.reference,domain:'test',amount:body.amount,currency:'ZAR',source:'balance',recipient:123,integration:456,status:'success'};if(uncertain)throw Error('timeout after provider accepted');return Response.json({status:true,data:transfer});}
   assert.equal(url,'https://api.paystack.co/transfer/verify/'+transfer.reference);assert.equal(options.method,'GET');return Response.json({status:true,data:transfer});
