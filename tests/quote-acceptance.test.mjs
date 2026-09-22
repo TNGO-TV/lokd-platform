@@ -167,3 +167,12 @@ test('quote API rejects anonymous, cross-origin and wrong workspace access; prot
  assert.equal(denied.status,404);
  x.database.close();
 });
+
+test('changed post scope or minimum grade invalidates earlier client acceptance',async()=>{
+ for(const [table,column,value] of [['site_posts','post_orders_content','Changed contractual duties'],['bookings','minimum_grade','A']]){
+  const x=await setup();await issueAndAccept(x);
+  x.database.prepare('UPDATE '+table+' SET '+column+'=? WHERE '+(table==='bookings'?'id':'booking_id')+'=?').run(value,x.orderId);
+  assert.equal((await acceptedOrderQuote(x.db,x.orderId)).receipt,null);
+  x.database.close();
+ }
+});

@@ -71,12 +71,12 @@ SELECT b.id AS order_id,b.client_id,l.owner_user_id,b.contracting_entity_id AS e
  json_patch(json_patch(json_object('orderId',b.id,'orderVersion',b.agreement_version,'clientId',c.id,'clientName',c.organisation_name,
  'contactName',c.contact_name,'contactEmail',c.contact_email,'ownerUserId',l.owner_user_id,'caseVersion',l.case_version,
  'contractingEntityId',b.contracting_entity_id,'siteName',b.site_name,'siteArea',b.site_area,'address',s.address_label,
- 'postName',b.post_name,'instructions',json_extract(p.request_json,'$.instructions')
+ 'postName',b.post_name,'instructions',post.post_orders_content
  ),json_object('serviceType',b.service_type,'purposeLabel',b.purpose_label,'purposeCode',b.purpose_code,
  'startDate',b.start_date,'endDate',b.end_date,'shiftStart',b.shift_start,'shiftEnd',b.shift_end,
  'headcount',b.headcount,'rosterPattern',b.roster_pattern,'shiftCount',b.shift_count,'serviceDayCount',b.service_day_count,
  'contractMonths',b.contract_months,'engagementModel',b.engagement_model,'riskBand',b.risk_band
- )),json_object('specialistConfiguration',b.specialist_configuration,'subtotalCents',b.quote_subtotal_cents,'vatCents',b.vat_cents,
+ )),json_object('minimumGrade',b.minimum_grade,'specialistServiceCode',b.specialist_service_code,'declaredSiteRisk',json_extract(p.request_json,'$.quoteRequest.riskInput'),'specialistConfiguration',b.specialist_configuration,'subtotalCents',b.quote_subtotal_cents,'vatCents',b.vat_cents,
  'totalCents',b.client_price_cents,'currency','ZAR','pricingVersion',b.pricing_version,
  'fundingModel',b.funding_model,'creditTermsDays',b.credit_terms_days,'releaseCadence',b.release_cadence)) AS source_json
 FROM bookings b JOIN production_order_setups p ON p.id=b.id
@@ -84,6 +84,7 @@ JOIN clients c ON c.id=b.client_id
 JOIN production_entity_links l ON l.kind='client' AND l.entity_id=c.id AND l.case_version=p.case_version
 JOIN signup_cases a ON a.kind='client' AND a.source_id=l.case_id AND a.version=l.case_version AND a.owner_user_id=l.owner_user_id AND a.status='reviewed'
 JOIN operational_sites s ON s.booking_id=b.id AND s.id='SITE-'||b.id
+JOIN site_posts post ON post.booking_id=b.id AND post.id='POST-'||b.id
 WHERE b.environment='production' AND b.integrity_state='production_verified' AND b.status NOT IN ('cancelled','completed')
 AND c.environment='production' AND c.integrity_state='production_verified' AND c.approval_status='approved';
 --> statement-breakpoint
