@@ -69,7 +69,7 @@ test('intake atomically queues one CRM and one team job, with no traffic by defa
 test('CRM and email acceptances are separate from inbox confirmation and booking funding',async()=>{
  const x=await fixture(),calls=[];let now=Date.now()+1000;try{await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now});assert.equal(job(x,'enquiry_crm').provider_id,'crm-fixture');assert.equal(job(x,'enquiry_email').state,'sent');assert.equal(x.database.prepare('SELECT count(*) AS n FROM bookings').get().n,0);
  const body=JSON.parse(calls.find(c=>c.url.endsWith('/upsert')).init.body);assert.deepEqual(body.duplicate_check_fields,['LOKD_Enquiry_Reference']);assert.deepEqual(body.trigger,[]);assert.equal(body.data[0].Owner.id,'owner-fixture');assert.equal(body.data[0].LOKD_Enquiry_Reference,x.id);
- const mail=JSON.parse(calls.find(c=>c.url==='https://api.resend.com/emails').init.body);assert.equal(mail.text.includes(input.message),false);assert.equal(mail.text.includes(input.email),false);
+ const mail=JSON.parse(calls.find(c=>c.url==='https://api.resend.com/emails').init.body);assert.equal(mail.text.includes(input.message),false);assert.equal(mail.text.includes(input.email),false);assert.ok(mail.text.includes('https://operations.lokd.co.za/ops/intake?kind=client'));assert.equal(mail.text.includes('demo.lokd.co.za'),false);
  now+=61000;await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now});assert.equal(job(x,'enquiry_email').state,'delivered');assert.equal(calls.filter(c=>c.url.endsWith('/upsert')).length,1);assert.equal(calls.filter(c=>c.url==='https://api.resend.com/emails').length,1);
  }finally{x.database.close();}
 });
@@ -105,7 +105,7 @@ test('ZeptoMail freezes provider, sends minimal content and verifies matching pr
   const transport=async(url,init)=>{
    if(url==='https://api.zeptomail.com/v1.1/email'){
     calls.push({url,init});mail=JSON.parse(init.body);
-    assert.equal(init.headers.Authorization,'Zoho-enczapikey synthetic-only');assert.equal(mail.client_reference,'team:'+x.id);assert.equal(mail.track_clicks,false);assert.equal(mail.textbody.includes(input.email),false);
+    assert.equal(init.headers.Authorization,'Zoho-enczapikey synthetic-only');assert.equal(mail.client_reference,'team:'+x.id);assert.equal(mail.track_clicks,false);assert.equal(mail.textbody.includes(input.email),false);assert.ok(mail.textbody.includes('https://operations.lokd.co.za/ops/intake?kind=client'));assert.equal(mail.textbody.includes('demo.lokd.co.za'),false);
     return reply({data:[{code:'EM_104'}],request_id:'zepto-fixture'});
    }
    if(url.startsWith('https://api.zeptomail.com/v1.1/email?'))return reply({status:'success',data:[{request_id:'zepto-fixture',from:mail.from.address,to:mail.to[0].email_address.address,subject:mail.subject,status:'delivered'}]});

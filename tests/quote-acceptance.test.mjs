@@ -176,3 +176,15 @@ test('changed post scope or minimum grade invalidates earlier client acceptance'
   x.database.close();
  }
 });
+
+test('new booking and quote emails use Operations and client portals (provider transport simulated)',async()=>{
+ const x=await setup(),{quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),messages=[];
+ const {runOperationalDelivery}=await import('../app/lib/operational-delivery.ts');
+ await runOperationalDelivery(x.db,{LOKD_OPERATIONAL_DELIVERY_ENABLED:'true',LOKD_DELIVERY_SOURCE_ALLOWLIST:[x.orderId,quoteId].join(','),LOKD_DELIVERY_EMAIL_ALLOWLIST:[x.applicant.email,'team@example.test'].join(','),LOKD_TEAM_EMAIL:'team@example.test',LOKD_EMAIL_PROVIDER:'resend',LOKD_EMAIL_FROM:'notices@example.test',RESEND_API_KEY:'synthetic-only'},{now:()=>Date.now()+1000,verifiedEmail:async()=>x.applicant.email,transport:async(url,init)=>{messages.push(JSON.parse(init.body));return Response.json({id:'mail-'+messages.length});}});
+ assert.equal(messages.length,2);
+ const booking=messages.find(m=>m.subject==='LOKD service order prepared'),quote=messages.find(m=>m.subject==='Your LOKD quote is ready to review');
+ assert.ok(booking.text.includes('https://operations.lokd.co.za/ops/service'));
+ assert.ok(quote.text.includes('https://portal.lokd.co.za/client/agreements#'+quoteId));
+ for(const m of messages)assert.equal(m.text.includes('demo.lokd.co.za'),false);
+ x.database.close();
+});

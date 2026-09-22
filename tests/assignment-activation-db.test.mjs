@@ -1521,7 +1521,7 @@ test('production signing queues exact approved wording, confirms email separatel
  assert.equal((await currentEnvelopeRecipient(db,issued.envelopeId,Date.now())).owner,applicant.userId);
  const emailCalls=[];
  await runOperationalDelivery(db,{LOKD_OPERATIONAL_DELIVERY_ENABLED:'true',LOKD_DELIVERY_SOURCE_ALLOWLIST:issued.envelopeId,LOKD_DELIVERY_EMAIL_ALLOWLIST:applicant.email,LOKD_EMAIL_PROVIDER:'resend',LOKD_EMAIL_FROM:'notices@example.test',RESEND_API_KEY:'synthetic-only'},{verifiedEmail:async user=>{assert.equal(user,applicant.userId);return applicant.email;},transport:async(url,init)=>{emailCalls.push({url,init});return Response.json({id:'synthetic-contract-message'});}});
- assert.equal(emailCalls.length,1);const notification=JSON.parse(emailCalls[0].init.body);assert.deepEqual(notification.to,[applicant.email]);assert.ok(notification.text.includes('/client/agreements#'+issued.envelopeId));assert.equal(notification.text.includes(body.wording),false);assert.equal(notification.text.includes(issue.identityEvidence),false);
+ assert.equal(emailCalls.length,1);const notification=JSON.parse(emailCalls[0].init.body);assert.deepEqual(notification.to,[applicant.email]);assert.ok(notification.text.includes('https://portal.lokd.co.za/client/agreements#'+issued.envelopeId));assert.equal(notification.text.includes('demo.lokd.co.za'),false);assert.equal(notification.text.includes(body.wording),false);assert.equal(notification.text.includes(issue.identityEvidence),false);
  assert.equal(database.prepare("SELECT state FROM operational_delivery_jobs WHERE source_id=?").get(issued.envelopeId).state,'sent');
  const e=database.prepare('SELECT * FROM production_signing_envelopes').get();const sign={action:'sign',envelopeId:e.id,affirmative:true,contentHash:e.content_hash,contextHash:e.context_hash};
  await assert.rejects(()=>signProductionEnvelope(db,{...applicant,userId:'intruder'},sign),/not found/);
@@ -1837,6 +1837,11 @@ test('bound officer signature projects workforce terms with replay, cancellation
  await manageProductionDocument(db,ops,{action:'approve',documentId:body.id,contentHash:body.content_hash,legalApprovalConfirmed:true,effectiveFrom:'2026-01-01T00:00:00Z'});
  const issue={documentId:body.id,rosterSlotId:'SLOT-1',officerId:'OFF-1',slotVersion:1,identityEvidence:'Isolated fixture independent officer identity evidence'};
  await issueProductionEnvelope(db,ops,issue);let envelope=database.prepare('SELECT * FROM production_signing_envelopes WHERE document_id=?').get(body.id);
+ const {runOperationalDelivery}=await import('../app/lib/operational-delivery.ts');
+ const messages=[];
+ await runOperationalDelivery(db,{LOKD_OPERATIONAL_DELIVERY_ENABLED:'true',LOKD_DELIVERY_SOURCE_ALLOWLIST:envelope.id,LOKD_DELIVERY_EMAIL_ALLOWLIST:officer.email,LOKD_EMAIL_PROVIDER:'resend',LOKD_EMAIL_FROM:'notices@example.test',RESEND_API_KEY:'synthetic-only'},{verifiedEmail:async()=>officer.email,transport:async(url,init)=>{messages.push(JSON.parse(init.body));return Response.json({id:'officer-message-fixture'});}});
+ assert.equal(messages.length,1);assert.ok(messages[0].text.includes('https://officers.lokd.co.za/officer/agreements#'+envelope.id));assert.equal(messages[0].text.includes('demo.lokd.co.za'),false);
+
  const sign=e=>({action:'sign',envelopeId:e.id,affirmative:true,contentHash:e.content_hash,contextHash:e.context_hash});
  await signProductionEnvelope(db,officer,sign(envelope));await signProductionEnvelope(db,officer,sign(envelope));
  let acceptance=database.prepare("SELECT * FROM workforce_terms_acceptances WHERE id='WTA-LIVE-'||?").get(envelope.id);
