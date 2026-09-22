@@ -22,7 +22,7 @@ export async function consumeConnectedPayment({db,database,runId,officerId,maker
  let reference,posts=0,status='success';
  const raw=()=>({id:1987,transfer_code:'TRF_connected001',reference,domain:'live',amount:item.net_pay_cents,currency:'ZAR',source:'balance',recipient:123,integration:456,status});
  const transport=async(url,options)=>{
-  assert.equal(options.redirect,'error');assert.match(options.headers.Authorization,/^Bearer sk_live_/);
+  assert.equal(options.redirect,'manual');assert.match(options.headers.Authorization,/^Bearer sk_live_/);
   if(url==='https://api.paystack.co/transferrecipient/'+recipient.recipient_code)return Response.json({status:true,data:recipient});
   if(url==='https://api.paystack.co/balance')return Response.json({status:true,data:[{currency:'ZAR',balance:item.net_pay_cents+500}]});
   if(url==='https://api.paystack.co/transfer'){

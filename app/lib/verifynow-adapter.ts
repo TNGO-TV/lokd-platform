@@ -1,3 +1,4 @@
+import {fetchWithoutRedirect} from './provider-fetch';
 import fixtures from './verifynow-sandbox-fixtures.json' with {type:'json'};
 export type IdentitySignal='id'|'bank'|'face'|'liveness'|'document'|'licence';
 export type ProviderOutcome='mock_approved'|'no_record'|'declined'|'manual_review'|'unavailable'|'rate_limited'|'unexpected'|'delivery_unknown';
@@ -27,7 +28,7 @@ export async function dispatchVerifyNow(scenario:string,key:string,idempotencyKe
  const fixture=fixtures[scenario as keyof typeof fixtures];if(!fixture||!scenarioSignal[scenario])throw Error('Unknown sandbox scenario');
  if(!/^vn_live_[a-f0-9]{64}$/i.test(key))throw Error('Verification configuration unavailable');
  // Caller cannot supply URL, mode, identity or image bytes. Only synthetic fixtures.
- const response=await transport('https://www.verifynow.co.za/api/external'+fixture.path,{method:'POST',redirect:'error',signal:AbortSignal.timeout(25000),headers:{'content-type':'application/json','x-api-key':key,'Idempotency-Key':idempotencyKey},body:JSON.stringify({...fixture.payload,mode:'sandbox'})});
+ const response=await fetchWithoutRedirect(transport,'https://www.verifynow.co.za/api/external'+fixture.path,{method:'POST',signal:AbortSignal.timeout(25000),headers:{'content-type':'application/json','x-api-key':key,'Idempotency-Key':idempotencyKey},body:JSON.stringify({...fixture.payload,mode:'sandbox'})});
  const raw=await response.text();if(raw.length>1048576)throw Error('Provider response too large');
  let body:unknown;try{body=JSON.parse(raw);}catch{body={};}
  const retry=response.headers.get('retry-after');const parsed=retry?(/^\d+$/.test(retry)?Date.now()+Number(retry)*1000:Date.parse(retry)):NaN;

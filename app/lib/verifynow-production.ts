@@ -1,3 +1,4 @@
+import {fetchWithoutRedirect} from './provider-fetch';
 import type {IdentityBinding, IdentityResult, ProductionIdentityProvider} from './production-identity';
 
 // Server-owned dependencies only. Never pass request JSON as configuration.
@@ -84,7 +85,7 @@ export function createVerifyNowProductionProvider(config:VerifyNowProductionConf
    // A failed/crashed claim is held forever pending read-only recovery. Never POST again.
    if(!await config.receipts.claim(b,requestHash,config.policyReference,config.evidenceLifetimeMs))return fail();
    const sentAt=now();
-   const response=await transport(endpoint,{method:'POST',headers:{'x-api-key':config.apiKey,'Content-Type':'application/json','Idempotency-Key':b.caseId},body,redirect:'error',signal:AbortSignal.timeout(25000)});
+   const response=await fetchWithoutRedirect(transport,endpoint,{method:'POST',headers:{'x-api-key':config.apiKey,'Content-Type':'application/json','Idempotency-Key':b.caseId},body,signal:AbortSignal.timeout(25000)});
    const bytes=await boundedBody(response),evidenceHash=await identityDigest(bytes);
    // Preserve even unsupported responses privately for reconciliation; no PII in errors.
    const evidenceReference=await config.evidence.put(b.caseId,bytes,evidenceHash);

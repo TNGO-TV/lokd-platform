@@ -1,3 +1,4 @@
+import {fetchWithoutRedirect} from './provider-fetch';
 import {readRequestText} from './request-body';
 
 export type OperationalRuntime = {
@@ -32,7 +33,7 @@ export const emailValid=(v:unknown):v is string=>typeof v==='string'&&v.length<=
 const regions=[['https://accounts.zoho.com','https://www.zohoapis.com'],['https://accounts.zoho.eu','https://www.zohoapis.eu'],['https://accounts.zoho.in','https://www.zohoapis.in'],['https://accounts.zoho.com.au','https://www.zohoapis.com.au'],['https://accounts.zoho.jp','https://www.zohoapis.jp'],['https://accounts.zohocloud.ca','https://www.zohoapis.ca'],['https://accounts.zoho.sa','https://www.zohoapis.sa']];
 export async function providerJson(url:string,init:RequestInit,transport:typeof fetch=fetch):Promise<Record<string,unknown>>{
  let response:Response;
- try{response=await transport(url,{...init,redirect:'error',signal:AbortSignal.timeout(15000)});}
+ try{response=await fetchWithoutRedirect(transport,url,{...init,signal:AbortSignal.timeout(15000)});}
  catch{throw new DeliveryError('provider_transport_unknown','retry_wait');}
  if(!response.ok){await response.body?.cancel();throw new DeliveryError(`provider_http_${response.status}`,response.status===401||response.status===403?'blocked':response.status===429||response.status>=500?'retry_wait':'failed');}
  try{const value:unknown=JSON.parse(await readRequestText(response,512_000));if(!value||typeof value!=='object'||Array.isArray(value))throw Error();return value as Record<string,unknown>;}

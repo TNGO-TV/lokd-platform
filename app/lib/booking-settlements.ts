@@ -1,3 +1,4 @@
+import {fetchWithoutRedirect} from './provider-fetch';
 import {SignupError} from './signup-server';
 import {agreementHash} from './agreement-acceptance';
 import {productionOperatorControl} from './production-operator-control';
@@ -7,7 +8,7 @@ import {settlementEvidence,type SettlementEvidence} from './settlement-evidence'
 import type {SigningActor} from './production-signing';
 const text=(v:unknown,label:string,max=1200)=>{if(typeof v!=='string'||v.trim().length<3||v.length>max)throw new SignupError(`Provide ${label}.`);return v.trim();};
 type Review={id:string;reference:string;collection_revision:number;mode:string;settlement_id:string;provider_id:string;payload_json:string;payload_hash:string;prepared_by:string;prepared_at:string;expires_at:string};
-async function api(secret:string,path:string,transport:typeof fetch){const res=await transport('https://api.paystack.co'+path,{headers:{Authorization:'Bearer '+secret},redirect:'error',signal:AbortSignal.timeout(20000)});const p=await res.json() as {status?:boolean;data?:unknown;meta?:{page?:number;pageCount?:number;total?:number;perPage?:number}};if(!res.ok||p.status!==true)throw new SignupError('Settlement verification is unavailable. No funding was released.',503);return p;}
+async function api(secret:string,path:string,transport:typeof fetch){const res=await fetchWithoutRedirect(transport,'https://api.paystack.co'+path,{headers:{Authorization:'Bearer '+secret},signal:AbortSignal.timeout(20000)});const p=await res.json() as {status?:boolean;data?:unknown;meta?:{page?:number;pageCount?:number;total?:number;perPage?:number}};if(!res.ok||p.status!==true)throw new SignupError('Settlement verification is unavailable. No funding was released.',503);return p;}
 async function list(secret:string,path:string,transport:typeof fetch){
  const rows:Record<string,unknown>[]=[];let expectedTotal:number|undefined;
  for(let page=1;page<=20;page++){
