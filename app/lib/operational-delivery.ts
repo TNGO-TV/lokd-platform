@@ -1,3 +1,4 @@
+import {PilotAccessError} from './pilot-runtime';
 import {createClerkClient} from '@clerk/backend';
 import {verifiedPrimaryEmail} from './clerk-access';
 import {agreementHash,canonicalAgreementContext} from './agreement-acceptance';
@@ -50,7 +51,7 @@ async function requestFor(db:D1Database,job:Job,runtime:OperationalRuntime,resol
   text=`Sign in to your LOKD account to review and accept your agreement. Only its named signer can accept it.\n\nhttps://demo.lokd.co.za/${envelope.kind}/agreements#${encodeURIComponent(job.source_id)}\n\nAgreement reference: ${job.source_id}\nIf the agreement has expired or been withdrawn, contact LOKD Operations.`;
  }else{
   const source=job.kind==='enquiry_email'
-   ?await db.prepare("SELECT id FROM client_enquiries WHERE id=? AND environment='prelaunch' AND integrity_state='user_submitted' AND status!='closed'").bind(job.source_id).first()
+   ?await db.prepare("SELECT id FROM client_enquiries e WHERE id=? AND environment='prelaunch' AND integrity_state='user_submitted' AND status!='closed' AND NOT EXISTS(SELECT 1 FROM signup_cases c WHERE c.source_id=e.id AND c.kind='client' AND c.status='withdrawn')").bind(job.source_id).first()
    :await db.prepare("SELECT p.id FROM production_order_setups p JOIN bookings b ON b.id=p.id WHERE p.id=? AND b.environment='production' AND b.integrity_state='production_verified' AND b.status='draft'").bind(job.source_id).first();
   if(!source)throw new DeliveryError('notification_source_no_longer_current','cancelled');
   subject=job.kind==='enquiry_email'?'New LOKD service enquiry':'LOKD service order prepared';
@@ -60,6 +61,28 @@ async function requestFor(db:D1Database,job:Job,runtime:OperationalRuntime,resol
  // Never change the payload/recipient under an existing provider idempotency key.
  if(job.recipient&&job.recipient.toLowerCase()!==recipient.toLowerCase())throw new DeliveryError('trusted_recipient_changed');
  return {recipient,body:job.request_json?JSON.parse(job.request_json):{...message(runtime.LOKD_EMAIL_FROM!,recipient,subject,text),_lokdProvider:provider}};
+}
+
+// A human-confirmed non-submission permits one additional attempt, never a
+// blanket replay of uncertain outcomes. Immutable payload and attempt history remain.
+export async function reconcileUnsubmittedNotice(db:D1Database,runtime:OperationalRuntime,input:Record<string,unknown>,actor:string,clock=Date.now()){
+ if(!actor||runtime.LOKD_OPERATIONAL_DELIVERY_ENABLED!=='true')throw new PilotAccessError('Controlled delivery is unavailable.',403);
+ if(input.confirmedNotSubmitted!==true||typeof input.evidence!=='string'||input.evidence.trim().length<50||input.evidence.length>2000||typeof input.id!=='string'||typeof input.updatedAt!=='string')throw new PilotAccessError('Record evidence confirming that the provider did not receive this notice.',400);
+ const job=await db.prepare("SELECT * FROM operational_delivery_jobs WHERE id=? AND updated_at=? AND state='uncertain' AND kind='enquiry_email' AND environment='prelaunch' AND provider_id IS NULL AND attempts>0 AND attempts<5").bind(input.id,input.updatedAt).first<Job>();
+ if(!job||!job.request_json||JSON.parse(job.request_json)._lokdProvider!=='zeptomail'||runtime.LOKD_EMAIL_PROVIDER!=='zeptomail')throw new PilotAccessError('This notice is not eligible, or its status changed. Refresh and review it.',409);
+ try{await requestFor(db,job,runtime,async()=>null,clock);}catch{throw new PilotAccessError('The source, recipient or provider is no longer eligible for controlled delivery.',409);}
+ const auditId=crypto.randomUUID(),now=iso(clock);
+ const results=await db.batch([
+  db.prepare(`INSERT INTO audit_events(id,actor_type,actor_id,event_type,entity_type,entity_id,detail,created_at)
+   SELECT ?,'operations',?,'delivery_non_submission_confirmed','operational_delivery',id,?,? FROM operational_delivery_jobs
+   WHERE id=? AND updated_at=? AND state='uncertain' AND attempts=? AND provider_id IS NULL`)
+   .bind(auditId,actor,JSON.stringify({attempts:job.attempts,evidence:input.evidence.trim(),confirmedNotSubmitted:true}),now,job.id,input.updatedAt,job.attempts),
+  db.prepare(`UPDATE operational_delivery_jobs SET state='retry_wait',last_error='non_submission_reconciled',next_attempt_at=?,updated_at=?
+   WHERE id=? AND updated_at=? AND state='uncertain' AND attempts=? AND EXISTS(SELECT 1 FROM audit_events WHERE id=?)`)
+   .bind(now,now,job.id,input.updatedAt,job.attempts,auditId)
+ ]);
+ if(!results[1].meta.changes)throw new PilotAccessError('The notice changed. Refresh and review it.',409);
+ return {reconciled:true,queued:true,sent:false};
 }
 
 export async function runOperationalDelivery(db:D1Database,runtime:OperationalRuntime,options:Options={}){
@@ -84,7 +107,8 @@ export async function runOperationalDelivery(db:D1Database,runtime:OperationalRu
   const claimed=await db.prepare(`UPDATE operational_delivery_jobs SET state='dispatching',lease_token=?,lease_expires_at=?,updated_at=? WHERE id=? AND state IN ('queued','blocked','retry_wait') AND next_attempt_at<=?`).bind(lease,iso(clock()+120000),now,job.id,now).run();
   if(!claimed.meta.changes)continue;
   try{
-   if(job.attempts>=5||job.kind!=='enquiry_crm'&&job.first_attempt_at&&clock()-Date.parse(job.first_attempt_at)>=23*3600000){
+   const reconciled=job.kind==='enquiry_email'&&job.request_json&&JSON.parse(job.request_json)._lokdProvider==='zeptomail'&&await db.prepare(`SELECT id FROM audit_events WHERE entity_type='operational_delivery' AND entity_id=? AND event_type='delivery_non_submission_confirmed' AND json_extract(detail,'$.attempts')=? AND json_extract(detail,'$.confirmedNotSubmitted')=1 LIMIT 1`).bind(job.id,job.attempts).first();
+   if(job.attempts>=5||job.kind!=='enquiry_crm'&&job.first_attempt_at&&clock()-Date.parse(job.first_attempt_at)>=23*3600000&&!reconciled){
     await db.prepare("UPDATE operational_delivery_jobs SET state='uncertain',last_error='provider_reconciliation_required',lease_token=NULL,lease_expires_at=NULL,updated_at=? WHERE id=? AND lease_token=?").bind(iso(clock()),job.id,lease).run();continue;
    }
    const prepared=await requestFor(db,job,runtime,resolveEmail,clock());
