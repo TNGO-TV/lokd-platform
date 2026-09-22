@@ -193,3 +193,15 @@ test('reconciliation cannot replay CRM, accepted email or a closed enquiry',asyn
   assert.equal(x.database.prepare("SELECT count(*) n FROM audit_events WHERE event_type='delivery_non_submission_confirmed'").get().n,0);
  }finally{x.database.close();}
 });
+
+test('manual receipt checks never dispatch queued jobs and throttle repeated provider reads',async()=>{
+ const x=await fixture(),calls=[];let now=Date.now()+1000,reads=0;
+ try{
+  await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now,receiptsOnly:true});assert.equal(calls.length,0);
+  await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now});
+  const fallback=transportFor(calls),transport=async(url,init)=>{if(url==='https://api.resend.com/emails/mail-fixture'){reads++;return new Response('',{status:403});}return fallback(url,init);};
+  now+=61000;await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now,receiptsOnly:true});assert.equal(reads,1);assert.equal(job(x,'enquiry_email').last_error,'provider_http_403');
+  await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now,receiptsOnly:true});assert.equal(reads,1);
+  now+=61000;await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now,receiptsOnly:true});assert.equal(job(x,'enquiry_email').state,'delivered');assert.equal(job(x,'enquiry_email').attempts,1);assert.equal(calls.filter(c=>c.url==='https://api.resend.com/emails').length,1);
+ }finally{x.database.close();}
+});
