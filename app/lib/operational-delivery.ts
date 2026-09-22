@@ -7,7 +7,7 @@ import {evaluateAssignmentActivation} from './assignment-activation-server';
 import {allowlisted,crmEnquiryBody,DeliveryError,emailValid,configuredEmailProvider,emailReceipt,sendCrm,sendEmail,type OperationalRuntime} from './operational-provider';
 
 type Job={id:string;kind:string;source_id:string;environment:string;state:string;attempts:number;request_json:string|null;recipient:string|null;provider_id:string|null;first_attempt_at:string|null;created_at:string};
-type Options={transport?:typeof fetch;verifiedEmail?:(userId:string)=>Promise<string|null>;now?:()=>number};
+type Options={transport?:typeof fetch;verifiedEmail?:(userId:string)=>Promise<string|null>;now?:()=>number;receiptsOnly?:boolean};
 const iso=(n:number)=>new Date(n).toISOString();
 const message=(from:string,to:string,subject:string,text:string)=>({from,to:[to],subject,text});
 
@@ -95,12 +95,12 @@ export async function runOperationalDelivery(db:D1Database,runtime:OperationalRu
  });
  // A lost worker may have submitted successfully. Reuse the SAME claim only
  // inside the provider deduplication window; afterwards require investigation.
- await db.prepare(`UPDATE operational_delivery_jobs SET state=CASE WHEN attempts>=5 OR
+ if(!options.receiptsOnly)await db.prepare(`UPDATE operational_delivery_jobs SET state=CASE WHEN attempts>=5 OR
   (kind!='enquiry_crm' AND attempts>0 AND json_extract(request_json,'$._lokdProvider')='zeptomail') OR
   (kind!='enquiry_crm' AND first_attempt_at IS NOT NULL AND first_attempt_at<=?) THEN 'uncertain' ELSE 'retry_wait' END,
   lease_token=NULL,lease_expires_at=NULL,last_error='dispatch_lease_expired',updated_at=?
   WHERE state='dispatching' AND lease_expires_at<=?`).bind(iso(clock()-23*3600000),iso(clock()),iso(clock())).run();
- const jobs=await db.prepare(`SELECT * FROM operational_delivery_jobs WHERE state IN ('queued','blocked','retry_wait') AND next_attempt_at<=? ORDER BY next_attempt_at,id LIMIT 5`).bind(iso(clock())).all<Job>();
+ const jobs=options.receiptsOnly?{results:[]}:await db.prepare(`SELECT * FROM operational_delivery_jobs WHERE state IN ('queued','blocked','retry_wait') AND next_attempt_at<=? ORDER BY next_attempt_at,id LIMIT 5`).bind(iso(clock())).all<Job>();
  let processed=0;
  for(const job of jobs.results){
   const lease=crypto.randomUUID(),now=iso(clock());
@@ -123,14 +123,15 @@ export async function runOperationalDelivery(db:D1Database,runtime:OperationalRu
   }
  }
  if(runtime.LOKD_EMAIL_PROVIDER==='resend'&&runtime.RESEND_API_KEY||runtime.LOKD_EMAIL_PROVIDER==='zeptomail'&&runtime.ZEPTOMAIL_SEND_TOKEN){
-  const sent=await db.prepare("SELECT * FROM operational_delivery_jobs WHERE state='sent' AND kind!='enquiry_crm' AND next_attempt_at<=? ORDER BY next_attempt_at LIMIT 5").bind(iso(clock())).all<Job>();
+  const sent=await db.prepare("SELECT * FROM operational_delivery_jobs WHERE state='sent' AND kind!='enquiry_crm' AND next_attempt_at<=? ORDER BY next_attempt_at LIMIT 5").bind(iso(clock()+(options.receiptsOnly?3540000:0))).all<Job>();
   for(const job of sent.results){
    if(!allowlisted(runtime.LOKD_DELIVERY_SOURCE_ALLOWLIST,job.source_id)||!allowlisted(runtime.LOKD_DELIVERY_EMAIL_ALLOWLIST,job.recipient??''))continue;
    try{
     const state=await emailReceipt(runtime,JSON.parse(job.request_json!),job.id,job.provider_id!,job.recipient!,transport);
     await db.prepare("UPDATE operational_delivery_jobs SET state=?,last_error=?,next_attempt_at=?,updated_at=? WHERE id=? AND state='sent'").bind(state,state==='failed'?'email_delivery_failed':null,iso(clock()+3600000),iso(clock()),job.id).run();
-   }catch{
-    await db.prepare("UPDATE operational_delivery_jobs SET last_error='delivery_confirmation_unavailable',next_attempt_at=?,updated_at=? WHERE id=? AND state='sent'").bind(iso(clock()+3600000),iso(clock()),job.id).run();
+   }catch(error){
+    const reason=error instanceof DeliveryError?error.code:'delivery_confirmation_unavailable';
+    await db.prepare("UPDATE operational_delivery_jobs SET last_error=?,next_attempt_at=?,updated_at=? WHERE id=? AND state='sent'").bind(reason,iso(clock()+3600000),iso(clock()),job.id).run();
    }
   }
  }
