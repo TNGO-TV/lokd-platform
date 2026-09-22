@@ -1,3 +1,4 @@
+import {CLIENT_PORTAL_URL,OFFICER_PORTAL_URL,OPERATIONS_PORTAL_URL} from './public-site';
 import {currentQuote} from './quote-acceptance';
 import {PilotAccessError} from './pilot-runtime';
 import {createClerkClient} from '@clerk/backend';
@@ -50,14 +51,14 @@ async function requestFor(db:D1Database,job:Job,runtime:OperationalRuntime,resol
   const envelope=await currentEnvelopeRecipient(db,job.source_id,clock);
   recipient=await resolveEmail(envelope.owner);
   subject=job.source_id.startsWith('QUOTE-')?'Your LOKD quote is ready to review':'Your LOKD agreement is ready to review';
-  text=`Sign in to your LOKD account to review and accept your agreement. Only its named signer can accept it.\n\nhttps://demo.lokd.co.za/${envelope.kind}/agreements#${encodeURIComponent(job.source_id)}\n\nAgreement reference: ${job.source_id}\nIf the agreement has expired or been withdrawn, contact LOKD Operations.`;
+  text=`Sign in to your LOKD account to review and accept your agreement. Only its named signer can accept it.\n\n${envelope.kind==='client'?CLIENT_PORTAL_URL:OFFICER_PORTAL_URL}/${envelope.kind}/agreements#${encodeURIComponent(job.source_id)}\n\nAgreement reference: ${job.source_id}\nIf the agreement has expired or been withdrawn, contact LOKD Operations.`;
  }else{
   const source=job.kind==='enquiry_email'
    ?await db.prepare("SELECT id FROM client_enquiries e WHERE id=? AND environment='prelaunch' AND integrity_state='user_submitted' AND status!='closed' AND NOT EXISTS(SELECT 1 FROM signup_cases c WHERE c.source_id=e.id AND c.kind='client' AND c.status='withdrawn')").bind(job.source_id).first()
    :await db.prepare("SELECT p.id FROM production_order_setups p JOIN bookings b ON b.id=p.id WHERE p.id=? AND b.environment='production' AND b.integrity_state='production_verified' AND b.status='draft'").bind(job.source_id).first();
   if(!source)throw new DeliveryError('notification_source_no_longer_current','cancelled');
   subject=job.kind==='enquiry_email'?'New LOKD service enquiry':'LOKD service order prepared';
-  text=`${subject}. Reference: ${job.source_id}. Sign in to Operations to review and take ownership.\n\nhttps://demo.lokd.co.za/ops${job.kind==='enquiry_email'?'/intake?kind=client':'/service'}\n\nThis notice does not approve a booking, funding or service activation.`;
+  text=`${subject}. Reference: ${job.source_id}. Sign in to Operations to review and take ownership.\n\n${OPERATIONS_PORTAL_URL}/ops${job.kind==='enquiry_email'?'/intake?kind=client':'/service'}\n\nThis notice does not approve a booking, funding or service activation.`;
  }
  if(!emailValid(recipient)||!allowlisted(runtime.LOKD_DELIVERY_EMAIL_ALLOWLIST,recipient))throw new DeliveryError('recipient_not_designated_for_test');
  // Never change the payload/recipient under an existing provider idempotency key.
