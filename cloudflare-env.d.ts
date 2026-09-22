@@ -9,5 +9,6 @@ declare namespace Cloudflare {
     LOKD_APP_STAGE?: string;
     LOKD_LIVE_SHIFT_SCAN?: string;
     LOKD_PILOT_ACCESS_JSON?: string;
+    LOKD_OPERATIONS_ACCESS_JSON?: string;
   }
 }

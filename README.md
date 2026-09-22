@@ -16,6 +16,8 @@ This guidance supersedes previous Supabase and dispatch-owned ChatGPT authentica
 
 `LOKD_PILOT_ACCESS_JSON` remains the server-controlled role/entity map. New Clerk accounts receive no workspace permissions automatically. Owner access spans roles but does not waive payroll maker/checker, MFA or settlement controls. The Operations account menu distinguishes ordinary Operations access from owner access.
 
+`LOKD_OPERATIONS_ACCESS_JSON` optionally adds Operations users as a JSON array of exact email addresses through Sites runtime configuration. This separate list preserves the existing role/entity map when it is redacted. It grants no owner, reviewer, client or officer permissions; verified Clerk sign-in and the existing MFA policy still apply. Blank, invalid or non-array values add no access. To revoke a user, remove their address from every list granting the role (including the original Operations/owner lists), then deploy the updated environment.
+
 Set `CLERK_PUBLISHABLE_KEY` and secret `CLERK_SECRET_KEY` through Sites runtime configuration. `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is also accepted. Optional `CLERK_AUTHORIZED_PARTIES` is a comma-separated list of extra trusted origins for a development instance; production LOKD origins are fixed in source. Use development Clerk keys for automated login tests. Local Worker bindings belong in ignored `.dev.vars`; `.env.local` is ignored as well. Never commit secrets or put them in hosting metadata.
 
 `app/lokd-auth.ts` supplies server page helpers. `/sign-in` pins each portal to its own destination. `/sign-out` uses Clerk. Protected APIs enforce the same permissions. Anonymous synthetic access remains limited to the supported demo hosts while `LOKD_APP_STAGE=demo`.
