@@ -533,6 +533,13 @@
       "when": 1790005763970,
       "tag": "0075_overconfident_doomsday",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "6",
+      "when": 1790099694100,
+      "tag": "0076_spotty_quasar",
+      "breakpoints": true
     }
   ]
 }
