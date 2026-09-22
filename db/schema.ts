@@ -3175,3 +3175,27 @@ export const operationalDeliveryJobs=sqliteTable('operational_delivery_jobs',{
  check('operational_delivery_environment',sql.raw("environment IN ('prelaunch','production')")),
  check('operational_delivery_attempts',sql.raw('attempts>=0 AND attempts<=5')),
  check('operational_delivery_request',sql.raw('request_json IS NULL OR json_valid(request_json)'))]);
+
+// Client commercial acceptance is independent of workforce assignments.
+export const clientTermsFiles=sqliteTable('client_terms_files',{
+ id:text('id').primaryKey(),title:text('title').notNull(),version:text('version').notNull(),entityId:text('entity_id').notNull(),
+ storageKey:text('storage_key').notNull(),fileHash:text('file_hash').notNull(),sizeBytes:integer('size_bytes').notNull(),
+ uploadedBy:text('uploaded_by').notNull(),uploadedAt:text('uploaded_at').notNull(),
+},t=>[uniqueIndex('client_terms_entity_version_idx').on(t.entityId,t.version)]);
+export const clientTermsApprovals=sqliteTable('client_terms_approvals',{
+ termsId:text('terms_id').primaryKey().references(()=>clientTermsFiles.id),fileHash:text('file_hash').notNull(),approvedBy:text('approved_by').notNull(),approvedAt:text('approved_at').notNull(),
+});
+export const clientTermsWithdrawals=sqliteTable('client_terms_withdrawals',{
+ termsId:text('terms_id').primaryKey().references(()=>clientTermsFiles.id),actorId:text('actor_id').notNull(),reason:text('reason').notNull(),createdAt:text('created_at').notNull(),
+});
+export const clientQuoteOffers=sqliteTable('client_quote_offers',{
+ id:text('id').primaryKey(),orderId:text('order_id').notNull().references(()=>bookings.id),ownerUserId:text('owner_user_id').notNull(),
+ termsId:text('terms_id').notNull().references(()=>clientTermsFiles.id),sourceJson:text('source_json').notNull(),sourceHash:text('source_hash').notNull(),offerHash:text('offer_hash').notNull(),
+ issuedBy:text('issued_by').notNull(),issuedAt:text('issued_at').notNull(),expiresAt:text('expires_at').notNull(),sequence:integer('sequence').notNull(),caseVersion:integer('case_version').notNull(),
+},t=>[uniqueIndex('client_quote_order_sequence_idx').on(t.orderId,t.sequence),index('client_quote_owner_idx').on(t.ownerUserId),check('client_quote_source_json',sql.raw('json_valid(source_json)'))]);
+export const clientQuoteReceipts=sqliteTable('client_quote_receipts',{
+ quoteId:text('quote_id').primaryKey().references(()=>clientQuoteOffers.id),actorId:text('actor_id').notNull(),receiptJson:text('receipt_json').notNull(),receiptHash:text('receipt_hash').notNull(),acceptedAt:text('accepted_at').notNull(),
+},()=>[check('client_quote_receipt_json',sql.raw('json_valid(receipt_json)'))]);
+export const clientQuoteCancellations=sqliteTable('client_quote_cancellations',{
+ quoteId:text('quote_id').primaryKey().references(()=>clientQuoteOffers.id),actorId:text('actor_id').notNull(),reason:text('reason').notNull(),createdAt:text('created_at').notNull(),
+});

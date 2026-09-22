@@ -1,3 +1,4 @@
+import {acceptedOrderQuote} from './quote-acceptance';
 import { agreementHash, canonicalAgreementContext, type AgreementContext } from './agreement-acceptance';
 import type { AssignmentActivationFacts } from './assignment-activation-core';
 export type ActivationAgreementRole = 'CLIENT_MSA' | 'SERVICE_ORDER' | 'OFFICER_EMPLOYMENT' | 'PARTNER_SERVICE';
@@ -24,7 +25,9 @@ export function activationAgreementContext(facts: AssignmentActivationFacts, rol
 export async function readActivationAgreements(db: D1Database, facts: AssignmentActivationFacts) {
   const receipts: Array<{id:string;hash:string;documentId:string;documentVersion:string;contextHash:string}> = [];
   const missing: string[] = [];
+  const quote=facts.environment==='production'?await acceptedOrderQuote(db,facts.shift.bookingId):{exists:false,receipt:null};
   for(const role of requiredActivationAgreements(facts)) {
+    if(quote.exists&&(role==='CLIENT_MSA'||role==='SERVICE_ORDER')){if(quote.receipt){if(role==='CLIENT_MSA')receipts.push(quote.receipt);}else missing.push(role);continue;}
     const context=activationAgreementContext(facts,role),contextHash=await agreementHash(canonicalAgreementContext(context));
     const candidates=await db.prepare(`SELECT r.id,r.receipt_json,r.receipt_hash FROM agreement_acceptance_receipts r
       WHERE r.context_hash=? AND NOT EXISTS(SELECT 1 FROM agreement_receipt_revocations v WHERE v.receipt_id=r.id)

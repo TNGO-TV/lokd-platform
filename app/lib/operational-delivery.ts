@@ -1,3 +1,4 @@
+import {currentQuote} from './quote-acceptance';
 import {PilotAccessError} from './pilot-runtime';
 import {createClerkClient} from '@clerk/backend';
 import {verifiedPrimaryEmail} from './clerk-access';
@@ -12,6 +13,7 @@ const iso=(n:number)=>new Date(n).toISOString();
 const message=(from:string,to:string,subject:string,text:string)=>({from,to:[to],subject,text});
 
 export async function currentEnvelopeRecipient(db:D1Database,id:string,clock:number):Promise<{owner:string;kind:string}> {
+ if(id.startsWith('QUOTE-')){try{const {q}=await currentQuote(db,id,clock);return {owner:q.owner_user_id,kind:'client'};}catch{throw new DeliveryError('quote_no_longer_current','cancelled');}}
  const e=await db.prepare(`SELECT e.*,b.wording,v.effective_from,v.effective_to FROM production_signing_envelopes e
  JOIN signing_document_bodies b ON b.id=e.document_id
  JOIN agreement_document_versions v ON v.id=e.document_id AND v.status='approved' AND v.content_hash=e.content_hash
@@ -47,7 +49,7 @@ async function requestFor(db:D1Database,job:Job,runtime:OperationalRuntime,resol
  if(job.kind==='contract_email'){
   const envelope=await currentEnvelopeRecipient(db,job.source_id,clock);
   recipient=await resolveEmail(envelope.owner);
-  subject='Your LOKD agreement is ready to review';
+  subject=job.source_id.startsWith('QUOTE-')?'Your LOKD quote is ready to review':'Your LOKD agreement is ready to review';
   text=`Sign in to your LOKD account to review and accept your agreement. Only its named signer can accept it.\n\nhttps://demo.lokd.co.za/${envelope.kind}/agreements#${encodeURIComponent(job.source_id)}\n\nAgreement reference: ${job.source_id}\nIf the agreement has expired or been withdrawn, contact LOKD Operations.`;
  }else{
   const source=job.kind==='enquiry_email'
