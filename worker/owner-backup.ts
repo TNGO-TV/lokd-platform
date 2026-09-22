@@ -51,7 +51,7 @@ export async function ownerBackup(request: Request, env: BackupEnv): Promise<Res
     if (input.action === "health") return json({ok:true,expires_at:expiresAt,read_only:true});
     if (input.action === "runtime") {
       const values: Record<string,unknown> = {}, bindings: string[] = [];
-      const allowed = new Set(["CLERK_PUBLISHABLE_KEY","CLERK_SECRET_KEY","LOKD_APP_STAGE","LOKD_LIVE_SHIFT_SCAN","LOKD_OPERATIONS_MFA_REQUIRED","LOKD_PILOT_ACCESS_JSON","PAYSTACK_TEST_PUBLIC_KEY","PAYSTACK_TEST_SECRET_KEY","VERIFYNOW_API_KEY","VERIFYNOW_SANDBOX_ENABLED"]);
+      const allowed = new Set(["CLERK_PUBLISHABLE_KEY","CLERK_SECRET_KEY","LOKD_APP_STAGE","LOKD_LIVE_SHIFT_SCAN","LOKD_OPERATIONS_MFA_REQUIRED","LOKD_PILOT_ACCESS_JSON","LOKD_OPERATIONS_ACCESS_JSON","PAYSTACK_TEST_PUBLIC_KEY","PAYSTACK_TEST_SECRET_KEY","VERIFYNOW_API_KEY","VERIFYNOW_SANDBOX_ENABLED"]);
       for (const [key,value] of Object.entries(env)) {
         if (!allowed.has(key)) { if (value && typeof value === "object") bindings.push(key); continue; }
         if (value === null || ["string","number","boolean"].includes(typeof value)) values[key]=value;

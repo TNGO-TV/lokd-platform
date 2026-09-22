@@ -10,6 +10,25 @@ const rawConfig = JSON.stringify({
 
 const access = await import("../app/lib/pilot-access-core.ts");
 
+test("supplemental Operations access preserves existing assignments and cannot grant other roles", () => {
+  const extra = JSON.stringify(["  NEW@lokd.example  ", "new@lokd.example"]);
+  const added = access.principalForEmailFromConfig("new@lokd.example", "New", rawConfig, extra);
+  assert.deepEqual(added.roles, ["operations"]);
+  assert.equal(added.owner, false);
+  assert.equal(added.clientId, null);
+  assert.equal(added.officerId, null);
+  for (const email of ["owner", "ops", "client", "officer", "reviewer", "unknown"]) {
+    const address = `${email}@lokd.example`;
+    assert.deepEqual(access.principalForEmailFromConfig(address, address, rawConfig, extra),
+      access.principalForEmailFromConfig(address, address, rawConfig));
+  }
+  for (const invalid of ["", "broken", "null", '"new@lokd.example"', '{"owners":["new@lokd.example"]}', '[null,42,{},""]', '[]']) {
+    assert.deepEqual(access.principalForEmailFromConfig("new@lokd.example", "New", rawConfig, invalid).roles, []);
+  }
+  assert.deepEqual(access.principalForEmailFromConfig("", "", rawConfig, '[""]').roles, []);
+  assert.deepEqual(access.principalForEmailFromConfig("new@lokd.example.attacker.test", "", rawConfig, extra).roles, []);
+});
+
 test("pilot access is default-deny and owner access spans every role", () => {
   const unknown = access.principalForEmailFromConfig("unknown@lokd.example", "Unknown", rawConfig);
   assert.deepEqual(unknown.roles, []);
