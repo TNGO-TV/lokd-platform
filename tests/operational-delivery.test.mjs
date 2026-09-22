@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 import { env } from "cloudflare:workers";
-import {runOperationalDelivery} from '../app/lib/operational-delivery.ts';
+import {runOperationalDelivery,reconcileUnsubmittedNotice} from '../app/lib/operational-delivery.ts';
 import {crmEnquiryBody,zohoSession} from '../app/lib/operational-provider.ts';
 
 class Prepared {
@@ -160,4 +160,36 @@ test('actual ZeptoMail log shape requires correlated per-recipient delivery deta
   if(mode.startsWith('wrong-')||mode==='multiple-logs')await assert.rejects(action,/receipt_mismatch/);
   else assert.equal(await action(),mode==='delivered'?'delivered':'sent');
  }
+});
+
+test('explicit non-submission reconciliation preserves history and grants just one retry after expiry',async()=>{
+ const x=await fixture(),calls=[];let now=Date.now()+1000,sends=0;
+ try{
+  const fallback=transportFor(calls),transport=async(url,init)=>{if(url==='https://api.zeptomail.com/v1.1/email'){sends++;throw Error('synthetic unknown outcome');}return fallback(url,init);};
+  await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});
+  const original=job(x,'enquiry_email');now+=24*3600000;
+  const input={id:original.id,updatedAt:original.updated_at,evidence:'Confirmed pre-network runtime rejection and reviewed complete provider logs; this synthetic notice was never submitted.',confirmedNotSubmitted:true};
+  for(const invalid of [{...input,confirmedNotSubmitted:false},{...input,evidence:'missing proof'}])await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,zeptoRuntime(x.id),invalid,'operator',now));
+  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,{...zeptoRuntime(x.id),LOKD_DELIVERY_SOURCE_ALLOWLIST:''},input,'operator',now));
+  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,{...zeptoRuntime(x.id),LOKD_TEAM_EMAIL:'changed@example.test'},input,'operator',now));
+  const concurrent=await Promise.allSettled([reconcileUnsubmittedNotice(x.db,zeptoRuntime(x.id),input,'operator',now),reconcileUnsubmittedNotice(x.db,zeptoRuntime(x.id),input,'operator',now)]);
+  assert.equal(concurrent.filter(r=>r.status==='fulfilled').length,1);
+  const audit=x.database.prepare("SELECT * FROM audit_events WHERE event_type='delivery_non_submission_confirmed'").all();assert.equal(audit.length,1);assert.equal(audit[0].actor_id,'operator');assert.equal(JSON.parse(audit[0].detail).attempts,1);
+  assert.equal(job(x,'enquiry_email').attempts,1);assert.equal(job(x,'enquiry_email').request_json,original.request_json);assert.equal(job(x,'enquiry_email').first_attempt_at,original.first_attempt_at);
+  await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});assert.equal(sends,2);assert.equal(job(x,'enquiry_email').state,'uncertain');
+  now+=3600000;await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});assert.equal(sends,2);
+  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,zeptoRuntime(x.id),input,'operator',now));
+ }finally{x.database.close();}
+});
+test('reconciliation cannot replay CRM, accepted email or a closed enquiry',async()=>{
+ const x=await fixture(),calls=[];const now=Date.now()+1000;
+ try{
+  const fallback=transportFor(calls),transport=async(url,init)=>url==='https://api.zeptomail.com/v1.1/email'?Promise.reject(Error('unknown')):fallback(url,init);
+  await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});
+  const current=job(x,'enquiry_email'),input={id:current.id,updatedAt:current.updated_at,evidence:'Verified provider non-submission evidence for this synthetic notice with exact source correlation.',confirmedNotSubmitted:true};
+  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,zeptoRuntime(x.id),{...input,id:job(x,'enquiry_crm').id},'operator',now));
+  x.database.prepare("UPDATE operational_delivery_jobs SET state='sent',provider_id='accepted' WHERE kind='enquiry_email'").run();
+  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,zeptoRuntime(x.id),input,'operator',now));
+  assert.equal(x.database.prepare("SELECT count(*) n FROM audit_events WHERE event_type='delivery_non_submission_confirmed'").get().n,0);
+ }finally{x.database.close();}
 });
