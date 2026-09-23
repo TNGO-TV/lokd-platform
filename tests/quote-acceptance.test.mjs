@@ -45,7 +45,7 @@ async function setup(){
  assert.equal(await currentClientReview(db,prepared.entityId),true);
  assert.equal(database.prepare('SELECT approval_status FROM clients WHERE id=?').get(prepared.entityId).approval_status,'approved');
  assert.equal((await reviewProductionClient(db,owner,decision)).alreadyRecorded,true);
- const {prepareProductionOrder,readProductionOrders}=await import('../app/lib/production-orders.ts');
+ const {prepareProductionOrder}=await import('../app/lib/production-orders.ts');
  const quoteRequest={serviceType:'Unarmed',engagementModel:'flex',term:'single',purposeCode:'commercial_access',startDate:new Date(Date.now()+7*86400000).toISOString().slice(0,10),shift:'day',rosterPattern:'daily',riskInput:{assetExposure:'standard',publicAccess:'controlled',incidentHistory:'none',existingControls:'strong',nightOperation:false,vulnerablePeople:false}};
  const quoted=await prepareProductionOrder(db,reviewer,{action:'quote_order',quoteRequest});
  const order={action:'prepare_order',orderReference:'isolated-client-review-order',clientId:prepared.entityId,caseVersion:4,quoteRequest,quoteHash:quoted.quoteHash,siteName:'Fixture Site',siteArea:'Sandton',address:'Fixture address',postName:'Gate',instructions:'Fixture post orders awaiting review.',latitude:-26.1,longitude:28.05,contractingEntityId:'FIXTURE-ENTITY'};
@@ -187,4 +187,56 @@ test('new booking and quote emails use Operations and client portals (provider t
  assert.ok(quote.text.includes('https://portal.lokd.co.za/client/agreements#'+quoteId));
  for(const m of messages)assert.equal(m.text.includes('demo.lokd.co.za'),false);
  x.database.close();
+});
+
+
+// All Books transport below is simulated. No external financial records are written.
+const booksRuntime={LOKD_ZOHO_ACCOUNTS_ORIGIN:'https://accounts.zoho.com',LOKD_ZOHO_API_ORIGIN:'https://www.zohoapis.com',LOKD_ZOHO_CLIENT_ID:'fixture',LOKD_ZOHO_CLIENT_SECRET:'fixture',LOKD_ZOHO_REFRESH_TOKEN:'fixture',LOKD_ZOHO_BOOKS_ORG_ID:'3456789'};
+function booksTransport(q,overrides={},beforeDocument){const scope=JSON.parse(q.source_json);return async(url,init)=>{
+ if(url.endsWith('/oauth/v2/token'))return Response.json({access_token:'fixture',api_domain:'https://www.zohoapis.com'});
+ assert.notEqual(init.method,'POST');
+ if(url.endsWith('/organizations/3456789'))return Response.json({code:0,organization:{organization_id:'3456789',currency_code:'ZAR',is_org_active:true}});
+ if(beforeDocument)await beforeDocument();
+ const kind=url.includes('/invoices/')?'invoice':'estimate';
+ return Response.json({code:0,[kind]:{[kind+'_id']:'1234567',[kind+'_number']:'FIXTURE-001',customer_id:'2345678',reference_number:q.id,currency_code:'ZAR',total:scope.totalCents/100,tax_total:scope.vatCents/100,last_modified_time:'2026-09-22T12:00:00+02:00',status:'draft',...overrides}});
+};}
+const booksInput=q=>({quoteId:q.id,kind:'estimate',documentId:'1234567',customerId:'2345678',customerConfirmed:true});
+test('Books links retain exact accepted revision, replay safely and become historical after cancellation',async()=>{
+ const {linkQuoteBooks,readQuoteBooksLinks}=await import('../app/lib/quote-books-links.ts');const x=await setup(),{q}=await issueAndAccept(x);
+ const input=booksInput(q),send=()=>linkQuoteBooks(x.db,booksRuntime,x.owner,input,booksTransport(q));
+ const result=await send();assert.equal(result.funded,false);assert.equal(result.financialRecordsChanged,false);assert.equal((await send()).alreadyLinked,true);
+ assert.equal(x.database.prepare('SELECT count(*) AS n FROM quote_books_links').get().n,1);
+ const linked=(await readQuoteBooksLinks(x.db))[0];assert.equal(linked.currentAcceptance,true);assert.equal(linked.liveProviderRechecked,false);assert.equal(linked.comparison.referenceNumber,q.id);
+ assert.throws(()=>x.database.prepare("UPDATE quote_books_links SET customer_id='9999999'").run(),/immutable/);
+ assert.throws(()=>x.database.prepare('DELETE FROM quote_books_links').run(),/immutable/);
+ await cancelQuote(x.db,x.reviewer,{quoteId:q.id,reason:'Fixture scope changed'});
+ assert.equal((await readQuoteBooksLinks(x.db))[0].currentAcceptance,false);
+ await assert.rejects(send(),/changed/);x.database.close();
+});
+test('Books links require owner, explicit customer confirmation and valid client acceptance before provider reads',async()=>{
+ const {linkQuoteBooks}=await import('../app/lib/quote-books-links.ts');const x=await setup(),{quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),{q}=await currentQuote(x.db,quoteId);const input=booksInput(q);let calls=0;const transport=async()=>{calls++;throw Error('Must not call provider');};
+ await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.reviewer,input,transport),/owner/);
+ await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,{...input,customerConfirmed:false},transport),/confirm/);
+ await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,input,transport),/accepted quote/);assert.equal(calls,0);x.database.close();
+});
+test('Books rejects wrong quote revision, customer, amount, currency and changed provider revision',async()=>{
+ const {linkQuoteBooks}=await import('../app/lib/quote-books-links.ts');const x=await setup(),{q}=await issueAndAccept(x),input=booksInput(q);
+ for(const mismatch of [{reference_number:x.orderId},{customer_id:'9999999'},{currency_code:'USD'},{total:0},{tax_total:9999}])await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,input,booksTransport(q,mismatch)),/binding_mismatch/);
+ assert.equal(x.database.prepare('SELECT count(*) AS n FROM quote_books_links').get().n,0);
+ await linkQuoteBooks(x.db,booksRuntime,x.owner,input,booksTransport(q));
+ await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,input,booksTransport(q,{last_modified_time:'2026-09-23T12:00:00+02:00'})),/revision changed/);
+ await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,{...input,kind:'invoice',customerId:'9999999'},booksTransport(q,{customer_id:'9999999'})),/same Books customer/);
+ x.database.close();
+});
+test('Books network race and direct duplicate document claims cannot attach stale or conflicting links',async()=>{
+ const {linkQuoteBooks}=await import('../app/lib/quote-books-links.ts');const x=await setup(),{q}=await issueAndAccept(x),input=booksInput(q);
+ await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,input,booksTransport(q,{},async()=>cancelQuote(x.db,x.reviewer,{quoteId:q.id,reason:'Changed during provider request'}))),/changed/);
+ assert.equal(x.database.prepare('SELECT count(*) AS n FROM quote_books_links').get().n,0);x.database.close();
+});
+test('Books API denies anonymous, non-owner and cross-origin link writes',async()=>{
+ const {GET,POST}=await import('../app/api/zoho-books/route.ts');
+ assert.equal((await GET(new Request('https://operations.lokd.co.za/api/zoho-books?links=true'))).status,401);
+ const headers={'x-lokd-verified-user-id':'ordinary-client','x-lokd-verified-email':'client@example.test'};
+ assert.equal((await GET(new Request('https://operations.lokd.co.za/api/zoho-books?links=true',{headers}))).status,403);
+ assert.equal((await POST(new Request('https://operations.lokd.co.za/api/zoho-books',{method:'POST',headers:{...headers,origin:'https://attacker.example','content-type':'application/json'},body:'{}'}))).status,403);
 });

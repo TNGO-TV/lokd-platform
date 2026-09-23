@@ -540,6 +540,13 @@
       "when": 1790099694100,
       "tag": "0076_spotty_quasar",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "6",
+      "when": 1790127105635,
+      "tag": "0077_hesitant_bishop",
+      "breakpoints": true
     }
   ]
 }

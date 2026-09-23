@@ -3199,3 +3199,12 @@ export const clientQuoteReceipts=sqliteTable('client_quote_receipts',{
 export const clientQuoteCancellations=sqliteTable('client_quote_cancellations',{
  quoteId:text('quote_id').primaryKey().references(()=>clientQuoteOffers.id),actorId:text('actor_id').notNull(),reason:text('reason').notNull(),createdAt:text('created_at').notNull(),
 });
+
+// Read-only Books evidence attached to one accepted quote revision.
+export const quoteBooksLinks=sqliteTable('quote_books_links',{
+ id:text('id').primaryKey(),quoteId:text('quote_id').notNull().references(()=>clientQuoteOffers.id),
+ kind:text('kind').notNull(),organizationId:text('organization_id').notNull(),documentId:text('document_id').notNull(),customerId:text('customer_id').notNull(),
+ offerHash:text('offer_hash').notNull(),receiptHash:text('receipt_hash').notNull(),comparisonJson:text('comparison_json').notNull(),
+ linkedBy:text('linked_by').notNull(),linkedAt:text('linked_at').notNull(),
+},t=>[uniqueIndex('quote_books_kind_unique').on(t.quoteId,t.kind),uniqueIndex('quote_books_document_unique').on(t.organizationId,t.kind,t.documentId),
+ check('quote_books_kind',sql.raw("kind IN ('estimate','invoice')")),check('quote_books_comparison_json',sql.raw('json_valid(comparison_json)'))]);
