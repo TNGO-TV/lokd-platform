@@ -57,6 +57,11 @@ function emailSet(values: unknown) {
   );
 }
 
+function configuredEmails(raw: string) {
+  try { return emailSet(JSON.parse(raw)); }
+  catch { return new Set<string>(); }
+}
+
 function entityMap(values: unknown) {
   const result = new Map<string, string>();
   if (!values || typeof values !== "object" || Array.isArray(values))
@@ -85,20 +90,17 @@ export function principalForEmailFromConfig(
   displayName: string,
   rawConfig: string,
   operationsAccess = "",
+  ownerAccess = "",
 ): PilotPrincipal {
   const email = normaliseEmail(emailValue);
   const config = parseConfig(rawConfig);
   const owners = emailSet(config.owners);
-  const owner = owners.has(email);
+  const owner = Boolean(email) && (owners.has(email) || configuredEmails(ownerAccess).has(email));
   const roles = new Set<PilotRole>(owner ? allRoles : []);
   if (emailSet(config.operations).has(email)) roles.add("operations");
-  // A separate server-managed list lets Operations onboarding preserve a redacted
-  // legacy role map. It grants only Operations, never owner or reviewer access.
-  try {
-    if (email && emailSet(JSON.parse(operationsAccess)).has(email)) roles.add("operations");
-  } catch {
-    // Missing or malformed supplemental configuration grants no additional role.
-  }
+  // Separate server-managed lists preserve the existing redacted role map.
+  // Ordinary Operations membership never implies owner approval authority.
+  if (email && configuredEmails(operationsAccess).has(email)) roles.add("operations");
   if (emailSet(config.reviewers).has(email)) roles.add("reviewer");
   const clients = entityMap(config.clients);
   const officers = entityMap(config.officers);

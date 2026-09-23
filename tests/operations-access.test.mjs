@@ -34,3 +34,20 @@ test("supplemental Operations configuration retains authentication, workspace, M
     }
   }
 });
+
+test('supplemental owner authority retains authentication, workspace and MFA checks', () => {
+  const keys=['LOKD_APP_STAGE','LOKD_PILOT_ACCESS_JSON','LOKD_OPERATIONS_ACCESS_JSON','LOKD_OWNER_ACCESS_JSON','LOKD_OPERATIONS_MFA_REQUIRED'];
+  const previous=Object.fromEntries(keys.map(k=>[k,env[k]]));
+  try {
+    Object.assign(env,{LOKD_APP_STAGE:'production',LOKD_PILOT_ACCESS_JSON:'{}',LOKD_OPERATIONS_ACCESS_JSON:'["ordinary@example.test"]',LOKD_OWNER_ACCESS_JSON:'["approver@example.test"]',LOKD_OPERATIONS_MFA_REQUIRED:'true'});
+    const request=(email,method='GET',host='operations.lokd.co.za')=>new Request(`https://${host}/api/quotes?scope=operations`,{method,headers:email?{'x-lokd-verified-email':email,'x-lokd-verified-user-id':'fixture'}:{}});
+    assert.equal(requirePilotApiRole(request('approver@example.test'),'operations').owner,true);
+    assert.equal(requirePilotApiRole(request('ordinary@example.test'),'operations').owner,false);
+    assert.throws(()=>requirePilotApiRole(request(null),'operations'),/Sign in/);
+    assert.throws(()=>requirePilotApiRole(request('unknown@example.test'),'operations'),/does not have access/);
+    assert.throws(()=>requirePilotApiRole(request('approver@example.test','POST'),'operations'),/second factor/);
+    assert.throws(()=>requirePilotApiRole(request('approver@example.test','GET','portal.lokd.co.za'),'operations'),/correct LOKD workspace/);
+    env.LOKD_OWNER_ACCESS_JSON='[]';
+    assert.throws(()=>requirePilotApiRole(request('approver@example.test'),'operations'),/does not have access/);
+  } finally {for(const k of keys){if(previous[k]===undefined)delete env[k];else env[k]=previous[k];}}
+});

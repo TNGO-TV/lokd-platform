@@ -34,7 +34,8 @@ function runtimeValue(key: string): string {
 
 export function principalForEmail(email: string, displayName = email): PilotPrincipal {
   return principalForEmailFromConfig(email, displayName,
-    runtimeValue("LOKD_PILOT_ACCESS_JSON"), runtimeValue("LOKD_OPERATIONS_ACCESS_JSON"));
+    runtimeValue("LOKD_PILOT_ACCESS_JSON"), runtimeValue("LOKD_OPERATIONS_ACCESS_JSON"),
+    runtimeValue("LOKD_OWNER_ACCESS_JSON"));
 }
 
 export function requirePilotApiRole(request: Request, allowed: PilotRole | PilotRole[]) {
