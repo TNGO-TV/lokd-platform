@@ -25,7 +25,16 @@ export async function readProductionOperations(db:D1Database,actor:SigningActor)
  const approvals=actor.operations?await db.prepare('SELECT * FROM production_activation_approvals ORDER BY created_at DESC LIMIT 100').all():{results:[]};
  const shifts=await db.prepare(`SELECT s.id,s.officer_id,s.status,s.check_in_at,s.check_out_at,s.client_signoff_status,b.client_id FROM shifts s JOIN bookings b ON b.id=s.booking_id WHERE s.environment='production' AND b.environment='production' ${actor.operations?'':"AND (EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='client' AND l.entity_id=b.client_id AND l.owner_user_id=?) OR EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='officer' AND l.entity_id=s.officer_id AND l.owner_user_id=?))"} ORDER BY s.scheduled_date DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId,actor.userId])).all();
  const operators=actor.owner?await db.prepare("SELECT id,email,status,approval_limit_cents FROM operator_accounts WHERE environment='production'").all():{results:[]};
- return {...await readPartnerPayments(db,actor),...await readPartnerDestinations(db,actor),...await readPartnerPayables(db,actor),...await readEmployeePayments(db,actor),...await readPaymentDestinations(db,actor),...await readBookingSettlements(db,actor),...await readBookingCollections(db,actor),...await readProductionPayroll(db,actor),...await readProductionPayrollPolicies(db,actor),...await readProductionSchedule(db,actor),...await readProductionService(db,actor),...await readProductionEvidence(db,actor),...await readClientReviews(db,actor),...await readProductionOrders(db,actor),rosters:rosters.results,approvals:approvals.results,shifts:shifts.results,operators:operators.results,owner:actor.owner};
+ // Independent read-only groups overlap, with at most four reader chains.
+ // Each reader retains its own live entitlement and ownership checks. Do not
+ // cache grants or move mutation/approval commands into these groups.
+ const [partner,collections,workforce,evidence]=await Promise.all([
+  (async()=>({...await readPartnerPayments(db,actor),...await readPartnerDestinations(db,actor),...await readPartnerPayables(db,actor),...await readEmployeePayments(db,actor)}))(),
+  (async()=>({...await readPaymentDestinations(db,actor),...await readBookingSettlements(db,actor),...await readBookingCollections(db,actor),...await readProductionPayroll(db,actor)}))(),
+  (async()=>({...await readProductionPayrollPolicies(db,actor),...await readProductionSchedule(db,actor),...await readProductionService(db,actor)}))(),
+  (async()=>({...await readProductionEvidence(db,actor),...await readClientReviews(db,actor),...await readProductionOrders(db,actor)}))(),
+ ]);
+ return {...partner,...collections,...workforce,...evidence,rosters:rosters.results,approvals:approvals.results,shifts:shifts.results,operators:operators.results,owner:actor.owner};
 }
 export async function operateProduction(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,liveCheckInEnabled=false,collectionRuntime:CollectionRuntime={}){
  const now=new Date().toISOString();
