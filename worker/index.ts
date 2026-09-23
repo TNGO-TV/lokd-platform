@@ -60,26 +60,27 @@ const worker = {
       }, allowedWidths);
     }
 
+    // Infrastructure probes must remain usable when browser authentication fails.
+    if (url.pathname === '/api/health/live' || url.pathname === '/api/health/ready') return await handler.fetch(request, env, ctx);
+    // Provider authentication is HMAC, independent of browser sessions.
+    if (url.pathname === '/api/finance-workflows/webhook' || url.pathname === '/api/paystack/booking/webhook' || url.pathname === '/api/paystack/transfers/live/webhook') return await handler.fetch(request, env, ctx);
+    if (url.pathname === '/api/paystack/test/webhook') return await receivePaystackTest(request, env);
+    let auth;
     try {
-      // Infrastructure probes must remain usable when browser authentication fails.
-      if (url.pathname === '/api/health/live' || url.pathname === '/api/health/ready') return await handler.fetch(request, env, ctx);
-      // Provider authentication is HMAC, independent of browser sessions.
-      if (url.pathname === '/api/finance-workflows/webhook' || url.pathname === '/api/paystack/booking/webhook' || url.pathname === '/api/paystack/transfers/live/webhook') return await handler.fetch(request, env, ctx);
-      if (url.pathname === '/api/paystack/test/webhook') return await receivePaystackTest(request, env);
-      const auth = await authenticateClerkRequest(request, env);
-      if (auth.response) return auth.response;
-      const response = liveSurfaceResponse(url.pathname, env.LOKD_APP_STAGE, auth.request.headers.has("x-lokd-verified-user-id"), request.method) ?? await handler.fetch(auth.request, env, ctx);
-      const forwarded = new Response(response.body, response);
-      auth.headers.forEach((value, key) => forwarded.headers.append(key, value));
-      if (auth.request.headers.has("x-lokd-verified-email") || url.pathname.startsWith("/sign-")) {
-        forwarded.headers.set("cache-control", "private, no-store");
-      }
-      return forwarded;
+      auth = await authenticateClerkRequest(request, env);
     } catch {
       return new Response("Sign-in is temporarily unavailable. Please try again.", {
-        status: 503, headers: { "cache-control": "no-store", "content-type": "text/plain; charset=utf-8" },
+        status: 503, headers: { "cache-control": "private, no-store", "content-type": "text/plain; charset=utf-8" },
       });
     }
+    if (auth.response) return auth.response;
+    const response = liveSurfaceResponse(url.pathname, env.LOKD_APP_STAGE, auth.request.headers.has("x-lokd-verified-user-id"), request.method) ?? await handler.fetch(auth.request, env, ctx);
+    const forwarded = new Response(response.body, response);
+    auth.headers.forEach((value, key) => forwarded.headers.append(key, value));
+    if (auth.request.headers.has("x-lokd-verified-email") || url.pathname.startsWith("/sign-")) {
+      forwarded.headers.set("cache-control", "private, no-store");
+    }
+    return forwarded;
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const secured = secureRequest(request);

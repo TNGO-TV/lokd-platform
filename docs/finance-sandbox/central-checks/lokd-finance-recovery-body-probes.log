@@ -1,8 +1,0 @@
-(node:1765912) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
---import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./tests/cloudflare-loader.mjs", pathToFileURL("./"));'
-(Use `node --trace-warnings ...` to show where the warning was created)
-(node:1765912) ExperimentalWarning: SQLite is an experimental feature and might change at any time
-RECOVERY_ACCEPTED recovery1 17000
-RECOVERY_ACCEPTED recovery2 13600
-RECOVERY_CUMULATIVE {"originalDue":85000,"cap":17000,"totalRecovered":30600,"remaining":54400}
-DISABLED_WEBHOOK_BODY {"status":423,"pulls":4,"consumedBytes":262144,"cancelled":false}

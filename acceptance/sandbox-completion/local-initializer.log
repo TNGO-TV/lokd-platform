@@ -1,5 +1,0 @@
-Initialized only the distinct local SANDBOX_DB with lokd-sandbox-completion-v1. Primary DB untouched.
-Existing local sandbox installation retained.
-Fresh install, idempotency, changed-schema refusal and existing database preservation passed.
-(node:1789640) ExperimentalWarning: SQLite is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)

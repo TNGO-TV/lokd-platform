@@ -50,3 +50,17 @@ test('live transfer HMAC callback is independent of Clerk failure and handshake'
     assert.equal(authCalls,2,'only ordinary application requests invoke Clerk');
   }finally{delete env.DB;delete env.PAYSTACK_LIVE_SECRET_KEY;delete globalThis.__lokdRoutingAuth;delete globalThis.__lokdRoutingHandler;}
 });
+
+test('application errors are reported as service failures, not authentication failures', async () => {
+  globalThis.__lokdRoutingAuth = () => ({ request: new Request('https://lokd.example/client'), headers: new Headers() });
+  globalThis.__lokdRoutingHandler = () => { throw Error('private storage detail'); };
+  try {
+    for (const path of ['/client', '/api/health/live', '/api/paystack/transfers/live/webhook']) {
+      const response = await worker.fetch(new Request('https://lokd.example' + path), {}, {});
+      assert.equal(response.status, 503);
+      assert.equal(await response.text(), 'Service temporarily unavailable.');
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+      assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+    }
+  } finally { delete globalThis.__lokdRoutingAuth; delete globalThis.__lokdRoutingHandler; }
+});

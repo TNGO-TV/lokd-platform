@@ -103,3 +103,50 @@ test("Clerk verifies signatures, expiry and trusted origins before forwarding id
  assert.equal(signInDestination("operations.lokd.co.za", "/ops/intake?kind=officer"), "/ops/intake?kind=officer");
  for (const path of ["/ops/readiness", "/officer/../ops/readiness", "/officer/%2e%2e/ops", "/officer/unknown", "//evil.example", "/officer/readiness\\evil", "/officer/readiness\n"]) assert.equal(signInDestination("officers.lokd.co.za", path), "/officer");
  });
+
+function identityFixture(overrides = {}) {
+  const session = { id: 'sess_fixture', userId: 'user_fixture', status: 'active', expireAt: Date.now() + 60000 };
+  const user = { id: 'user_fixture', twoFactorEnabled: false, firstName: 'Test', lastName: 'Client', primaryEmailAddressId: 'email_fixture', emailAddresses: [{ id: 'email_fixture', emailAddress: 'test@example.test', verification: { status: 'verified' } }] };
+  return () => ({
+    authenticateRequest: async () => ({ status: 'signed-in', isAuthenticated: true, headers: new Headers(), toAuth: () => ({ userId: 'user_fixture', sessionId: 'sess_fixture', sessionClaims: {} }) }),
+    sessions: { getSession: overrides.getSession ?? (async () => session) },
+    users: { getUser: overrides.getUser ?? (async () => user) },
+  });
+}
+const fixtureEnv = { CLERK_PUBLISHABLE_KEY: 'fixture', CLERK_SECRET_KEY: 'fixture' };
+const fixtureRequest = () => new Request('https://portal.lokd.co.za/client', { headers: { 'x-lokd-verified-email': 'forged@example.test' } });
+
+test('identity resolution overlaps independent lookups but never forwards a partially verified identity', async () => {
+  let releaseSession, userStarted;
+  const sessionPending = new Promise(resolve => { releaseSession = resolve; });
+  const userHasStarted = new Promise(resolve => { userStarted = resolve; });
+  let complete = false;
+  const result = authenticateClerkRequest(fixtureRequest(), fixtureEnv, identityFixture({
+    getSession: () => sessionPending,
+    getUser: async () => { userStarted(); return { id: 'user_fixture', primaryEmailAddressId: null, emailAddresses: [] }; },
+  })).then(value => { complete = true; return value; });
+  await userHasStarted;
+  assert.equal(complete, false);
+  releaseSession({ id: 'sess_fixture', userId: 'user_fixture', status: 'revoked', expireAt: Date.now() + 60000 });
+  const denied = await result;
+  assert.equal(denied.request.headers.has('x-lokd-verified-email'), false);
+  assert.equal(denied.request.headers.has('x-lokd-verified-user-id'), false);
+});
+
+test('either authoritative provider failure fails closed without leaking error details', async () => {
+  for (const name of ['getSession', 'getUser']) {
+    const result = await authenticateClerkRequest(fixtureRequest(), fixtureEnv, identityFixture({ [name]: async () => { throw Error('private provider detail'); } }));
+    assert.equal(result.response.status, 503);
+    assert.equal(result.response.headers.get('cache-control'), 'private, no-store');
+    assert.equal(await result.response.text(), JSON.stringify({ error: 'Account verification is temporarily unavailable.' }));
+    assert.equal(result.request, undefined);
+  }
+});
+
+test('a mismatched user lookup cannot acquire the token holder identity', async () => {
+  const result = await authenticateClerkRequest(fixtureRequest(), fixtureEnv, identityFixture({
+    getUser: async () => ({ id: 'another_user', primaryEmailAddressId: 'e', emailAddresses: [{ id: 'e', emailAddress: 'owner@example.test', verification: { status: 'verified' } }] }),
+  }));
+  assert.equal(result.request.headers.has('x-lokd-verified-email'), false);
+  assert.equal(result.request.headers.has('x-lokd-verified-user-id'), false);
+});
