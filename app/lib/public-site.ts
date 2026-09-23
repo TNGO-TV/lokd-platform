@@ -86,3 +86,8 @@ export function workspaceRedirectForHost(
   }
   return null;
 }
+
+// Company correspondence addresses; these do not grant workspace roles.
+export const QUOTES_EMAIL='quotes@lokd.co.za';
+export const INVOICE_EMAIL='invoice@lokd.co.za';
+export const BOOKINGS_EMAIL='bookings@lokd.co.za';
