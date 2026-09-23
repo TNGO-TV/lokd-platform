@@ -23,3 +23,18 @@ test('expired quotes cannot be accepted; access loss clears client quote data (m
  await expect(page.getByRole('heading',{name:'Workspace access unavailable'})).toBeVisible();
  await expect(page.getByText('Synthetic Client Ltd',{exact:false})).toHaveCount(0);
 });
+
+test('owner links an existing Books document with explicit customer confirmation (mock responses)',async({page})=>{
+ const posts=[];let links=[];
+ await page.route('**/api/quotes?scope=operations',route=>route.fulfill({json:{quotes:[{...quote,receipt_json:JSON.stringify({acceptedAt:'2026-09-22T19:00:00Z'})}],terms:[],orders:[],owner:true,acknowledgement:'I agree'}}));
+ await page.route('**/api/zoho-books*',route=>{if(route.request().method()==='POST'){posts.push(route.request().postDataJSON());links=[{id:'LINK-fixture',quoteId:quote.id,kind:'estimate',documentId:'1234567',customerId:'2345678',linkedAt:'2026-09-22T20:00:00Z',currentAcceptance:true,comparison:{number:'Q-001',status:'draft',revision:'2026-09-22T20:00:00Z'}}];}return route.fulfill({json:{links}});});
+ await page.goto('/ops/quotes');await page.getByText('Books accounting documents',{exact:true}).click();
+ await expect(page.getByRole('checkbox',{name:/verified that this Books customer/})).not.toBeChecked();
+ await page.getByLabel('Books document ID').fill('1234567');await page.getByLabel('Books customer ID').fill('2345678');
+ await page.getByRole('button',{name:'Verify and link existing document'}).click();expect(posts).toHaveLength(0);
+ await page.getByRole('checkbox',{name:/verified that this Books customer/}).check();await page.getByRole('button',{name:'Verify and link existing document'}).click();
+ await expect(page.getByText('Books document verified and linked.',{exact:true})).toBeVisible();
+ expect(posts).toEqual([{action:'link_quote',quoteId:quote.id,kind:'estimate',documentId:'1234567',customerId:'2345678',customerConfirmed:true}]);
+ await expect(page.getByText(/Linked to current acceptance/)).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+});
