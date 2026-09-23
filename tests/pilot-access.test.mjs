@@ -77,3 +77,22 @@ test("JSON mutations must be same-origin", () => {
     headers: { "content-type": "application/json", origin: "https://attacker.example", "sec-fetch-site": "cross-site" },
   })), /Cross-site/);
 });
+
+test('explicit supplemental owner assignment preserves existing grants and remains default-deny', () => {
+  const ownerAccess = '[" OPERATIONS@lokd.example ","operations@lokd.example"]';
+  const assigned = access.principalForEmailFromConfig('operations@lokd.example', 'Operations', rawConfig, '', ownerAccess);
+  assert.equal(assigned.owner, true);
+  assert.equal(assigned.clientId, null);
+  assert.equal(assigned.officerId, null);
+  for (const role of ['operations','reviewer','client','officer']) assert.equal(access.principalHasRole(assigned,role),true);
+  for (const email of ['owner','ops','client','officer','reviewer','unknown']) {
+    const address = email+'@lokd.example';
+    assert.deepEqual(access.principalForEmailFromConfig(address,address,rawConfig,'',ownerAccess),access.principalForEmailFromConfig(address,address,rawConfig));
+  }
+  for (const raw of ['', 'broken', 'null', '"operations@lokd.example"', '{"owners":["operations@lokd.example"]}', '[null,42,{},""]', '[]']) {
+    assert.equal(access.principalForEmailFromConfig('operations@lokd.example','',rawConfig,'',raw).owner,false);
+  }
+  assert.equal(access.principalForEmailFromConfig('','',rawConfig,'','[""]').owner,false);
+  assert.equal(access.principalForEmailFromConfig('operations@lokd.example.attacker.test','',rawConfig,'',ownerAccess).owner,false);
+  assert.equal(access.principalForEmailFromConfig('operations@lokd.example','',rawConfig,'["operations@lokd.example"]','[]').owner,false);
+});
