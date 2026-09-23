@@ -8,6 +8,7 @@ export type OperationalRuntime = {
  LOKD_TEAM_EMAIL?:string;
  LOKD_EMAIL_PROVIDER?:string;
  LOKD_EMAIL_FROM?:string;
+ LOKD_QUOTE_EMAIL_FROM?:string;
  RESEND_API_KEY?:string;
  ZEPTOMAIL_SEND_TOKEN?:string;
  LOKD_ZEPTOMAIL_API_ORIGIN?:string;

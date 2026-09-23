@@ -5,6 +5,8 @@ test('linked terms, unchecked acceptance, exact submission and receipt work on m
  let state={quotes:[{...quote}],terms:[],orders:[],owner:false,acknowledgement:'I accept this quote and the linked Terms and Conditions.'},posts=[];
  await page.route('**/api/quotes',async route=>{if(route.request().method()==='POST'){const b=route.request().postDataJSON();posts.push(b);state.quotes[0].receipt_json=JSON.stringify({acceptedAt:'2026-09-22T19:00:00Z'});}await route.fulfill({json:state});});
  await page.goto('/client/quotes');
+ await expect(page.getByRole('link',{name:'quotes@lokd.co.za',exact:true})).toHaveAttribute('href','mailto:quotes@lokd.co.za');
+ await expect(page.getByRole('link',{name:'invoice@lokd.co.za',exact:true})).toHaveAttribute('href','mailto:invoice@lokd.co.za');
  const checkbox=page.getByRole('checkbox');await expect(checkbox).not.toBeChecked();
  await expect(page.getByRole('button',{name:'Accept quote',exact:true})).toBeDisabled();
  await expect(page.getByRole('link',{name:/Read Terms and Conditions/})).toHaveAttribute('href','/api/quotes?file=TERMS-fixture');

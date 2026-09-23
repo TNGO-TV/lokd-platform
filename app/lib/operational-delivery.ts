@@ -44,7 +44,8 @@ async function requestFor(db:D1Database,job:Job,runtime:OperationalRuntime,resol
   return {recipient:runtime.LOKD_ZOHO_CRM_OWNER_ID,body:job.request_json?JSON.parse(job.request_json):crmEnquiryBody(enquiry,runtime.LOKD_ZOHO_CRM_OWNER_ID)};
  }
  const provider=configuredEmailProvider(runtime);
- if(!emailValid(runtime.LOKD_EMAIL_FROM))throw new DeliveryError('email_sender_not_configured');
+ const sender=job.kind==='contract_email'&&job.source_id.startsWith('QUOTE-')?(runtime.LOKD_QUOTE_EMAIL_FROM??runtime.LOKD_EMAIL_FROM):runtime.LOKD_EMAIL_FROM;
+ if(!emailValid(sender))throw new DeliveryError('email_sender_not_configured');
  if(job.request_json&&JSON.parse(job.request_json)._lokdProvider!==provider)throw new DeliveryError('email_provider_changed');
  let recipient:string|null=runtime.LOKD_TEAM_EMAIL??null,subject:string,text:string;
  if(job.kind==='contract_email'){
@@ -63,7 +64,7 @@ async function requestFor(db:D1Database,job:Job,runtime:OperationalRuntime,resol
  if(!emailValid(recipient)||!allowlisted(runtime.LOKD_DELIVERY_EMAIL_ALLOWLIST,recipient))throw new DeliveryError('recipient_not_designated_for_test');
  // Never change the payload/recipient under an existing provider idempotency key.
  if(job.recipient&&job.recipient.toLowerCase()!==recipient.toLowerCase())throw new DeliveryError('trusted_recipient_changed');
- return {recipient,body:job.request_json?JSON.parse(job.request_json):{...message(runtime.LOKD_EMAIL_FROM!,recipient,subject,text),_lokdProvider:provider}};
+ return {recipient,body:job.request_json?JSON.parse(job.request_json):{...message(sender,recipient,subject,text),_lokdProvider:provider}};
 }
 
 // A human-confirmed non-submission permits one additional attempt, never a
