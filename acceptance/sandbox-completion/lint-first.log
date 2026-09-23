@@ -1,5 +1,0 @@
-
-/home/ammosync/.codex/visualizations/2026/09/13/01a09c3c-0e07-7132-88c8-123a1dbfc216/identity-sandbox-completion/app/lib/sandbox-service.ts
-  37:45  error  'statements' is never reassigned. Use 'const' instead  prefer-const
-
-✖ 1 problem (1 error, 0 warnings)

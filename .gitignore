@@ -54,3 +54,7 @@ next-env.d.ts
 
 # Local combined browser diagnostics
 /tests/integrated-browser/test-results/
+
+# Raw validation output belongs outside the source tree.
+/acceptance/**/*.log
+/docs/**/*.log
