@@ -1,6 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+test('Worker policy permits development Clerk chunks only in development', async () => {
+  const {secureRequest} = await import('../app/lib/security-headers.ts');
+  const original=process.env.NODE_ENV;
+  try {
+    for(const mode of ['development','production',undefined]) {
+      if(mode===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=mode;
+      const {policy}=secureRequest(new Request('https://lokd.example/'));
+      assert.equal(policy.includes('https://awake-gorilla-7447.clerk.accounts.dev'),mode==='development');
+      assert.equal(policy.includes('https://clerk.lokd.co.za'),mode!=='development');
+      assert.ok(!policy.includes("'unsafe-eval'"));
+      assert.ok(!policy.includes('script-src https:'));
+    }
+  } finally {
+    if(original===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=original;
+  }
+});
+
 test('release CSP permits Clerk authentication while excluding development hosts and arbitrary scripts', async () => {
   const original = process.env.NODE_ENV;
   try {

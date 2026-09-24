@@ -25,7 +25,7 @@ export const baselineSecurityHeaders = {
 
 export function secureRequest(request: Request) {
   const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24))));
-  const policy = contentSecurityPolicy(nonce);
+  const policy = contentSecurityPolicy(nonce, process.env.NODE_ENV === 'development');
   const headers = new Headers(request.headers);
   headers.set('content-security-policy', policy);
   headers.delete('content-security-policy-report-only');
