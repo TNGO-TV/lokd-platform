@@ -60,9 +60,28 @@ test('agreement expiry removes signature action without refreshing',async({page}
  await page.goto('/client/agreements');await expect(page.getByRole('button',{name:'Agree and record my signature'})).toBeVisible();await page.getByText('Read exact agreement and service scope').click();await expect(page.getByText('SYNTHETIC UI FIXTURE', {exact:false})).toBeVisible();await expect(page.getByRole('status')).toHaveText('Expired',{timeout:10000});await expect(page.getByRole('button',{name:'Agree and record my signature'})).toHaveCount(0);await fits(page);await shot(page,'agreement-expired',info);
 });
 test('public routes retain mobile navigation and one exact active destination',async({page},info)=>{
- const routes=['/','/security-services','/armed-security','/vip-protection','/industries','/locations/johannesburg','/clients','/officers','/training','/compliance','/about','/contact','/privacy'];
+ const routes=['/','/security-services','/armed-security','/vip-protection','/industries','/locations/johannesburg','/clients','/officers','/training','/compliance','/about','/contact','/privacy','/terms','/join'];
  const primary=['/security-services','/armed-security','/vip-protection','/industries','/clients','/officers','/about'];
- for(const path of routes){await page.goto((process.env.LOKD_PUBLIC_BASE_URL??'http://127.0.0.1:4178')+path);await expect(page.locator('h1')).toBeVisible();if(path!='/privacy'){const nav=page.getByRole('navigation',{name:'Main navigation'});await expect(nav).toBeVisible();await expect(nav.locator('[aria-current=page]')).toHaveCount(primary.includes(path)?1:0);await expect(nav.getByRole('link',{name:'Armed security',exact:true})).toBeVisible();}await fits(page);if(['/','/armed-security','/contact'].includes(path))await shot(page,'public-'+(path.slice(1)||'home'),info);}
+ for(const path of routes){
+  await page.goto((process.env.LOKD_PUBLIC_BASE_URL??'http://127.0.0.1:4178')+path);
+  await expect(page.locator('h1')).toBeVisible();
+  const mobile=page.viewportSize().width<=1100;
+  if(path!=='/join'){
+  if(mobile)await page.getByText('Menu',{exact:true}).click();
+  const nav=page.getByRole('navigation',{name:mobile?'Mobile navigation':'Main navigation',exact:true});
+  await expect(nav).toBeVisible();await expect(nav.locator('[aria-current=page]')).toHaveCount(primary.includes(path)?1:0);
+  await expect(nav.getByRole('link',{name:'Armed security',exact:true})).toBeVisible();
+  if(mobile)await page.getByText('Menu',{exact:true}).click();
+  }
+  const footer=page.locator('.site-footer');
+  await expect(footer).toContainText('LOKD Security (Pty) Ltd');await expect(footer).toContainText('71 Louis Trichardt Street');
+  await expect(footer.getByRole('link',{name:'Terms of use',exact:true})).toHaveAttribute('href','/terms');
+  await expect(footer.getByRole('link',{name:'Privacy notice',exact:true})).toHaveAttribute('href','/privacy');
+  await expect(footer).toContainText('Training centres opening soon');
+  await page.evaluate(()=>document.fonts.ready);
+  expect(await page.evaluate(()=>Array.from(document.fonts).some(font=>font.family==='Inter Variable'&&font.status==='loaded'))).toBe(true);
+  await fits(page);if(['/','/armed-security','/contact'].includes(path))await shot(page,'public-'+(path.slice(1)||'home'),info);
+ }
 });
 test('workspace reflows at 200 percent text size',async({page},info)=>{
  await page.goto('/officer');await page.addStyleTag({content:'html { font-size: 200%; } button, input, select, textarea, a, p, label, small { font-size: 1rem !important; }'});await fits(page);await shot(page,'officer-large-text',info);

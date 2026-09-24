@@ -8,6 +8,7 @@ test('linked terms, unchecked acceptance, exact submission and receipt work on m
  await expect(page.getByRole('link',{name:'quotes@lokd.co.za',exact:true})).toHaveAttribute('href','mailto:quotes@lokd.co.za');
  await expect(page.getByRole('link',{name:'invoice@lokd.co.za',exact:true})).toHaveAttribute('href','mailto:invoice@lokd.co.za');
  const checkbox=page.getByRole('checkbox');await expect(checkbox).not.toBeChecked();
+ await expect(checkbox).toBeVisible();const checkboxBox=await checkbox.boundingBox();expect(checkboxBox.width).toBeLessThanOrEqual(24);expect(checkboxBox.height).toBeLessThanOrEqual(24);
  await expect(page.getByRole('button',{name:'Accept quote',exact:true})).toBeDisabled();
  await expect(page.getByRole('link',{name:/Read Terms and Conditions/})).toHaveAttribute('href','/api/quotes?file=TERMS-fixture');
  await checkbox.check();await page.getByRole('button',{name:'Accept quote',exact:true}).click();
