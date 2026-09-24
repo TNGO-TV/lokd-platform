@@ -28,6 +28,14 @@ export function PublicLaunchBar() {
   </aside>;
 }
 
+function SocialLinks() {
+  return <div className="public-social-links" role="group" aria-label="LOKD social media">
+    <a href="https://www.facebook.com/lokdsecurity/" aria-label="LOKD on Facebook" rel="me"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 22v-9h3l.5-3H14V8c0-.9.3-1.5 1.6-1.5H18V3.2c-.4-.1-1.8-.2-3.3-.2C11.5 3 10 4.9 10 8v2H7v3h3v9z"/></svg></a>
+    <a href="https://www.youtube.com/@lokdsecurity" aria-label="LOKD on YouTube" rel="me"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fillRule="evenodd" d="M21.6 6.2c-.2-.8-.8-1.4-1.6-1.6C18.6 4.2 12 4.2 12 4.2s-6.6 0-8 .4c-.8.2-1.4.8-1.6 1.6C2 7.6 2 12 2 12s0 4.4.4 5.8c.2.8.8 1.4 1.6 1.6 1.4.4 8 .4 8 .4s6.6 0 8-.4c.8-.2 1.4-.8 1.6-1.6.4-1.4.4-5.8.4-5.8s0-4.4-.4-5.8ZM10 8.5v7l6-3.5z"/></svg></a>
+    <a href="https://www.instagram.com/lokdsecurity/" aria-label="LOKD on Instagram" rel="me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
+  </div>;
+}
+
 export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
   const pathname = usePathname();
   return <header className="public-header" data-section={active}>
@@ -37,6 +45,7 @@ export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
     </nav>
     <details className="public-mobile-menu"><summary>Menu</summary><nav aria-label="Mobile navigation">{navigation.map(item => <Link aria-current={pathname === item.href ? "page" : undefined} href={item.href} key={item.href} onClick={event => event.currentTarget.closest("details")?.removeAttribute("open")}>{item.label}</Link>)}</nav></details>
     <div className="public-header-actions">
+      <SocialLinks/>
       <a className="public-login" href={CLIENT_PORTAL_URL}>Client login</a>
       <Link className="public-button public-button--dark" href="/contact">Get a security plan</Link>
     </div>
@@ -45,7 +54,7 @@ export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
 
 export function PublicFooter() {
   return <footer className="public-footer public-footer--expanded">
-    <div className="public-footer-brand"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" /><p>Verified people. Controlled operations. Complete proof.</p><nav className="public-social-links" aria-label="LOKD social media"><a href="https://www.facebook.com/lokdsecurity/" rel="me">Facebook</a><a href="https://www.youtube.com/@lokdsecurity" rel="me">YouTube</a><a href="https://www.instagram.com/lokdsecurity/" rel="me">Instagram</a></nav></div>
+    <div className="public-footer-brand"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" /><p>Verified people. Controlled operations. Complete proof.</p><SocialLinks/></div>
     <nav aria-label="LOKD services"><strong>Explore</strong><Link href="/security-services">Security services</Link><Link href="/armed-security">Armed security</Link><Link href="/vip-protection">VIP protection</Link><Link href="/locations/johannesburg">Johannesburg</Link></nav>
     <nav aria-label="LOKD company"><strong>LOKD</strong><Link href="/about">About</Link><Link href="/compliance">Compliance</Link><Link href="/training">Training</Link><Link href="/contact">Contact</Link></nav>
     <nav aria-label="LOKD workspaces"><strong>Workspaces</strong><a href={CLIENT_PORTAL_URL}>Client portal</a><a href={OFFICER_PORTAL_URL}>Officer portal</a><a href={OPERATIONS_PORTAL_URL}>Operations portal</a><Link href="/join">Officer applications</Link></nav>
