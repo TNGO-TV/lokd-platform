@@ -11,8 +11,10 @@ export async function agreementCase(db:D1Database,actor:SignupActor,kind:unknown
 }
 export async function readTestAgreements(db:D1Database,actor:SignupActor,kind:unknown,id:unknown){
  const c=await agreementCase(db,actor,kind,id);
- const rows=await db.prepare('SELECT * FROM test_agreement_envelopes WHERE kind=? AND case_id=? AND owner_user_id=? ORDER BY issued_at DESC LIMIT 50').bind(c.kind,c.source_id,c.owner_user_id).all<Envelope>();
- const events=await db.prepare('SELECT e.envelope_id,e.snapshot,e.recorded_at FROM test_agreement_events e JOIN test_agreement_envelopes a ON a.id=e.envelope_id WHERE a.kind=? AND a.case_id=? AND a.owner_user_id=? ORDER BY e.rowid DESC LIMIT 100').bind(c.kind,c.source_id,c.owner_user_id).all();
+ const [rows,events]=await Promise.all([
+  db.prepare('SELECT * FROM test_agreement_envelopes WHERE kind=? AND case_id=? AND owner_user_id=? ORDER BY issued_at DESC LIMIT 50').bind(c.kind,c.source_id,c.owner_user_id).all<Envelope>(),
+  db.prepare('SELECT e.envelope_id,e.snapshot,e.recorded_at FROM test_agreement_events e JOIN test_agreement_envelopes a ON a.id=e.envelope_id WHERE a.kind=? AND a.case_id=? AND a.owner_user_id=? ORDER BY e.rowid DESC LIMIT 100').bind(c.kind,c.source_id,c.owner_user_id).all(),
+ ]);
  return {caseVersion:c.version,withdrawn:c.status==='withdrawn',documents:rows.results.map(r=>({...r,usable:c.status!=='withdrawn'&&r.case_version===c.version&&Date.parse(r.expires_at)>Date.now(),stale:r.case_version!==c.version})),events:events.results,mode:'test',liveAgreement:false,workEligible:false};
 }
 function note(value:unknown){if(typeof value!=='string'||value.trim().length<12||value.length>1200)throw new SignupError('Add a specific review note of 12–1200 characters.');return value.trim();}
