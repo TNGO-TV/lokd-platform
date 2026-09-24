@@ -2193,6 +2193,17 @@ button { color: inherit; }
 .public-footer--expanded nav strong { margin-bottom: 5px; color: #262928; font-size: 12px; text-transform: uppercase; letter-spacing: .09em; }
 .public-footer--expanded nav a { width: max-content; max-width: 100%; color: #737b78; font-weight: 700; }
 .public-footer--expanded nav a:hover { color: #1d201f; }
+.public-social-links { display: flex; align-items: center; gap: 4px; }
+.public-social-links a { display: inline-flex; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 6px; color: #505a54; }
+.public-social-links a:hover { color: #1d201f; background: #dde5d5; }
+.public-social-links a:focus-visible { outline: 3px solid #557c1b; outline-offset: 3px; }
+.public-social-links svg { width: 21px; height: 21px; }
+.public-footer--expanded .public-social-links { margin-top: 20px; gap: 4px; }
+@media (max-width: 720px) {
+  .public-header-actions { display: contents; }
+  .public-header-actions .public-login { grid-column: 2; grid-row: 1; }
+  .public-header-actions .public-social-links { grid-column: 1/-1; grid-row: 2; justify-content: flex-end; }
+}
 .public-footer--expanded small { padding-top: 28px; border-top: 1px solid #dce0dc; line-height: 1.6; }
 .marketing-page { background: #f4f5f1; }
 .marketing-hero { min-height: 650px; padding: 82px max(24px,calc((100vw - 1180px) / 2)); display: grid; grid-template-columns: minmax(0,1.15fr) minmax(350px,.65fr); gap: 80px; align-items: center; background: #f7f8f5; }
