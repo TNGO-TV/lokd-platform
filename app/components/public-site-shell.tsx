@@ -45,7 +45,7 @@ export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
 
 export function PublicFooter() {
   return <footer className="public-footer public-footer--expanded">
-    <div className="public-footer-brand"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" /><p>Verified people. Controlled operations. Complete proof.</p></div>
+    <div className="public-footer-brand"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" /><p>Verified people. Controlled operations. Complete proof.</p><nav className="public-social-links" aria-label="LOKD social media"><a href="https://www.facebook.com/lokdsecurity/" rel="me">Facebook</a><a href="https://www.youtube.com/@lokdsecurity" rel="me">YouTube</a><a href="https://www.instagram.com/lokdsecurity/" rel="me">Instagram</a></nav></div>
     <nav aria-label="LOKD services"><strong>Explore</strong><Link href="/security-services">Security services</Link><Link href="/armed-security">Armed security</Link><Link href="/vip-protection">VIP protection</Link><Link href="/locations/johannesburg">Johannesburg</Link></nav>
     <nav aria-label="LOKD company"><strong>LOKD</strong><Link href="/about">About</Link><Link href="/compliance">Compliance</Link><Link href="/training">Training</Link><Link href="/contact">Contact</Link></nav>
     <nav aria-label="LOKD workspaces"><strong>Workspaces</strong><a href={CLIENT_PORTAL_URL}>Client portal</a><a href={OFFICER_PORTAL_URL}>Officer portal</a><a href={OPERATIONS_PORTAL_URL}>Operations portal</a><Link href="/join">Officer applications</Link></nav>

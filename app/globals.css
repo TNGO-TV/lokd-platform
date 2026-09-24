@@ -2193,6 +2193,7 @@ button { color: inherit; }
 .public-footer--expanded nav strong { margin-bottom: 5px; color: #262928; font-size: 12px; text-transform: uppercase; letter-spacing: .09em; }
 .public-footer--expanded nav a { width: max-content; max-width: 100%; color: #737b78; font-weight: 700; }
 .public-footer--expanded nav a:hover { color: #1d201f; }
+.public-footer--expanded .public-social-links { margin-top: 20px; flex-direction: row; flex-wrap: wrap; gap: 12px 18px; }
 .public-footer--expanded small { padding-top: 28px; border-top: 1px solid #dce0dc; line-height: 1.6; }
 .marketing-page { background: #f4f5f1; }
 .marketing-hero { min-height: 650px; padding: 82px max(24px,calc((100vw - 1180px) / 2)); display: grid; grid-template-columns: minmax(0,1.15fr) minmax(350px,.65fr); gap: 80px; align-items: center; background: #f7f8f5; }
