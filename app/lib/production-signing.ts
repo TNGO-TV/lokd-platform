@@ -53,9 +53,14 @@ export async function issueProductionEnvelope(db:D1Database,actor:SigningActor,i
  return {issued:true,delivered:false,emailDelivery:'queued',envelopeId:saved.id,workEligible:false};
 }
 export async function readProductionSigning(db:D1Database,actor:SigningActor){
- const envelopes=await db.prepare(`SELECT e.*,j.state AS email_delivery_state,b.wording,r.receipt_json,r.receipt_hash,EXISTS(SELECT 1 FROM production_envelope_cancellations x WHERE x.envelope_id=e.id) AS cancelled,EXISTS(SELECT 1 FROM signing_document_withdrawals w WHERE w.document_id=e.document_id) AS document_withdrawn FROM production_signing_envelopes e JOIN signing_document_bodies b ON b.id=e.document_id LEFT JOIN operational_delivery_jobs j ON j.kind='contract_email' AND j.source_id=e.id LEFT JOIN agreement_acceptance_receipts r ON r.id='LIVE-SIGN-'||e.id ${actor.operations?'':'WHERE e.owner_user_id=?'} ORDER BY e.issued_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId])).all();
- const documents=actor.operations?await db.prepare(`SELECT b.*,v.status,EXISTS(SELECT 1 FROM signing_document_withdrawals w WHERE w.document_id=b.id) AS withdrawn FROM signing_document_bodies b LEFT JOIN agreement_document_versions v ON v.id=b.id ORDER BY b.prepared_at DESC LIMIT 100`).all():{results:[]};
- const entities=await db.prepare(`SELECT * FROM production_entity_links ${actor.operations?'':'WHERE owner_user_id=?'} ORDER BY prepared_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId])).all();return {envelopes:envelopes.results,documents:documents.results,entities:entities.results,owner:actor.owner,workEligible:false};
+
+ const [envelopes,documents,entities]=await Promise.all([
+  db.prepare(`SELECT e.*,j.state AS email_delivery_state,b.wording,r.receipt_json,r.receipt_hash,EXISTS(SELECT 1 FROM production_envelope_cancellations x WHERE x.envelope_id=e.id) AS cancelled,EXISTS(SELECT 1 FROM signing_document_withdrawals w WHERE w.document_id=e.document_id) AS document_withdrawn FROM production_signing_envelopes e JOIN signing_document_bodies b ON b.id=e.document_id LEFT JOIN operational_delivery_jobs j ON j.kind='contract_email' AND j.source_id=e.id LEFT JOIN agreement_acceptance_receipts r ON r.id='LIVE-SIGN-'||e.id ${actor.operations?'':'WHERE e.owner_user_id=?'} ORDER BY e.issued_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId])).all(),
+  actor.operations?db.prepare(`SELECT b.*,v.status,EXISTS(SELECT 1 FROM signing_document_withdrawals w WHERE w.document_id=b.id) AS withdrawn FROM signing_document_bodies b LEFT JOIN agreement_document_versions v ON v.id=b.id ORDER BY b.prepared_at DESC LIMIT 100`).all():{results:[]},
+  db.prepare(`SELECT * FROM production_entity_links ${actor.operations?'':'WHERE owner_user_id=?'} ORDER BY prepared_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId])).all(),
+ ]);
+
+return {envelopes:envelopes.results,documents:documents.results,entities:entities.results,owner:actor.owner,workEligible:false};
 }
 export async function signProductionEnvelope(db:D1Database,actor:SigningActor,input:Record<string,unknown>){
  const id=field(input.envelopeId,'envelope');

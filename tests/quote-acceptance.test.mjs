@@ -1,3 +1,4 @@
+import {observeReads} from './read-observer.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
@@ -240,4 +241,21 @@ test('Books API denies anonymous, non-owner and cross-origin link writes',async(
  const headers={'x-lokd-verified-user-id':'ordinary-client','x-lokd-verified-email':'client@example.test'};
  assert.equal((await GET(new Request('https://operations.lokd.co.za/api/zoho-books?links=true',{headers}))).status,403);
  assert.equal((await POST(new Request('https://operations.lokd.co.za/api/zoho-books',{method:'POST',headers:{...headers,origin:'https://attacker.example','content-type':'application/json'},body:'{}'}))).status,403);
+});
+
+test('quote reads overlap only authorized queries and reject any storage failure',async()=>{
+ const x=await setup(),{q}=await issueAndAccept(x);
+ try {
+  for(const [actor,expected,count] of [[x.reviewer,1,3],[x.applicant,1,1],[{...x.applicant,userId:'unrelated-client'},0,1]]){
+   const f=observeReads(x.database),result=await readQuotes(f.db,actor);
+   assert.equal(f.observed.max,count);assert.equal(f.observed.queries.length,count);
+   assert.equal(result.quotes.length,expected);
+   if(expected)assert.equal(result.quotes[0].id,q.id);
+   if(!actor.operations){assert.deepEqual(result.terms,[]);assert.deepEqual(result.orders,[]);assert.deepEqual(f.observed.queries[0].values,[actor.userId]);}
+  }
+  for(const failing of ['FROM client_quote_offers q','FROM client_terms_files t','FROM client_quote_sources s']){
+   const f=observeReads(x.database,failing);
+   try{await assert.rejects(readQuotes(f.db,x.reviewer),/storage unavailable/);}finally{await f.drain();}
+  }
+ }finally{x.database.close();}
 });

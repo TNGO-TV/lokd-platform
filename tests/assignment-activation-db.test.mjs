@@ -1,3 +1,4 @@
+import {observeReads} from './read-observer.mjs';
 import { activationAgreementContext, requiredActivationAgreements } from '../app/lib/agreement-activation.ts';
 import { agreementHash, canonicalAgreementContext, prepareAgreementReceipt, storeAgreementReceipt } from '../app/lib/agreement-acceptance.ts';
 import assert from "node:assert/strict";
@@ -1516,6 +1517,20 @@ test('production signing queues exact approved wording, confirms email separatel
  const issue={documentId:body.id,rosterSlotId:'SLOT-1',officerId:'OFF-1',slotVersion:1,identityEvidence:'Fixture independent identity review',authorityEvidence:'Fixture corporate signing mandate'};
  const issued=await issueProductionEnvelope(db,ops,issue);assert.equal(issued.issued,true);assert.equal(issued.delivered,false);assert.ok(issued.envelopeId);
  await issueProductionEnvelope(db,ops,issue);assert.equal(database.prepare('SELECT count(*) AS n FROM production_signing_envelopes').get().n,1);
+
+ const {readProductionSigning}=await import('../app/lib/production-signing.ts');
+ for(const [actor,expected,count] of [[ops,1,3],[applicant,1,2],[{...applicant,userId:'unrelated-signer'},0,2]]){
+  const f=observeReads(database),result=await readProductionSigning(f.db,actor);
+  assert.equal(f.observed.max,count);assert.equal(f.observed.queries.length,count);
+  assert.equal(result.envelopes.length,expected);assert.equal(result.entities.length,expected);
+  assert.equal(result.workEligible,false);
+  if(expected)assert.equal(result.envelopes[0].id,issued.envelopeId);
+  if(!actor.operations){assert.deepEqual(result.documents,[]);for(const q of f.observed.queries)assert.deepEqual(q.values,[actor.userId]);}
+ }
+ for(const failing of ['FROM production_signing_envelopes e','FROM signing_document_bodies b','FROM production_entity_links']){
+  const f=observeReads(database,failing);
+  try{await assert.rejects(readProductionSigning(f.db,ops),/storage unavailable/);}finally{await f.drain();}
+ }
  const {runOperationalDelivery,currentEnvelopeRecipient}=await import('../app/lib/operational-delivery.ts');
  assert.equal(database.prepare("SELECT count(*) AS n FROM operational_delivery_jobs WHERE kind='contract_email'").get().n,1);
  assert.equal((await currentEnvelopeRecipient(db,issued.envelopeId,Date.now())).owner,applicant.userId);

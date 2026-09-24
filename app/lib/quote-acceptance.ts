@@ -97,9 +97,12 @@ export async function cancelQuote(db:D1Database,actor:SigningActor,input:Record<
  return {cancelled:true};
 }
 export async function readQuotes(db:D1Database,actor:SigningActor){
- const quotes=await db.prepare(`SELECT q.*,t.title AS terms_title,t.version AS terms_version,r.receipt_json,r.receipt_hash,j.state AS email_delivery_state,EXISTS(SELECT 1 FROM client_quote_cancellations c WHERE c.quote_id=q.id) AS cancelled,EXISTS(SELECT 1 FROM client_terms_withdrawals w WHERE w.terms_id=q.terms_id) AS terms_withdrawn FROM client_quote_offers q JOIN client_terms_files t ON t.id=q.terms_id LEFT JOIN client_quote_receipts r ON r.quote_id=q.id LEFT JOIN operational_delivery_jobs j ON j.source_id=q.id AND j.kind='contract_email' ${actor.operations?'':'WHERE q.owner_user_id=?'} ORDER BY q.issued_at DESC LIMIT 100`).bind(...actor.operations?[]:[actor.userId]).all();
- const terms=actor.operations?await db.prepare('SELECT t.id,t.title,t.version,t.entity_id,t.file_hash,a.approved_at,EXISTS(SELECT 1 FROM client_terms_withdrawals w WHERE w.terms_id=t.id) AS withdrawn FROM client_terms_files t LEFT JOIN client_terms_approvals a ON a.terms_id=t.id ORDER BY t.uploaded_at DESC LIMIT 100').all():{results:[]};
- const orders=actor.operations?await db.prepare('SELECT s.*,COALESCE((SELECT MAX(sequence) FROM client_quote_offers q WHERE q.order_id=s.order_id),0) AS sequence FROM client_quote_sources s ORDER BY order_id LIMIT 100').all():{results:[]};
+
+ const [quotes,terms,orders]=await Promise.all([
+  db.prepare(`SELECT q.*,t.title AS terms_title,t.version AS terms_version,r.receipt_json,r.receipt_hash,j.state AS email_delivery_state,EXISTS(SELECT 1 FROM client_quote_cancellations c WHERE c.quote_id=q.id) AS cancelled,EXISTS(SELECT 1 FROM client_terms_withdrawals w WHERE w.terms_id=q.terms_id) AS terms_withdrawn FROM client_quote_offers q JOIN client_terms_files t ON t.id=q.terms_id LEFT JOIN client_quote_receipts r ON r.quote_id=q.id LEFT JOIN operational_delivery_jobs j ON j.source_id=q.id AND j.kind='contract_email' ${actor.operations?'':'WHERE q.owner_user_id=?'} ORDER BY q.issued_at DESC LIMIT 100`).bind(...actor.operations?[]:[actor.userId]).all(),
+  actor.operations?db.prepare('SELECT t.id,t.title,t.version,t.entity_id,t.file_hash,a.approved_at,EXISTS(SELECT 1 FROM client_terms_withdrawals w WHERE w.terms_id=t.id) AS withdrawn FROM client_terms_files t LEFT JOIN client_terms_approvals a ON a.terms_id=t.id ORDER BY t.uploaded_at DESC LIMIT 100').all():{results:[]},
+  actor.operations?db.prepare('SELECT s.*,COALESCE((SELECT MAX(sequence) FROM client_quote_offers q WHERE q.order_id=s.order_id),0) AS sequence FROM client_quote_sources s ORDER BY order_id LIMIT 100').all():{results:[]},
+ ]);
  return {quotes:quotes.results,terms:terms.results,orders:orders.results,owner:actor.owner,acknowledgement:quoteAcknowledgement};
 }
 export async function quoteFile(db:D1Database,bucket:R2Bucket,actor:SigningActor,id:string){

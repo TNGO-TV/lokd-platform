@@ -1,3 +1,4 @@
+import {observeReads} from './read-observer.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
@@ -180,4 +181,30 @@ test('presence requires consent, rejects unassigned live sharing and never expos
  const result=await writePresence(db,'user_identity',null,input);assert.equal(result.latitude,-26.2);assert.equal(result.longitude,28);assert.equal((await publicPresence(db)).areas.length,0);
  await writePresence(db,'user_identity',null,{...input,longitude:28.25});assert.equal(db.sql.prepare('SELECT count(*) AS n FROM public_officer_presence').get().n,1);
  await writePresence(db,'user_identity',null,{mode:'test',action:'stop'});assert.equal(db.sql.prepare('SELECT count(*) AS n FROM public_officer_presence').get().n,0);db.sql.close();
+});
+
+test('test agreement reads authorize before overlapping data queries and reject partial results',async()=>{
+ const {writeTestAgreement,readTestAgreements}=await import('../app/lib/test-agreements.ts');
+ const {db,caseId}=await setup();
+ const applicant={userId:'user_identity',email:'identity@example.test',operations:false};
+ const ops={userId:'reviewer',email:'reviewer@example.test',operations:true};
+ try {
+  const issued=await writeTestAgreement(db,ops,{kind:'officer',caseId,caseVersion:1,action:'issue',note:'Synthetic regression fixture only.'});
+  for(const actor of [applicant,ops]){
+   const f=observeReads(db.sql),result=await readTestAgreements(f.db,actor,'officer',caseId);
+   assert.equal(f.observed.max,2);assert.equal(f.observed.queries.length,3);
+   assert.match(f.observed.queries[0].query,/FROM signup_cases/);
+   assert.equal(f.observed.queries[1].startedWith,0,'authorization must finish before data reads');
+   assert.equal(result.documents[0].id,issued.documents[0].id);
+   assert.equal(result.documents[0].usable,true);assert.ok(result.events.length);
+   assert.equal(result.mode,'test');assert.equal(result.liveAgreement,false);assert.equal(result.workEligible,false);
+  }
+  const stranger=observeReads(db.sql);
+  await assert.rejects(readTestAgreements(stranger.db,{...applicant,userId:'unrelated-user'},'officer',caseId),/not found/);
+  assert.equal(stranger.observed.queries.length,1,'denied account must never query envelopes or events');
+  for(const failing of ['FROM test_agreement_envelopes','FROM test_agreement_events']){
+   const f=observeReads(db.sql,failing);
+   try{await assert.rejects(readTestAgreements(f.db,applicant,'officer',caseId),/storage unavailable/);}finally{await f.drain();}
+  }
+ }finally{db.sql.close();}
 });
