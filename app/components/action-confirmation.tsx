@@ -13,9 +13,9 @@ export default function ActionConfirmation({label,acknowledgement,fields=[],disa
   if(fields.some(field=>!values[field.name])){setError('Complete each required field.');return;}
   inFlight.current=true;setPending(true);setError('');
   try{if(await onConfirm(values)===true)close();}catch{setError('The action could not be completed. Your entries have been retained.');}finally{inFlight.current=false;setPending(false);}
- }}><fieldset disabled={disabled||pending} style={{border:0,padding:0,margin:0,minWidth:0,display:'grid',gap:'1rem'}}>
+ }}><fieldset disabled={disabled||pending} style={{border:0,padding:0,margin:0,minWidth:0,gridColumn:'1 / -1',display:'grid',gap:'1rem'}}>
  {fields.map((field,index)=><label key={field.name}>{field.label}<textarea name={field.name} required maxLength={field.maxLength??1200} autoFocus={index===0}/></label>)}
- {acknowledgement&&<label><input type="checkbox" required checked={checked} autoFocus={!fields.length} onChange={e=>setChecked(e.target.checked)}/>{acknowledgement}</label>}
+ {acknowledgement&&<label style={{flexDirection:'row',alignItems:'flex-start',fontWeight:500}}><input type="checkbox" style={{flexShrink:0,marginTop:'.15rem'}} required checked={checked} autoFocus={!fields.length} onChange={e=>setChecked(e.target.checked)}/><span>{acknowledgement}</span></label>}
  {error&&<p role="alert">{error}</p>}
  <div style={{display:'flex',flexWrap:'wrap',gap:'.75rem'}}><button type="submit" disabled={!!acknowledgement&&!checked}>{pending?'Saving…':'Confirm '+label.toLowerCase()}</button><button type="button" onClick={close}>Keep unchanged</button></div>
  </fieldset></form>}</div>;
