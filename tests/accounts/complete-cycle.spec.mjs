@@ -12,7 +12,7 @@ test('complete signed test cycle through Client Officer and Operations browsers'
   expect((await page.request.post('/api/signup?scope='+kind,{data:{kind,id,action:'link',expectedVersion:0}})).status()).toBe(200);
   expect((await ops.request.post('/api/signup?scope=operations&kind='+kind,{data:{kind,id,action:'review',expectedVersion:1,status:'reviewed',note:'Intake reviewed for the controlled browser test.'}})).status()).toBe(200);
   const endpoint='/api/agreements/test?kind='+kind+'&scope=operations';expect((await ops.request.post(endpoint,{data:{caseId:id,caseVersion:2,action:'issue',note:'Controlled browser test document delivery.'}})).status()).toBe(200);
-  await page.goto('/'+kind);await page.getByRole('button',{name:'Open test documents'}).click();await page.getByText('Read exact test document',{exact:true}).click();await expect(page.getByText('LOKD TEST AGREEMENT — NOT A LIVE CONTRACT',{exact:false})).toBeVisible();
+  await page.goto('/'+kind);await page.locator('article').filter({hasText:id}).getByText('Testing tools',{exact:true}).click();await page.getByRole('button',{name:'Open test documents'}).click();await page.getByText('Read exact test document',{exact:true}).click();await expect(page.getByText('LOKD TEST AGREEMENT — NOT A LIVE CONTRACT',{exact:false})).toBeVisible();
   await page.getByRole('button',{name:'Sign test agreement',exact:true}).click();await page.getByLabel('Your name for this test signing record').fill('Synthetic browser test signer');const signatureForm=page.getByRole('form',{name:'Sign test agreement',exact:true});await expect(signatureForm.getByRole('checkbox')).not.toBeChecked();await signatureForm.getByRole('checkbox').check();await signatureForm.getByRole('button',{name:'Record test signature',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'signed test'})).toBeVisible();
   const d=await(await ops.request.get(endpoint+'&caseId='+id)).json(),e=d.documents[0];expect((await ops.request.post(endpoint,{data:{caseId:id,caseVersion:2,envelopeId:e.id,expectedRevision:e.revision,action:'review',identityAndAuthorityReviewed:true,note:'Browser signer identity and authority test evidence reviewed.'}})).status()).toBe(200);
  }
@@ -21,7 +21,7 @@ test('complete signed test cycle through Client Officer and Operations browsers'
   await page.goto('/'+path+'/test-cycle');await page.getByRole('button',{name:action,exact:true}).click();await expect(page.getByRole('status')).toHaveText(expected);
  }
  await client.goto('/client/test-cycle');await expect(client.getByRole('status')).toHaveText('completed');expect(await client.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
- await officer.goto('/officer');await officer.getByRole('button',{name:'Send a private synthetic test signal'}).click();await expect(officer.getByRole('status').filter({hasText:'Synthetic test signal saved privately'})).toBeVisible();
+ await officer.goto('/officer');await officer.getByText('Presence testing',{exact:true}).click();await officer.getByRole('button',{name:'Send a private synthetic test signal'}).click();await expect(officer.getByRole('status').filter({hasText:'Synthetic test signal saved privately'})).toBeVisible();
  const presence=await(await officer.request.get('/api/presence')).json();expect(presence.areas).toHaveLength(0);
  }finally{await Promise.all(contexts.map(c=>c.close()));}
 });

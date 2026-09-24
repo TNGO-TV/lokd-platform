@@ -19,6 +19,7 @@ async function setup(page,{operations=false,documents=[]}={}){
   await route.fulfill({json:state.data});
  });
  await page.goto(operations?'/ops?kind=client':'/client');
+ await page.locator('article').getByText('Testing tools',{exact:true}).click();
  await page.getByRole('button',{name:'Open test documents',exact:true}).click();
  await expect(page.getByRole('button',{name:'Refresh test documents',exact:true})).toBeEnabled();
  return state;

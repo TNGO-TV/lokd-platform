@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Inter Variable";
+  src: url("/fonts/InterVariable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 :root {
   --carbon: #141516;
   --ink: #151719;
@@ -844,7 +852,7 @@
 
 * { box-sizing: border-box; }
 html, body { min-height: 100%; }
-body { margin: 0; background: var(--canvas); color: var(--ink); font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+body { margin: 0; background: var(--canvas); color: var(--ink); font-family: "Inter Variable", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-optical-sizing: auto; -webkit-font-smoothing: antialiased; }
 button, input, select { font: inherit; }
 button { color: inherit; }
 .app-shell { min-height: 100vh; display: flex; background: var(--canvas); }
@@ -2647,3 +2655,73 @@ button { color: inherit; }
 /* Keep the authentication card inside the mobile workspace viewport. */
 .pilot-access-card .cl-rootBox, .pilot-access-card .cl-cardBox { width: 100%; max-width: 100%; min-width: 0; }
 @media (max-width: 620px) { .pilot-access-card .cl-card { padding: 24px 16px; } }
+
+/* Shared public typography and responsive spacing. */
+.public-home { font-size: 1rem; line-height: 1.6; }
+.public-home :is(h1,h2,h3) { text-wrap: balance; overflow-wrap: break-word; }
+.public-home h1 { font-weight: 650; letter-spacing: -.035em; line-height: 1.08; }
+.public-home h2 { font-weight: 650; letter-spacing: -.025em; line-height: 1.15; }
+.public-home h3 { font-weight: 650; letter-spacing: -.015em; line-height: 1.3; }
+.public-home :is(p,li) { font-size: 1rem; line-height: 1.65; }
+.public-home :is(button,input,textarea,select) { font-family: inherit; }
+.public-home :is(.public-kicker,.public-button,.public-login) { font-size: .875rem; font-weight: 650; }
+.public-home .public-button { max-width: 100%; white-space: normal; height: auto; padding: 12px 20px; line-height: 1.45; }
+.public-home .public-hero-actions { flex-wrap: wrap; gap: 12px; }
+.public-home :is(.marketing-hero > div > h1,.contact-intro h1,.legal-hero h1) { font-size: clamp(2.5rem,5.4vw,4.75rem); line-height: 1.08; letter-spacing: -.035em; }
+.public-home :is(.public-hero-copy h1,.client-guide-hero h1) { line-height: 1.08; letter-spacing: -.035em; }
+.public-home :is(.marketing-section > header h2,.marketing-split h2,.marketing-cta h2,.public-section-heading h2) { font-size: clamp(2rem,4vw,3.5rem); line-height: 1.15; letter-spacing: -.025em; }
+.public-home :is(.marketing-card-grid,.public-path-grid,.contact-layout,.marketing-hero,.legal-content) > * { min-width: 0; }
+.public-home :is(.enquiry-form label,.enquiry-form label em,.contact-facts strong,.legal-content > aside a,.marketing-control-card dt,.location-panel dt,.specialist-price-card small) { font-size: .875rem; }
+.public-home :is(.enquiry-form > header p,.contact-facts p,.legal-content section p,.legal-content > aside p) { font-size: 1rem; }
+.public-home .legal-content section p { color: #49534e; }
+.public-home .legal-content a { text-underline-offset: 3px; }
+.public-home :is(.enquiry-form,.enquiry-form label,.join-form label) { min-width: 0; }
+.public-home :is(.enquiry-form input,.enquiry-form select,.enquiry-form textarea) { width: 100%; min-width: 0; font-size: 1rem; }
+.public-home a:focus-visible,.public-home summary:focus-visible { outline: 3px solid #557c1b; outline-offset: 4px; }
+.site-footer { padding: 56px max(24px,calc((100vw - 1280px)/2)) 24px; border-top: 1px solid #dce2de; background: #fff; color: #25312b; }
+.site-footer-grid { display: grid; grid-template-columns: 1.25fr 1.15fr 1fr 1fr; gap: 36px; }
+.site-footer-grid > * { min-width: 0; }
+.site-footer-company { display: flex; flex-direction: column; align-items: flex-start; gap: 18px; }
+.site-footer-company img { display: block; width: 112px; }
+.site-footer-company strong { font-size: 1rem; font-weight: 650; }
+.site-footer address { max-width: 30ch; font-style: normal; font-size: .9375rem; line-height: 1.65; color: #4e5a53; }
+.site-footer address b { display: block; font-weight: 600; color: #25312b; margin-bottom: 4px; }
+.site-footer nav { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.site-footer nav h2 { margin: 0 0 8px; font-size: 1rem; letter-spacing: 0; line-height: 1.5; }
+.site-footer a { color: #334c3b; font-size: .9375rem; line-height: 1.6; text-decoration: none; overflow-wrap: anywhere; }
+.site-footer a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.site-footer nav a span { display: block; color: #58665d; font-size: .875rem; }
+.site-footer .public-social-links { display: flex; gap: 10px; }
+.site-footer .public-social-links a { width: 44px; height: 44px; background: #f1f4ef; border: 1px solid #dce2de; }
+.site-footer-training { margin-top: 36px; padding: 24px 0; border-block: 1px solid #dce2de; }
+.site-footer-training strong { font-size: .9375rem; font-weight: 600; }
+.site-footer-training p { margin: 6px 0 0; color: #4e5a53; }
+.site-footer-bottom { padding-top: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px 24px; }
+.site-footer-bottom small { font-size: .875rem; }
+.site-footer-bottom nav { flex-direction: row; gap: 24px; flex-wrap: wrap; }
+.site-footer-bottom p { flex-basis: 100%; margin: 0; color: #58665d; font-size: .875rem; }
+.contact-company { border-top: 1px solid #dce2de; padding-top: 24px; margin-top: 28px; }
+.contact-company h2 { font-size: 1.25rem; margin-bottom: 12px; }
+.contact-company address { font-style: normal; line-height: 1.65; }
+.contact-company p { margin-top: 16px; }
+@media(max-width:1000px) { .site-footer-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 36px 28px; } }
+@media(max-width:720px) {
+  .public-home .team-review-bar { min-height: 44px; padding: 10px 16px; }
+  .public-home .team-review-bar strong { font-size: .875rem; white-space: normal; }
+  .public-home .team-review-bar span,.public-home .team-review-bar nav { display: none; }
+  .public-home .public-header { padding: 18px 16px; }
+  .public-home :is(.public-hero-copy h1,.client-guide-hero h1) { font-size: clamp(2.5rem,10vw,3.5rem); }
+  .public-home .public-hero-actions .public-button { min-width: 0; }
+  .public-home .legal-content { gap: 28px; }
+}
+@media(max-width:480px) { .site-footer { padding: 36px 20px 24px; } .site-footer-grid { grid-template-columns: minmax(0,1fr); gap: 30px; } .site-footer nav { gap: 12px; } .site-footer-bottom { align-items: flex-start; } }
+.training-locations { padding: 28px max(24px,calc((100vw - 1280px)/2)); background: #eefaDF; border-block: 1px solid #d1e2bb; }
+.training-locations h2 { margin: 0 0 8px; font-size: 1.25rem; }
+.training-locations p { margin: 4px 0; }
+.client-guide-faq details { border-bottom: 1px solid #dce2de; padding: 18px 0; }
+.client-guide-faq summary { min-height: 44px; cursor: pointer; font-weight: 600; font-size: 1.125rem; }
+.client-guide-faq p { max-width: 78ch; margin: 12px 0; }
+.public-home :is(.enquiry-form,.join-form) input:is([type=checkbox],[type=radio]) { width: 20px; height: 20px; min-height: 20px; flex: 0 0 20px; align-self: flex-start; margin-top: 3px; }
+.public-home :is(.public-hero,.marketing-hero--dark,.marketing-split--dark,.marketing-section--dark,.legal-hero) .public-kicker { color: #9ae63e; }
+.public-home .legal-hero > span { color: #b9c2bd; font-size: .875rem; }
+.public-home .legal-hero > p:not(.public-kicker) { color: #c2cac5; }

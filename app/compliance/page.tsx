@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PublicFooter, PublicHeader, PublicLaunchBar } from "../components/public-site-shell";
 
-export const metadata: Metadata = { title: "Security Compliance and Operating Controls", description: "How LOKD gates registration, officer readiness, funding, payroll approval, deployment and service evidence in its Johannesburg launch.", alternates: { canonical: "/compliance" } };
+export const metadata: Metadata = { title: "Security Compliance and Operating Controls", description: "How LOKD gates registration, officer readiness, funding, payroll approval, deployment and service evidence in its South African services.", alternates: { canonical: "/compliance" } };
 
 const gates = [
   ["Provider readiness", "Required company, management, insurance and control-room evidence must be current before a production service can activate."],

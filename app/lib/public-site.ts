@@ -3,6 +3,10 @@ export const CLIENT_PORTAL_URL = "https://portal.lokd.co.za";
 export const OFFICER_PORTAL_URL = "https://officers.lokd.co.za";
 export const OPERATIONS_PORTAL_URL = "https://operations.lokd.co.za";
 
+export const COMPANY_NAME = "LOKD Security (Pty) Ltd";
+export const HEAD_OFFICE_ADDRESS = "71 Louis Trichardt Street, Parktown Estates, Pretoria, 0002";
+export const TRAINING_CENTRES = ["Pretoria", "Cape Town", "George", "Mahikeng", "Soweto"] as const;
+
 export const PUBLIC_SITEMAP_PATHS = [
   "",
   "/security-services",
@@ -18,6 +22,7 @@ export const PUBLIC_SITEMAP_PATHS = [
   "/contact",
   "/join",
   "/privacy",
+  "/terms",
 ] as const;
 
 export function canonicalUrl(path = "") {
