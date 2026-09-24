@@ -2,7 +2,7 @@
 import ActionConfirmation from './action-confirmation';
 import styles from './signup-portal.module.css';
 export type CollectionState={collections:{reference:string;order_id:string;client_id:string;case_version:number;source_hash:string;amount_minor:number;currency:string;mode:string;state:string;revision:number;current:boolean;checkout_url:string|null;evidence:unknown[]}[]};
-export default function BookingCollectionControls({data,operations,busy,send}:{data:CollectionState;operations:boolean;busy:boolean;send:(body:Record<string,unknown>)=>Promise<void|boolean>}){
+export default function BookingCollectionControls({data,operations,busy,send}:{data:CollectionState;operations:boolean;busy:boolean;send:(body:Record<string,unknown>)=>Promise<boolean>}){
  return <section><h2>Booking collection</h2><p>Collections require an independent review before the client can open checkout. A successful transaction still needs settlement review before it funds service.</p>
  {operations&&<form className={styles.form} onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void send({action:'prepare_collection',orderId:f.get('orderId'),caseVersion:Number(f.get('caseVersion')),mode:f.get('mode')});}}>
  <label>Service order<input name="orderId" required/></label><label>Client intake version<input name="caseVersion" type="number" min={1} required/></label><label>Provider mode<select name="mode"><option value="test">Test — no real funding</option><option value="live">Live — acceptance required before checkout</option></select></label><button disabled={busy}>Prepare collection for review</button></form>}

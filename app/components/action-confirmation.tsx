@@ -3,7 +3,7 @@ import {useRef,useState} from 'react';
 import styles from './signup-portal.module.css';
 
 type Field={name:string;label:string;maxLength?:number};
-export default function ActionConfirmation({label,acknowledgement,fields=[],disabled=false,onConfirm}:{label:string;acknowledgement?:string;fields?:Field[];disabled?:boolean;onConfirm:(values:Record<string,string>)=>Promise<boolean|void>}){
+export default function ActionConfirmation({label,acknowledgement,fields=[],disabled=false,onConfirm}:{label:string;acknowledgement?:string;fields?:Field[];disabled?:boolean;onConfirm:(values:Record<string,string>)=>Promise<boolean>}){
  const [open,setOpen]=useState(false),[checked,setChecked]=useState(false),[pending,setPending]=useState(false),[error,setError]=useState('');
  const inFlight=useRef(false),trigger=useRef<HTMLButtonElement>(null);
  function close(){setOpen(false);setChecked(false);setError('');requestAnimationFrame(()=>trigger.current?.focus());}
