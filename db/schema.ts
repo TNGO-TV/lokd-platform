@@ -3208,3 +3208,11 @@ export const quoteBooksLinks=sqliteTable('quote_books_links',{
  linkedBy:text('linked_by').notNull(),linkedAt:text('linked_at').notNull(),
 },t=>[uniqueIndex('quote_books_kind_unique').on(t.quoteId,t.kind),uniqueIndex('quote_books_document_unique').on(t.organizationId,t.kind,t.documentId),
  check('quote_books_kind',sql.raw("kind IN ('estimate','invoice')")),check('quote_books_comparison_json',sql.raw('json_valid(comparison_json)'))]);
+
+// No links to production financial or eligibility records: provider TEST evidence only.
+export const providerAcceptanceTests=sqliteTable('provider_acceptance_tests',{
+ reference:text('reference').primaryKey(),ownerUserId:text('owner_user_id').notNull(),email:text('email').notNull(),
+ version:text('version').notNull(),scenario:text('scenario').notNull(),amountMinor:integer('amount_minor').notNull(),currency:text('currency').notNull(),
+ state:text('state').notNull(),checkoutUrl:text('checkout_url'),providerId:text('provider_id'),providerStatus:text('provider_status'),webhookHash:text('webhook_hash'),
+ revision:integer('revision').notNull().default(1),note:text('note').notNull(),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('provider_acceptance_owner_scenario_idx').on(t.ownerUserId,t.version,t.scenario),check('provider_acceptance_test_amount',sql`${t.amountMinor}=100 AND ${t.currency}='ZAR'`),check('provider_acceptance_scenario',sql`${t.scenario} IN ('success','decline','cancel')`)]);

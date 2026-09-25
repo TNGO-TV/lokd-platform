@@ -25,10 +25,11 @@ export default function WorkspaceShell({ role, children }: { role: WorkspaceRole
       <nav className={styles.nav} aria-label={`${label} navigation`}>
         {links.map(link => <Link prefetch={false} key={link.href} href={link.href} aria-current={(link.active ?? pathname === link.href) ? 'page' : undefined}>{link.label}</Link>)}
       </nav>
-      <details className={styles.testing} open={['identity','sandbox','test-cycle'].some(page => pathname === `${base}/${page}`) || undefined}><summary>Testing tools</summary><nav className={styles.nav} aria-label={`${label} testing navigation`}>
+      <details className={styles.testing} open={['identity','sandbox','test-cycle','payment-test'].some(page => pathname === `${base}/${page}`) || undefined}><summary>Testing tools</summary><nav className={styles.nav} aria-label={`${label} testing navigation`}>
         {pathname === `${base}/identity` && <Link prefetch={false} href={`${pathname}?${searchParams.toString()}`} aria-current="page">Identity · sandbox</Link>}
         <Link prefetch={false} href={`${base}/sandbox`} aria-current={pathname === `${base}/sandbox` ? 'page' : undefined}>Sandbox workflows</Link>
         <Link prefetch={false} href={`${base}/test-cycle`} aria-current={pathname === `${base}/test-cycle` ? 'page' : undefined}>Test cycle · simulated</Link>
+        {role === 'operations' && <Link prefetch={false} href="/ops/payment-test" aria-current={pathname === '/ops/payment-test' ? 'page' : undefined}>Paystack TEST check · owner</Link>}
       </nav></details>
     </header>
     <div id="workspace-content" className={styles.content} tabIndex={-1}>{children}</div>
