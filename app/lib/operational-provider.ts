@@ -105,7 +105,10 @@ export async function emailReceipt(runtime:OperationalRuntime,body:Record<string
   const result=await providerJson(runtime.LOKD_ZEPTOMAIL_API_ORIGIN+'/v1.1/email?'+query,{headers:session.headers},transport);
   if(result.status!=='success')throw new DeliveryError('email_receipt_mismatch');
   const logs=Array.isArray(result.data)?result.data:recordObject(result.data).logs;
-  if(!Array.isArray(logs)||logs.length!==1)throw new DeliveryError('email_receipt_mismatch');
+  if(!Array.isArray(logs))throw new DeliveryError('email_receipt_mismatch');
+  // Acceptance can precede searchable logs. Absence never proves delivery or permits resend.
+  if(logs.length===0)return 'sent';
+  if(logs.length!==1)throw new DeliveryError('email_receipt_mismatch');
   const listed=boundZeptoLog(logs[0],body,providerId,recipient);
   if(!listed.record.email_info)return listed.info.status==='delivered'?'delivered':['bounced','failed'].includes(String(listed.info.status))?'failed':'sent';
   // The real list endpoint reports processing, not per-recipient delivery.
