@@ -100,7 +100,7 @@ const zeptoRuntime=id=>({...runtime(id),LOKD_EMAIL_PROVIDER:'zeptomail',LOKD_ZEP
 test('ZeptoMail freezes provider, sends minimal content and verifies matching provider logs',async()=>{
  const x=await fixture(),calls=[];let now=Date.now()+1000;
  try{
-  let mail;
+  let mail,indexed=false;
   const fallback=transportFor(calls);
   const transport=async(url,init)=>{
    if(url==='https://api.zeptomail.com/v1.1/email'){
@@ -108,10 +108,12 @@ test('ZeptoMail freezes provider, sends minimal content and verifies matching pr
     assert.equal(init.headers.Authorization,'Zoho-enczapikey synthetic-only');assert.equal(mail.client_reference,'team:'+x.id);assert.equal(mail.track_clicks,false);assert.equal(mail.textbody.includes(input.email),false);assert.ok(mail.textbody.includes('https://operations.lokd.co.za/ops/intake?kind=client'));assert.equal(mail.textbody.includes('demo.lokd.co.za'),false);
     return reply({data:[{code:'EM_104'}],request_id:'zepto-fixture'});
    }
+   if(url.startsWith('https://api.zeptomail.com/v1.1/email?')&&!indexed)return reply({status:'success',data:{logs:[]}});
    if(url.startsWith('https://api.zeptomail.com/v1.1/email?'))return reply({status:'success',data:[{request_id:'zepto-fixture',from:mail.from.address,to:mail.to[0].email_address.address,subject:mail.subject,status:'delivered'}]});
    return fallback(url,init);
   };
   await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});assert.equal(job(x,'enquiry_email').state,'sent');
+  now+=61000;await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now,receiptsOnly:true});assert.equal(job(x,'enquiry_email').state,'sent');assert.equal(job(x,'enquiry_email').last_error,null);assert.equal(job(x,'enquiry_email').attempts,1);assert.equal(job(x,'enquiry_email').provider_id,'zepto-fixture');assert.equal(calls.filter(c=>c.url==='https://api.zeptomail.com/v1.1/email').length,1);indexed=true;
   now+=61000;await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});assert.equal(job(x,'enquiry_email').state,'sent');assert.equal(calls.some(c=>c.url.includes('resend')),false);
   now+=3600001;await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});assert.equal(job(x,'enquiry_email').state,'delivered');
  }finally{x.database.close();}
@@ -140,9 +142,10 @@ test('actual ZeptoMail log shape requires correlated per-recipient delivery deta
  const {emailReceipt}=await import('../app/lib/operational-provider.ts');
  const fixture=JSON.parse(fs.readFileSync(new URL('./fixtures/zeptomail-provider-logs.json',import.meta.url),'utf8'));
  const body={_lokdProvider:'zeptomail',from:'notices@example.test',to:['team@example.test'],subject:'Fixture connection test',text:'Test'};
- for(const mode of ['delivered','processing','wrong-request','wrong-reference','wrong-recipient','wrong-time','wrong-subject','extra-event','multiple-logs']){
+ for(const mode of ['delivered','processing','not-indexed','wrong-request','wrong-reference','wrong-recipient','wrong-time','wrong-subject','extra-event','multiple-logs']){
   const list=structuredClone(fixture.list),detail=structuredClone(fixture.detail);
   if(mode==='processing')detail.data.email_delivery_details={};
+  if(mode==='not-indexed')list.data.logs=[];
   if(mode==='wrong-request')detail.data.request_id='other';
   if(mode==='wrong-reference')detail.data.email_info.email_reference='other';
   if(mode==='wrong-recipient')detail.data.email_delivery_details.delivery[0].recipient='other@example.test';
