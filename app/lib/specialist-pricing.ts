@@ -35,7 +35,7 @@ export type SpecialistCostInput = {
 
 export type SpecialistPricingDecision = {
   version: typeof SPECIALIST_PRICING_VERSION;
-  vatRateBasisPoints: typeof ZA_VAT_RATE_BASIS_POINTS;
+  vatRateBasisPoints: typeof LOKD_VAT_RATE_BASIS_POINTS;
   minimumMarginBasisPoints: number;
   listSubtotalCents: number;
   payrollBurdenCents: number;
@@ -75,8 +75,15 @@ type SpecialistProfile = {
   requiredControls: string[];
 };
 
-export const SPECIALIST_PRICING_VERSION = "LOKD-SPECIALIST-2026.09-v1" as const;
-export const ZA_VAT_RATE_BASIS_POINTS = 1_500 as const;
+export const LEGACY_SPECIALIST_PRICING_VERSION = "LOKD-SPECIALIST-2026.09-v1" as const;
+export const SPECIALIST_PRICING_VERSION = "LOKD-SPECIALIST-2026.09-v2-no-vat" as const;
+// Owner-confirmed commercial policy: no VAT is charged. This is not a
+// statement that South Africa's statutory VAT rate is zero. Historical orders
+// keep their original version, tax amount and immutable acceptance receipt.
+export const LOKD_VAT_RATE_BASIS_POINTS = 0 as const;
+export function isSpecialistPricingVersion(version: string) {
+  return version === SPECIALIST_PRICING_VERSION || version === LEGACY_SPECIALIST_PRICING_VERSION;
+}
 
 export const specialistProfiles: Record<SpecialistServiceCode, SpecialistProfile> = {
   standard_unarmed: {
@@ -197,7 +204,7 @@ export const specialistProfiles: Record<SpecialistServiceCode, SpecialistProfile
     maximumTeamSize: 6,
     officerShiftCents: 480_000,
     // Quote calculations multiply this per-operator list amount by team size.
-    // The minimum two-person detail therefore starts at R23,000 ex VAT.
+    // The minimum two-person detail therefore starts at R23,000, with no VAT charged.
     listShiftCents: 1_150_000,
     minimumPlanningHours: 4,
     planningHourlyCostCents: 95_000,
@@ -284,7 +291,7 @@ export function priceSpecialistCostFloor(input: SpecialistCostInput): Specialist
     + commandAndSupervisionCents + planningCents + travelCents + vehicleAndPartnerCents + overnightCents;
   const requiredRevenueCents = ceilDivide(costFloorCents * 10_000, 10_000 - profile.minimumMarginBasisPoints);
   const subtotalCents = Math.max(input.calendarAdjustedListSubtotalCents, requiredRevenueCents);
-  const vatCents = Math.round(subtotalCents * ZA_VAT_RATE_BASIS_POINTS / 10_000);
+  const vatCents = Math.round(subtotalCents * LOKD_VAT_RATE_BASIS_POINTS / 10_000);
   const marginCents = subtotalCents - costFloorCents;
   const marginBasisPoints = subtotalCents > 0 ? Math.floor(marginCents * 10_000 / subtotalCents) : 0;
   const partnerReviewRequired = configuration.vehicleClass === "armoured_partner";
@@ -295,7 +302,7 @@ export function priceSpecialistCostFloor(input: SpecialistCostInput): Specialist
 
   return {
     version: SPECIALIST_PRICING_VERSION,
-    vatRateBasisPoints: ZA_VAT_RATE_BASIS_POINTS,
+    vatRateBasisPoints: LOKD_VAT_RATE_BASIS_POINTS,
     minimumMarginBasisPoints: profile.minimumMarginBasisPoints,
     listSubtotalCents: input.calendarAdjustedListSubtotalCents,
     payrollBurdenCents,

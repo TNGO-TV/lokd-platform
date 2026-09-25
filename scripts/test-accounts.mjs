@@ -60,6 +60,19 @@ try {
     // Refuse to replace local data while the acceptance server is already running.
     const probe=createServer();await new Promise((resolve,reject)=>{probe.once('error',reject);probe.listen(4177,'127.0.0.1',resolve);});await new Promise(resolve=>probe.close(resolve));
     const directory=process.cwd()+'/.wrangler/state/v3/d1/miniflare-D1DatabaseObject';
+    // A fresh isolated checkout has no local binding file yet. Use the installed
+    // Miniflare compatibility API with explicit project-local persistence only.
+    await mkdir(directory,{recursive:true});
+    if(!(await readdir(directory)).some(name=>name.endsWith('.sqlite')&&name!=='metadata.sqlite')){
+      const {Miniflare,convertV4MiniflareOptions}=await import('miniflare');
+      const local=new Miniflare(convertV4MiniflareOptions({
+        modules:true,script:'export default {fetch(){return new Response("local account fixture")}}',
+        compatibilityDate:'2026-05-22',d1Databases:{DB:'00000000-0000-4000-8000-000000000000'},
+        resourcePersistencePath:process.cwd()+'/.wrangler/state/v3',
+      }));
+      try{const db=await local.getD1Database('DB');await db.prepare('CREATE TABLE IF NOT EXISTS local_account_fixture_bootstrap(id INTEGER)').run();}
+      finally{await local.dispose();}
+    }
     const names=(await readdir(directory)).filter(n=>{if(!n.endsWith('.sqlite')||n==='metadata.sqlite')return false;const candidate=new DatabaseSync(directory+'/'+n,{readOnly:true});try{return !candidate.prepare("SELECT name FROM sqlite_master WHERE name='sandbox_completion_instance'").get();}finally{candidate.close();}});if(names.length!==1)throw Error('Ambiguous local acceptance database');
     collectionDatabase=directory+'/'+names[0];collectionExport=(process.env.TMPDIR||'/tmp')+'/lokd-collection-'+run+'.sqlite';
     if(intakeFixture){

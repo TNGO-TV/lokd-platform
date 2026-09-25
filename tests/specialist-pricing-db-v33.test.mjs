@@ -5,10 +5,11 @@ import test from "node:test";
 
 import { defaultRiskInput, quoteBooking } from "../app/lib/pilot-pricing.ts";
 
-function migratedDatabase() {
+function migratedDatabase(beforeNoVat = false) {
   const database = new DatabaseSync(":memory:");
   database.exec("PRAGMA foreign_keys=ON");
   for (const file of fs.readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort()) {
+    if (beforeNoVat && file >= "0079") continue;
     database.exec(fs.readFileSync(new URL(`../drizzle/${file}`, import.meta.url), "utf8")
       .replaceAll("--> statement-breakpoint", ""));
   }
@@ -238,4 +239,28 @@ test("a partner-review quote cannot advance to a payment request", () => {
   } finally {
     database.close();
   }
+});
+
+
+test("no-VAT migration preserves historical amounts and prevents cross-version tax changes", () => {
+  const database = migratedDatabase(true);
+  try {
+    run(database, "INSERT INTO clients (id,organisation_name,contact_name,contact_email,approval_status,environment,integrity_state) VALUES ('CL-V33','Historical fixture','Client','old@example.test','approved','demo','synthetic')");
+    const current = quoteArmedStatic();
+    const vat = Math.round(current.subtotalCents * 0.15);
+    const historical = {...current, version:'LOKD-SPECIALIST-2026.09-v1', vatRateBasisPoints:1500, vatCents:vat, clientPriceCents:current.subtotalCents+vat};
+    insertSpecialistBooking(database, 'BK-HISTORICAL', historical);
+    const before = database.prepare("SELECT * FROM bookings WHERE id='BK-HISTORICAL'").get();
+    database.exec(fs.readFileSync(new URL('../drizzle/0079_owner_no_vat_pricing.sql', import.meta.url),'utf8'));
+    assert.deepEqual(database.prepare("SELECT * FROM bookings WHERE id='BK-HISTORICAL'").get(), before);
+    assert.equal(database.prepare("SELECT valid FROM specialist_pricing_validation_v33 WHERE id='BK-HISTORICAL'").get().valid,1);
+    assert.throws(()=>run(database,"UPDATE bookings SET vat_cents=0 WHERE id='BK-HISTORICAL'"),/specialist_pricing_floor_invalid/);
+    assert.throws(()=>run(database,"UPDATE bookings SET pricing_version=? WHERE id='BK-HISTORICAL'",current.version),/specialist_pricing_version_immutable/);
+    insertSpecialistBooking(database,'BK-NO-VAT',current);
+    assert.equal(database.prepare("SELECT valid FROM specialist_pricing_validation_v33 WHERE id='BK-NO-VAT'").get().valid,1);
+    assert.equal(database.prepare("SELECT vat_cents FROM bookings WHERE id='BK-NO-VAT'").get().vat_cents,0);
+    assert.throws(()=>run(database,"UPDATE bookings SET vat_rate_basis_points=1500 WHERE id='BK-NO-VAT'"),/specialist_pricing_floor_invalid/);
+    assert.throws(()=>run(database,"UPDATE bookings SET client_price_cents=client_price_cents+1 WHERE id='BK-NO-VAT'"),/specialist_pricing_floor_invalid/);
+    assert.throws(()=>run(database,"UPDATE bookings SET pricing_version='LOKD-SPECIALIST-2026.09-v1' WHERE id='BK-NO-VAT'"),/specialist_pricing_version_immutable/);
+  } finally { database.close(); }
 });

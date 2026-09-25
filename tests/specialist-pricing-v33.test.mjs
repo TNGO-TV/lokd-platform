@@ -9,7 +9,7 @@ import {
   priceSpecialistCostFloor,
   specialistProfiles,
   SPECIALIST_PRICING_VERSION,
-  ZA_VAT_RATE_BASIS_POINTS,
+  LOKD_VAT_RATE_BASIS_POINTS,
 } from "../app/lib/specialist-pricing.ts";
 import { defaultRiskInput, quoteBooking } from "../app/lib/pilot-pricing.ts";
 
@@ -30,12 +30,12 @@ test("Version 33 defines one base model and six distinct Armed/VIP models", () =
   assert.equal(indicativeSingleShiftPrice("vip_team").listSubtotalCents, 2_300_000);
 });
 
-test("every indicative quote applies the stored margin floor before 15% VAT", () => {
+test("every indicative quote applies the stored margin floor without charging VAT", () => {
   for (const code of Object.keys(specialistProfiles)) {
     const price = indicativeSingleShiftPrice(code);
     assert.equal(price.version, SPECIALIST_PRICING_VERSION);
-    assert.equal(price.vatRateBasisPoints, ZA_VAT_RATE_BASIS_POINTS);
-    assert.equal(price.vatCents, Math.round(price.subtotalCents * 0.15));
+    assert.equal(price.vatRateBasisPoints, LOKD_VAT_RATE_BASIS_POINTS);
+    assert.equal(price.vatCents, 0);
     assert.equal(price.totalCents, price.subtotalCents + price.vatCents);
     assert.equal(price.marginCents, price.subtotalCents - price.costFloorCents);
     assert.ok(price.marginBasisPoints >= price.minimumMarginBasisPoints, code);
@@ -106,7 +106,7 @@ test("configuration rejects cross-service, undersized-team and unsupported-vehic
   assert.throws(() => normalizeSpecialistConfiguration("Armed", { serviceCode: "armed_static", vehicleClass: "standard_suv" }), /does not support/);
 });
 
-test("client quote stores the specialist decision and funds the VAT-inclusive total", () => {
+test("client quote stores the specialist decision and funds the full total", () => {
   const quote = quoteBooking({
     serviceType: "VIP",
     engagementModel: "flex",

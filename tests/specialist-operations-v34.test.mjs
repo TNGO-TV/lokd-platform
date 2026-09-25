@@ -150,7 +150,7 @@ test("production commercial approval requires recent MFA and cannot use simulati
   }finally{db.close();}
 });
 
-test("a production specialist offer cannot open without a current named deployment pack",async()=>{
+test("a production specialist offer stays blocked when pack and source controls are missing",async()=>{
   const db=setup();try{
     const b=await createArmed(db);
     const row=db.prepare("SELECT * FROM bookings WHERE id=?").get(b.id);
@@ -160,7 +160,7 @@ test("a production specialist offer cannot open without a current named deployme
     const fields=Object.keys(row);
     db.prepare(`INSERT INTO bookings (${fields.join(",")}) VALUES (${fields.map(()=>"?").join(",")})`).run(...Object.values(row));
     assert.throws(()=>db.exec(`INSERT INTO offers (id,booking_id,officer_id,amount_cents,expires_at,status)
-      VALUES ('OFFER-PROD-V34','BK-PROD-V34','OFF-001',200000,'2040-01-01','open')`),/specialist_approved_pack_required/);
+      VALUES ('OFFER-PROD-V34','BK-PROD-V34','OFF-001',200000,'2040-01-01','open')`),/specialist_(approved_pack_required|offer_controls_not_current)/);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM offers WHERE id='OFFER-PROD-V34'").get().n,0);
   }finally{db.close();}
 });
