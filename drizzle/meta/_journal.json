@@ -547,6 +547,13 @@
       "when": 1790127105635,
       "tag": "0077_hesitant_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "6",
+      "when": 1790298542500,
+      "tag": "0078_cynical_silver_centurion",
+      "breakpoints": true
     }
   ]
 }
