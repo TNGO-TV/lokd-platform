@@ -228,13 +228,13 @@ function SpecialistPricingControl({ state }: { state: ReturnType<typeof usePilot
   ) ?? [];
   return <>
     <section className="command-heading specialist-pricing-heading">
-      <div><p className="eyebrow">Versioned commercial control</p><h1>Armed &amp; VIP pricing</h1><p>Cost floor first, minimum margin second, 15% VAT third. Cleared VAT-inclusive funding remains the final commercial gate.</p></div>
-      <span className="specialist-policy-chip">LOKD-SPECIALIST-2026.09-v1</span>
+      <div><p className="eyebrow">Versioned commercial control</p><h1>Armed &amp; VIP pricing</h1><p>Cost floor first, then the minimum margin. No VAT is charged. The full accepted total must clear before service can start.</p></div>
+      <span className="specialist-policy-chip">LOKD-SPECIALIST-2026.09-v2-no-vat</span>
     </section>
     <section className="specialist-pricing-summary">
-      <article><span>VAT</span><strong>15%</strong><small>SARS standard rate</small></article>
-      <article><span>Armed margin floor</span><strong>30–32%</strong><small>Ex-VAT revenue</small></article>
-      <article><span>VIP margin floor</span><strong>35–38%</strong><small>Ex-VAT revenue</small></article>
+      <article><span>VAT</span><strong>Not charged</strong><small>No VAT added to new quotes</small></article>
+      <article><span>Armed margin floor</span><strong>30–32%</strong><small>Service revenue</small></article>
+      <article><span>VIP margin floor</span><strong>35–38%</strong><small>Service revenue</small></article>
       <article><span>Credit days</span><strong>0</strong><small>Cleared advance only</small></article>
     </section>
     <section className="specialist-model-grid">
@@ -253,13 +253,13 @@ function SpecialistPricingControl({ state }: { state: ReturnType<typeof usePilot
       <header><div><p className="eyebrow">Quote register</p><h2>Specialist margin decisions</h2></div><span>{actual.length} specialist booking{actual.length === 1 ? "" : "s"}</span></header>
       {actual.length ? actual.map((booking) => <article key={booking.id}>
         <span><strong>{booking.id} · {booking.specialistServiceCode.replaceAll("_", " ")}</strong><small>{booking.siteName} · {booking.headcount} position{booking.headcount === 1 ? "" : "s"} · {booking.shiftCount} shifts</small></span>
-        <span><strong>{formatZar(booking.subtotalCents)}</strong><small>Ex VAT · {formatZar(booking.vatCents)} VAT</small></span>
+        <span><strong>{formatZar(booking.subtotalCents)}</strong><small>Subtotal · {formatZar(booking.vatCents)} VAT</small></span>
         <span><strong>{formatZar(booking.pricingInternal?.costFloorCents ?? 0)}</strong><small>Controlled cost floor</small></span>
         <span><strong>{((booking.pricingInternal?.marginBasisPoints ?? 0) / 100).toFixed(1)}%</strong><small>Minimum {((booking.pricingInternal?.minimumMarginBasisPoints ?? 0) / 100).toFixed(1)}%</small></span>
         <em className={`pill ${booking.pricingStatus === "authoritative" ? "tone-green" : "tone-amber"}`}>{booking.pricingStatus.replaceAll("_", " ")}</em>
       </article>) : <div className="clean-state"><span>i</span><div><strong>No specialist quote has been submitted</strong><p>The reference models above are active. A client configuration will appear here with its exact cost-floor decision.</p></div></div>}
     </section>
-    <section className="specialist-pricing-boundary"><strong>Fail-closed pricing boundary</strong><p>Supplier estimates, armoured vehicles, overnight work or missing readiness evidence force Operations review. A discount can never reduce the quote below its stored cost floor or margin requirement, and no offer can release against an ex-VAT or partially funded amount.</p></section>
+    <section className="specialist-pricing-boundary"><strong>Fail-closed pricing boundary</strong><p>Supplier estimates, armoured vehicles, overnight work or missing readiness evidence force Operations review. A discount can never reduce the quote below its stored cost floor or margin requirement, and no offer can release against less than the full accepted amount.</p></section>
   </>;
 }
 
@@ -628,7 +628,7 @@ function OfficerConversionControl({ operations, flash }: {
       <article className="conversion-register panel"><header className="command-panel-heading"><div><p className="eyebrow">Internal case register</p><h2>Permanent-engagement controls</h2></div><span>{activeCases.length} active · {conversion.readyCases} ready</span></header>
         {conversion.cases.length ? <div className="conversion-case-list">{conversion.cases.map((conversionCase) => <article className={`conversion-case conversion-case--${conversionCase.readyToComplete ? "ready" : "blocked"}`} key={conversionCase.id}>
           <header><div><p className="eyebrow">{conversionCase.route === "assigned_officer_conversion" ? "Assigned officer consequence" : "Private recruitment enquiry"}</p><h3>{conversionCase.officerName} → {conversionCase.clientName}</h3><small>{conversionCase.id} · {conversionCase.policyVersion}</small></div><em>{conversionCase.status.replaceAll("_", " ")}</em></header>
-          <dl><div><dt>Officer snapshot</dt><dd>{conversionCase.officerGrade} · {conversionCase.specialistCategory.replaceAll("_", " ")}</dd></div><div><dt>Client fee</dt><dd>{formatZar(conversionCase.calculatedFeeCents)} excl. VAT</dd></div><div><dt>Tenure factor</dt><dd>{conversionCase.tenurePercent}% · {conversionCase.completedServiceMonths} completed month(s)</dd></div><div><dt>Fee state</dt><dd>{conversionCase.feeStatus.replaceAll("_", " ")}</dd></div><div><dt>Client clause</dt><dd>{conversionCase.clauseStatus.replaceAll("_", " ")}</dd></div><div><dt>Protection tail</dt><dd>{conversion.tailMonths} months after final assignment or introduction</dd></div></dl>
+          <dl><div><dt>Officer snapshot</dt><dd>{conversionCase.officerGrade} · {conversionCase.specialistCategory.replaceAll("_", " ")}</dd></div><div><dt>Client fee</dt><dd>{formatZar(conversionCase.calculatedFeeCents)} · no VAT charged</dd></div><div><dt>Tenure factor</dt><dd>{conversionCase.tenurePercent}% · {conversionCase.completedServiceMonths} completed month(s)</dd></div><div><dt>Fee state</dt><dd>{conversionCase.feeStatus.replaceAll("_", " ")}</dd></div><div><dt>Client clause</dt><dd>{conversionCase.clauseStatus.replaceAll("_", " ")}</dd></div><div><dt>Protection tail</dt><dd>{conversion.tailMonths} months after final assignment or introduction</dd></div></dl>
           <div className="conversion-control-grid"><span className={conversionCase.offerAcceptedAt ? "done" : "pending"}><i>{conversionCase.offerAcceptedAt ? "✓" : "1"}</i>Accepted offer</span><span className={conversionCase.clientEmployerPackStatus === "ready" ? "done" : "pending"}><i>{conversionCase.clientEmployerPackStatus === "ready" ? "✓" : "2"}</i>Client employer pack</span><span className={conversionCase.lokdPayrollCloseoutStatus === "ready" ? "done" : "pending"}><i>{conversionCase.lokdPayrollCloseoutStatus === "ready" ? "✓" : "3"}</i>Payroll and leave close-out</span><span className={conversionCase.psiraTransferStatus === "ready" ? "done" : "pending"}><i>{conversionCase.psiraTransferStatus === "ready" ? "✓" : "4"}</i>PSiRA formalities</span><span className={conversionCase.feeStatus === "paid" ? "done" : "pending"}><i>{conversionCase.feeStatus === "paid" ? "✓" : "5"}</i>Cleared client funds</span></div>
           {!conversionCase.readyToComplete && !["completed", "withdrawn"].includes(conversionCase.status) && <div className="conversion-blockers"><strong>Handover remains blocked</strong><ul>{conversionCase.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul></div>}
           {!["completed", "withdrawn"].includes(conversionCase.status) && <footer>
@@ -643,7 +643,7 @@ function OfficerConversionControl({ operations, flash }: {
         </article>)}</div> : <div className="activation-empty"><span>✓</span><strong>No active cases</strong><p>Permanent employment remains a private consequence, never a public product.</p></div>}
       </article>
       <aside className="conversion-policy panel"><header className="command-panel-heading"><div><p className="eyebrow">Policy {conversion.policyVersion}</p><h2>Fee and contract rules</h2></div></header>
-        <div className="conversion-fees"><h3>Minimum fee schedule</h3><dl><div><dt>Grade C / D / E</dt><dd>R12,500</dd></div><div><dt>Grade B</dt><dd>R14,000</dd></div><div><dt>Grade A / Supervisor</dt><dd>R15,000</dd></div><div><dt>Armed</dt><dd>Base + R5,000</dd></div><div><dt>VIP / Tactical</dt><dd>R25,000</dd></div></dl><small>All fees exclude VAT. Private recruitment enquiries use 15% of first-year guaranteed cash remuneration, subject to the applicable minimum.</small></div>
+        <div className="conversion-fees"><h3>Minimum fee schedule</h3><dl><div><dt>Grade C / D / E</dt><dd>R12,500</dd></div><div><dt>Grade B</dt><dd>R14,000</dd></div><div><dt>Grade A / Supervisor</dt><dd>R15,000</dd></div><div><dt>Armed</dt><dd>Base + R5,000</dd></div><div><dt>VIP / Tactical</dt><dd>R25,000</dd></div></dl><small>No VAT is charged on these fees. Private recruitment enquiries use 15% of first-year guaranteed cash remuneration, subject to the applicable minimum.</small></div>
         <div className="conversion-tenure"><h3>Assigned-officer tenure</h3><ol><li><span>0–3 months</span><strong>100%</strong></li><li><span>4–6 months</span><strong>75%</strong></li><li><span>7–12 months</span><strong>50%</strong></li><li><span>Over 12 months</span><strong>25%</strong></li></ol></div>
         <div className="conversion-clause"><h3>Clause {conversion.clauseVersion}</h3><p>{conversion.clauseText}</p></div>
         {conversion.clients.filter((client) => client.clauseStatus !== "acknowledged").map((client) => <button className="conversion-clause-action" key={client.id} disabled={operations.busy} onClick={async () => { const result = await operations.runAction({ action: "acknowledge_permanent_engagement_clause", clientId: client.id }); if (result) flash("Synthetic client clause acknowledgement recorded."); }}>Record {client.name} acknowledgement</button>)}

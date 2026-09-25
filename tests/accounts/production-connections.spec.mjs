@@ -70,6 +70,12 @@ test('production connections keep intake pending, expose approved signing and is
  expect(savedReceipt.receiptHash).toBe(accepted.receipt_hash);
  expect(createHash('sha256').update(accepted.receipt_json).digest('hex')).toBe(accepted.receipt_hash);
  expect(savedReceipt.receipt.terms.sha256).toBe(pdfHash);
+ expect(savedReceipt.receipt.quote.subtotalCents).toBe(160000);
+ expect(savedReceipt.receipt.quote.vatCents).toBe(0);
+ expect(savedReceipt.receipt.quote.totalCents).toBe(160000);
+ expect(savedReceipt.receipt.quote.pricingVersion).toBe('LOKD-SPECIALIST-2026.09-v2-no-vat');
+ await expect(client.getByText('VAT — not charged',{exact:true})).toBeVisible();
+
  await testInfo.attach('dummy-quote-acceptance-receipt',{path:receiptPath,contentType:'application/json'});
  await testInfo.attach('accepted-quote-mobile',{body:await client.screenshot({fullPage:true}),contentType:'image/png'});
  await testInfo.attach('test-scope',{body:JSON.stringify({mode:'isolated-development-accounts',providerDelivery:'queued-only',books:'not-contacted',payments:'not-dispatched',pdfSha256:pdfHash,orderId:accepted.order_id,quoteId:accepted.id,receiptHash:accepted.receipt_hash},null,2),contentType:'application/json'});

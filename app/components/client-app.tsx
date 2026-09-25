@@ -1375,12 +1375,12 @@ export default function ClientApp() {
                   <dd>{money(quote.subtotalCents)}</dd>
                 </div>
                 <div>
-                  <dt>VAT · 15%</dt>
+                  <dt>VAT — not charged</dt>
                   <dd>{money(quote.vatCents)}</dd>
                 </div>
               </dl>
               <small>
-                {calendarSummary || quote.firstCalendarLabel} · VAT-inclusive
+                {calendarSummary || quote.firstCalendarLabel} · full
                 pilot estimate · pricing policy {quote.version}.
               </small>
               {quote.pricingStatus === "partner_review_required" && (

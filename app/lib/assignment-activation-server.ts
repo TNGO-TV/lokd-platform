@@ -1,3 +1,4 @@
+import {isSpecialistPricingVersion} from "./specialist-pricing";
 import {currentClientReview} from './production-client-review';
 import { readActivationAgreements } from './agreement-activation';
 import { officerHasCurrentPsiraVerification } from './psira-server';
@@ -13,7 +14,6 @@ import {
 } from "./assignment-activation-core";
 import {
   LEGACY_UNARMED_PRICE_BOOK_VERSION,
-  PRICE_BOOK_VERSION,
   officerShiftEconomicsForRoster,
   type CalendarCategory,
   type EngagementModel,
@@ -386,7 +386,7 @@ async function loadAssignmentActivationFacts(
     }
   }
 
-  const currentSpecialistPricing = candidate.pricingVersion === PRICE_BOOK_VERSION;
+  const currentSpecialistPricing = isSpecialistPricingVersion(candidate.pricingVersion);
   const legacyUnarmedPricing = candidate.pricingVersion === LEGACY_UNARMED_PRICE_BOOK_VERSION
     && candidate.serviceType === "Unarmed";
   const shiftEconomics = risk && (currentSpecialistPricing || legacyUnarmedPricing)

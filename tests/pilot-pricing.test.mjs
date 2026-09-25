@@ -24,13 +24,13 @@ test("Fixed ordinary Unarmed uses R1,400 client and R800 officer units", () => {
   assert.equal(quote.officerRateCents, 80_000);
   assert.equal(quote.dispatchPremiumCents, 0);
   assert.equal(quote.clientPriceCents, quote.subtotalCents + quote.vatCents);
-  assert.equal(quote.vatCents, Math.round(quote.subtotalCents * 0.15));
+  assert.equal(quote.vatCents, 0);
   assert.ok(quote.marginBasisPoints >= quote.minimumMarginBasisPoints);
   assert.equal(quote.releaseCadence, "Weekly");
   assert.ok(quote.shiftCount >= 25 && quote.shiftCount <= 27);
 });
 
-test("Scheduled Flex charges R1,600 ex VAT while the ordinary officer offer stays R800", () => {
+test("Scheduled Flex charges R1,600 with no VAT while the ordinary officer offer stays R800", () => {
   const quote = quoteBooking({
     ...base,
     engagementModel: "flex",
@@ -40,12 +40,12 @@ test("Scheduled Flex charges R1,600 ex VAT while the ordinary officer offer stay
   });
   assert.equal(quote.noticeWindow, "standard");
   assert.equal(quote.subtotalCents, 160_000);
-  assert.equal(quote.vatCents, 24_000);
-  assert.equal(quote.clientPriceCents, 184_000);
+  assert.equal(quote.vatCents, 0);
+  assert.equal(quote.clientPriceCents, 160_000);
   assert.equal(quote.officerRateCents, 80_000);
 });
 
-test("Immediate Flex charges R2,400 ex VAT without urgency inflating the officer offer", () => {
+test("Immediate Flex charges R2,400 with no VAT without urgency inflating the officer offer", () => {
   const quote = quoteBooking({
     ...base,
     engagementModel: "flex",
@@ -55,7 +55,7 @@ test("Immediate Flex charges R2,400 ex VAT without urgency inflating the officer
   });
   assert.equal(quote.noticeWindow, "immediate");
   assert.equal(quote.subtotalCents, 240_000);
-  assert.equal(quote.clientPriceCents, 276_000);
+  assert.equal(quote.clientPriceCents, 240_000);
   assert.equal(quote.officerRateCents, 80_000);
 });
 
@@ -69,7 +69,7 @@ test("Flex Sunday applies the ad-hoc Sunday burden to both sides before urgency"
   });
   assert.equal(quote.firstCalendarCategory, "sunday");
   assert.equal(quote.subtotalCents, 320_000);
-  assert.equal(quote.clientPriceCents, 368_000);
+  assert.equal(quote.clientPriceCents, 320_000);
   assert.equal(quote.officerRateCents, 160_000);
 });
 
