@@ -56,7 +56,7 @@ async function setup(){
  assert.equal((await prepareProductionOrder(db,reviewer,order)).alreadyPrepared,true);
  await assert.rejects(()=>prepareProductionOrder(db,reviewer,{...order,address:'Different address'}),/different details/);
 
- const bucket=new Bucket(),termsInput={title:'Isolated synthetic terms fixture',version:'fixture-v1',entityId:order.contractingEntityId,contentBase64:btoa('%PDF-1.7\nIsolated test bytes; not a legal contract.\n%%EOF')};
+ const bucket=new Bucket(),termsInput={title:'Isolated synthetic terms fixture',version:'fixture-v1',entityId:order.contractingEntityId,contentBase64:fs.readFileSync(new URL('./fixtures/dummy-client-terms.pdf',import.meta.url)).toString('base64')};
  const {termsId}=await uploadTerms(db,bucket,reviewer,termsInput);
  const terms=(await readQuotes(db,reviewer)).terms[0];
  await manageTerms(db,bucket,owner,{action:'approve_terms',termsId,fileHash:terms.file_hash,legalApprovalConfirmed:true});
@@ -258,4 +258,29 @@ test('quote reads overlap only authorized queries and reject any storage failure
    try{await assert.rejects(readQuotes(f.db,x.reviewer),/storage unavailable/);}finally{await f.drain();}
   }
  }finally{x.database.close();}
+});
+
+// One continuous synthetic journey; external transports remain explicitly simulated.
+test('one dummy quote binds notification, downloaded terms, immutable acceptance and Books reconciliation',async()=>{
+ const x=await setup();
+ try {
+  const {quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),messages=[];
+  const {runOperationalDelivery}=await import('../app/lib/operational-delivery.ts');
+  await runOperationalDelivery(x.db,{LOKD_OPERATIONAL_DELIVERY_ENABLED:'true',LOKD_DELIVERY_SOURCE_ALLOWLIST:quoteId,LOKD_DELIVERY_EMAIL_ALLOWLIST:x.applicant.email,LOKD_EMAIL_PROVIDER:'resend',LOKD_EMAIL_FROM:'notices@example.test',LOKD_QUOTE_EMAIL_FROM:'quotes@example.test',RESEND_API_KEY:'synthetic-only'},{now:()=>Date.now()+1000,verifiedEmail:async()=>x.applicant.email,transport:async(url,init)=>{messages.push(JSON.parse(init.body));return Response.json({id:'synthetic-quote-message'});}});
+  assert.equal(messages.length,1);assert.ok(messages[0].text.includes('/client/agreements#'+quoteId));
+  const {bytes,t}=await quoteFile(x.db,x.bucket,x.applicant,x.termsId);
+  assert.deepEqual(Buffer.from(bytes),fs.readFileSync(new URL('./fixtures/dummy-client-terms.pdf',import.meta.url)));
+  const {q}=await currentQuote(x.db,quoteId);
+  await acceptQuote(x.db,x.bucket,x.applicant,{quoteId,offerHash:q.offer_hash,affirmative:true});
+  const {receipt}=await currentQuote(x.db,quoteId,Date.now(),true);
+  assert.equal(JSON.parse(receipt.receipt_json).terms.sha256,t.file_hash);
+  const {linkQuoteBooks,readQuoteBooksLinks}=await import('../app/lib/quote-books-links.ts');
+  const linked=await linkQuoteBooks(x.db,booksRuntime,x.owner,booksInput(q),booksTransport(q));
+  const accounting=(await readQuoteBooksLinks(x.db))[0];
+  assert.equal(accounting.quoteId,quoteId);assert.equal(accounting.currentAcceptance,true);
+  assert.equal(linked.financialRecordsChanged,false);assert.equal(linked.funded,false);
+  assert.equal(x.database.prepare('SELECT funding_status FROM bookings WHERE id=?').get(x.orderId).funding_status,'unfunded');
+  const evidence={mode:'isolated-actual-handlers',externalEmail:'simulated-provider-acceptance',externalBooks:'simulated-provider-read',liveMoneyMoved:false,quoteId,orderId:x.orderId,termsSha256:t.file_hash,notification:messages[0],receipt:JSON.parse(receipt.receipt_json),receiptHash:receipt.receipt_hash,accounting};
+  if(process.env.LOKD_DUMMY_JOURNEY_EVIDENCE)fs.writeFileSync(process.env.LOKD_DUMMY_JOURNEY_EVIDENCE,JSON.stringify(evidence,null,2));
+ } finally {x.database.close();}
 });
