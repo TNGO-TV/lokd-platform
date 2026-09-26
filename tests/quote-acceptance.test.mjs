@@ -143,6 +143,27 @@ test('order acceptance satisfies both client agreement requirements across offic
  assert.deepEqual((await readActivationAgreements(x.db,facts)).missing,['CLIENT_MSA','SERVICE_ORDER','OFFICER_EMPLOYMENT']);
  x.database.close();
 });
+test('issue assigns a global SAST public number and INV- invoice number while keeping the QUOTE- id',async()=>{
+ const x=await setup();
+ const september=new Date('2026-09-30T21:59:59.999Z'),october=new Date('2026-09-30T22:00:00.000Z');
+ const first=await issueQuote(x.db,x.bucket,x.reviewer,x.issue,september);
+ assert.equal(first.publicNumber,'LOKD260901');
+ assert.equal(first.invoicePublicNumber,'INV-LOKD260901');
+ assert.match(first.quoteId,/^QUOTE-/);
+ assert.equal(x.database.prepare('SELECT public_number FROM client_quote_offers WHERE id=?').get(first.quoteId).public_number,'LOKD260901');
+ const second=await issueQuote(x.db,x.bucket,x.reviewer,{...x.issue,expectedSequence:1},september);
+ assert.equal(second.publicNumber,'LOKD260902');
+ assert.equal(second.invoicePublicNumber,'INV-LOKD260902');
+ assert.notEqual(second.quoteId,first.quoteId);
+ const third=await issueQuote(x.db,x.bucket,x.reviewer,{...x.issue,expectedSequence:2},october);
+ assert.equal(third.publicNumber,'LOKD261001');
+ assert.equal(third.invoicePublicNumber,'INV-LOKD261001');
+ assert.equal(x.database.prepare('SELECT COUNT(DISTINCT public_number) AS n FROM client_quote_offers').get().n,3);
+ assert.throws(()=>x.database.prepare("UPDATE client_quote_offers SET public_number='LOKD269999' WHERE id=?").run(first.quoteId),/immutable/);
+ const visible=(await readQuotes(x.db,x.applicant)).quotes.find(q=>q.id===third.quoteId);
+ assert.equal(visible.public_number,'LOKD261001');
+ x.database.close();
+});
 test('atomic acceptance rejects source edits occurring after validation',async()=>{
  const x=await setup(),{quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),{q}=await currentQuote(x.db,quoteId);
  const get=x.bucket.get.bind(x.bucket);
@@ -208,7 +229,7 @@ test('Books links retain exact accepted revision, replay safely and become histo
  const input=booksInput(q),send=()=>linkQuoteBooks(x.db,booksRuntime,x.owner,input,booksTransport(q));
  const result=await send();assert.equal(result.funded,false);assert.equal(result.financialRecordsChanged,false);assert.equal((await send()).alreadyLinked,true);
  assert.equal(x.database.prepare('SELECT count(*) AS n FROM quote_books_links').get().n,1);
- const linked=(await readQuoteBooksLinks(x.db))[0];assert.equal(linked.currentAcceptance,true);assert.equal(linked.liveProviderRechecked,false);assert.equal(linked.comparison.referenceNumber,q.id);
+ const linked=(await readQuoteBooksLinks(x.db))[0];assert.equal(linked.currentAcceptance,true);assert.equal(linked.liveProviderRechecked,false);assert.equal(linked.comparison.referenceNumber,q.id);assert.match(q.id,/^QUOTE-/);assert.match(q.public_number,/^LOKD\d{6}$/);assert.notEqual(linked.comparison.referenceNumber,q.public_number);
  assert.throws(()=>x.database.prepare("UPDATE quote_books_links SET customer_id='9999999'").run(),/immutable/);
  assert.throws(()=>x.database.prepare('DELETE FROM quote_books_links').run(),/immutable/);
  await cancelQuote(x.db,x.reviewer,{quoteId:q.id,reason:'Fixture scope changed'});

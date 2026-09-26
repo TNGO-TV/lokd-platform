@@ -11,6 +11,7 @@ export async function linkQuoteBooks(db:D1Database,runtime:OperationalRuntime,ac
  const accepted=await acceptedOrderQuote(db,q.order_id);
  if(!receipt||!accepted.receipt||accepted.receipt.hash!==receipt.receipt_hash)throw new SignupError('A current accepted quote is required before linking accounting documents.',409);
  const scope=JSON.parse(q.source_json),kind=input.kind as 'estimate'|'invoice';
+ // Books reference_number stays the immutable QUOTE- id. INV- + public_number is display-only and is not written to Zoho.
  const comparison=await inspectBooksDocument(runtime,{kind,documentId:input.documentId,customerId:input.customerId,orderId:q.order_id,referenceNumber:q.id,totalMinor:scope.totalCents,taxMinor:scope.vatCents},transport);
  if(['void','voided','declined','expired'].includes(comparison.status))throw new SignupError('This Books document is no longer current.',409);
  // Recheck after network I/O; the database trigger also protects the final insert.

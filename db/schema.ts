@@ -3192,7 +3192,12 @@ export const clientQuoteOffers=sqliteTable('client_quote_offers',{
  id:text('id').primaryKey(),orderId:text('order_id').notNull().references(()=>bookings.id),ownerUserId:text('owner_user_id').notNull(),
  termsId:text('terms_id').notNull().references(()=>clientTermsFiles.id),sourceJson:text('source_json').notNull(),sourceHash:text('source_hash').notNull(),offerHash:text('offer_hash').notNull(),
  issuedBy:text('issued_by').notNull(),issuedAt:text('issued_at').notNull(),expiresAt:text('expires_at').notNull(),sequence:integer('sequence').notNull(),caseVersion:integer('case_version').notNull(),
-},t=>[uniqueIndex('client_quote_order_sequence_idx').on(t.orderId,t.sequence),index('client_quote_owner_idx').on(t.ownerUserId),check('client_quote_source_json',sql.raw('json_valid(source_json)'))]);
+ publicNumber:text('public_number'),
+},t=>[uniqueIndex('client_quote_order_sequence_idx').on(t.orderId,t.sequence),index('client_quote_owner_idx').on(t.ownerUserId),uniqueIndex('client_quote_public_number_idx').on(t.publicNumber),check('client_quote_source_json',sql.raw('json_valid(source_json)'))]);
+// Global SAST month counter for human-facing LOKDYYMM## quote numbers. Not per order or client.
+export const lokdQuoteMonthCounters=sqliteTable('lokd_quote_month_counters',{
+ monthKey:text('month_key').primaryKey(),lastSequence:integer('last_sequence').notNull(),
+},()=>[check('lokd_quote_month_key',sql.raw("length(month_key)=4 AND month_key GLOB '[0-9][0-9][0-9][0-9]'")),check('lokd_quote_month_sequence',sql.raw('last_sequence BETWEEN 1 AND 99'))]);
 export const clientQuoteReceipts=sqliteTable('client_quote_receipts',{
  quoteId:text('quote_id').primaryKey().references(()=>clientQuoteOffers.id),actorId:text('actor_id').notNull(),receiptJson:text('receipt_json').notNull(),receiptHash:text('receipt_hash').notNull(),acceptedAt:text('accepted_at').notNull(),
 },()=>[check('client_quote_receipt_json',sql.raw('json_valid(receipt_json)'))]);
