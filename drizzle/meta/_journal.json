@@ -561,6 +561,13 @@
       "when": 1790327590415,
       "tag": "0079_owner_no_vat_pricing",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "6",
+      "when": 1790462916078,
+      "tag": "0080_lokd_quote_public_numbers",
+      "breakpoints": true
     }
   ]
 }

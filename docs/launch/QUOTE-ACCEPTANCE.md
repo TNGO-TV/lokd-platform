@@ -6,7 +6,7 @@ Owner decision, 22 September 2026: a client accepts a quote and the linked stand
 
 1. In Operations → Agreements → Quotes and terms, upload the final terms PDF, a distinct version and the LOKD contracting entity ID.
 2. The existing authorised owner reviews the downloaded file and approves that exact version. Uploading does not approve legal content.
-3. Prepare the independently reviewed client's service order in Service operations, then issue its quote with matching approved terms and an expiry within 30 days.
+3. Prepare the independently reviewed client's service order in Service operations, then issue its quote with matching approved terms and an expiry within 30 days. Issue assigns a public number `LOKD` + SAST year/month + a global two-digit monthly sequence (`LOKD260901`). The internal id stays `QUOTE-` plus a UUID for acceptance, foreign keys and the Books reference number. The linked invoice number is `INV-` plus that public number (`INV-LOKD260901`); there is no separate invoice counter, and this build does not create the Books invoice.
 4. The named authenticated client opens the quote, reads/downloads its linked terms and checks acceptance before selecting Accept quote.
 5. The retained record includes the precise quote, terms version and SHA-256, account, timestamp and acknowledgement. Clients can download the acceptance record and original terms.
 6. Cancel with a reason before replacing an accepted quote. A replacement requires fresh acceptance. No cancellation action itself charges, refunds or issues an invoice.

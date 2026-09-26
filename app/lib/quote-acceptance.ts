@@ -2,12 +2,13 @@ import {SignupError} from './signup-server';
 import type {SigningActor} from './production-signing';
 import {agreementHash} from './agreement-acceptance';
 import {currentClientReview} from './production-client-review';
+import {lokdInvoicePublicNumber,lokdQuoteMonthKey} from './lokd-numbering';
 
 const field=(v:unknown,label:string,max=200)=>{if(typeof v!=='string'||!v.trim()||v.length>max)throw new SignupError('Provide '+label+'.');return v.trim();};
 export const quoteAcknowledgement='I accept this quote and the linked Terms and Conditions, and confirm that I am authorised to accept for the named client.';
 export type QuoteSource={order_id:string;client_id:string;owner_user_id:string;entity_id:string;case_version:number;order_version:number;source_json:string};
 type Terms={id:string;title:string;version:string;entity_id:string;file_hash:string;size_bytes:number;storage_key:string;approved_at:string|null;withdrawn:number};
-export type Offer={id:string;order_id:string;owner_user_id:string;terms_id:string;source_json:string;source_hash:string;offer_hash:string;issued_at:string;expires_at:string;sequence:number;receipt_json?:string|null;receipt_hash?:string|null;cancelled?:number};
+export type Offer={id:string;order_id:string;owner_user_id:string;terms_id:string;source_json:string;source_hash:string;offer_hash:string;issued_at:string;expires_at:string;sequence:number;public_number?:string|null;receipt_json?:string|null;receipt_hash?:string|null;cancelled?:number};
 export async function quoteSource(db:D1Database,id:string){
  const s=await db.prepare('SELECT * FROM client_quote_sources WHERE order_id=?').bind(id).first<QuoteSource>();
  if(!s||!await currentClientReview(db,s.client_id))throw new SignupError('A current reviewed client and production service order are required.',409);
@@ -62,7 +63,7 @@ export async function currentQuote(db:D1Database,id:string,clock=Date.now(),allo
  if(q.offer_hash!==expected)throw new SignupError('Quote integrity check failed.',409);
  return {q,s,t,receipt};
 }
-export async function issueQuote(db:D1Database,bucket:R2Bucket,actor:SigningActor,input:Record<string,unknown>){
+export async function issueQuote(db:D1Database,bucket:R2Bucket,actor:SigningActor,input:Record<string,unknown>,now=new Date()){
  if(!actor.operations)throw new SignupError('Operations access required.',403);
  const s=await quoteSource(db,field(input.orderId,'a service order'));
  if(s.owner_user_id===actor.userId)throw new SignupError('Another operator must issue your quote.',403);
@@ -76,8 +77,15 @@ export async function issueQuote(db:D1Database,bucket:R2Bucket,actor:SigningActo
  if(latest&&await db.prepare('SELECT r.quote_id FROM client_quote_receipts r WHERE r.quote_id=? AND NOT EXISTS(SELECT 1 FROM client_quote_cancellations c WHERE c.quote_id=r.quote_id)').bind(latest.id).first())throw new SignupError('This order already has an accepted quote. Cancel it with a reason before replacing it.',409);
  const sourceHash=await agreementHash(s.source_json),expiresAt=new Date(expiry).toISOString(),id='QUOTE-'+crypto.randomUUID();
  const hash=await agreementHash(JSON.stringify({sourceHash,termsId:t.id,termsHash:t.file_hash,expiresAt,acknowledgement:quoteAcknowledgement}));
- await db.prepare('INSERT INTO client_quote_offers VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,s.order_id,s.owner_user_id,t.id,s.source_json,sourceHash,hash,actor.userId,new Date().toISOString(),expiresAt,(latest?.sequence??0)+1,s.case_version).run();
- return {quoteId:id,emailDelivery:'queued'};
+ const issuedAt=now instanceof Date?now:new Date(now);
+ if(!Number.isFinite(issuedAt.getTime()))throw new SignupError('Quote issue time is unavailable.',503);
+ const monthKey=lokdQuoteMonthKey(issuedAt);
+ try{
+  await db.prepare('INSERT INTO client_quote_offer_issues(id,order_id,owner_user_id,terms_id,source_json,source_hash,offer_hash,issued_by,issued_at,expires_at,sequence,case_version,month_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,s.order_id,s.owner_user_id,t.id,s.source_json,sourceHash,hash,actor.userId,issuedAt.toISOString(),expiresAt,(latest?.sequence??0)+1,s.case_version,monthKey).run();
+ }catch(error){if(error instanceof Error&&error.message.includes('quote_month_sequence_exhausted'))throw new SignupError('This month\'s LOKD quote numbers are exhausted.',409);throw error;}
+ const stored=await db.prepare('SELECT public_number FROM client_quote_offers WHERE id=?').bind(id).first<{public_number:string|null}>();
+ if(!stored?.public_number||!stored.public_number.startsWith('LOKD'+monthKey))throw new SignupError('Quote number was not assigned.',409);
+ return {quoteId:id,publicNumber:stored.public_number,invoicePublicNumber:lokdInvoicePublicNumber(stored.public_number),emailDelivery:'queued'};
 }
 export async function acceptQuote(db:D1Database,bucket:R2Bucket,actor:SigningActor,input:Record<string,unknown>){
  const id=field(input.quoteId,'a quote'),q=await offer(db,id,actor);
