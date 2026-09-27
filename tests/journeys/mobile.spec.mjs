@@ -67,7 +67,7 @@ test('client: failed submission preserves details; receipt explains account, agr
   for (const [name,value] of Object.entries({organisationName:'Synthetic Test Client',contactName:'Synthetic Contact',email:'client@example.test',siteArea:'Midrand',message:'Synthetic mobile acceptance test of access control.'})) await page.locator(`[name=${name}]`).fill(value);
   await page.locator('[name=siteType]').selectOption('commercial_property');
   await page.locator('[name=requiredStart]').selectOption('planning');
-  for (const name of ['advanceFundingAcknowledged','privacyConsent']) await page.locator(`[name=${name}]`).check();
+  await page.locator('[name=privacyConsent]').check();
   await fits(page); await page.getByRole('button',{name:'Submit site enquiry'}).click();
   await expect(page.getByRole('alert')).toContainText('try again');
   await expect(page.locator('[name=organisationName]')).toHaveValue('Synthetic Test Client');
