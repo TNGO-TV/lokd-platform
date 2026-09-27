@@ -23,6 +23,7 @@ export const PUBLIC_SITEMAP_PATHS = [
   "/join",
   "/privacy",
   "/terms",
+  "/terms-and-conditions",
 ] as const;
 
 export function canonicalUrl(path = "") {
