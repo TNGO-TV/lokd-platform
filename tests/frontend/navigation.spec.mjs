@@ -60,7 +60,7 @@ test('agreement expiry removes signature action without refreshing',async({page}
  await page.goto('/client/agreements');await expect(page.getByRole('button',{name:'Agree and record my signature'})).toBeVisible();await page.getByText('Read exact agreement and service scope').click();await expect(page.getByText('SYNTHETIC UI FIXTURE', {exact:false})).toBeVisible();await expect(page.getByRole('status')).toHaveText('Expired',{timeout:10000});await expect(page.getByRole('button',{name:'Agree and record my signature'})).toHaveCount(0);await fits(page);await shot(page,'agreement-expired',info);
 });
 test('public routes retain mobile navigation and one exact active destination',async({page},info)=>{
- const routes=['/','/security-services','/armed-security','/vip-protection','/industries','/locations/johannesburg','/clients','/officers','/training','/compliance','/about','/contact','/privacy','/terms','/join'];
+ const routes=['/','/security-services','/armed-security','/vip-protection','/industries','/locations/johannesburg','/clients','/officers','/training','/compliance','/about','/contact','/privacy','/terms','/terms-and-conditions','/join'];
  const primary=['/security-services','/armed-security','/vip-protection','/industries','/clients','/officers','/about'];
  for(const path of routes){
   await page.goto((process.env.LOKD_PUBLIC_BASE_URL??'http://127.0.0.1:4178')+path);
@@ -75,6 +75,7 @@ test('public routes retain mobile navigation and one exact active destination',a
   }
   const footer=page.locator('.site-footer');
   await expect(footer).toContainText('LOKD Security (Pty) Ltd');await expect(footer).toContainText('71 Louis Trichardt Street');
+  await expect(footer.getByRole('link',{name:'Terms and conditions',exact:true})).toHaveAttribute('href','/terms-and-conditions');
   await expect(footer.getByRole('link',{name:'Terms of use',exact:true})).toHaveAttribute('href','/terms');
   await expect(footer.getByRole('link',{name:'Privacy notice',exact:true})).toHaveAttribute('href','/privacy');
   await expect(footer).toContainText('Training centres opening soon');
