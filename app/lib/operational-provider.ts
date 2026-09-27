@@ -89,7 +89,7 @@ async function sendSmtpOverSocket(runtime:OperationalRuntime,id:string,body:Reco
  const subject=String(body.subject??'');
  const text=String(body.text??'');
  const useStartTls=port===587;
- let socket=connect({hostname:host,port},{secureTransport:useStartTls?'starttls':'on'});
+ let socket=connect({hostname:host,port},{secureTransport:useStartTls?'starttls':'on',allowHalfOpen:false});
  await socket.opened;
  let writer=socket.writable.getWriter();
  let reader=socket.readable.getReader();
