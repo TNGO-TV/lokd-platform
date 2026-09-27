@@ -8,7 +8,7 @@ import RecordDetails from './record-details';
 type Document={id:string;document_code:string;document_version:string;entity_id:string;locale:string;wording:string;content_hash:string;status:string|null;withdrawn:number};
 type Envelope={email_delivery_state?:string;id:string;role:string;document_id:string;wording:string;context_json:string;content_hash:string;context_hash:string;expires_at:string;cancelled:number;document_withdrawn:number;receipt_json:string|null};
 type State={documents:Document[];envelopes:Envelope[];entities:{kind:string;case_id:string;entity_id:string}[];owner:boolean};
-export default function ProductionSigningPanel({kind,operations=false}:{kind:'client'|'officer';operations?:boolean}){
+export default function ProductionSigningPanel({kind,operations=false,focusId}:{kind:'client'|'officer';operations?:boolean;focusId?:string}){
  const inFlight=useRef(false);const [epoch,setEpoch]=useState(0);
  const [accessLost,setAccessLost]=useState(false);
  const [data,setData]=useState<State|null>(null),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState('');const endpoint='/api/agreements/production?kind='+kind+(operations?'&scope=operations':'');
@@ -16,6 +16,7 @@ export default function ProductionSigningPanel({kind,operations=false}:{kind:'cl
  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
  const load=useCallback(async()=>{if(inFlight.current)return;inFlight.current=true;setEpoch(value=>value+1);setLoading(true);try{const r=await fetch(endpoint,{cache:'no-store'}),d=await readWorkspaceResponse<State>(r);setData(d);setAccessLost(false);setError('');}catch(e){if(workspaceAccessDenied(e)){setData(null);setAccessLost(true);}setError(workspaceFailure(e,'Unable to load.'));}finally{inFlight.current=false;setLoading(false);}},[endpoint]);
  useEffect(()=>{const timer=setTimeout(()=>void load(),0);return()=>clearTimeout(timer);},[load]);
+ useEffect(()=>{if(!focusId||!data)return;document.getElementById(focusId)?.scrollIntoView({block:'nearest'});},[focusId,data]);
  async function send(body:Record<string,unknown>){if(inFlight.current)return false;inFlight.current=true;setBusy(true);setError('');try{const r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}),d=await readWorkspaceResponse<State>(r);setData(d);setAccessLost(false);return true;}catch(e){if(workspaceAccessDenied(e)){setData(null);setAccessLost(true);}setError(workspaceFailure(e,'Action failed. Refresh before retrying.'));return false;}finally{inFlight.current=false;setBusy(false);}}
  function submit(e:React.FormEvent<HTMLFormElement>,action:string){e.preventDefault();const values=Object.fromEntries(new FormData(e.currentTarget));void send({...values,action,...(action==='issue'?{slotVersion:Number(values.slotVersion)}:{})});}
  if(accessLost)return <WorkspaceAccessLost message={error} loading={busy} refresh={()=>void load()}/>;
