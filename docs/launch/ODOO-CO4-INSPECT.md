@@ -1,6 +1,6 @@
 # Odoo company 4 inspect
 
-This is the current accounting and enquiry-companion path. Dated Zoho and ZeptoMail notes under `docs/launch/` are historical records only.
+This is the current accounting and enquiry-companion path. Earlier CRM and transactional-mail vendors are retired. Email is SMTP or disabled.
 
 ## What runs
 
@@ -24,7 +24,7 @@ Keep, when already present:
 
 Leave `LOKD_APP_STAGE` unchanged. Do not turn off Coming Soon.
 
-If Zoho or ZeptoMail Worker secrets are still stored (`LOKD_ZOHO_*`, `ZEPTOMAIL_SEND_TOKEN`, `LOKD_ZEPTOMAIL_API_ORIGIN`, `RESEND_API_KEY`), remove them in the Worker dashboard. The application no longer reads them.
+If Worker secrets for a retired CRM or transactional-mail vendor are still stored, remove them in the Worker dashboard. The application reads only the Odoo company-4 settings and SMTP settings listed above.
 
 ## Deferred
 

@@ -88,9 +88,9 @@ test('SMTP acceptance has no later receipt poll and never resends',async()=>{
 });
 test('removed email providers make no requests',async()=>{
  const {emailReceipt,sendEmail,configuredEmailProvider}=await import('../app/lib/operational-provider.ts');let requests=0;const transport=async()=>{requests++;throw Error('network');};
- for(const provider of ['zeptomail','resend','disabled',''])await assert.rejects(async()=>configuredEmailProvider({LOKD_EMAIL_PROVIDER:provider,LOKD_SMTP_HOST:'mail.lokd.co.za',LOKD_SMTP_USER:'notices@example.test',LOKD_SMTP_PASSWORD:'synthetic-only'}),/not_configured/);
- const zepto={LOKD_EMAIL_PROVIDER:'zeptomail',ZEPTOMAIL_SEND_TOKEN:'synthetic-only',LOKD_ZEPTOMAIL_API_ORIGIN:'https://api.zeptomail.com'};
- await assert.rejects(()=>sendEmail(zepto,'job',{_lokdProvider:'zeptomail',from:'notices@example.test',to:['team@example.test'],subject:'Test',text:'Test'},transport),/not_configured/);
+ for(const provider of ['foreign-mail','resend','disabled',''])await assert.rejects(async()=>configuredEmailProvider({LOKD_EMAIL_PROVIDER:provider,LOKD_SMTP_HOST:'mail.lokd.co.za',LOKD_SMTP_USER:'notices@example.test',LOKD_SMTP_PASSWORD:'synthetic-only'}),/not_configured/);
+ const foreign={LOKD_EMAIL_PROVIDER:'foreign-mail',FOREIGN_MAIL_TOKEN:'synthetic-only',LOKD_FOREIGN_MAIL_ORIGIN:'https://mail-api.example.test'};
+ await assert.rejects(()=>sendEmail(foreign,'job',{_lokdProvider:'foreign-mail',from:'notices@example.test',to:['team@example.test'],subject:'Test',text:'Test'},transport),/not_configured/);
  await assert.rejects(()=>emailReceipt(runtime('test'),{_lokdProvider:'smtp',from:'notices@example.test',to:['team@example.test'],subject:'Test',text:'Test'},'job','not-smtp','team@example.test',transport),/receipt_mismatch/);
  assert.equal(await emailReceipt(runtime('test'),{_lokdProvider:'smtp',from:'notices@example.test',to:['team@example.test'],subject:'Test',text:'Test'},'job','smtp:job:250 ok','team@example.test',transport),'sent');
  assert.equal(requests,0);
@@ -127,7 +127,7 @@ test('explicit non-submission reconciliation preserves history and grants just o
   for(const invalid of [{...notice,confirmedNotSubmitted:false},{...notice,evidence:'missing proof'}])await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,runtime(x.id),invalid,'operator',now));
   await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,{...runtime(x.id),LOKD_DELIVERY_SOURCE_ALLOWLIST:''},notice,'operator',now));
   await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,{...runtime(x.id),LOKD_TEAM_EMAIL:'changed@example.test'},notice,'operator',now));
-  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,{...runtime(x.id),LOKD_EMAIL_PROVIDER:'zeptomail'},notice,'operator',now));
+  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,{...runtime(x.id),LOKD_EMAIL_PROVIDER:'foreign-mail'},notice,'operator',now));
   const concurrent=await Promise.allSettled([reconcileUnsubmittedNotice(x.db,runtime(x.id),notice,'operator',now),reconcileUnsubmittedNotice(x.db,runtime(x.id),notice,'operator',now)]);
   assert.equal(concurrent.filter(r=>r.status==='fulfilled').length,1);
   const audit=x.database.prepare("SELECT * FROM audit_events WHERE event_type='delivery_non_submission_confirmed'").all();assert.equal(audit.length,1);assert.equal(audit[0].actor_id,'operator');assert.equal(JSON.parse(audit[0].detail).attempts,1);
