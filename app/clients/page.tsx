@@ -10,9 +10,9 @@ const steps = [
   ["Manage your service", "Use your client portal to follow progress and respond to requests. Agree changes with Operations before changing hours, duties or the service location."],
 ];
 const questions = [
-  ["Where can I enquire?", "We welcome enquiries across South Africa. Availability is assessed for your location, service type, dates and the officers and equipment required."],
+  ["Where can I enquire?", "Across South Africa. We assess availability for your location, service type, dates and the officers or equipment required."],
   ["Which services can I request?", "Unarmed guarding, armed security and VIP protection. Each request is assessed for its risks, duties and the qualifications and permissions needed."],
-  ["When does service start?", "Operations confirms deployment after the scope, required approvals and cleared advance funding are in place. Do not assume a start date from submitting an enquiry."],
+  ["When does service start?", "After scope, approvals and cleared advance funding are confirmed. Submitting an enquiry alone does not set a start date."],
   ["Can I change an accepted quote?", "Contact Operations with the change you need. A revised offer must be reviewed and accepted with its own linked terms where applicable; your earlier acceptance does not automatically accept a replacement."],
   ["How do I follow up?", "Sign in to the client portal with the email used for your enquiry, or contact bookings@lokd.co.za. Keep your enquiry or quote reference handy."],
 ];
@@ -22,6 +22,6 @@ export default function ClientsPage() {
     <section className="marketing-section"><header><p className="public-kicker">How it works</p><h2>From enquiry to service.</h2></header><div className="marketing-card-grid">{steps.map(([title, text], index) => <article key={title}><span>{String(index + 1).padStart(2, "0")}</span><h3>{title}</h3><p>{text}</p></article>)}</div></section>
     <section className="marketing-split marketing-split--dark"><div><p className="public-kicker">Before deployment</p><h2>Agree the details up front.</h2><p>Your service scope identifies the location, duties, hours, reporting needs and any specialist requirements. Pricing and the applicable terms are supplied with your quote.</p></div><div className="marketing-check-list"><p>Scope and site instructions agreed</p><p>Quote and linked terms accepted</p><p>Required officer and service checks completed</p><p>Advance funding cleared</p><p>Deployment confirmed by Operations</p></div></section>
     <section className="marketing-section"><header><p className="public-kicker">Common questions</p><h2>Know what happens next.</h2></header><div className="client-guide-faq">{questions.map(([question, answer]) => <details key={question}><summary>{question}</summary><p>{answer}</p></details>)}</div></section>
-    <section className="marketing-cta"><h2>Tell us about your security needs.</h2><Link className="public-button public-button--dark" href="/contact">Start an enquiry</Link></section><PublicFooter />
+    <section className="marketing-cta"><p className="public-kicker">Ready to start</p><h2>Tell us about your security needs.</h2><Link className="public-button public-button--dark" href="/contact">Start an enquiry</Link></section><PublicFooter />
   </main>;
 }

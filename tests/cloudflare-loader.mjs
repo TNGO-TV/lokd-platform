@@ -5,6 +5,12 @@ export async function resolve(specifier, context, nextResolve) {
       shortCircuit: true,
     };
   }
+  if (specifier === "cloudflare:sockets") {
+    return {
+      url: "data:text/javascript,export%20function%20connect()%7Bthrow%20new%20Error(%27sockets_unavailable_in_tests%27)%3B%7D",
+      shortCircuit: true,
+    };
+  }
   try {
     return await nextResolve(specifier, context);
   } catch (error) {

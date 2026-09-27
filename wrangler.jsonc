@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lokd-security",
+  "account_id": "d7000a5708fdeb67be6e21ee40e9105e",
+  "compatibility_date": "2026-09-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "keep_vars": true,
+  "main": "./worker/index.ts",
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "none"
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+  "vars": {
+    "LOKD_PUBLIC_ORIGIN": "https://lokd.co.za",
+    "LOKD_APP_STAGE": "prelaunch"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lokd-security",
+      "database_id": "e3f215fa-54e1-4a4b-b6bc-7a6b41bba79c",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "lokd-security"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

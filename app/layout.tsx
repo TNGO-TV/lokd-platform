@@ -12,7 +12,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(PUBLIC_SITE_URL),
   title: { default: "LOKD Security | Guarding, Armed Security and VIP Protection", template: "%s | LOKD Security" },
-  description: "Controlled Unarmed guarding, Armed security and VIP protection in South Africa, built around verified officers, advance funding and auditable service delivery.",
+  description: "Unarmed guarding, armed security and VIP protection in South Africa, built around verified officers, advance funding and auditable service delivery.",
   alternates: { canonical: "/" },
   applicationName: "LOKD Security",
   category: "business",
@@ -23,13 +23,13 @@ export const metadata: Metadata = {
     siteName: "LOKD Security",
     url: PUBLIC_SITE_URL,
     title: "LOKD Security | Guarding, Armed Security and VIP Protection",
-    description: "Controlled Unarmed guarding, Armed security and VIP protection built around verified officers, controlled operations and auditable service delivery.",
+    description: "Unarmed guarding, armed security and VIP protection built around verified officers, controlled operations and auditable service delivery.",
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "LOKD Security Platform" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "LOKD Security | Guarding, Armed Security and VIP Protection",
-    description: "Controlled Unarmed guarding, Armed security and VIP protection built around verified officers and controlled operations.",
+    description: "Unarmed guarding, armed security and VIP protection built around verified officers and controlled operations.",
     images: ["/og.png"],
   },
   icons: {

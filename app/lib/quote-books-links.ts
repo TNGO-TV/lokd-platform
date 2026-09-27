@@ -13,7 +13,7 @@ export async function linkQuoteBooks(db:D1Database,runtime:OperationalRuntime,ac
  const scope=JSON.parse(q.source_json),kind=input.kind as 'estimate'|'invoice';
  // Books reference_number stays the immutable QUOTE- id. INV- + public_number is display-only and is not written to Zoho.
  const comparison=await inspectBooksDocument(runtime,{kind,documentId:input.documentId,customerId:input.customerId,orderId:q.order_id,referenceNumber:q.id,totalMinor:scope.totalCents,taxMinor:scope.vatCents},transport);
- if(['void','voided','declined','expired'].includes(comparison.status))throw new SignupError('This Books document is no longer current.',409);
+ if(['void','voided','declined','expired','cancel','cancelled'].includes(comparison.status))throw new SignupError('This Books document is no longer current.',409);
  // Recheck after network I/O; the database trigger also protects the final insert.
  await currentQuote(db,q.id,Date.now(),true);
  const existing=await db.prepare('SELECT * FROM quote_books_links WHERE quote_id=? AND kind=?').bind(q.id,kind).first<{id:string;comparison_json:string;receipt_hash:string}>();

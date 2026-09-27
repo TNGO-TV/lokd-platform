@@ -6,7 +6,7 @@ import { indicativeSingleShiftPrice } from "../lib/specialist-pricing";
 
 export const metadata: Metadata = {
   title: "Security Services in South Africa",
-  description: "Controlled Unarmed guarding, Armed site and movement protection, and VIP protection services in South Africa with verified readiness and advance funding.",
+  description: "Unarmed guarding, armed site and movement protection, and VIP protection services in South Africa with verified readiness and advance funding.",
   alternates: { canonical: "/security-services" },
 };
 
@@ -23,7 +23,7 @@ function money(cents: number) {
 
 export default function SecurityServicesPage() {
   return <main className="public-home marketing-page">
-    <ServiceJsonLd name="LOKD Security Services" description="Controlled Unarmed, Armed and VIP protection services for approved South Africa assignments." path="/security-services" />
+    <ServiceJsonLd name="LOKD Security Services" description="Unarmed, armed and VIP protection services for approved South Africa assignments." path="/security-services" />
     <PublicLaunchBar /><PublicHeader active="services" />
     <section className="marketing-hero marketing-hero--dark"><div><p className="public-kicker"><i /> Security matched to the assessed risk</p><h1>A managed protection service.<br /><span>Not an anonymous guard hour.</span></h1><p>LOKD combines the officer with the controls around the work: a clear risk brief, approved orders, verified role eligibility, Operations supervision, relief planning and evidence of service.</p><div className="public-hero-actions"><Link className="public-button public-button--lime" href="/contact">Request an assessment <b>→</b></Link><Link className="public-button public-button--outline" href="/clients">Read the client guide <b>→</b></Link></div></div><aside className="marketing-control-card"><span>CONTROLLED SERVICE RANGE</span><h2>Unarmed · Armed · VIP</h2><dl><div><dt>Area</dt><dd>Assessed nationwide</dd></div><div><dt>Pricing</dt><dd>Quoted after assessment</dd></div><div><dt>Funding</dt><dd>Full total in advance</dd></div><div><dt>Control</dt><dd>Operations-managed</dd></div></dl><p>Specialist work remains subject to service-specific regulatory, competency, equipment, partner and operational evidence.</p></aside></section>
 

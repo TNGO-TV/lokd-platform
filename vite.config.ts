@@ -8,36 +8,48 @@ const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
 
 const { d1, r2 } = hostingConfig;
 
+// Native CF deploy: wrangler.jsonc owns real D1/R2 + cron. Empty vite placeholders
+// so dist/server/wrangler.json does not duplicate DB/BUCKET bindings.
+const nativeCf = process.env.LOKD_NATIVE_CF === "1";
+
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
-const localBindingConfig = {
-  main: "./worker/index.ts",
-  compatibility_flags: ["nodejs_compat"],
-  // Revalidation windows are evaluated every minute. The service is
-  // idempotent, so duplicate scheduler delivery cannot create duplicate
-  // decisions or move an assignment twice.
-  triggers: {
-    crons: ["* * * * *"],
-  },
-  d1_databases: d1
-    ? [
-        {
-          binding: d1,
-          database_name: "site-creator-d1",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
-        },
-      ]
-    : [],
-  r2_buckets: r2
-    ? [
-        {
-          binding: r2,
-          bucket_name: "site-creator-r2",
-        },
-      ]
-    : [],
-};
+const localBindingConfig = nativeCf
+  ? {
+      main: "./worker/index.ts",
+      compatibility_flags: ["nodejs_compat"],
+      // cron owned by wrangler.jsonc only
+      d1_databases: [],
+      r2_buckets: [],
+    }
+  : {
+      main: "./worker/index.ts",
+      compatibility_flags: ["nodejs_compat"],
+      // Revalidation windows are evaluated every minute. The service is
+      // idempotent, so duplicate scheduler delivery cannot create duplicate
+      // decisions or move an assignment twice.
+      triggers: {
+        crons: ["* * * * *"],
+      },
+      d1_databases: d1
+        ? [
+            {
+              binding: d1,
+              database_name: "site-creator-d1",
+              database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+            },
+          ]
+        : [],
+      r2_buckets: r2
+        ? [
+            {
+              binding: r2,
+              bucket_name: "site-creator-r2",
+            },
+          ]
+        : [],
+    };
 
 export default defineConfig(async ({command}) => {
   const sandboxLocal=process.env.LOKD_LOCAL_SANDBOX_COMPLETION==='true';

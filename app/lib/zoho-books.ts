@@ -1,25 +1,95 @@
-import {DeliveryError,providerJson,zohoSession,type OperationalRuntime} from './operational-provider';
+import {DeliveryError,type OperationalRuntime} from './operational-provider';
+import {assertLokdCompany,lokdOdooCall,LOKD_ODOO_COMPANY_ID} from './odoo-lokd';
+
 const object=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
-function providerId(v:unknown){if(typeof v!=='string'||!/^\d{5,30}$/.test(v))throw new DeliveryError('books_reference_invalid','failed');return v;}
+/** Odoo record ids (and legacy Zoho-length ids). */
+function providerId(v:unknown){if(typeof v!=='string'||!/^\d{1,30}$/.test(v))throw new DeliveryError('books_reference_invalid','failed');return v;}
 export function booksAmountMinor(value:unknown){
  if(typeof value!=='string'&&typeof value!=='number')throw new DeliveryError('books_amount_invalid','failed');
  const raw=String(value);if(!/^\d+(\.\d{1,2})?$/.test(raw))throw new DeliveryError('books_amount_invalid','failed');
  const [whole,fraction='']=raw.split('.'),minor=Number(whole)*100+Number(fraction.padEnd(2,'0'));
  if(!Number.isSafeInteger(minor))throw new DeliveryError('books_amount_invalid','failed');return minor;
 }
-export async function inspectBooksOrganization(runtime:OperationalRuntime,transport:typeof fetch=fetch){
- const id=providerId(runtime.LOKD_ZOHO_BOOKS_ORG_ID),session=await zohoSession(runtime,transport);
- const response=await providerJson(session.origin+'/books/v3/organizations/'+id,{headers:session.headers},transport),org=object(response.organization);
- if(response.code!==0||org.organization_id!==id||org.currency_code!=='ZAR'||org.is_org_active!==true)throw new DeliveryError('books_organization_not_verified');
- return {organizationId:id,name:String(org.name??''),currency:'ZAR',country:String(org.country??object(org.address).country??''),timezone:String(org.time_zone??''),nativeCrmSyncVerified:false,session};
+
+function currencyCode(value:unknown){
+ if(Array.isArray(value)&&typeof value[1]==='string')return value[1];
+ if(typeof value==='string')return value;
+ return '';
+}
+function partnerIdOf(value:unknown){
+ if(Array.isArray(value)&&typeof value[0]==='number')return String(value[0]);
+ if(typeof value==='number')return String(value);
+ return '';
+}
+function companyIdOf(value:unknown){
+ if(Array.isArray(value)&&typeof value[0]==='number')return value[0];
+ if(typeof value==='number')return value;
+ return null;
+}
+function textRef(value:unknown){
+ if(typeof value==='string')return value;
+ if(value===false||value==null)return '';
+ return String(value);
+}
+function revisionOk(revision:string){
+ if(!revision)return false;
+ const normalized=revision.includes('T')?revision:revision.replace(' ','T')+'Z';
+ return Number.isFinite(Date.parse(normalized));
 }
 
-// Read-only comparison. No create, send, customer-sync, paid-state or funding API.
-// A matching invoice is not an independent legal/financial approval.
+export async function inspectBooksOrganization(runtime:OperationalRuntime,transport:typeof fetch=fetch){
+ const org=await assertLokdCompany(runtime,transport);
+ return {organizationId:org.organizationId,name:org.name,currency:'ZAR' as const,country:'South Africa',timezone:'',nativeCrmSyncVerified:false};
+}
+
+// Read-only comparison against Odoo company 4. No create, send, paid-state or funding API.
+// estimate → sale.order · invoice → account.move (out_invoice)
 export async function inspectBooksDocument(runtime:OperationalRuntime,expected:{kind:'estimate'|'invoice';documentId:string;customerId:string;orderId:string;totalMinor:number;taxMinor:number;referenceNumber?:string},transport:typeof fetch=fetch){
- const org=await inspectBooksOrganization(runtime,transport),documentId=providerId(expected.documentId),customerId=providerId(expected.customerId);
+ const org=await inspectBooksOrganization(runtime,transport);
+ const documentId=providerId(expected.documentId),customerId=providerId(expected.customerId);
  if(!['estimate','invoice'].includes(expected.kind)||!Number.isSafeInteger(expected.totalMinor)||!Number.isSafeInteger(expected.taxMinor)||expected.totalMinor<0||expected.taxMinor<0)throw new DeliveryError('books_expected_binding_invalid','failed');
- const response=await providerJson(`${org.session.origin}/books/v3/${expected.kind}s/${documentId}?organization_id=${org.organizationId}`,{headers:org.session.headers},transport),doc=object(response[expected.kind]);
- if(response.code!==0||doc[expected.kind+'_id']!==documentId||doc.customer_id!==customerId||doc.reference_number!==(expected.referenceNumber??expected.orderId)||doc.currency_code!=='ZAR'||booksAmountMinor(doc.total)!==expected.totalMinor||booksAmountMinor(doc.tax_total)!==expected.taxMinor||typeof doc.last_modified_time!=='string'||!Number.isFinite(Date.parse(doc.last_modified_time)))throw new DeliveryError('books_document_binding_mismatch','failed');
- return {organizationId:org.organizationId,kind:expected.kind,documentId,customerId,orderId:expected.orderId,referenceNumber:expected.referenceNumber??expected.orderId,number:String(doc[expected.kind+'_number']??''),status:String(doc.status??''),revision:doc.last_modified_time,totalMinor:expected.totalMinor,taxMinor:expected.taxMinor,currency:'ZAR',providerRead:true,independentlyApproved:false,funded:false,issuedByLokd:false};
+ const referenceNumber=expected.referenceNumber??expected.orderId;
+ const idNum=Number(documentId);
+ if(!Number.isSafeInteger(idNum)||idNum<=0)throw new DeliveryError('books_reference_invalid','failed');
+
+ if(expected.kind==='estimate'){
+  const rows=await lokdOdooCall<Array<Record<string,unknown>>>(runtime,'sale.order','read',{
+   ids:[idNum],
+   fields:['id','name','state','partner_id','company_id','client_order_ref','amount_total','amount_tax','currency_id','write_date'],
+  },transport);
+  const doc=object(rows?.[0]);
+  const currency=currencyCode(doc.currency_id);
+  const revision=typeof doc.write_date==='string'?doc.write_date:'';
+  if(
+   Number(doc.id)!==idNum||
+   companyIdOf(doc.company_id)!==LOKD_ODOO_COMPANY_ID||
+   partnerIdOf(doc.partner_id)!==customerId||
+   textRef(doc.client_order_ref)!==referenceNumber||
+   currency!=='ZAR'||
+   booksAmountMinor(doc.amount_total)!==expected.totalMinor||
+   booksAmountMinor(doc.amount_tax)!==expected.taxMinor||
+   !revisionOk(revision)
+  )throw new DeliveryError('books_document_binding_mismatch','failed');
+  return {organizationId:org.organizationId,kind:expected.kind,documentId,customerId,orderId:expected.orderId,referenceNumber,number:textRef(doc.name)||documentId,status:textRef(doc.state)||'draft',revision,totalMinor:expected.totalMinor,taxMinor:expected.taxMinor,currency:'ZAR' as const,providerRead:true,independentlyApproved:false,funded:false,issuedByLokd:false};
+ }
+
+ const rows=await lokdOdooCall<Array<Record<string,unknown>>>(runtime,'account.move','read',{
+  ids:[idNum],
+  fields:['id','name','state','move_type','partner_id','company_id','ref','amount_total','amount_tax','currency_id','write_date'],
+ },transport);
+ const doc=object(rows?.[0]);
+ const currency=currencyCode(doc.currency_id);
+ const revision=typeof doc.write_date==='string'?doc.write_date:'';
+ if(
+  Number(doc.id)!==idNum||
+  doc.move_type!=='out_invoice'||
+  companyIdOf(doc.company_id)!==LOKD_ODOO_COMPANY_ID||
+  partnerIdOf(doc.partner_id)!==customerId||
+  textRef(doc.ref)!==referenceNumber||
+  currency!=='ZAR'||
+  booksAmountMinor(doc.amount_total)!==expected.totalMinor||
+  booksAmountMinor(doc.amount_tax)!==expected.taxMinor||
+  !revisionOk(revision)
+ )throw new DeliveryError('books_document_binding_mismatch','failed');
+ return {organizationId:org.organizationId,kind:expected.kind,documentId,customerId,orderId:expected.orderId,referenceNumber,number:textRef(doc.name)||documentId,status:textRef(doc.state)||'draft',revision,totalMinor:expected.totalMinor,taxMinor:expected.taxMinor,currency:'ZAR' as const,providerRead:true,independentlyApproved:false,funded:false,issuedByLokd:false};
 }

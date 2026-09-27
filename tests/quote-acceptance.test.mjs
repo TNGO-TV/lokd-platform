@@ -214,14 +214,25 @@ test('new booking and quote emails use Operations and client portals (provider t
 
 
 // All Books transport below is simulated. No external financial records are written.
-const booksRuntime={LOKD_ZOHO_ACCOUNTS_ORIGIN:'https://accounts.zoho.com',LOKD_ZOHO_API_ORIGIN:'https://www.zohoapis.com',LOKD_ZOHO_CLIENT_ID:'fixture',LOKD_ZOHO_CLIENT_SECRET:'fixture',LOKD_ZOHO_REFRESH_TOKEN:'fixture',LOKD_ZOHO_BOOKS_ORG_ID:'3456789'};
+const booksRuntime={LOKD_ODOO_API_KEY:'fixture-key',LOKD_ODOO_COMPANY_ID:'4',LOKD_ODOO_JSON2_ORIGIN:'https://tngo-tv.odoo.com'};
 function booksTransport(q,overrides={},beforeDocument){const scope=JSON.parse(q.source_json);return async(url,init)=>{
- if(url.endsWith('/oauth/v2/token'))return Response.json({access_token:'fixture',api_domain:'https://www.zohoapis.com'});
- assert.notEqual(init.method,'POST');
- if(url.endsWith('/organizations/3456789'))return Response.json({code:0,organization:{organization_id:'3456789',currency_code:'ZAR',is_org_active:true}});
+ assert.equal(init.method,'POST');
+ const body=JSON.parse(init.body);assert.deepEqual(body.context.allowed_company_ids,[4]);
+ if(url.endsWith('/res.company/search_read'))return Response.json([{id:4,name:'LOKD Security',currency_id:[38,'ZAR']}]);
  if(beforeDocument)await beforeDocument();
- const kind=url.includes('/invoices/')?'invoice':'estimate';
- return Response.json({code:0,[kind]:{[kind+'_id']:'1234567',[kind+'_number']:'FIXTURE-001',customer_id:'2345678',reference_number:q.id,currency_code:'ZAR',total:scope.totalCents/100,tax_total:scope.vatCents/100,last_modified_time:'2026-09-22T12:00:00+02:00',status:'draft',...overrides}});
+ const estimate=url.endsWith('/sale.order/read');
+ assert.ok(estimate||url.endsWith('/account.move/read'));
+ const base=estimate
+  ?{id:1234567,name:'FIXTURE-001',state:'draft',partner_id:[2345678,'Customer'],company_id:[4,'LOKD Security'],client_order_ref:q.id,amount_total:scope.totalCents/100,amount_tax:scope.vatCents/100,currency_id:[38,'ZAR'],write_date:'2026-09-22 10:00:00'}
+  :{id:1234567,name:'FIXTURE-001',state:'draft',move_type:'out_invoice',partner_id:[2345678,'Customer'],company_id:[4,'LOKD Security'],ref:q.id,amount_total:scope.totalCents/100,amount_tax:scope.vatCents/100,currency_id:[38,'ZAR'],write_date:'2026-09-22 10:00:00'};
+ if('reference_number' in overrides)base[estimate?'client_order_ref':'ref']=overrides.reference_number;
+ if('customer_id' in overrides)base.partner_id=[Number(overrides.customer_id),'Other'];
+ if('currency_code' in overrides)base.currency_id=[1,overrides.currency_code];
+ if('total' in overrides)base.amount_total=overrides.total;
+ if('tax_total' in overrides)base.amount_tax=overrides.tax_total;
+ if('last_modified_time' in overrides)base.write_date=overrides.last_modified_time;
+ for(const [k,v] of Object.entries(overrides)){if(!['reference_number','customer_id','currency_code','total','tax_total','last_modified_time'].includes(k))base[k]=v;}
+ return Response.json([base]);
 };}
 const booksInput=q=>({quoteId:q.id,kind:'estimate',documentId:'1234567',customerId:'2345678',customerConfirmed:true});
 test('Books links retain exact accepted revision, replay safely and become historical after cancellation',async()=>{
