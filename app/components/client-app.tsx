@@ -236,7 +236,7 @@ export default function ClientApp() {
     setBookingCommandId(newBookingCommandId());
     setRequestOpen(false);
     flash(
-      "Request saved. Operations must approve the site, risk plan and post orders before the payment step.",
+      "Request saved. Operations reviews the site, risk plan and post orders with your quote.",
     );
   }
 
@@ -407,19 +407,12 @@ export default function ClientApp() {
             <small>Synthetic full-service estimate</small>
             <dl>
               <div>
-                <dt>Funding gate</dt>
+                <dt>Status</dt>
                 <dd>
                   <span
-                    className={
-                      primaryBooking?.fundingStatus === "paid_in_full"
-                        ? "paid-status"
-                        : "pill tone-amber"
-                    }
+                    className={primaryBooking ? "paid-status" : "pill tone-amber"}
                   >
-                    {primaryBooking?.fundingStatus === "paid_in_full"
-                      ? "✓ Simulated"
-                      : (primaryBooking?.fundingStatus?.replaceAll("_", " ") ??
-                        "Not started")}
+                    {primaryBooking ? "On file" : "Not started"}
                   </span>
                 </dd>
               </div>
@@ -483,18 +476,6 @@ export default function ClientApp() {
           </a>
         </section>
 
-        <section className="contract-rule-strip">
-          <span>✓</span>
-          <div>
-            <strong>Cleared prepayment gate passed before matching</strong>
-            <p>
-              This demonstrates the intended control only. No card was charged,
-              invoice issued or bank receipt confirmed. LOKD offers no credit
-              terms and cannot activate work against an unpaid balance.
-            </p>
-          </div>
-        </section>
-
         <section className="client-request-pipeline">
           <div className="card-title">
             <div>
@@ -526,14 +507,18 @@ export default function ClientApp() {
                 </span>
                 <span>
                   <em
-                    className={`pill ${booking.fundingStatus === "paid_in_full" ? "tone-green" : "tone-amber"}`}
+                    className={`pill ${booking.status === "staffed" || booking.status === "offered" ? "tone-green" : "tone-amber"}`}
                   >
                     {booking.status === "site_review" ||
                     booking.status === "risk_review"
                       ? "Site plan review"
-                      : booking.fundingStatus === "paid_in_full"
-                        ? "Payment confirmed"
-                        : "Awaiting payment"}
+                      : booking.status === "staffed"
+                        ? "Assigned"
+                        : booking.status === "partially_staffed"
+                          ? "Partly assigned"
+                          : booking.status === "matching" || booking.status === "offered"
+                            ? "Matching"
+                            : "Request saved"}
                   </em>
                   <small>
                     {booking.status === "offered"
@@ -559,7 +544,7 @@ export default function ClientApp() {
                 <strong>Create the first live demo request</strong>
                 <p>
                   The request will persist here, then move to Operations for
-                  simulated payment confirmation and controlled matching.
+                  review and controlled matching.
                 </p>
               </div>
             </div>
@@ -1093,7 +1078,7 @@ export default function ClientApp() {
                 </ul>
                 {risk.manualReview && (
                   <strong>
-                    Operations review required before payment and matching.
+                    Operations reviews this recommendation with the quote.
                   </strong>
                 )}
               </article>
@@ -1147,7 +1132,7 @@ export default function ClientApp() {
                   <p>
                     Static protection, movement work, driving and protective
                     teams have different labour, planning, vehicle and command
-                    costs. Operations confirms the final scope before payment.
+                    costs. Operations confirms the final scope in your quote.
                   </p>
                   <div className="risk-input-grid">
                     <label>
@@ -1386,25 +1371,10 @@ export default function ClientApp() {
               {quote.pricingStatus === "partner_review_required" && (
                 <p className="pricing-review-note">
                   Armoured partner pricing is a conservative placeholder. A
-                  current supplier quote must replace it before payment can be
-                  accepted.
+                  current supplier quote must replace it before that figure is
+                  used.
                 </p>
               )}
-            </div>
-            <div className="payment-gate">
-              <span>i</span>
-              <p>
-                <strong>
-                  {quote.manualReview
-                    ? "Risk plan first, payment second."
-                    : engagementModel === "fixed"
-                      ? "Full-term cleared prepayment required."
-                      : "Shift cleared prepayment required."}
-                </strong>{" "}
-                No credit terms are available. No officer offer is released
-                until the plan is approved where required and LOKD independently
-                records the full payment as cleared and reconciled.
-              </p>
             </div>
             <div className="drawer-actions">
               <button

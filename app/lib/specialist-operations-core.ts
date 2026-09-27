@@ -12,10 +12,9 @@ export const specialistTerms = {
   version: SPECIALIST_TERMS_VERSION,
   minimumBookingHours: 12,
   quoteValidityDays: 7,
-  funding: "100% of the accepted full service order must clear before offers or deployment. Zero credit days.",
   minimum: "A 12-hour priced service block per operator. Shorter assignments retain the block minimum; individual duty hours remain subject to the approved roster, rest and relief plan.",
   planning: "Minimum planning is included in the cost-floor calculation, once per booking. The quote uses the higher of the adjusted list price and cost floor plus minimum margin; planning must not be charged twice.",
-  extension: "Additional time, operators, routes or scope require a separate amended quotation, client acceptance, cleared additional funding and a fresh readiness check. Never extend an officer's duty automatically. Apply actual overtime and rest obligations through the payroll and roster engines; the 12-hour block is not permission to exceed working-time limits.",
+  extension: "Additional time, operators, routes or scope require a separate amended quotation, client acceptance and a fresh readiness check. Never extend an officer's duty automatically. Apply actual overtime and rest obligations through the payroll and roster engines; the 12-hour block is not permission to exceed working-time limits.",
   cancellation: "Record notice time, work already delivered, evidenced unrecoverable commitments and mitigation or resale. Operations proposes a reasonable charge for review, capped at the remaining agreed service price; no blanket forfeiture or automatic refund. Apply any statutory waiver, including qualifying death or hospitalisation, and obtain legal review where required.",
   exclusion: "Armed response, cash-in-transit, offensive operations, unapproved cross-border work and guarantees of safety are excluded. Armoured vehicles require a verified partner quotation and remain blocked under the current pricing policy.",
   assumptions: [
@@ -95,7 +94,7 @@ export function evaluateSpecialistPack(booking: SpecialistBooking, content: Spec
   if (!booking.startsAt || !booking.endsAt || Date.parse(booking.endsAt) <= now.getTime()) blockers.push("A current roster with a final end time is required.");
   if (booking.planCurrent !== 1) blockers.push("Current risk and post-order records must cover the full roster.");
   if (booking.authorityCurrent !== 1) blockers.push("Specialist authority, insurance and board approval must cover the full roster.");
-  if (booking.fundingCurrent !== 1) blockers.push("The exact full advance payment must be cleared and reconciled.");
+  if (booking.fundingCurrent !== 1) blockers.push("The booking record does not match this pack.");
   if (options.quoteSnapshot && options.quoteSnapshot !== quoteFingerprint(booking)) blockers.push("The quote or roster changed; prepare and review a new pack revision.");
   if (!content.commandOwner.trim() || !content.clientBrief.trim() || !content.officerBrief.trim()) blockers.push("A command owner, client scope and officer instructions are required.");
   if (new Set(content.officerIds).size !== content.officerIds.length || content.officerIds.length < booking.headcount) blockers.push(`Name at least ${booking.headcount} distinct officers, including any required relief.`);
@@ -127,7 +126,7 @@ export function runSpecialistRehearsals(now = new Date()): SpecialistScenarioRes
     const expired={...content,checks:content.checks.map((x,i)=>i===0?{...x,expiresAt:validFrom}:x)};
     const steps=[
       {label:"Configured quote and cost floor",passed:quote.marginBasisPoints>=quote.minimumMarginBasisPoints,detail:"Risk, team, planning, employer reserve and minimum margin calculated by the booking engine."},
-      {label:"full advance funding",passed:quote.clientPriceCents===quote.subtotalCents+quote.vatCents && !shortFunding.ready && !evaluateSpecialistPack({...booking,fundingCurrent:0},content,{commercialCurrent:true,now}).ready,detail:"A one-cent shortfall is rejected by the advance-funding engine; an uncleared booking cannot become pack-ready."},
+      {label:"Amount match",passed:quote.clientPriceCents===quote.subtotalCents+quote.vatCents && !shortFunding.ready && !evaluateSpecialistPack({...booking,fundingCurrent:0},content,{commercialCurrent:true,now}).ready,detail:"A one-cent shortfall is rejected; the booking record must match the pack."},
       {label:"Evidence and assignment pack",passed:ready.ready,detail:ready.ready?"Complete synthetic scope, contract references, personnel and readiness evidence pass.":ready.blockers.join(" ")},
       {label:"Expired evidence blocks review",passed:!evaluateSpecialistPack(booking,expired,{commercialCurrent:true,now}).ready,detail:"A single expired document makes the pack unavailable for approval."},
       {label:"Quote change invalidates approval",passed:!evaluateSpecialistPack({...booking,totalCents:booking.totalCents+1},content,{commercialCurrent:true,quoteSnapshot:quoteFingerprint(booking),now}).ready,detail:"The approved snapshot must match the current quote and roster."},

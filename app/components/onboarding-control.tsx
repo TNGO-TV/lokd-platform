@@ -112,8 +112,7 @@ export function OnboardingControl({
         <div>
           <strong>Production boundary enforced</strong>
           <p>
-            Zero credit days. Cleared advance funding only. Payroll settlement,
-            payslip issue and disbursement remain database-locked.
+            Payroll settlement, payslip issue and disbursement remain database-locked.
           </p>
         </div>
         <em>SIMULATION ONLY</em>

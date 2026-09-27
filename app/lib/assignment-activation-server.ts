@@ -581,7 +581,7 @@ export async function evaluateAssignmentActivation(db: D1Database, request: Assi
     if (revisionBefore !== revisionAfter) continue;
     const result = evaluateActivationFacts(facts);
     if (specialistPack && specialistPack.serviceCode !== "standard_unarmed" && specialistPack.ready !== 1) {
-      result.blockers.push({code:"SPECIALIST_APPROVED_PACK_REQUIRED",category:"site",detail:"A current independently approved specialist pack must name this officer and cover the quote, roster, evidence and full cleared funding."});
+      result.blockers.push({code:"SPECIALIST_APPROVED_PACK_REQUIRED",category:"site",detail:"A current independently approved specialist pack must name this officer and cover the quote, roster and evidence."});
       result.ready=false;
     }
     const hashFacts = { ...facts, evaluatedAt: undefined };

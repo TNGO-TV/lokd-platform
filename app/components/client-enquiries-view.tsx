@@ -133,7 +133,7 @@ export default function ClientEnquiriesView({ flash }: { flash: (message: string
 
   return <>
     <section className="command-heading enquiry-queue-heading">
-      <div><p className="eyebrow">Authenticated Operations intake</p><h1>Client enquiries</h1><p>Public site briefs only. No enquiry creates a quotation, booking, credit facility, officer offer or deployment.</p></div>
+      <div><p className="eyebrow">Authenticated Operations intake</p><h1>Client enquiries</h1><p>Public site briefs only. No enquiry creates a quotation, booking, officer offer or deployment.</p></div>
       <button className="secondary-button" disabled={loading} onClick={() => void load()}>↻ Refresh queue</button>
     </section>
 
@@ -141,7 +141,6 @@ export default function ClientEnquiriesView({ flash }: { flash: (message: string
       <article><span>New</span><strong>{counts.new}</strong><small>Awaiting an owner</small></article>
       <article><span>Triaged</span><strong>{counts.triaged}</strong><small>Owned by Operations</small></article>
       <article><span>Closed</span><strong>{counts.closed}</strong><small>Resolution recorded</small></article>
-      <article className="enquiry-zero-credit"><span>Commercial boundary</span><strong>0 days</strong><small>Cleared advance funding only</small></article>
     </section>
 
     <section className="enquiry-queue-panel">
