@@ -145,7 +145,7 @@ export const specialistProfiles: Record<SpecialistServiceCode, SpecialistProfile
     serviceType: "VIP",
     label: "Unarmed close protection",
     publicLabel: "VIP protection · unarmed",
-    description: "An individually assessed protection assignment with advance planning and movement coordination.",
+    description: "An individually assessed protection assignment with coordinated planning and movement.",
     minimumTeamSize: 1,
     maximumTeamSize: 4,
     officerShiftCents: 450_000,

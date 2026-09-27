@@ -486,7 +486,7 @@ export default function ClientApp() {
         <section className="contract-rule-strip">
           <span>✓</span>
           <div>
-            <strong>Cleared prepayment gate passed before matching</strong>
+            <strong>Commercial readiness gate passed before matching</strong>
             <p>
               This demonstrates the intended control only. No card was charged,
               invoice issued or bank receipt confirmed. LOKD offers no credit
@@ -1398,8 +1398,8 @@ export default function ClientApp() {
                   {quote.manualReview
                     ? "Risk plan first, payment second."
                     : engagementModel === "fixed"
-                      ? "Full-term cleared prepayment required."
-                      : "Shift cleared prepayment required."}
+                      ? "Full-term commercial readiness required."
+                      : "Shift commercial readiness required."}
                 </strong>{" "}
                 No credit terms are available. No officer offer is released
                 until the plan is approved where required and LOKD independently

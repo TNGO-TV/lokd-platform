@@ -228,14 +228,14 @@ function SpecialistPricingControl({ state }: { state: ReturnType<typeof usePilot
   ) ?? [];
   return <>
     <section className="command-heading specialist-pricing-heading">
-      <div><p className="eyebrow">Versioned commercial control</p><h1>Armed &amp; VIP pricing</h1><p>Cost floor first, then the minimum margin. No VAT is charged. The full accepted total must clear before service can start.</p></div>
+      <div><p className="eyebrow">Versioned commercial control</p><h1>Armed &amp; VIP pricing</h1><p>Cost floor first, then the minimum margin. No VAT is charged. The accepted total and readiness checks must be confirmed before service can start.</p></div>
       <span className="specialist-policy-chip">LOKD-SPECIALIST-2026.09-v2-no-vat</span>
     </section>
     <section className="specialist-pricing-summary">
       <article><span>VAT</span><strong>Not charged</strong><small>No VAT added to new quotes</small></article>
       <article><span>Armed margin floor</span><strong>30–32%</strong><small>Service revenue</small></article>
       <article><span>VIP margin floor</span><strong>35–38%</strong><small>Service revenue</small></article>
-      <article><span>Credit days</span><strong>0</strong><small>Cleared advance only</small></article>
+      <article><span>Credit days</span><strong>0</strong><small>Commercial readiness only</small></article>
     </section>
     <section className="specialist-model-grid">
       {serviceCodes.map((code) => {

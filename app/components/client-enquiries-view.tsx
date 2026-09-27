@@ -141,7 +141,7 @@ export default function ClientEnquiriesView({ flash }: { flash: (message: string
       <article><span>New</span><strong>{counts.new}</strong><small>Awaiting an owner</small></article>
       <article><span>Triaged</span><strong>{counts.triaged}</strong><small>Owned by Operations</small></article>
       <article><span>Closed</span><strong>{counts.closed}</strong><small>Resolution recorded</small></article>
-      <article className="enquiry-zero-credit"><span>Commercial boundary</span><strong>0 days</strong><small>Cleared advance funding only</small></article>
+      <article className="enquiry-zero-credit"><span>Commercial boundary</span><strong>0 days</strong><small>Commercial readiness only</small></article>
     </section>
 
     <section className="enquiry-queue-panel">

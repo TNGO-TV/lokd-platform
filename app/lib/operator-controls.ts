@@ -122,7 +122,7 @@ export type AdvanceFundingInput = {
 export function advanceFundingDecision(input: AdvanceFundingInput) {
   const blockers: string[] = [];
   if (input.creditTermsDays !== 0) blockers.push("LOKD does not offer credit terms.");
-  if (input.fundingModel !== "advance_only") blockers.push("The booking is not configured for advance-only funding.");
+  if (input.fundingModel !== "advance_only") blockers.push("The booking is not configured for commercial-readiness funding.");
   if (!Number.isSafeInteger(input.bookingAmountCents) || input.bookingAmountCents < 1) blockers.push("The booking amount is invalid.");
   if (input.expectedAmountCents !== input.bookingAmountCents) blockers.push("The funding expectation does not equal the full booking amount.");
   if (input.clearedAmountCents !== input.bookingAmountCents) blockers.push("The full booking amount has not cleared.");

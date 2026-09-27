@@ -15,7 +15,7 @@ export function signupNextStep(record: SignupRecord) {
   if (!record.accountLinked) return 'Link this submission to your signed-in account to follow its progress and send corrections.';
   if (record.status === 'needs_information') return 'Read the Operations request, correct the details below and resubmit for review.';
   if (record.status === 'reviewed') return record.kind === 'client'
-    ? 'Operations has reviewed your intake. Organisation authority, the service plan, approved agreements and funding still need to be completed before service can start.'
+    ? 'Operations has reviewed your intake. Organisation authority, the service plan and approved agreements still need to be completed before service can start.'
     : 'Operations has reviewed your intake. This is not work approval. The requirements for your registration or training pathway still apply.';
   return 'Operations will review your submission. You can correct your details here while you wait.';
 }

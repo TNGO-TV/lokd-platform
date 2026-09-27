@@ -67,6 +67,6 @@ export function PublicFooter() {
       <nav aria-label="LOKD workspaces"><h2>Portals</h2><a href={CLIENT_PORTAL_URL}>Client portal</a><a href={OFFICER_PORTAL_URL}>Officer portal</a><a href={OPERATIONS_PORTAL_URL}>Operations portal</a><Link href="/join">Officer applications</Link></nav>
     </div>
     <div className="site-footer-training"><strong>Training centres opening soon</strong><p>{TRAINING_CENTRES.join(" · ")}</p></div>
-    <div className="site-footer-bottom"><small>© {new Date().getFullYear()} {COMPANY_NAME}</small><nav aria-label="Legal"><Link href="/terms-and-conditions">Terms and conditions</Link><Link href="/terms">Terms of use</Link><Link href="/privacy">Privacy notice</Link></nav><p>Service availability is assessed locally. Deployment requires approval and advance funding.</p></div>
+    <div className="site-footer-bottom"><small>© {new Date().getFullYear()} {COMPANY_NAME}</small><nav aria-label="Legal"><Link href="/terms-and-conditions">Terms and conditions</Link><Link href="/terms">Terms of use</Link><Link href="/privacy">Privacy notice</Link></nav><p>Service availability is assessed locally. Deployment is confirmed after Operations review.</p></div>
   </footer>;
 }

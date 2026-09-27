@@ -95,7 +95,7 @@ export function evaluateSpecialistPack(booking: SpecialistBooking, content: Spec
   if (!booking.startsAt || !booking.endsAt || Date.parse(booking.endsAt) <= now.getTime()) blockers.push("A current roster with a final end time is required.");
   if (booking.planCurrent !== 1) blockers.push("Current risk and post-order records must cover the full roster.");
   if (booking.authorityCurrent !== 1) blockers.push("Specialist authority, insurance and board approval must cover the full roster.");
-  if (booking.fundingCurrent !== 1) blockers.push("The exact full advance payment must be cleared and reconciled.");
+  if (booking.fundingCurrent !== 1) blockers.push("Commercial readiness must be confirmed and reconciled for the full service total.");
   if (options.quoteSnapshot && options.quoteSnapshot !== quoteFingerprint(booking)) blockers.push("The quote or roster changed; prepare and review a new pack revision.");
   if (!content.commandOwner.trim() || !content.clientBrief.trim() || !content.officerBrief.trim()) blockers.push("A command owner, client scope and officer instructions are required.");
   if (new Set(content.officerIds).size !== content.officerIds.length || content.officerIds.length < booking.headcount) blockers.push(`Name at least ${booking.headcount} distinct officers, including any required relief.`);
@@ -127,7 +127,7 @@ export function runSpecialistRehearsals(now = new Date()): SpecialistScenarioRes
     const expired={...content,checks:content.checks.map((x,i)=>i===0?{...x,expiresAt:validFrom}:x)};
     const steps=[
       {label:"Configured quote and cost floor",passed:quote.marginBasisPoints>=quote.minimumMarginBasisPoints,detail:"Risk, team, planning, employer reserve and minimum margin calculated by the booking engine."},
-      {label:"full advance funding",passed:quote.clientPriceCents===quote.subtotalCents+quote.vatCents && !shortFunding.ready && !evaluateSpecialistPack({...booking,fundingCurrent:0},content,{commercialCurrent:true,now}).ready,detail:"A one-cent shortfall is rejected by the advance-funding engine; an uncleared booking cannot become pack-ready."},
+      {label:"commercial readiness",passed:quote.clientPriceCents===quote.subtotalCents+quote.vatCents && !shortFunding.ready && !evaluateSpecialistPack({...booking,fundingCurrent:0},content,{commercialCurrent:true,now}).ready,detail:"A one-cent shortfall is rejected by the commercial-readiness engine; an uncleared booking cannot become pack-ready."},
       {label:"Evidence and assignment pack",passed:ready.ready,detail:ready.ready?"Complete synthetic scope, contract references, personnel and readiness evidence pass.":ready.blockers.join(" ")},
       {label:"Expired evidence blocks review",passed:!evaluateSpecialistPack(booking,expired,{commercialCurrent:true,now}).ready,detail:"A single expired document makes the pack unavailable for approval."},
       {label:"Quote change invalidates approval",passed:!evaluateSpecialistPack({...booking,totalCents:booking.totalCents+1},content,{commercialCurrent:true,quoteSnapshot:quoteFingerprint(booking),now}).ready,detail:"The approved snapshot must match the current quote and roster."},

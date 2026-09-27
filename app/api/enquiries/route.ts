@@ -84,7 +84,7 @@ export async function submitClientEnquiry(request: Request,database?:D1Database)
       : "scheduled_unarmed_fixed_site";
     if (!serviceTypes.has(serviceType)) throw new EnquiryError("Choose a valid security service.");
     const message = clean(input.message, "Site brief", 20, 2_000);
-    if (input.advanceFundingAcknowledged !== true) throw new EnquiryError("Confirm that LOKD offers no credit terms and requires cleared advance funding.");
+    if (input.advanceFundingAcknowledged !== true) throw new EnquiryError("Confirm that you understand submitting an enquiry does not confirm service until Operations reviews fit and commercial terms.");
     if (input.privacyConsent !== true) throw new EnquiryError("Consent is required to save and respond to this enquiry.");
 
     const db = database??getDb();

@@ -151,10 +151,10 @@ export function evaluateControlledPilotRehearsal(facts: RehearsalFacts) {
     ),
     step(
       "ADVANCE_FUNDING",
-      "Cleared advance funding",
+      "Commercial readiness confirmed",
       funding.ready,
       funding.ready
-        ? "The full synthetic service amount is cleared and reconciled with zero credit days before offer release."
+        ? "The full synthetic service amount is confirmed and reconciled with zero credit days before offer release."
         : funding.blockers.join(" "),
     ),
     step(

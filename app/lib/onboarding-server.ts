@@ -56,7 +56,7 @@ function checklistSeed() {
   return [
     [CLIENT_CASE_ID, "CLIENT_ENTITY", "Client entity and authorised contact", "identity", 10],
     [CLIENT_CASE_ID, "CLIENT_TERMS", "Client agreement variables and signatory", "contracts", 20],
-    [CLIENT_CASE_ID, "CLIENT_FUNDING", "Advance-only funding instruction", "funding", 30],
+    [CLIENT_CASE_ID, "CLIENT_FUNDING", "Commercial terms instruction", "funding", 30],
     [CLIENT_CASE_ID, "CLIENT_ACCESS", "Client workspace access", "access", 40],
     [OFFICER_CASE_ID, "OFFICER_IDENTITY", "Identity verification rehearsal", "identity", 10],
     [OFFICER_CASE_ID, "OFFICER_PSIRA", "PSiRA grade and expiry rehearsal", "compliance", 20],
