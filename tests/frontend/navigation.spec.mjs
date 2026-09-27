@@ -78,7 +78,6 @@ test('public routes retain mobile navigation and one exact active destination',a
   await expect(footer.getByRole('link',{name:'Terms and conditions',exact:true})).toHaveAttribute('href','/terms-and-conditions');
   await expect(footer.getByRole('link',{name:'Terms of use',exact:true})).toHaveAttribute('href','/terms');
   await expect(footer.getByRole('link',{name:'Privacy notice',exact:true})).toHaveAttribute('href','/privacy');
-  await expect(footer).toContainText('Training centres opening soon');
   await page.evaluate(()=>document.fonts.ready);
   expect(await page.evaluate(()=>Array.from(document.fonts).some(font=>font.family==='Inter Variable'&&font.status==='loaded'))).toBe(true);
   await fits(page);if(['/','/armed-security','/contact'].includes(path))await shot(page,'public-'+(path.slice(1)||'home'),info);

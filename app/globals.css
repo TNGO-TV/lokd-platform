@@ -2704,13 +2704,9 @@ button { color: inherit; }
 .site-footer nav a span { display: block; color: #58665d; font-size: .875rem; }
 .site-footer .public-social-links { display: flex; gap: 10px; }
 .site-footer .public-social-links a { width: 44px; height: 44px; background: #f1f4ef; border: 1px solid #dce2de; }
-.site-footer-training { margin-top: 36px; padding: 24px 0; border-block: 1px solid #dce2de; }
-.site-footer-training strong { font-size: .9375rem; font-weight: 600; }
-.site-footer-training p { margin: 6px 0 0; color: #4e5a53; }
 .site-footer-bottom { padding-top: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px 24px; }
 .site-footer-bottom small { font-size: .875rem; }
 .site-footer-bottom nav { flex-direction: row; gap: 24px; flex-wrap: wrap; }
-.site-footer-bottom p { flex-basis: 100%; margin: 0; color: #58665d; font-size: .875rem; }
 .contact-company { border-top: 1px solid #dce2de; padding-top: 24px; margin-top: 28px; }
 .contact-company h2 { font-size: 1.25rem; margin-bottom: 12px; }
 .contact-company address { font-style: normal; line-height: 1.65; }
