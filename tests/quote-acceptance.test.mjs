@@ -202,7 +202,7 @@ test('changed post scope or minimum grade invalidates earlier client acceptance'
 test('new booking and quote emails use Operations and client portals (provider transport simulated)',async()=>{
  const x=await setup(),{quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),messages=[];
  const {runOperationalDelivery}=await import('../app/lib/operational-delivery.ts');
- await runOperationalDelivery(x.db,{LOKD_OPERATIONAL_DELIVERY_ENABLED:'true',LOKD_DELIVERY_SOURCE_ALLOWLIST:[x.orderId,quoteId].join(','),LOKD_DELIVERY_EMAIL_ALLOWLIST:[x.applicant.email,'team@example.test'].join(','),LOKD_TEAM_EMAIL:'team@example.test',LOKD_EMAIL_PROVIDER:'resend',LOKD_EMAIL_FROM:'notices@example.test',LOKD_QUOTE_EMAIL_FROM:'quotes@example.test',RESEND_API_KEY:'synthetic-only'},{now:()=>Date.now()+1000,verifiedEmail:async()=>x.applicant.email,transport:async(url,init)=>{messages.push(JSON.parse(init.body));return Response.json({id:'mail-'+messages.length});}});
+ await runOperationalDelivery(x.db,{LOKD_OPERATIONAL_DELIVERY_ENABLED:'true',LOKD_DELIVERY_SOURCE_ALLOWLIST:[x.orderId,quoteId].join(','),LOKD_DELIVERY_EMAIL_ALLOWLIST:[x.applicant.email,'team@example.test'].join(','),LOKD_TEAM_EMAIL:'team@example.test',LOKD_EMAIL_PROVIDER:'smtp',LOKD_EMAIL_FROM:'notices@example.test',LOKD_QUOTE_EMAIL_FROM:'quotes@example.test',LOKD_SMTP_HOST:'mail.lokd.co.za',LOKD_SMTP_PORT:'587',LOKD_SMTP_USER:'notices@example.test',LOKD_SMTP_PASSWORD:'synthetic-only',LOKD_SMTP_RELAY_URL:'https://mail-relay.example.test/smtp',LOKD_SMTP_RELAY_TOKEN:'synthetic-relay-token'},{now:()=>Date.now()+1000,verifiedEmail:async()=>x.applicant.email,transport:async(url,init)=>{messages.push(JSON.parse(init.body));return Response.json({provider_id:'smtp:mail-'+messages.length+':250 ok'});}});
  assert.equal(messages.length,2);
  const booking=messages.find(m=>m.subject==='LOKD service order prepared'),quote=messages.find(m=>m.subject==='Your LOKD quote is ready to review');
  assert.equal(booking.from,'notices@example.test');assert.equal(quote.from,'quotes@example.test');
@@ -259,7 +259,7 @@ test('Books rejects wrong quote revision, customer, amount, currency and changed
  assert.equal(x.database.prepare('SELECT count(*) AS n FROM quote_books_links').get().n,0);
  await linkQuoteBooks(x.db,booksRuntime,x.owner,input,booksTransport(q));
  await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,input,booksTransport(q,{last_modified_time:'2026-09-23T12:00:00+02:00'})),/revision changed/);
- await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,{...input,kind:'invoice',customerId:'9999999'},booksTransport(q,{customer_id:'9999999'})),/same Books customer/);
+ await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,{...input,kind:'invoice',customerId:'9999999'},booksTransport(q,{customer_id:'9999999'})),/same Odoo customer/);
  x.database.close();
 });
 test('Books network race and direct duplicate document claims cannot attach stale or conflicting links',async()=>{
@@ -268,11 +268,11 @@ test('Books network race and direct duplicate document claims cannot attach stal
  assert.equal(x.database.prepare('SELECT count(*) AS n FROM quote_books_links').get().n,0);x.database.close();
 });
 test('Books API denies anonymous, non-owner and cross-origin link writes',async()=>{
- const {GET,POST}=await import('../app/api/zoho-books/route.ts');
- assert.equal((await GET(new Request('https://operations.lokd.co.za/api/zoho-books?links=true'))).status,401);
+ const {GET,POST}=await import('../app/api/odoo-books/route.ts');
+ assert.equal((await GET(new Request('https://operations.lokd.co.za/api/odoo-books?links=true'))).status,401);
  const headers={'x-lokd-verified-user-id':'ordinary-client','x-lokd-verified-email':'client@example.test'};
- assert.equal((await GET(new Request('https://operations.lokd.co.za/api/zoho-books?links=true',{headers}))).status,403);
- assert.equal((await POST(new Request('https://operations.lokd.co.za/api/zoho-books',{method:'POST',headers:{...headers,origin:'https://attacker.example','content-type':'application/json'},body:'{}'}))).status,403);
+ assert.equal((await GET(new Request('https://operations.lokd.co.za/api/odoo-books?links=true',{headers}))).status,403);
+ assert.equal((await POST(new Request('https://operations.lokd.co.za/api/odoo-books',{method:'POST',headers:{...headers,origin:'https://attacker.example','content-type':'application/json'},body:'{}'}))).status,403);
 });
 
 test('quote reads overlap only authorized queries and reject any storage failure',async()=>{
@@ -298,7 +298,7 @@ test('one dummy quote binds notification, downloaded terms, immutable acceptance
  try {
   const {quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),messages=[];
   const {runOperationalDelivery}=await import('../app/lib/operational-delivery.ts');
-  await runOperationalDelivery(x.db,{LOKD_OPERATIONAL_DELIVERY_ENABLED:'true',LOKD_DELIVERY_SOURCE_ALLOWLIST:quoteId,LOKD_DELIVERY_EMAIL_ALLOWLIST:x.applicant.email,LOKD_EMAIL_PROVIDER:'resend',LOKD_EMAIL_FROM:'notices@example.test',LOKD_QUOTE_EMAIL_FROM:'quotes@example.test',RESEND_API_KEY:'synthetic-only'},{now:()=>Date.now()+1000,verifiedEmail:async()=>x.applicant.email,transport:async(url,init)=>{messages.push(JSON.parse(init.body));return Response.json({id:'synthetic-quote-message'});}});
+  await runOperationalDelivery(x.db,{LOKD_OPERATIONAL_DELIVERY_ENABLED:'true',LOKD_DELIVERY_SOURCE_ALLOWLIST:quoteId,LOKD_DELIVERY_EMAIL_ALLOWLIST:x.applicant.email,LOKD_EMAIL_PROVIDER:'smtp',LOKD_EMAIL_FROM:'notices@example.test',LOKD_QUOTE_EMAIL_FROM:'quotes@example.test',LOKD_SMTP_HOST:'mail.lokd.co.za',LOKD_SMTP_PORT:'587',LOKD_SMTP_USER:'notices@example.test',LOKD_SMTP_PASSWORD:'synthetic-only',LOKD_SMTP_RELAY_URL:'https://mail-relay.example.test/smtp',LOKD_SMTP_RELAY_TOKEN:'synthetic-relay-token'},{now:()=>Date.now()+1000,verifiedEmail:async()=>x.applicant.email,transport:async(url,init)=>{messages.push(JSON.parse(init.body));return Response.json({provider_id:'smtp:synthetic-quote:250 ok'});}});
   assert.equal(messages.length,1);assert.ok(messages[0].text.includes('/client/agreements#'+quoteId));
   const {bytes,t}=await quoteFile(x.db,x.bucket,x.applicant,x.termsId);
   assert.deepEqual(Buffer.from(bytes),fs.readFileSync(new URL('./fixtures/dummy-client-terms.pdf',import.meta.url)));

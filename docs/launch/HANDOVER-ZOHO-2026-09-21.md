@@ -1,3 +1,5 @@
+> Superseded. Product inspect is Odoo company 4 (`/api/odoo-books`). Email is SMTP or disabled. See `docs/launch/ODOO-CO4-INSPECT.md`. This file is a dated record only.
+
 # LOKD Central Command handover — Zoho and operational completion
 
 Prepared 21 September 2026 from task `01a0c3cb-1998-7941-a925-1fb96bcda4c1`.

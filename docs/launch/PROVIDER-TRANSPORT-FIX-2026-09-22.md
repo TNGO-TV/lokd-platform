@@ -1,3 +1,5 @@
+> Superseded for provider choice. Email is SMTP or disabled. Accounting inspect is Odoo company 4. See `docs/launch/ODOO-CO4-INSPECT.md`. This file is a dated transport record only.
+
 # Worker provider transport correction — 22 September 2026
 
 The authenticated hosted Operations panel showed CRM ENQ-F5BAD219 waiting to retry after one attempt with `provider_transport_unknown`, and its team email uncertain after one attempt with `zeptomail_acceptance_unknown`. No resend was initiated during diagnosis.

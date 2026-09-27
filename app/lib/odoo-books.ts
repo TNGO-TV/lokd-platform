@@ -2,7 +2,7 @@ import {DeliveryError,type OperationalRuntime} from './operational-provider';
 import {assertLokdCompany,lokdOdooCall,LOKD_ODOO_COMPANY_ID} from './odoo-lokd';
 
 const object=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
-/** Odoo record ids (and legacy Zoho-length ids). */
+/** Odoo record ids on company 4. */
 function providerId(v:unknown){if(typeof v!=='string'||!/^\d{1,30}$/.test(v))throw new DeliveryError('books_reference_invalid','failed');return v;}
 export function booksAmountMinor(value:unknown){
  if(typeof value!=='string'&&typeof value!=='number')throw new DeliveryError('books_amount_invalid','failed');

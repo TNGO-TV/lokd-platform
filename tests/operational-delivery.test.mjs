@@ -5,7 +5,6 @@ import test from "node:test";
 
 import { env } from "cloudflare:workers";
 import {runOperationalDelivery,reconcileUnsubmittedNotice} from '../app/lib/operational-delivery.ts';
-import {crmEnquiryBody,zohoSession} from '../app/lib/operational-provider.ts';
 
 class Prepared {
   constructor(owner, sql, values = []) { this.owner = owner; this.sql = sql; this.values = values; }
@@ -55,9 +54,11 @@ function publicRequest(body) {
 const input={organisationName:'Fictional Delivery Client',contactName:'Synthetic Signer',email:'signer@example.test',siteArea:'Sandton',siteType:'commercial_property',requiredStart:'planning',message:'Synthetic isolated delivery test with no provider connection.',advanceFundingAcknowledged:true,privacyConsent:true};
 async function fixture(){const database=migratedDatabase(),db=new D1Adapter(database);const {submitClientEnquiry}=await import('../app/api/enquiries/route.ts');const response=await submitClientEnquiry(publicRequest(input),db);assert.equal(response.status,202);return {database,db,id:(await response.json()).reference};}
 const reply=value=>Response.json(value);
-const runtime=id=>({LOKD_OPERATIONAL_DELIVERY_ENABLED:'true',LOKD_DELIVERY_SOURCE_ALLOWLIST:id,LOKD_DELIVERY_EMAIL_ALLOWLIST:'team@example.test',LOKD_TEAM_EMAIL:'team@example.test',LOKD_EMAIL_PROVIDER:'resend',LOKD_EMAIL_FROM:'notices@example.test',RESEND_API_KEY:'synthetic-only',LOKD_ZOHO_ACCOUNTS_ORIGIN:'https://accounts.zoho.com',LOKD_ZOHO_API_ORIGIN:'https://www.zohoapis.com',LOKD_ZOHO_CLIENT_ID:'synthetic',LOKD_ZOHO_CLIENT_SECRET:'synthetic',LOKD_ZOHO_REFRESH_TOKEN:'synthetic',LOKD_ZOHO_CRM_ORG_ID:'org-fixture',LOKD_ZOHO_CRM_OWNER_ID:'owner-fixture'});
+const RELAY='https://mail-relay.example.test/smtp';
+const runtime=id=>({LOKD_OPERATIONAL_DELIVERY_ENABLED:'true',LOKD_DELIVERY_SOURCE_ALLOWLIST:id,LOKD_DELIVERY_EMAIL_ALLOWLIST:'team@example.test',LOKD_TEAM_EMAIL:'team@example.test',LOKD_EMAIL_PROVIDER:'smtp',LOKD_EMAIL_FROM:'notices@example.test',LOKD_SMTP_HOST:'mail.lokd.co.za',LOKD_SMTP_PORT:'587',LOKD_SMTP_USER:'notices@example.test',LOKD_SMTP_PASSWORD:'synthetic-only',LOKD_SMTP_RELAY_URL:RELAY,LOKD_SMTP_RELAY_TOKEN:'synthetic-relay-token',LOKD_ODOO_API_KEY:'fixture-key',LOKD_ODOO_COMPANY_ID:'4',LOKD_ODOO_JSON2_ORIGIN:'https://tngo-tv.odoo.com'});
 const job=(x,kind)=>x.database.prepare('SELECT * FROM operational_delivery_jobs WHERE kind=?').get(kind);
-function transportFor(calls,{postEmail,event='delivered',org='org-fixture'}={}){return async(url,init)=>{calls.push({url,init});assert.equal(init.redirect,'manual');if(url.endsWith('/oauth/v2/token'))return reply({access_token:'synthetic',api_domain:'https://www.zohoapis.com'});if(url.endsWith('/crm/v8/org'))return reply({org:[{id:org}]});if(url.endsWith('/upsert'))return reply({data:[{code:'SUCCESS',status:'success',details:{id:'crm-fixture'}}]});if(url==='https://api.resend.com/emails')return postEmail?postEmail(init):reply({id:'mail-fixture'});if(url==='https://api.resend.com/emails/mail-fixture')return reply({id:'mail-fixture',to:['team@example.test'],last_event:event});throw Error('Unexpected URL');};}
+const relayCalls=calls=>calls.filter(c=>c.url===RELAY);
+function transportFor(calls,{postEmail,company}={}){return async(url,init)=>{calls.push({url,init});if(url.endsWith('/res.company/search_read')){assert.equal(init.method,'POST');const body=JSON.parse(init.body);assert.deepEqual(body.context.allowed_company_ids,[4]);assert.equal(JSON.stringify(body).includes(input.email),false);assert.equal(init.headers.Authorization,'bearer fixture-key');assert.equal(url.startsWith('https://tngo-tv.odoo.com/json/2/'),true);if(company==='mismatch')return reply([{id:4,name:'Other Company',currency_id:[38,'ZAR']}]);return reply([{id:4,name:'LOKD Security',currency_id:[38,'ZAR']}]);}if(url===RELAY){assert.equal(init.redirect,'manual');const body=JSON.parse(init.body);assert.equal(body.password,undefined);assert.equal(init.headers.authorization,'Bearer synthetic-relay-token');assert.equal(JSON.stringify(body).includes('synthetic-only'),false);return postEmail?postEmail(init):reply({provider_id:'smtp:fixture:250 ok'});}throw Error('Unexpected URL '+url);};}
 
 test('intake atomically queues one CRM and one team job, with no traffic by default',async()=>{
  const x=await fixture();try{assert.equal(x.database.prepare('SELECT count(*) AS n FROM operational_delivery_jobs').get().n,2);await runOperationalDelivery(x.db,{}, {transport:()=>{throw Error('Network forbidden');}});assert.equal(job(x,'enquiry_crm').attempts,0);
@@ -66,146 +67,95 @@ test('intake atomically queues one CRM and one team job, with no traffic by defa
  assert.throws(()=>x.database.prepare("INSERT OR REPLACE INTO operational_delivery_jobs(id,kind,source_id,environment,next_attempt_at,created_at,updated_at) SELECT id,kind,source_id,environment,next_attempt_at,created_at,updated_at FROM operational_delivery_jobs LIMIT 1").run(),/original_claim/);
  }finally{x.database.close();}
 });
-test('CRM and email acceptances are separate from inbox confirmation and booking funding',async()=>{
- const x=await fixture(),calls=[];let now=Date.now()+1000;try{await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now});assert.equal(job(x,'enquiry_crm').provider_id,'crm-fixture');assert.equal(job(x,'enquiry_email').state,'sent');assert.equal(x.database.prepare('SELECT count(*) AS n FROM bookings').get().n,0);
- const body=JSON.parse(calls.find(c=>c.url.endsWith('/upsert')).init.body);assert.deepEqual(body.duplicate_check_fields,['LOKD_Enquiry_Reference']);assert.deepEqual(body.trigger,[]);assert.equal(body.data[0].Owner.id,'owner-fixture');assert.equal(body.data[0].LOKD_Enquiry_Reference,x.id);
- const mail=JSON.parse(calls.find(c=>c.url==='https://api.resend.com/emails').init.body);assert.equal(mail.text.includes(input.message),false);assert.equal(mail.text.includes(input.email),false);assert.ok(mail.text.includes('https://operations.lokd.co.za/ops/intake?kind=client'));assert.equal(mail.text.includes('demo.lokd.co.za'),false);
- now+=61000;await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now});assert.equal(job(x,'enquiry_email').state,'delivered');assert.equal(calls.filter(c=>c.url.endsWith('/upsert')).length,1);assert.equal(calls.filter(c=>c.url==='https://api.resend.com/emails').length,1);
+test('company 4 inspect and SMTP acceptance stay separate from inbox confirmation and booking funding',async()=>{
+ const x=await fixture(),calls=[];let now=Date.now()+1000;try{await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now});assert.equal(job(x,'enquiry_crm').provider_id,'odoo-co4:4');assert.equal(job(x,'enquiry_crm').recipient,'4');assert.equal(job(x,'enquiry_email').state,'sent');assert.match(job(x,'enquiry_email').provider_id,/^smtp:/);assert.equal(x.database.prepare('SELECT count(*) AS n FROM bookings').get().n,0);
+ const inspect=JSON.parse(calls.find(c=>c.url.endsWith('/res.company/search_read')).init.body);assert.equal(JSON.stringify(inspect).includes(input.email),false);assert.equal(calls.some(c=>c.url.includes('/sale.order/')||c.url.includes('/account.move/')||c.url.includes('crm')),false);
+ const mail=JSON.parse(relayCalls(calls)[0].init.body);assert.equal(mail.text.includes(input.message),false);assert.equal(mail.text.includes(input.email),false);assert.ok(mail.text.includes('https://operations.lokd.co.za/ops/intake?kind=client'));assert.equal(mail.text.includes('demo.lokd.co.za'),false);
+ now+=61000;await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now});assert.equal(job(x,'enquiry_email').state,'sent');assert.equal(calls.filter(c=>c.url.endsWith('/res.company/search_read')).length,1);assert.equal(relayCalls(calls).length,1);
  }finally{x.database.close();}
 });
 test('parallel dispatchers claim each job once',async()=>{
- const x=await fixture(),calls=[];try{const options={transport:transportFor(calls),now:()=>Date.now()+1000};await Promise.all([runOperationalDelivery(x.db,runtime(x.id),options),runOperationalDelivery(x.db,runtime(x.id),options)]);assert.equal(calls.filter(c=>c.url==='https://api.resend.com/emails').length,1);assert.equal(calls.filter(c=>c.url.endsWith('/upsert')).length,1);}finally{x.database.close();}
+ const x=await fixture(),calls=[];try{const options={transport:transportFor(calls),now:()=>Date.now()+1000};await Promise.all([runOperationalDelivery(x.db,runtime(x.id),options),runOperationalDelivery(x.db,runtime(x.id),options)]);assert.equal(relayCalls(calls).length,1);assert.equal(calls.filter(c=>c.url.endsWith('/res.company/search_read')).length,1);}finally{x.database.close();}
 });
-test('timeout reuses an immutable message and idempotency key, then confirms once',async()=>{
- const x=await fixture(),calls=[];let now=Date.now()+1000,attempt=0;try{const transport=transportFor(calls,{postEmail:()=>{if(++attempt===1)throw Error('lost response');return reply({id:'mail-fixture'});}});await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});assert.equal(job(x,'enquiry_email').state,'retry_wait');now+=120001;await runOperationalDelivery(x.db,{...runtime(x.id),LOKD_EMAIL_FROM:'changed@example.test'},{transport,now:()=>now});const sent=calls.filter(c=>c.url==='https://api.resend.com/emails');assert.equal(sent.length,2);assert.equal(sent[0].init.body,sent[1].init.body);assert.equal(sent[0].init.headers['Idempotency-Key'],sent[1].init.headers['Idempotency-Key']);assert.equal(job(x,'enquiry_email').state,'sent');assert.throws(()=>x.database.prepare("UPDATE operational_delivery_jobs SET recipient='another@example.test' WHERE kind='enquiry_email'").run(),/immutable/);}finally{x.database.close();}
+test('lost SMTP acceptance stays uncertain and is never automatically resent',async()=>{
+ for(const change of ['expiry','recipient']){const x=await fixture(),calls=[];let now=Date.now()+1000;try{const transport=transportFor(calls,{postEmail:()=>{throw Error('lost');}});await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});assert.equal(job(x,'enquiry_email').state,'uncertain');now+=change==='expiry'?24*3600000:120001;const r=runtime(x.id);if(change==='recipient'){r.LOKD_TEAM_EMAIL='other@example.test';r.LOKD_DELIVERY_EMAIL_ALLOWLIST='other@example.test';}await runOperationalDelivery(x.db,r,{transport,now:()=>now});assert.equal(relayCalls(calls).length,1);assert.equal(job(x,'enquiry_email').state,'uncertain');assert.throws(()=>x.database.prepare("UPDATE operational_delivery_jobs SET recipient='another@example.test' WHERE kind='enquiry_email'").run(),/immutable/);}finally{x.database.close();}}
 });
-test('uncertain email is never resent after deduplication expiry or to a changed recipient',async()=>{
- for(const change of ['expiry','recipient']){const x=await fixture(),calls=[];let now=Date.now()+1000;try{const transport=transportFor(calls,{postEmail:()=>{throw Error('lost');}});await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});now+=change==='expiry'?24*3600000:120001;const r=runtime(x.id);if(change==='recipient'){r.LOKD_TEAM_EMAIL='other@example.test';r.LOKD_DELIVERY_EMAIL_ALLOWLIST='other@example.test';}await runOperationalDelivery(x.db,r,{transport,now:()=>now});assert.equal(calls.filter(c=>c.url==='https://api.resend.com/emails').length,1);assert.equal(job(x,'enquiry_email').state,change==='expiry'?'uncertain':'blocked');}finally{x.database.close();}}
+test('missing allowlists block before sending and a company mismatch does not write',async()=>{
+ const x=await fixture(),calls=[];let now=Date.now()+1000;try{await runOperationalDelivery(x.db,{...runtime(x.id),LOKD_DELIVERY_SOURCE_ALLOWLIST:''},{transport:transportFor(calls),now:()=>now});assert.equal(calls.length,0);assert.equal(job(x,'enquiry_crm').state,'blocked');assert.equal(job(x,'enquiry_crm').attempts,0);now+=900001;await runOperationalDelivery(x.db,{...runtime(x.id),LOKD_DELIVERY_EMAIL_ALLOWLIST:''},{transport:transportFor(calls,{company:'mismatch'}),now:()=>now});assert.equal(relayCalls(calls).length,0);assert.equal(calls.some(c=>c.url.includes('/sale.order/')||c.url.includes('/account.move/')),false);assert.equal(job(x,'enquiry_crm').last_error,'odoo_company_not_verified');}finally{x.database.close();}
 });
-test('missing allowlists block before sending and wrong CRM organization prevents upsert',async()=>{
- const x=await fixture(),calls=[];let now=Date.now()+1000;try{await runOperationalDelivery(x.db,{...runtime(x.id),LOKD_DELIVERY_SOURCE_ALLOWLIST:''},{transport:transportFor(calls),now:()=>now});assert.equal(calls.length,0);assert.equal(job(x,'enquiry_crm').state,'blocked');assert.equal(job(x,'enquiry_crm').attempts,0);now+=900001;await runOperationalDelivery(x.db,{...runtime(x.id),LOKD_DELIVERY_EMAIL_ALLOWLIST:''},{transport:transportFor(calls,{org:'other-org'}),now:()=>now});assert.equal(calls.some(c=>c.url.endsWith('/upsert')),false);assert.equal(calls.some(c=>c.url.includes('resend')),false);assert.equal(job(x,'enquiry_crm').last_error,'zoho_crm_org_mismatch');}finally{x.database.close();}
+test('SMTP acceptance has no later receipt poll and never resends',async()=>{
+ const x=await fixture(),calls=[];let now=Date.now()+1000;try{await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now});now+=61000;await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now});assert.equal(job(x,'enquiry_email').state,'sent');assert.equal(job(x,'enquiry_email').last_error,null);now+=3600000;await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now});assert.equal(relayCalls(calls).length,1);}finally{x.database.close();}
 });
-test('bounce remains failed and never automatically resends',async()=>{
- const x=await fixture(),calls=[];let now=Date.now()+1000;try{const transport=transportFor(calls,{event:'bounced'});await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});now+=61000;await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});assert.equal(job(x,'enquiry_email').state,'failed');assert.equal(job(x,'enquiry_email').last_error,'email_delivery_failed');now+=3600000;await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});assert.equal(calls.filter(c=>c.url==='https://api.resend.com/emails').length,1);}finally{x.database.close();}
+test('removed email providers make no requests',async()=>{
+ const {emailReceipt,sendEmail,configuredEmailProvider}=await import('../app/lib/operational-provider.ts');let requests=0;const transport=async()=>{requests++;throw Error('network');};
+ for(const provider of ['zeptomail','resend','disabled',''])await assert.rejects(async()=>configuredEmailProvider({LOKD_EMAIL_PROVIDER:provider,LOKD_SMTP_HOST:'mail.lokd.co.za',LOKD_SMTP_USER:'notices@example.test',LOKD_SMTP_PASSWORD:'synthetic-only'}),/not_configured/);
+ const zepto={LOKD_EMAIL_PROVIDER:'zeptomail',ZEPTOMAIL_SEND_TOKEN:'synthetic-only',LOKD_ZEPTOMAIL_API_ORIGIN:'https://api.zeptomail.com'};
+ await assert.rejects(()=>sendEmail(zepto,'job',{_lokdProvider:'zeptomail',from:'notices@example.test',to:['team@example.test'],subject:'Test',text:'Test'},transport),/not_configured/);
+ await assert.rejects(()=>emailReceipt(runtime('test'),{_lokdProvider:'smtp',from:'notices@example.test',to:['team@example.test'],subject:'Test',text:'Test'},'job','not-smtp','team@example.test',transport),/receipt_mismatch/);
+ assert.equal(await emailReceipt(runtime('test'),{_lokdProvider:'smtp',from:'notices@example.test',to:['team@example.test'],subject:'Test',text:'Test'},'job','smtp:job:250 ok','team@example.test',transport),'sent');
+ assert.equal(requests,0);
 });
-test('Zoho refresh rejects arbitrary origins without leaking credentials',async()=>{let requests=0;await assert.rejects(()=>zohoSession({...runtime('test'),LOKD_ZOHO_ACCOUNTS_ORIGIN:'https://attacker.example'},async()=>{requests++;throw Error();}),/authorization_missing/);assert.equal(requests,0);assert.equal(crmEnquiryBody({id:'ENQ-1',contact_name:'Person',organisation_name:'Company',email_normalized:'person@example.test'},'owner').data[0].LOKD_Enquiry_Reference,'ENQ-1');});
 test('delivery API requires authenticated Operations and same-origin writes',async()=>{const x=await fixture();try{env.DB=x.db;env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({owners:['owner@example.test']});const route=await import('../app/api/operational-delivery/route.ts');assert.equal((await route.GET(new Request('https://demo.lokd.co.za/api/operational-delivery'))).status,401);const headers={'x-lokd-verified-user-id':'owner','x-lokd-verified-email':'owner@example.test'};assert.equal((await route.GET(new Request('https://demo.lokd.co.za/api/operational-delivery',{headers}))).status,200);assert.notEqual((await route.POST(new Request('https://demo.lokd.co.za/api/operational-delivery',{method:'POST',headers:{...headers,origin:'https://attacker.example','content-type':'application/json'},body:'{}'}))).status,200);}finally{delete env.DB;x.database.close();}});
 test('Books reads compare exact organisation, customer, order, amounts and revision without financial writes',async()=>{
- const {inspectBooksDocument,booksAmountMinor}=await import('../app/lib/zoho-books.ts');assert.equal(booksAmountMinor('12.30'),1230);assert.throws(()=>booksAmountMinor('12.301'),/amount_invalid/);
+ const {inspectBooksDocument,booksAmountMinor}=await import('../app/lib/odoo-books.ts');assert.equal(booksAmountMinor('12.30'),1230);assert.throws(()=>booksAmountMinor('12.301'),/amount_invalid/);
  const expected={kind:'estimate',documentId:'1234567',customerId:'2345678',orderId:'ORDER-FIXTURE',totalMinor:11500,taxMinor:1500};
  const odooRuntime={...runtime('test'),LOKD_ODOO_API_KEY:'fixture-key',LOKD_ODOO_COMPANY_ID:'4',LOKD_ODOO_JSON2_ORIGIN:'https://tngo-tv.odoo.com'};
  for(const mismatch of [null,'currency','customer','reference','amount','revision']){const calls=[];const transport=async(url,init)=>{calls.push({url,init});assert.equal(init.method,'POST');const body=JSON.parse(init.body);assert.deepEqual(body.context.allowed_company_ids,[4]);if(url.endsWith('/res.company/search_read'))return reply([{id:4,name:'LOKD Security',currency_id:[38,'ZAR']}]);assert.ok(url.endsWith('/sale.order/read'));const doc={id:1234567,name:'S0001',state:'draft',partner_id:[2345678,'Customer'],company_id:[4,'LOKD Security'],client_order_ref:'ORDER-FIXTURE',amount_total:115,amount_tax:15,currency_id:[38,'ZAR'],write_date:'2026-09-21 10:00:00'};if(mismatch==='currency')doc.currency_id=[1,'USD'];if(mismatch==='customer')doc.partner_id=[999,'Other'];if(mismatch==='reference')doc.client_order_ref='other';if(mismatch==='amount')doc.amount_total=116;if(mismatch==='revision')doc.write_date='unknown';return reply([doc]);};const action=()=>inspectBooksDocument(odooRuntime,expected,transport);if(mismatch)await assert.rejects(action,/binding_mismatch|company_not_verified|odoo_/);else{const result=await action();assert.equal(result.funded,false);assert.equal(result.independentlyApproved,false);assert.equal(result.providerRead,true);assert.equal(result.organizationId,'4');}assert.equal(calls.filter(c=>c.init.method==='POST').length,2);}
 });
 
-const zeptoRuntime=id=>({...runtime(id),LOKD_EMAIL_PROVIDER:'zeptomail',LOKD_ZEPTOMAIL_API_ORIGIN:'https://api.zeptomail.com',ZEPTOMAIL_SEND_TOKEN:'synthetic-only'});
-test('ZeptoMail freezes provider, sends minimal content and verifies matching provider logs',async()=>{
- const x=await fixture(),calls=[];let now=Date.now()+1000;
- try{
-  let mail,indexed=false;
-  const fallback=transportFor(calls);
-  const transport=async(url,init)=>{
-   if(url==='https://api.zeptomail.com/v1.1/email'){
-    calls.push({url,init});mail=JSON.parse(init.body);
-    assert.equal(init.headers.Authorization,'Zoho-enczapikey synthetic-only');assert.equal(mail.client_reference,'team:'+x.id);assert.equal(mail.track_clicks,false);assert.equal(mail.textbody.includes(input.email),false);assert.ok(mail.textbody.includes('https://operations.lokd.co.za/ops/intake?kind=client'));assert.equal(mail.textbody.includes('demo.lokd.co.za'),false);
-    return reply({data:[{code:'EM_104'}],request_id:'zepto-fixture'});
-   }
-   if(url.startsWith('https://api.zeptomail.com/v1.1/email?')&&!indexed)return reply({status:'success',data:{logs:[]}});
-   if(url.startsWith('https://api.zeptomail.com/v1.1/email?'))return reply({status:'success',data:[{request_id:'zepto-fixture',from:mail.from.address,to:mail.to[0].email_address.address,subject:mail.subject,status:'delivered'}]});
-   return fallback(url,init);
-  };
-  await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});assert.equal(job(x,'enquiry_email').state,'sent');
-  now+=61000;await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now,receiptsOnly:true});assert.equal(job(x,'enquiry_email').state,'sent');assert.equal(job(x,'enquiry_email').last_error,null);assert.equal(job(x,'enquiry_email').attempts,1);assert.equal(job(x,'enquiry_email').provider_id,'zepto-fixture');assert.equal(calls.filter(c=>c.url==='https://api.zeptomail.com/v1.1/email').length,1);indexed=true;
-  now+=61000;await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});assert.equal(job(x,'enquiry_email').state,'sent');assert.equal(calls.some(c=>c.url.includes('resend')),false);
-  now+=3600001;await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});assert.equal(job(x,'enquiry_email').state,'delivered');
- }finally{x.database.close();}
-});
-test('ZeptoMail unknown outcomes and lost leases never automatically resend',async()=>{
+test('SMTP unknown outcomes and lost leases never automatically resend',async()=>{
  for(const mode of ['timeout','server','malformed','lost-lease']){
   const x=await fixture(),calls=[];let now=Date.now()+1000,sends=0;
   try{
    const fallback=transportFor(calls);const transport=async(url,init)=>{
-    if(url==='https://api.zeptomail.com/v1.1/email'){sends++;if(mode==='server')return new Response('',{status:503});if(mode==='malformed')return reply({});throw Error('lost');}return fallback(url,init);
+    if(url===RELAY){sends++;if(mode==='server')return new Response('',{status:503});if(mode==='malformed')return reply({});throw Error('lost');}return fallback(url,init);
    };
-   if(mode==='lost-lease')x.database.prepare("UPDATE operational_delivery_jobs SET state='dispatching',request_json=?,attempts=1,first_attempt_at=?,lease_expires_at=? WHERE kind='enquiry_email'").run(JSON.stringify({_lokdProvider:'zeptomail'}),new Date(now-1000).toISOString(),new Date(now-1).toISOString());
-   await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});assert.equal(job(x,'enquiry_email').state,'uncertain');
-   now+=3600001;await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});assert.equal(sends,mode==='lost-lease'?0:1);
+   if(mode==='lost-lease')x.database.prepare("UPDATE operational_delivery_jobs SET state='dispatching',request_json=?,attempts=1,first_attempt_at=?,lease_expires_at=? WHERE kind='enquiry_email'").run(JSON.stringify({_lokdProvider:'smtp'}),new Date(now-1000).toISOString(),new Date(now-1).toISOString());
+   await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});assert.equal(job(x,'enquiry_email').state,'uncertain');
+   now+=3600001;await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});assert.equal(sends,mode==='lost-lease'?0:1);
   }finally{x.database.close();}
- }
-});
-test('ZeptoMail rejects mismatched receipts and unverified API origins',async()=>{
- const {emailReceipt,sendEmail}=await import('../app/lib/operational-provider.ts');let requests=0;
- const body={_lokdProvider:'zeptomail',from:'notices@example.test',to:['team@example.test'],subject:'Test',text:'Test'};
- await assert.rejects(()=>sendEmail({...zeptoRuntime('test'),LOKD_ZEPTOMAIL_API_ORIGIN:'https://attacker.example'},'job',body,async()=>{requests++;}),/not_configured/);assert.equal(requests,0);
- await assert.rejects(()=>emailReceipt(zeptoRuntime('test'),body,'job','req','team@example.test',async(url)=>url.endsWith('/oauth/v2/token')?reply({access_token:'synthetic',api_domain:'https://www.zohoapis.com'}):reply({status:'success',data:[{request_id:'other',to:'team@example.test',from:body.from,subject:body.subject,status:'delivered'}]})),/receipt_mismatch/);
-});
-
-test('actual ZeptoMail log shape requires correlated per-recipient delivery detail',async()=>{
- const {emailReceipt}=await import('../app/lib/operational-provider.ts');
- const fixture=JSON.parse(fs.readFileSync(new URL('./fixtures/zeptomail-provider-logs.json',import.meta.url),'utf8'));
- const body={_lokdProvider:'zeptomail',from:'notices@example.test',to:['team@example.test'],subject:'Fixture connection test',text:'Test'};
- for(const mode of ['delivered','processing','not-indexed','wrong-request','wrong-reference','wrong-recipient','wrong-time','wrong-subject','extra-event','multiple-logs']){
-  const list=structuredClone(fixture.list),detail=structuredClone(fixture.detail);
-  if(mode==='processing')detail.data.email_delivery_details={};
-  if(mode==='not-indexed')list.data.logs=[];
-  if(mode==='wrong-request')detail.data.request_id='other';
-  if(mode==='wrong-reference')detail.data.email_info.email_reference='other';
-  if(mode==='wrong-recipient')detail.data.email_delivery_details.delivery[0].recipient='other@example.test';
-  if(mode==='wrong-time')detail.data.email_delivery_details.delivery[0].delivery_time='unknown';
-  if(mode==='wrong-subject')detail.data.email_info.subject='other';
-  if(mode==='extra-event')detail.data.email_delivery_details.unrecognized_failure={};
-  if(mode==='multiple-logs')list.data.logs.push(structuredClone(list.data.logs[0]));
-  const transport=async(url,init)=>{
-   if(url.endsWith('/oauth/v2/token'))return reply({access_token:'synthetic',api_domain:'https://www.zohoapis.com'});
-   assert.notEqual(init.method,'POST');
-   if(url.includes('/email/email-reference/')){assert.equal(url.endsWith('/reference-fixture'),true);return reply(detail);}
-   assert.equal(new URL(url).searchParams.get('request_id'),'request-fixture');return reply(list);
-  };
-  const action=()=>emailReceipt(zeptoRuntime('test'),body,'job','request-fixture','team@example.test',transport);
-  if(mode.startsWith('wrong-')||mode==='multiple-logs')await assert.rejects(action,/receipt_mismatch/);
-  else assert.equal(await action(),mode==='delivered'?'delivered':'sent');
  }
 });
 
 test('explicit non-submission reconciliation preserves history and grants just one retry after expiry',async()=>{
  const x=await fixture(),calls=[];let now=Date.now()+1000,sends=0;
  try{
-  const fallback=transportFor(calls),transport=async(url,init)=>{if(url==='https://api.zeptomail.com/v1.1/email'){sends++;throw Error('synthetic unknown outcome');}return fallback(url,init);};
-  await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});
+  const fallback=transportFor(calls),transport=async(url,init)=>{if(url===RELAY){sends++;throw Error('synthetic unknown outcome');}return fallback(url,init);};
+  await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});
   const original=job(x,'enquiry_email');now+=24*3600000;
-  const input={id:original.id,updatedAt:original.updated_at,evidence:'Confirmed pre-network runtime rejection and reviewed complete provider logs; this synthetic notice was never submitted.',confirmedNotSubmitted:true};
-  for(const invalid of [{...input,confirmedNotSubmitted:false},{...input,evidence:'missing proof'}])await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,zeptoRuntime(x.id),invalid,'operator',now));
-  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,{...zeptoRuntime(x.id),LOKD_DELIVERY_SOURCE_ALLOWLIST:''},input,'operator',now));
-  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,{...zeptoRuntime(x.id),LOKD_TEAM_EMAIL:'changed@example.test'},input,'operator',now));
-  const concurrent=await Promise.allSettled([reconcileUnsubmittedNotice(x.db,zeptoRuntime(x.id),input,'operator',now),reconcileUnsubmittedNotice(x.db,zeptoRuntime(x.id),input,'operator',now)]);
+  const notice={id:original.id,updatedAt:original.updated_at,evidence:'Confirmed pre-network runtime rejection and reviewed complete provider logs; this synthetic notice was never submitted.',confirmedNotSubmitted:true};
+  for(const invalid of [{...notice,confirmedNotSubmitted:false},{...notice,evidence:'missing proof'}])await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,runtime(x.id),invalid,'operator',now));
+  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,{...runtime(x.id),LOKD_DELIVERY_SOURCE_ALLOWLIST:''},notice,'operator',now));
+  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,{...runtime(x.id),LOKD_TEAM_EMAIL:'changed@example.test'},notice,'operator',now));
+  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,{...runtime(x.id),LOKD_EMAIL_PROVIDER:'zeptomail'},notice,'operator',now));
+  const concurrent=await Promise.allSettled([reconcileUnsubmittedNotice(x.db,runtime(x.id),notice,'operator',now),reconcileUnsubmittedNotice(x.db,runtime(x.id),notice,'operator',now)]);
   assert.equal(concurrent.filter(r=>r.status==='fulfilled').length,1);
   const audit=x.database.prepare("SELECT * FROM audit_events WHERE event_type='delivery_non_submission_confirmed'").all();assert.equal(audit.length,1);assert.equal(audit[0].actor_id,'operator');assert.equal(JSON.parse(audit[0].detail).attempts,1);
   assert.equal(job(x,'enquiry_email').attempts,1);assert.equal(job(x,'enquiry_email').request_json,original.request_json);assert.equal(job(x,'enquiry_email').first_attempt_at,original.first_attempt_at);
-  await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});assert.equal(sends,2);assert.equal(job(x,'enquiry_email').state,'uncertain');
-  now+=3600000;await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});assert.equal(sends,2);
-  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,zeptoRuntime(x.id),input,'operator',now));
+  await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});assert.equal(sends,2);assert.equal(job(x,'enquiry_email').state,'uncertain');
+  now+=3600000;await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});assert.equal(sends,2);
+  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,runtime(x.id),notice,'operator',now));
  }finally{x.database.close();}
 });
-test('reconciliation cannot replay CRM, accepted email or a closed enquiry',async()=>{
+test('reconciliation cannot replay the company check, accepted email or a closed enquiry',async()=>{
  const x=await fixture(),calls=[];const now=Date.now()+1000;
  try{
-  const fallback=transportFor(calls),transport=async(url,init)=>url==='https://api.zeptomail.com/v1.1/email'?Promise.reject(Error('unknown')):fallback(url,init);
-  await runOperationalDelivery(x.db,zeptoRuntime(x.id),{transport,now:()=>now});
-  const current=job(x,'enquiry_email'),input={id:current.id,updatedAt:current.updated_at,evidence:'Verified provider non-submission evidence for this synthetic notice with exact source correlation.',confirmedNotSubmitted:true};
-  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,zeptoRuntime(x.id),{...input,id:job(x,'enquiry_crm').id},'operator',now));
-  x.database.prepare("UPDATE operational_delivery_jobs SET state='sent',provider_id='accepted' WHERE kind='enquiry_email'").run();
-  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,zeptoRuntime(x.id),input,'operator',now));
+  const fallback=transportFor(calls),transport=async(url,init)=>url===RELAY?Promise.reject(Error('unknown')):fallback(url,init);
+  await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now});
+  const current=job(x,'enquiry_email'),notice={id:current.id,updatedAt:current.updated_at,evidence:'Verified provider non-submission evidence for this synthetic notice with exact source correlation.',confirmedNotSubmitted:true};
+  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,runtime(x.id),{...notice,id:job(x,'enquiry_crm').id},'operator',now));
+  x.database.prepare("UPDATE operational_delivery_jobs SET state='sent',provider_id='smtp:accepted:250 ok' WHERE kind='enquiry_email'").run();
+  await assert.rejects(()=>reconcileUnsubmittedNotice(x.db,runtime(x.id),notice,'operator',now));
   assert.equal(x.database.prepare("SELECT count(*) n FROM audit_events WHERE event_type='delivery_non_submission_confirmed'").get().n,0);
  }finally{x.database.close();}
 });
 
-test('manual receipt checks never dispatch queued jobs and throttle repeated provider reads',async()=>{
- const x=await fixture(),calls=[];let now=Date.now()+1000,reads=0;
+test('manual receipt checks never dispatch queued jobs or call the relay again',async()=>{
+ const x=await fixture(),calls=[];let now=Date.now()+1000;
  try{
   await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now,receiptsOnly:true});assert.equal(calls.length,0);
   await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now});
-  const fallback=transportFor(calls),transport=async(url,init)=>{if(url==='https://api.resend.com/emails/mail-fixture'){reads++;return new Response('',{status:403});}return fallback(url,init);};
-  now+=61000;await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now,receiptsOnly:true});assert.equal(reads,1);assert.equal(job(x,'enquiry_email').last_error,'provider_http_403');
-  await runOperationalDelivery(x.db,runtime(x.id),{transport,now:()=>now,receiptsOnly:true});assert.equal(reads,1);
-  now+=61000;await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now,receiptsOnly:true});assert.equal(job(x,'enquiry_email').state,'delivered');assert.equal(job(x,'enquiry_email').attempts,1);assert.equal(calls.filter(c=>c.url==='https://api.resend.com/emails').length,1);
+  now+=61000;await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now,receiptsOnly:true});assert.equal(job(x,'enquiry_email').state,'sent');assert.equal(job(x,'enquiry_email').last_error,null);assert.equal(job(x,'enquiry_email').attempts,1);assert.equal(relayCalls(calls).length,1);
+  await runOperationalDelivery(x.db,runtime(x.id),{transport:transportFor(calls),now:()=>now,receiptsOnly:true});assert.equal(relayCalls(calls).length,1);
  }finally{x.database.close();}
 });

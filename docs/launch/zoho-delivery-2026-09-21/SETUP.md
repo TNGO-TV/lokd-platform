@@ -1,3 +1,5 @@
+> Superseded. Product inspect is Odoo company 4 (`/api/odoo-books`). Email is SMTP or disabled. See `docs/launch/ODOO-CO4-INSPECT.md`. This file is a dated record only.
+
 # Operational integration setup and verification
 
 21 September 2026. Preserve the v74 release, real-transaction deferral and accepted

@@ -6,7 +6,8 @@ import {verifiedPrimaryEmail} from './clerk-access';
 import {agreementHash,canonicalAgreementContext} from './agreement-acceptance';
 import {activationAgreementContext,type ActivationAgreementRole} from './agreement-activation';
 import {evaluateAssignmentActivation} from './assignment-activation-server';
-import {allowlisted,crmEnquiryBody,DeliveryError,emailValid,configuredEmailProvider,emailReceipt,sendCrm,sendEmail,type OperationalRuntime} from './operational-provider';
+import {allowlisted,DeliveryError,emailValid,configuredEmailProvider,emailReceipt,sendEmail,type OperationalRuntime} from './operational-provider';
+import {assertLokdCompany} from './odoo-lokd';
 
 type Job={id:string;kind:string;source_id:string;environment:string;state:string;attempts:number;request_json:string|null;recipient:string|null;provider_id:string|null;first_attempt_at:string|null;created_at:string};
 type Options={transport?:typeof fetch;verifiedEmail?:(userId:string)=>Promise<string|null>;now?:()=>number;receiptsOnly?:boolean};
@@ -35,13 +36,14 @@ export async function currentEnvelopeRecipient(db:D1Database,id:string,clock:num
 async function requestFor(db:D1Database,job:Job,runtime:OperationalRuntime,resolveEmail:(id:string)=>Promise<string|null>,clock:number){
  if(!allowlisted(runtime.LOKD_DELIVERY_SOURCE_ALLOWLIST,job.source_id))throw new DeliveryError('source_not_designated_for_test');
  if(job.kind==='enquiry_crm'){
-  if(!runtime.LOKD_ZOHO_CRM_OWNER_ID)throw new DeliveryError('crm_assignee_missing');
-  const enquiry=await db.prepare(`SELECT id,contact_name,organisation_name,email_normalized FROM client_enquiries e
+  const enquiry=await db.prepare(`SELECT id FROM client_enquiries e
    WHERE id=? AND environment='prelaunch' AND integrity_state='user_submitted' AND status!='closed'
-   AND NOT EXISTS(SELECT 1 FROM signup_cases c WHERE c.source_id=e.id AND c.kind='client' AND c.status='withdrawn')`).bind(job.source_id).first<{id:string;contact_name:string;organisation_name:string;email_normalized:string}>();
+   AND NOT EXISTS(SELECT 1 FROM signup_cases c WHERE c.source_id=e.id AND c.kind='client' AND c.status='withdrawn')`).bind(job.source_id).first<{id:string}>();
   if(!enquiry)throw new DeliveryError('enquiry_closed_or_withdrawn','cancelled');
-  if(job.recipient&&job.recipient!==runtime.LOKD_ZOHO_CRM_OWNER_ID)throw new DeliveryError('crm_assignee_changed');
-  return {recipient:runtime.LOKD_ZOHO_CRM_OWNER_ID,body:job.request_json?JSON.parse(job.request_json):crmEnquiryBody(enquiry,runtime.LOKD_ZOHO_CRM_OWNER_ID)};
+  if(job.recipient&&job.recipient!=='4')throw new DeliveryError('odoo_company_lock_mismatch');
+  const body=job.request_json?JSON.parse(job.request_json):{_lokdProvider:'odoo-co4-inspect',enquiryId:enquiry.id};
+  if(body._lokdProvider!=='odoo-co4-inspect'||body.enquiryId!==enquiry.id)throw new DeliveryError('crm_inspect_invalid','failed');
+  return {recipient:'4',body};
  }
  const provider=configuredEmailProvider(runtime);
  const sender=job.kind==='contract_email'&&job.source_id.startsWith('QUOTE-')?(runtime.LOKD_QUOTE_EMAIL_FROM??runtime.LOKD_EMAIL_FROM):runtime.LOKD_EMAIL_FROM;
@@ -73,7 +75,8 @@ export async function reconcileUnsubmittedNotice(db:D1Database,runtime:Operation
  if(!actor||runtime.LOKD_OPERATIONAL_DELIVERY_ENABLED!=='true')throw new PilotAccessError('Controlled delivery is unavailable.',403);
  if(input.confirmedNotSubmitted!==true||typeof input.evidence!=='string'||input.evidence.trim().length<50||input.evidence.length>2000||typeof input.id!=='string'||typeof input.updatedAt!=='string')throw new PilotAccessError('Record evidence confirming that the provider did not receive this notice.',400);
  const job=await db.prepare("SELECT * FROM operational_delivery_jobs WHERE id=? AND updated_at=? AND state='uncertain' AND kind='enquiry_email' AND environment='prelaunch' AND provider_id IS NULL AND attempts>0 AND attempts<5").bind(input.id,input.updatedAt).first<Job>();
- if(!job||!job.request_json||JSON.parse(job.request_json)._lokdProvider!=='zeptomail'||runtime.LOKD_EMAIL_PROVIDER!=='zeptomail')throw new PilotAccessError('This notice is not eligible, or its status changed. Refresh and review it.',409);
+ const frozenProvider=job?.request_json?JSON.parse(job.request_json)._lokdProvider:null;
+ if(!job||(frozenProvider!=='smtp'&&frozenProvider!=='cpanel')||frozenProvider!==runtime.LOKD_EMAIL_PROVIDER)throw new PilotAccessError('This notice is not eligible, or its status changed. Refresh and review it.',409);
  try{await requestFor(db,job,runtime,async()=>null,clock);}catch{throw new PilotAccessError('The source, recipient or provider is no longer eligible for controlled delivery.',409);}
  const auditId=crypto.randomUUID(),now=iso(clock);
  const results=await db.batch([
@@ -100,7 +103,7 @@ export async function runOperationalDelivery(db:D1Database,runtime:OperationalRu
  // A lost worker may have submitted successfully. Reuse the SAME claim only
  // inside the provider deduplication window; afterwards require investigation.
  if(!options.receiptsOnly)await db.prepare(`UPDATE operational_delivery_jobs SET state=CASE WHEN attempts>=5 OR
-  (kind!='enquiry_crm' AND attempts>0 AND json_extract(request_json,'$._lokdProvider')='zeptomail') OR
+  (kind!='enquiry_crm' AND attempts>0 AND json_extract(request_json,'$._lokdProvider') IN ('smtp','cpanel')) OR
   (kind!='enquiry_crm' AND first_attempt_at IS NOT NULL AND first_attempt_at<=?) THEN 'uncertain' ELSE 'retry_wait' END,
   lease_token=NULL,lease_expires_at=NULL,last_error='dispatch_lease_expired',updated_at=?
   WHERE state='dispatching' AND lease_expires_at<=?`).bind(iso(clock()-23*3600000),iso(clock()),iso(clock())).run();
@@ -111,22 +114,25 @@ export async function runOperationalDelivery(db:D1Database,runtime:OperationalRu
   const claimed=await db.prepare(`UPDATE operational_delivery_jobs SET state='dispatching',lease_token=?,lease_expires_at=?,updated_at=? WHERE id=? AND state IN ('queued','blocked','retry_wait') AND next_attempt_at<=?`).bind(lease,iso(clock()+120000),now,job.id,now).run();
   if(!claimed.meta.changes)continue;
   try{
-   const reconciled=job.kind==='enquiry_email'&&job.request_json&&JSON.parse(job.request_json)._lokdProvider==='zeptomail'&&await db.prepare(`SELECT id FROM audit_events WHERE entity_type='operational_delivery' AND entity_id=? AND event_type='delivery_non_submission_confirmed' AND json_extract(detail,'$.attempts')=? AND json_extract(detail,'$.confirmedNotSubmitted')=1 LIMIT 1`).bind(job.id,job.attempts).first();
+   const reconciledProvider=job.request_json?JSON.parse(job.request_json)._lokdProvider:null;
+   const reconciled=job.kind==='enquiry_email'&&(reconciledProvider==='smtp'||reconciledProvider==='cpanel')&&await db.prepare(`SELECT id FROM audit_events WHERE entity_type='operational_delivery' AND entity_id=? AND event_type='delivery_non_submission_confirmed' AND json_extract(detail,'$.attempts')=? AND json_extract(detail,'$.confirmedNotSubmitted')=1 LIMIT 1`).bind(job.id,job.attempts).first();
    if(job.attempts>=5||job.kind!=='enquiry_crm'&&job.first_attempt_at&&clock()-Date.parse(job.first_attempt_at)>=23*3600000&&!reconciled){
     await db.prepare("UPDATE operational_delivery_jobs SET state='uncertain',last_error='provider_reconciliation_required',lease_token=NULL,lease_expires_at=NULL,updated_at=? WHERE id=? AND lease_token=?").bind(iso(clock()),job.id,lease).run();continue;
    }
    const prepared=await requestFor(db,job,runtime,resolveEmail,clock());
    await db.prepare(`UPDATE operational_delivery_jobs SET request_json=COALESCE(request_json,?),recipient=COALESCE(recipient,?),attempts=attempts+1,first_attempt_at=COALESCE(first_attempt_at,?),updated_at=? WHERE id=? AND lease_token=?`).bind(JSON.stringify(prepared.body),prepared.recipient,iso(clock()),iso(clock()),job.id,lease).run();
    job.attempts++;
-   const providerId=job.kind==='enquiry_crm'?await sendCrm(runtime,prepared.body,transport):await sendEmail(runtime,job.id,prepared.body,transport);
+   const providerId=job.kind==='enquiry_crm'?await inspectCrmCompanion(runtime,prepared.body,transport):await sendEmail(runtime,job.id,prepared.body,transport);
    await db.prepare(`UPDATE operational_delivery_jobs SET state='sent',provider_id=?,last_error=NULL,lease_token=NULL,lease_expires_at=NULL,next_attempt_at=?,updated_at=? WHERE id=? AND lease_token=?`).bind(providerId,iso(clock()+60000),iso(clock()),job.id,lease).run();processed++;
   }catch(cause){
    const error=cause instanceof DeliveryError?cause:new DeliveryError('delivery_check_unavailable','retry_wait');
-   const state=error.disposition==='retry_wait'&&(job.attempts>=5||job.kind!=='enquiry_crm'&&job.attempts>0&&runtime.LOKD_EMAIL_PROVIDER==='zeptomail')?'uncertain':error.disposition;
+   const smtpUncertain=job.kind!=='enquiry_crm'&&job.attempts>0&&(runtime.LOKD_EMAIL_PROVIDER==='smtp'||runtime.LOKD_EMAIL_PROVIDER==='cpanel');
+   const state=error.disposition==='retry_wait'&&(job.attempts>=5||smtpUncertain)?'uncertain':error.disposition;
    await db.prepare(`UPDATE operational_delivery_jobs SET state=?,last_error=?,lease_token=NULL,lease_expires_at=NULL,next_attempt_at=?,updated_at=? WHERE id=? AND lease_token=?`).bind(state,error.code,iso(clock()+(state==='blocked'?900000:Math.min(3600000,30000*2**job.attempts))),iso(clock()),job.id,lease).run();
   }
  }
- if(runtime.LOKD_EMAIL_PROVIDER==='resend'&&runtime.RESEND_API_KEY||runtime.LOKD_EMAIL_PROVIDER==='zeptomail'&&runtime.ZEPTOMAIL_SEND_TOKEN){
+ let emailProvider:string|null=null;try{emailProvider=configuredEmailProvider(runtime);}catch{emailProvider=null;}
+ if(emailProvider==='smtp'||emailProvider==='cpanel'){
   const sent=await db.prepare("SELECT * FROM operational_delivery_jobs WHERE state='sent' AND kind!='enquiry_crm' AND next_attempt_at<=? ORDER BY next_attempt_at LIMIT 5").bind(iso(clock()+(options.receiptsOnly?3540000:0))).all<Job>();
   for(const job of sent.results){
    if(!allowlisted(runtime.LOKD_DELIVERY_SOURCE_ALLOWLIST,job.source_id)||!allowlisted(runtime.LOKD_DELIVERY_EMAIL_ALLOWLIST,job.recipient??''))continue;
@@ -140,6 +146,13 @@ export async function runOperationalDelivery(db:D1Database,runtime:OperationalRu
   }
  }
  return {enabled:true,processed};
+}
+
+// Read-only company 4 check. Does not create a lead, partner, sale order or invoice.
+async function inspectCrmCompanion(runtime:OperationalRuntime,body:Record<string,unknown>,transport:typeof fetch){
+ if(body._lokdProvider!=='odoo-co4-inspect'||typeof body.enquiryId!=='string'||!body.enquiryId)throw new DeliveryError('crm_inspect_invalid','failed');
+ const org=await assertLokdCompany(runtime,transport);
+ return `odoo-co4:${org.organizationId}`;
 }
 
 export async function readOperationalDelivery(db:D1Database){
