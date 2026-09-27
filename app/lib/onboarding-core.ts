@@ -151,10 +151,10 @@ export function evaluateControlledPilotRehearsal(facts: RehearsalFacts) {
     ),
     step(
       "ADVANCE_FUNDING",
-      "Cleared advance funding",
+      "Funding record",
       funding.ready,
       funding.ready
-        ? "The full synthetic service amount is cleared and reconciled with zero credit days before offer release."
+        ? "Recorded for this rehearsal."
         : funding.blockers.join(" "),
     ),
     step(

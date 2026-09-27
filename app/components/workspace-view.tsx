@@ -8,11 +8,11 @@ import { useOperations } from "../lib/use-operations";
 import { CLIENT_PORTAL_URL } from "../lib/public-site";
 
 const workspaceCopy: Record<string, { eyebrow: string; title: string; subtitle: string; action: string }> = {
-  Bookings: { eyebrow: "Pre-funded client demand", title: "Booking control", subtitle: "The full contract payment must be received and confirmed before a booking can release officer offers.", action: "Create booking" },
+  Bookings: { eyebrow: "Booking records", title: "Booking control", subtitle: "Connected booking records for this workspace.", action: "Create booking" },
   Offers: { eyebrow: "Purpose-matched allocation", title: "Offer engine", subtitle: "An active LOKD Passport, purpose endorsement, grade, service qualification, preference, area and availability must all match.", action: "Release offer wave" },
   Applications: { eyebrow: "Officer intake", title: "Applications and verification", subtitle: "Review qualified and training-pathway applicants without presenting demo checks as real identity or PSiRA verification.", action: "Refresh applications" },
   Officers: { eyebrow: "Purpose-trained officer network", title: "Officer readiness", subtitle: "Every active officer carries a live LOKD Passport backed by current training, assessment and purpose endorsements.", action: "Invite officer" },
-  Clients: { eyebrow: "Contracted service", title: "Clients and sites", subtitle: "Clients choose Armed, Unarmed or VIP, complete site approval and funding, then follow delivery.", action: "Open client workspace" },
+  Clients: { eyebrow: "Contracted service", title: "Clients and sites", subtitle: "Clients choose Armed, Unarmed or VIP, then follow delivery.", action: "Open client workspace" },
   Earnings: { eyebrow: "Officer payable ledger", title: "Earnings and payouts", subtitle: "Contracts up to 3 months release weekly; longer contracts release monthly before an officer can request payout.", action: "Release eligible earnings" },
   Feedback: { eyebrow: "Team testing loop", title: "Pilot feedback", subtitle: "Review bugs, confusing moments, missing capabilities and ideas submitted from every pilot screen.", action: "Refresh feedback" },
   "Launch readiness": { eyebrow: "Private demo controls", title: "Launch readiness", subtitle: "Regulatory, billing, identity and access gates remain explicitly separated from the connected product demo.", action: "Reset shared demo" },
@@ -92,7 +92,7 @@ function Bookings({ state, busy, error, onAction }: {
   const staffed = state.bookings.filter((item) => item.status === "staffed" || item.status === "active");
   const securedCents = funded.reduce((sum, item) => sum + item.clientPriceCents, 0);
   const serviceCount = new Set(state.bookings.map((item) => item.serviceType)).size;
-  return <section className="workspace-card booking-board"><div className="booking-summary"><div><span>Pre-funded terms</span><strong>{money(securedCents)}</strong><small>full value marked received</small></div><div><span>Service classes</span><strong>{serviceCount}</strong><small>Unarmed · Armed · VIP price book</small></div><div><span>Staffing</span><strong>{staffed.length} / {state.bookings.length}</strong><small>Connected booking records</small></div><div><span>Risk reviews</span><strong>{state.bookings.filter((item) => item.manualReview).length}</strong><small>High-risk or specialist plans</small></div></div><div className="data-head booking-head"><span>Booking</span><span>Client economics</span><span>Officer allocation</span><span>Status</span><span /></div>{state.bookings.map((item) => {
+  return <section className="workspace-card booking-board"><div className="booking-summary"><div><span>Listed value</span><strong>{money(securedCents)}</strong><small>sum of connected bookings</small></div><div><span>Service classes</span><strong>{serviceCount}</strong><small>Unarmed · Armed · VIP price book</small></div><div><span>Staffing</span><strong>{staffed.length} / {state.bookings.length}</strong><small>Connected booking records</small></div><div><span>Risk reviews</span><strong>{state.bookings.filter((item) => item.manualReview).length}</strong><small>High-risk or specialist plans</small></div></div><div className="data-head booking-head"><span>Booking</span><span>Client economics</span><span>Officer allocation</span><span>Status</span><span /></div>{state.bookings.map((item) => {
     const requiresPayment = item.fundingStatus === "awaiting_payment";
     const requiresRiskReview = item.status === "risk_review" || item.status === "site_review";
     const canRetry = item.fundingStatus === "paid_in_full" && ["matching", "partially_staffed"].includes(item.status);
@@ -313,7 +313,7 @@ function Compliance() {
     { label: "G0 · Controlled Gauteng service scope; LOKD is the licensed contracting principal", state: "Operating model locked", done: true },
     { label: "G1 · Company PSiRA approval and certificate", state: "In progress", done: false },
     { label: "G2 · Direct employer or compliant TES; client pays LOKD and officers are paid through payroll", state: "No pass-through wallet", done: false },
-    { label: "G3 · Lawful loaded-cost floor, approved site and cleared funding allocated to roster positions", state: "Evidence required", done: false },
+    { label: "G3 · Lawful loaded-cost floor and approved site allocated to roster positions", state: "Evidence required", done: false },
     { label: "G4 · Verified identity, PSiRA/grade, skills, site induction and computed roster/rest eligibility", state: "Integration required", done: false },
     { label: "G5 · Production roles/data, attendance, incidents, complaints and append-only audit", state: "First access boundary connected", done: false },
     { label: "G6 · Payroll batch, payslip and EFT evidence independent of client sign-off", state: "Payroll integration required", done: false },

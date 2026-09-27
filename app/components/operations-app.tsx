@@ -620,7 +620,6 @@ function OfficerConversionControl({ operations, flash }: {
     <section className="command-heading conversion-heading"><div><p className="eyebrow">Private Operations pathway</p><h1>Officer conversions</h1><p>Managed service remains the norm. This register is used only after a client asks to employ an assigned officer, or sends a direct private recruitment enquiry.</p></div><button className="primary-button" onClick={() => setFormOpen(true)}>＋ Open private case</button></section>
     {operations.error && <div className="command-error conversion-inline-error" role="alert"><strong>Control not saved</strong><p>{operations.error}</p></div>}
     <section className="conversion-policy-strip">
-      <article><span>0 days</span><strong>No credit terms. Ever.</strong><p>Client funds must clear in full before a placement handover can complete. LOKD does not finance client payroll or fees.</p></article>
       <article><span>Officer protected</span><strong>The client pays the fee</strong><p>No conversion, recruitment or placement fee may be deducted from the officer or used to restrict the officer’s choice.</p></article>
       <article className={conversion.peaGatePassed ? "is-passed" : "is-blocked"}><span>{conversion.peaGatePassed ? "Passed" : "Blocked"}</span><strong>PEA compliance gate</strong><p>{conversion.peaGateCode} · {conversion.peaGateLabel}. Fee clearance and handover fail closed until current evidence is recorded.</p></article>
     </section>
