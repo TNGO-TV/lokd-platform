@@ -1,0 +1,70 @@
+{
+  "policy": "No VAT charged — R1,600 subtotal, R0 VAT, R1,600 total",
+  "pricingVersion": "LOKD-SPECIALIST-2026.09-v2-no-vat",
+  "pr": "https://github.com/zenascapetown-code/lokd-platform/pull/26",
+  "testedHead": "222062299bc55f1b8747be81c6d4fcd00818581c",
+  "baseAtMerge": "dfbc7c2d3456c78f661460fc411b289d0f82bc25",
+  "merge": "6982cdad514f1ab0af54e0b62b19e260eb7d5e2e",
+  "ci": "https://github.com/zenascapetown-code/lokd-platform/actions/runs/36118756862",
+  "ciConclusion": "success",
+  "securityTests": {
+    "pass": 572,
+    "fail": 0,
+    "skip": 0
+  },
+  "accountBrowser": {
+    "pass": 1,
+    "transport": "isolated DB/R2 and Clerk development; external notices queued only",
+    "receiptFile": "BROWSER-RECEIPT.json"
+  },
+  "publishedSource": "26f500c2eeeb1ea866ab8c9f7c3b718158d5ac42",
+  "sourceTreeMatchesTestedHead": true,
+  "archiveSha256": "79a296fcecb43cba9357abb77d8662f21bcb7bedaf9ef6d54197af61aa7cead9",
+  "version": {
+    "id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_de75b78528dc8191b41cbd56f83c12da",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "version_number": 98,
+    "source": {
+      "commit_sha": "26f500c2eeeb1ea866ab8c9f7c3b718158d5ac42"
+    },
+    "archive_storage": {
+      "archive_format": "tar",
+      "sediment_file_id": "file_000000009620820e867dc4dcde6a6966",
+      "content_hash": "sha256:9990262169eb5782f8f5fb6e616dc9ff9716928e20473c21ec08020039b203d3",
+      "size_bytes": 44892160,
+      "file_count": 287
+    },
+    "screenshot_url": null,
+    "deployment_id": null
+  },
+  "deployment": {
+    "id": "appgdep_6ab6420cc0cc81918c83d6fc2dec193d",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "title": "LOKD Security",
+    "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_de75b78528dc8191b41cbd56f83c12da",
+    "type": "publish",
+    "status": "succeeded",
+    "url": "https://lokd-security.zenas-capetown.chatgpt.site",
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6a88a08505548191b266e9b711562ae3",
+    "failure_message": null,
+    "env_set_revision": 36,
+    "updated_at": "2026-09-25T09:42:57.829084+00:00"
+  },
+  "books": {
+    "customer": "1471321000000103017",
+    "document": "1471321000000103024",
+    "number": "QT-000002",
+    "status": "draft",
+    "totalMinor": 160000,
+    "comparison": "actual Books UI only, historical receipt; not application API reconciliation"
+  },
+  "limitations": [
+    "External notification delivery not demonstrated",
+    "Books API reconciliation not demonstrated",
+    "Order-linked Paystack TEST collection/settlement not demonstrated",
+    "Separate persistent acceptance Site integration setup and no-VAT source reconciliation remain outstanding",
+    "Live-card readiness unproven"
+  ],
+  "packagingNote": "Sites helper initially included local test/evidence artifacts in an intermediate source commit. Corrected before version save/deploy; all files preserved locally. Final source tree exactly matches tested GitHub head; intermediate source was never deployed."
+}

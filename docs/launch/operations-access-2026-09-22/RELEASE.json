@@ -1,0 +1,37 @@
+{
+  "source_head": "98f10774cf1f1b674722f0c1d41251f256e9a701",
+  "merge": "445f98bdceca1f3660a2a630d062b69f9bd16cb7",
+  "source_tree_identical": true,
+  "pr": "https://github.com/zenascapetown-code/lokd-platform/pull/5",
+  "ci": {
+    "run": "https://github.com/zenascapetown-code/lokd-platform/actions/runs/35743988434",
+    "result": "success",
+    "all_job_stages": "success"
+  },
+  "local": {
+    "tests": 529,
+    "failures": 0,
+    "skipped": 0,
+    "lint_errors": 0,
+    "existing_lint_warnings": 3
+  },
+  "deployment": {
+    "id": "appgdep_6ab298b7ab888191b4c73b48f6b2bf25",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "title": "LOKD Security",
+    "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_f5191d3237848191ac9ad2918dc92d69",
+    "type": "publish",
+    "status": "succeeded",
+    "url": "https://lokd-security.zenas-capetown.chatgpt.site",
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6a88a08505548191b266e9b711562ae3",
+    "failure_message": null,
+    "env_set_revision": 24,
+    "updated_at": "2026-09-22T15:04:01.154412+00:00"
+  },
+  "operations_email": "accounts@lokd.co.za",
+  "original_access_map": "preserved unchanged",
+  "hosted_access": "Awaiting user refresh; no impersonation performed",
+  "hosted_delivery": "ENQ-F5BAD219 remains pending authenticated dispatch; designated allowlists unchanged",
+  "real_transactions": "deferred"
+}

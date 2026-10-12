@@ -1,0 +1,29 @@
+{
+  "scope": "User requested unattended hosted delivery tests",
+  "access_verified": true,
+  "evidence": {
+    "delivery_post": {
+      "path": "/api/operational-delivery",
+      "method": "POST",
+      "status": 200,
+      "timestamp_ms": 1790089540902,
+      "request_id": "dcba837037aa6d70dd92538f185b1074"
+    },
+    "delivery_get": {
+      "status": 200,
+      "timestamp_ms": 1790089542015
+    },
+    "worker_errors_last_60_minutes": 0,
+    "crm_exact_reference": "ENQ-F5BAD219",
+    "crm_search_matches": 0,
+    "delivery_allowlists": "Still restricted to the designated reference and accounts@lokd.co.za"
+  },
+  "limitations": [
+    "HTTP 200 confirms the dispatch handler returned, not successful per-job provider delivery.",
+    "Worker logs do not contain the response body or per-job delivery state.",
+    "Current tool inventory exposes browser opening only; no tool can inspect or operate the user's authenticated browser.",
+    "No cookies extracted, authentication impersonated, protected endpoint bypassed, or additional delivery triggered.",
+    "Final CRM and email queue results remain unverified. No real financial transaction performed."
+  ],
+  "next_requirement": "Authenticated browser-control capability or an already-authorized authenticated test session, to inspect the existing delivery state and continue bounded dispatch safely. User should not need to supervise each click."
+}

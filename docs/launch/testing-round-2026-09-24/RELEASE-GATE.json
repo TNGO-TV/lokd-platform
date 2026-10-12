@@ -1,0 +1,15 @@
+{
+  "pr": "https://github.com/zenascapetown-code/lokd-platform/pull/18",
+  "gate_run": 36014440171,
+  "tested_head": "6ba9e98ab8004908a6196fda8e4598bcefcc5392",
+  "merge_head": "452951992c5f8d336d34be734c669902b75fed04",
+  "matching_tree": "cb0b1cf73a9ae1ed7d78a7adb0d1aefdae66f4bf",
+  "tests": 557,
+  "passed": 557,
+  "failed": 0,
+  "all_job_steps_success": true,
+  "browser_regression": "actual Clerk development authentication; isolated local DB/R2; 1 expanded test passed40.4s",
+  "hosted_client_acceptance": false,
+  "actual_email_delivery_this_round": false,
+  "actual_payment_provider_this_round": false
+}

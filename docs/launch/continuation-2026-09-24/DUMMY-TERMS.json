@@ -1,0 +1,10 @@
+{
+  "version": "LOKD-DUMMY-TERMS-2026-09-24-v1",
+  "title": "DUMMY - LOKD designated synthetic test terms",
+  "sha256": "e3d57fe507e47a4fbab9d85dc2dbe1aaa4a34a3979e7f5eab169d90110a83afc",
+  "bytes": 25879,
+  "owner_authorization": "Do not invent blockers, use a dummy file so long",
+  "scope": "designated synthetic testing",
+  "final_customer_terms": false,
+  "uploaded_to_hosted_app": false
+}

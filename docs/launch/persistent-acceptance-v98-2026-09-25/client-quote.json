@@ -1,0 +1,29 @@
+{
+  "quotes": [
+    {
+      "id": "QUOTE-3e678e61-10a1-47a6-8d38-f0857f94bbcc",
+      "order_id": "ORDER-ACCEPTANCE-20260925-NOVAT",
+      "owner_user_id": "user_3JoRwGUg5sjvBbXEf84gRg9v0yA",
+      "terms_id": "TERMS-e8800d3f-4ad2-4016-bb86-b31fa9046c8e",
+      "source_json": "{\"orderId\":\"ORDER-ACCEPTANCE-20260925-NOVAT\",\"orderVersion\":1,\"clientId\":\"CLIENT-7a870ccc-f2af-451d-b188-2c25d84a27fc\",\"clientName\":\"LOKD SYNTHETIC PERSISTENT ACCEPTANCE 20260925\",\"contactName\":\"Test Client\",\"contactEmail\":\"testclient@lokd.co.za\",\"ownerUserId\":\"user_3JoRwGUg5sjvBbXEf84gRg9v0yA\",\"caseVersion\":2,\"contractingEntityId\":\"SYNTHETIC-LOKD-ENTITY\",\"siteName\":\"TEST ONLY Acceptance Site\",\"siteArea\":\"Sandton\",\"address\":\"Synthetic fixture - no physical deployment\",\"postName\":\"TEST ONLY Gate\",\"instructions\":\"Never deploy an officer. Exercise quote validation only. SYNTHETIC-POST-v1.\",\"serviceType\":\"Unarmed\",\"purposeLabel\":\"Commercial access\",\"purposeCode\":\"commercial_access\",\"startDate\":\"2026-10-02\",\"endDate\":\"2026-10-02\",\"shiftStart\":\"06:00\",\"shiftEnd\":\"18:00\",\"headcount\":1,\"rosterPattern\":\"daily\",\"shiftCount\":1,\"serviceDayCount\":1,\"contractMonths\":0,\"engagementModel\":\"flex\",\"riskBand\":\"Standard\",\"minimumGrade\":\"Grade C\",\"specialistServiceCode\":\"standard_unarmed\",\"declaredSiteRisk\":{\"assetExposure\":\"standard\",\"publicAccess\":\"controlled\",\"incidentHistory\":\"none\",\"existingControls\":\"strong\",\"nightOperation\":false,\"vulnerablePeople\":false},\"specialistConfiguration\":\"{\\\"serviceCode\\\":\\\"standard_unarmed\\\",\\\"teamSize\\\":1,\\\"vehicleClass\\\":\\\"none\\\",\\\"travelKmPerServiceDay\\\":0,\\\"planningHours\\\":0,\\\"overnightDays\\\":0}\",\"subtotalCents\":160000,\"vatCents\":0,\"totalCents\":160000,\"currency\":\"ZAR\",\"pricingVersion\":\"LOKD-SPECIALIST-2026.09-v2-no-vat\",\"fundingModel\":\"advance_only\",\"creditTermsDays\":0,\"releaseCadence\":\"Weekly\"}",
+      "source_hash": "6a090b3461269a96535ad29a515905a3fb54fae3864316a7c31789344b1f28b5",
+      "offer_hash": "00b7671f04ae065078537299305a5ecc6f28fdc393d36f7c3513ac865f028a64",
+      "issued_by": "user_3JoRwSGOhzapqzZO1WzPfcWAD3h",
+      "issued_at": "2026-09-25T10:07:42.636Z",
+      "expires_at": "2026-10-02T10:07:39.250Z",
+      "sequence": 1,
+      "case_version": 2,
+      "terms_title": "DUMMY - persistent synthetic acceptance only",
+      "terms_version": "synthetic-20260925-v1",
+      "receipt_json": null,
+      "receipt_hash": null,
+      "email_delivery_state": "queued",
+      "cancelled": 0,
+      "terms_withdrawn": 0
+    }
+  ],
+  "terms": [],
+  "orders": [],
+  "owner": false,
+  "acknowledgement": "I accept this quote and the linked Terms and Conditions, and confirm that I am authorised to accept for the named client."
+}

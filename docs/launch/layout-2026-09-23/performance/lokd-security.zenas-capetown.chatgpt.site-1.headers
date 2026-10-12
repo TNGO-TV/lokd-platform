@@ -1,0 +1,17 @@
+HTTP/2 200 
+date: Wed, 23 Sep 2026 09:02:44 GMT
+content-type: application/json
+content-length: 82
+cache-control: no-store
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: RSC, Accept, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Next-Url, X-Vinext-Interception-Context, X-Vinext-Mounted-Slots, X-Vinext-Rsc-Render-Mode
+content-security-policy: default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' https://clerk.lokd.co.za https://challenges.cloudflare.com https://*.protect.clerk.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://img.clerk.com https://lokd.co.za; font-src 'self' data:; connect-src 'self' https://clerk.lokd.co.za https://*.protect.clerk.com:* https://clerk-telemetry.com https://*.clerk-telemetry.com; frame-src 'self' https://challenges.cloudflare.com https://*.protect.clerk.com; worker-src 'self' blob:
+permissions-policy: camera=(), microphone=(), geolocation=(), payment=()
+referrer-policy: no-referrer
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-robots-tag: noindex, nofollow
+set-cookie: __cf_bm=PhXEIZHx3e8t.gisczz1PY0CjVufflGNZh3JwZQIvQ0-1790154163.4469988-1.0.1.1-oG4cwD_jB2hXcBryAvCC2_u2kCIZ8bXfDtxCkFxL1IujVuUM2PyZqB6vWYm9FaO8UXN67TWElItdncWNbYlQzZzmI0Vq3tPv3A_y9EB3Pe91scXpB_ifRPnFHXlWlcIy; HttpOnly; SameSite=None; Secure; Path=/; Domain=chatgpt.site; Expires=Wed, 23 Sep 2026 09:32:44 GMT
+server: cloudflare
+cf-ray: a3f85f418ee7421a-JNB
+

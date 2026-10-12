@@ -1,0 +1,15 @@
+{
+  "version": 92,
+  "browser": "Genuine signed-in testclient refreshed approved agreements; loading finished and no error was displayed.",
+  "limits": "No hosted issued record exists for this account, so no signing acceptance claimed.",
+  "events": [
+    {
+      "utc": "2026-09-24T19:12:53.161Z",
+      "route": "GET /api/agreements/production",
+      "ray": "a4041a503fce5b7c",
+      "wallMs": 1354,
+      "cpuMs": 8,
+      "outcome": "ok"
+    }
+  ]
+}

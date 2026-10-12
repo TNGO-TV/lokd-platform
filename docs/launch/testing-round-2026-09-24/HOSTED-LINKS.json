@@ -1,0 +1,141 @@
+{
+  "classification": "actual hosted, links extracted from homepage, mobile Chromium",
+  "at": "2026-09-24T14:25:12.782Z",
+  "results": [
+    {
+      "url": "https://lokd.co.za/",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "Security for your site.A clear next step."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/contact",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "Start with a truthful operating brief."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/security-services",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "A managed protection service.Not an anonymous guard hour."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/armed-security",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "Armed capability.Controlled before deployment."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/industries",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "Security designed around the actual requirement."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/vip-protection",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "Protection built aroundthe person and movement."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/clients",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "From risk to roster.One accountable service."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/officers",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "Your grade opens a door.Your readiness keeps it open."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/join",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "Start where you are."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/about",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "Better security starts with a better operating model."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/join?path=training",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "Start where you are."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/locations/johannesburg",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "Build local density.Protect service continuity."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/compliance",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "A status label is never enough evidence."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/training",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "Qualification is the starting line.Currency is the standard."
+      ]
+    },
+    {
+      "url": "https://lokd.co.za/privacy",
+      "status": 200,
+      "errors": [],
+      "overflow": false,
+      "h1": [
+        "Privacy at LOKD."
+      ]
+    }
+  ]
+}

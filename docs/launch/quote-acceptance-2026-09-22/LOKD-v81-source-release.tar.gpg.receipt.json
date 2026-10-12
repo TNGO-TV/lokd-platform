@@ -1,0 +1,12 @@
+{
+  "source_head": "42f94531d0de33236efbd5c56f1e4bbb4298e691",
+  "version": "v81",
+  "archive": "/srv/ammosync/workspaces/lokd-security/docs/launch/quote-acceptance-2026-09-22/LOKD-v81-source-release.tar.gpg",
+  "sha256": "4da41594a81a31b1fe7e221d32a814dd622cb9b183276d94b5032d5d782a6a27",
+  "bytes": 13569619,
+  "local_decryption_and_file_hashes_verified": true,
+  "git_restore_verified": true,
+  "key_uploaded": false,
+  "production_snapshot": "unchanged historical v73",
+  "offhost_uploaded": false
+}

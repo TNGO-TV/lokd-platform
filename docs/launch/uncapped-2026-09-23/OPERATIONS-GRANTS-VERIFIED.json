@@ -1,0 +1,46 @@
+{
+  "account": "operations@lokd.co.za",
+  "verification": "Actual hosted grants and live D1 audit events; not simulated",
+  "events": [
+    {
+      "id": "12a9e102-a4b8-4fcd-8824-07f81e40a22b",
+      "actor_type": "operations",
+      "actor_id": "user_3JiUacvmv3ldL3WQdYL8qJaLyXI",
+      "event_type": "production_operator_role_granted",
+      "entity_type": "operator",
+      "entity_id": "OP-c712c6e3-d5b7-4164-bd94-3cd8b722b622",
+      "detail": "{\"role\":\"operations_owner\",\"limitCents\":9007199254740991,\"noPersonalCap\":true}",
+      "created_at": "2026-09-23T08:24:50.166Z"
+    },
+    {
+      "id": "56471c42-dd5a-4e21-b7d9-5b17d8102bf7",
+      "actor_type": "operations",
+      "actor_id": "user_3JiUacvmv3ldL3WQdYL8qJaLyXI",
+      "event_type": "production_operator_role_granted",
+      "entity_type": "operator",
+      "entity_id": "OP-c712c6e3-d5b7-4164-bd94-3cd8b722b622",
+      "detail": "{\"role\":\"finance_approver\",\"limitCents\":9007199254740991,\"noPersonalCap\":true}",
+      "created_at": "2026-09-23T08:26:38.273Z"
+    },
+    {
+      "id": "7ed543ac-3936-48b0-9745-a862721bbf39",
+      "actor_type": "operations",
+      "actor_id": "user_3JiUacvmv3ldL3WQdYL8qJaLyXI",
+      "event_type": "production_operator_role_granted",
+      "entity_type": "operator",
+      "entity_id": "OP-c712c6e3-d5b7-4164-bd94-3cd8b722b622",
+      "detail": "{\"role\":\"funding_reconciler\",\"limitCents\":9007199254740991,\"noPersonalCap\":true}",
+      "created_at": "2026-09-23T08:28:10.689Z"
+    },
+    {
+      "id": "cdc3cc6b-c162-4908-8ded-80c780f97841",
+      "actor_type": "operations",
+      "actor_id": "user_3JiUacvmv3ldL3WQdYL8qJaLyXI",
+      "event_type": "production_operator_role_granted",
+      "entity_type": "operator",
+      "entity_id": "OP-c712c6e3-d5b7-4164-bd94-3cd8b722b622",
+      "detail": "{\"role\":\"payroll_reviewer\",\"limitCents\":9007199254740991,\"noPersonalCap\":true}",
+      "created_at": "2026-09-23T08:27:25.480Z"
+    }
+  ]
+}

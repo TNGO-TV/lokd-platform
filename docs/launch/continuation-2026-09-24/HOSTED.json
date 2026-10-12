@@ -1,0 +1,68 @@
+{
+  "at": "2026-09-24T13:19:36.153495+00:00",
+  "classification": "actual hosted HTTP; anonymous; not signed-in browser acceptance",
+  "results": [
+    {
+      "case": "public",
+      "url": "https://lokd.co.za/",
+      "status": 200,
+      "redirects": 0,
+      "seconds": 0.489531,
+      "ttfb_seconds": 0.489243,
+      "dns_seconds": 0.002335,
+      "v88_copy_present": true,
+      "mobile_menu_present": true
+    },
+    {
+      "case": "www",
+      "url": "https://www.lokd.co.za/",
+      "status": 200,
+      "redirects": 0,
+      "seconds": 3.557826,
+      "ttfb_seconds": 3.557627,
+      "dns_seconds": 0.001592,
+      "v88_copy_present": true,
+      "mobile_menu_present": true
+    },
+    {
+      "case": "health",
+      "url": "https://operations.lokd.co.za/api/health",
+      "status": 404,
+      "redirects": 0,
+      "seconds": 4.214866,
+      "ttfb_seconds": 4.214685,
+      "dns_seconds": 0.006164,
+      "body": "Not Found"
+    },
+    {
+      "case": "quotes_anonymous",
+      "url": "https://operations.lokd.co.za/api/quotes?scope=operations",
+      "status": 401,
+      "redirects": 0,
+      "seconds": 3.123281,
+      "ttfb_seconds": 3.123185,
+      "dns_seconds": 0.001113,
+      "body": "{\"error\":\"Sign in to your account.\"}"
+    },
+    {
+      "case": "delivery_anonymous",
+      "url": "https://operations.lokd.co.za/api/operational-delivery",
+      "status": 401,
+      "redirects": 0,
+      "seconds": 1.217875,
+      "ttfb_seconds": 1.2177,
+      "dns_seconds": 0.001116,
+      "body": "{\"error\":\"Sign in to Operations.\"}"
+    },
+    {
+      "case": "finance_anonymous",
+      "url": "https://operations.lokd.co.za/api/production-operations",
+      "status": 401,
+      "redirects": 0,
+      "seconds": 3.635679,
+      "ttfb_seconds": 3.63549,
+      "dns_seconds": 0.000676,
+      "body": "{\"error\":\"Sign in to your account.\"}"
+    }
+  ]
+}

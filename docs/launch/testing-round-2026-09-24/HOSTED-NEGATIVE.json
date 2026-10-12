@@ -1,0 +1,66 @@
+{
+  "classification": "actual hosted anonymous/unsigned negative requests; not provider-originated events",
+  "at": "2026-09-24T14:25:16.716Z",
+  "results": [
+    {
+      "path": "/api/paystack/test/webhook",
+      "method": "POST",
+      "body": {
+        "error": "Invalid webhook signature."
+      },
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/paystack/booking/webhook?mode=test",
+      "method": "POST",
+      "body": {
+        "error": "Invalid webhook signature."
+      },
+      "expected": 401,
+      "status": 401,
+      "passed": true
+    },
+    {
+      "path": "/api/paystack/booking/webhook",
+      "method": "POST",
+      "body": {
+        "error": "Explicit provider mode required."
+      },
+      "expected": 422,
+      "status": 422,
+      "passed": true
+    },
+    {
+      "path": "/api/quotes?scope=operations",
+      "method": "GET",
+      "expected": 401,
+      "status": 401,
+      "passed": true,
+      "body": {
+        "error": "Sign in to your account."
+      }
+    },
+    {
+      "path": "/api/operational-delivery",
+      "method": "GET",
+      "expected": 401,
+      "status": 401,
+      "passed": true,
+      "body": {
+        "error": "Sign in to Operations."
+      }
+    },
+    {
+      "path": "/api/production-operations?kind=client&scope=operations",
+      "method": "GET",
+      "expected": 401,
+      "status": 401,
+      "passed": true,
+      "body": {
+        "error": "Sign in to your account."
+      }
+    }
+  ]
+}

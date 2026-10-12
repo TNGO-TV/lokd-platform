@@ -1,0 +1,12 @@
+{
+  "source_head": "bd349ef1517051671d4c03d152b6028158e7cd09",
+  "version": "v84",
+  "archive": "/srv/ammosync/workspaces/lokd-security/docs/launch/company-mail-2026-09-22/LOKD-v84-source-release.tar.gpg",
+  "sha256": "ecb2b9f01f57cd006385b7e7cb7929c5b79c54e13587e2626f5104b69746bd66",
+  "bytes": 14124053,
+  "local_decryption_and_file_hashes_verified": true,
+  "git_restore_verified": true,
+  "key_uploaded": false,
+  "production_snapshot": "unchanged historical v73",
+  "offhost_uploaded": false
+}

@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-24T13:20:42.132Z",
+  "classification": "actual hosted anonymous Chromium; fresh session; not desktop Operations session; no mocks",
+  "results": [
+    {
+      "width": 1440,
+      "status": 200,
+      "dimensions": {
+        "client": 1440,
+        "scroll": 1440
+      },
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "width": 390,
+      "status": 200,
+      "dimensions": {
+        "client": 390,
+        "scroll": 390
+      },
+      "overflow": false,
+      "errors": [],
+      "menuOpened": true,
+      "destination": "https://lokd.co.za/security-services",
+      "menuClosed": true
+    },
+    {
+      "width": 320,
+      "status": 200,
+      "dimensions": {
+        "client": 320,
+        "scroll": 320
+      },
+      "overflow": false,
+      "errors": [],
+      "menuOpened": true,
+      "destination": "https://lokd.co.za/security-services",
+      "menuClosed": true
+    }
+  ]
+}

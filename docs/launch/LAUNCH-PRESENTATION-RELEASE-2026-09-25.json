@@ -1,0 +1,65 @@
+{
+  "date": "2026-09-25",
+  "release": {
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "checkout_path": "/srv/ammosync/workspaces/lokd-launch-presentation",
+    "commit_sha": "f5cb2345dc4418a59b99a0f233f20f979b067e37",
+    "archive": "C:/Users/marke/OneDrive/Documents/ChatGPT/LOKD Completion/lokd-launch-presentation-release.tar"
+  },
+  "saved": {
+    "id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_421d3e3f454c819197f6a35e8d85d401",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "version_number": 94,
+    "source": {
+      "commit_sha": "f5cb2345dc4418a59b99a0f233f20f979b067e37"
+    },
+    "archive_storage": {
+      "archive_format": "tar",
+      "sediment_file_id": "file_00000000f960820e9260b10c773f9cfd",
+      "content_hash": "sha256:77ad19079e449d688d8c47d4ed0c393dc791999fddbc225f8115e784d27b7bcb",
+      "size_bytes": 43264000,
+      "file_count": 279
+    },
+    "screenshot_url": null,
+    "deployment_id": null
+  },
+  "deployment": {
+    "id": "appgdep_6ab5a5c203b081919ca6ba6e301d0494",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "title": "LOKD Security",
+    "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_421d3e3f454c819197f6a35e8d85d401",
+    "type": "publish",
+    "status": "succeeded",
+    "url": "https://lokd-security.zenas-capetown.chatgpt.site",
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6a88a08505548191b266e9b711562ae3",
+    "failure_message": null,
+    "env_set_revision": 34,
+    "updated_at": "2026-09-24T22:36:13.069163+00:00"
+  },
+  "pr": "https://github.com/zenascapetown-code/lokd-platform/pull/22",
+  "testedHead": "b42d0900a80c078258559a073f803143599e9fb9",
+  "base": "bdae0ee78c9d96c92165a1cceb7475bee103b6b5",
+  "merge": "f5cb2345dc4418a59b99a0f233f20f979b067e37",
+  "testedAndMergedTree": "f29af5accf2d0cb5f49f88ca7c392bdb485cc17e",
+  "ci": {
+    "run": 36067498257,
+    "status": "success",
+    "tests": 559,
+    "failures": 0,
+    "allJobsAndCleanlinessPassed": true
+  },
+  "ui": {
+    "portalCasesPassed": 66,
+    "targetedCasesPassed": 6,
+    "publicRoutesTested": 15,
+    "manualOverflowChecks": 56,
+    "representativeOverlapChecks": 12
+  },
+  "localArchiveSha256": "e58c8690b4111942f6922fab1d864916700578df659a0d0d6537e14f57fc29c5",
+  "limitations": [
+    "Website-use terms are distinct from quote-specific service terms and do not confer legal approval.",
+    "Five hosted/provider acceptance tasks remain open; hosting support escalation remains pending.",
+    "No real payment, invoice issuance or identity approval. Environment revision unchanged at34."
+  ]
+}

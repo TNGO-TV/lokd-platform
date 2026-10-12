@@ -1,0 +1,57 @@
+{
+  "date": "2026-09-24",
+  "status": "deployed",
+  "version": 92,
+  "source_head": "35290785a0f0f830701811d65f21f3ae88490014",
+  "base": "461104aa467cbf379abc5857329b4a27ed31c320",
+  "merge": "ee2500dc05fe536b968e824f6cc0bced3931cbbe",
+  "tree": "05ec34d9da5c4104c2f93dee66c2e5d86460374e",
+  "tested_and_merged_trees_identical": true,
+  "pr": "https://github.com/zenascapetown-code/lokd-platform/pull/20",
+  "ci": "https://github.com/zenascapetown-code/lokd-platform/actions/runs/36044221934",
+  "validation": {
+    "tests": 559,
+    "passed": 559,
+    "failed": 0,
+    "skipped": 0,
+    "targeted_tests": 93,
+    "independent_review": "no actionable findings",
+    "locked_install": true,
+    "dependency_audit": true,
+    "lint": true,
+    "types": true,
+    "canonical_schema": true,
+    "build": true,
+    "tracked_cleanliness": true
+  },
+  "deployment": {
+    "id": "appgdep_6ab5746f20688191a5211422ace04609",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "title": "LOKD Security",
+    "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_51412c896bac81919a75274294bfcc9b",
+    "type": "publish",
+    "status": "succeeded",
+    "url": "https://lokd-security.zenas-capetown.chatgpt.site",
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6a88a08505548191b266e9b711562ae3",
+    "failure_message": null,
+    "env_set_revision": 34,
+    "updated_at": "2026-09-24T19:05:47.546350+00:00"
+  },
+  "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_51412c896bac81919a75274294bfcc9b",
+  "archive_storage": {
+    "archive_format": "tar",
+    "sediment_file_id": "file_00000000691081f480e2ed52c7993d1d",
+    "content_hash": "sha256:2f40dc8a5ebf9e7a4d9cf57085780396103a9678d4aad186883427501972163c",
+    "size_bytes": 42895360,
+    "file_count": 277
+  },
+  "compressed_archive_sha256": "b79570bdf0387667978d532765cd44e46c4ffe6a79ccddefc58c409f484a6fb2",
+  "compressed_archive_bytes": 4097635,
+  "scope": "Overlap at most three independent quote and signing reads; authorize test case before its two overlapping data reads. SQL/filters/roles unchanged.",
+  "limitations": [
+    "Does not resolve measured pre-invocation hosting stalls.",
+    "Ordinary client quote reads already have a single database query.",
+    "Real payments remain deferred."
+  ]
+}

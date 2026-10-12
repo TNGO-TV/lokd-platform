@@ -1,0 +1,64 @@
+{
+  "date": "2026-09-24",
+  "version": 93,
+  "source_head": "429a072245872692700a87059871cd2da97356c5",
+  "base": "ee2500dc05fe536b968e824f6cc0bced3931cbbe",
+  "merge": "bdae0ee78c9d96c92165a1cceb7475bee103b6b5",
+  "tree": "986b3b4daa6253a18ec55822e333cadc5f5a1355",
+  "tested_and_merged_trees_identical": true,
+  "pr": "https://github.com/zenascapetown-code/lokd-platform/pull/21",
+  "ci": "https://github.com/zenascapetown-code/lokd-platform/actions/runs/36058035939",
+  "validation": {
+    "tests": 559,
+    "passed": 559,
+    "failed": 0,
+    "skipped": 0,
+    "mocked_ui_tests": 8,
+    "mocked_ui_passed": 8,
+    "independent_review": "No actionable findings",
+    "locked_install": true,
+    "audit": true,
+    "lint": true,
+    "types": true,
+    "canonical_schema": true,
+    "build": true,
+    "source_cleanliness": true
+  },
+  "version_receipt": {
+    "id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_0504320a5fec8191809fd506a99fa167",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "version_number": 93,
+    "source": {
+      "commit_sha": "429a072245872692700a87059871cd2da97356c5"
+    },
+    "archive_storage": {
+      "archive_format": "tar",
+      "sediment_file_id": "file_00000000da1882469626cce933a69f82",
+      "content_hash": "sha256:b8fd681b54b3318064f5ce85bee5817813a1cc74efd841af46b14222a040b373",
+      "size_bytes": 42895360,
+      "file_count": 277
+    },
+    "screenshot_url": null,
+    "deployment_id": null
+  },
+  "deployment": {
+    "id": "appgdep_6ab58ff882c08191b388a96e3a020bb4",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "title": "LOKD Security",
+    "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_0504320a5fec8191809fd506a99fa167",
+    "type": "publish",
+    "status": "succeeded",
+    "url": "https://lokd-security.zenas-capetown.chatgpt.site",
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6a88a08505548191b266e9b711562ae3",
+    "failure_message": null,
+    "env_set_revision": 34,
+    "updated_at": "2026-09-24T21:03:24.517896+00:00"
+  },
+  "local_archive_sha256": "e38786016f2f92ed0cff9bef39a37f9c2a3e5a6ce5fd5e396b2b1d099b3ae18b",
+  "limitations": [
+    "UI fixture tests are not hosted/provider acceptance.",
+    "No change to runtime environment or server authorization rules.",
+    "No hosting latency remedy is claimed."
+  ]
+}

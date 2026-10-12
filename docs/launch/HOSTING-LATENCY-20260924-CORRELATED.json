@@ -1,0 +1,44 @@
+[
+  {
+    "utc": "2026-09-24T18:09:49.147Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 0,
+    "ray": "a403bdf749631708"
+  },
+  {
+    "utc": "2026-09-24T18:09:46.090Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 1,
+    "ray": "a403bde34e7c3983"
+  },
+  {
+    "utc": "2026-09-24T18:09:42.906Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 1,
+    "ray": "a403bdcbb993db75"
+  },
+  {
+    "utc": "2026-09-24T18:09:39.130Z",
+    "route": "GET /api/health/live",
+    "wallMs": 5,
+    "cpuMs": 5,
+    "ray": "a403bdb49c7215d5"
+  },
+  {
+    "utc": "2026-09-24T18:09:35.425Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 1,
+    "ray": "a403bda40d96a363"
+  },
+  {
+    "utc": "2026-09-24T18:09:32.783Z",
+    "route": "GET /api/health/live",
+    "wallMs": 6,
+    "cpuMs": 6,
+    "ray": "a403bd8b295f5f95"
+  }
+]

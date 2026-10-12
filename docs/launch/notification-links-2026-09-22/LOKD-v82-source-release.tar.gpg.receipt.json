@@ -1,0 +1,12 @@
+{
+  "source_head": "90eb03fa33b8e5b103c1b1783c94685e927fdb8e",
+  "version": "v82",
+  "archive": "/srv/ammosync/workspaces/lokd-security/docs/launch/notification-links-2026-09-22/LOKD-v82-source-release.tar.gpg",
+  "sha256": "eee3d7176a3662f64951f765624c19a69542987813d3c5be068b3016b204d1d2",
+  "bytes": 13629935,
+  "local_decryption_and_file_hashes_verified": true,
+  "git_restore_verified": true,
+  "key_uploaded": false,
+  "production_snapshot": "unchanged historical v73",
+  "offhost_uploaded": false
+}

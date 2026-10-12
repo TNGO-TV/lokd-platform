@@ -1,0 +1,43 @@
+{
+  "version": {
+    "id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_8ff0698fde108191b715458757384092",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "version_number": 89,
+    "source": {
+      "commit_sha": "6fd9894a99a03045a7a470dfb1c875343986a469"
+    },
+    "archive_storage": {
+      "archive_format": "tar",
+      "sediment_file_id": "file_000000009ab481f89478718476eeee6d",
+      "content_hash": "sha256:170df40b62623afdc408dde807b7be59a0115b8dad25bf9936bb3bdd44a9949a",
+      "size_bytes": 42905600,
+      "file_count": 277
+    },
+    "screenshot_url": null,
+    "deployment_id": null
+  },
+  "deployment": {
+    "id": "appgdep_6ab5300d3a6c81919163424e1179686b",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "title": "LOKD Security",
+    "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_8ff0698fde108191b715458757384092",
+    "type": "publish",
+    "status": "succeeded",
+    "url": "https://lokd-security.zenas-capetown.chatgpt.site",
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6a88a08505548191b266e9b711562ae3",
+    "failure_message": null,
+    "env_set_revision": 34,
+    "updated_at": "2026-09-24T14:14:19.027138+00:00"
+  },
+  "gate": {
+    "run": 36009518349,
+    "tests": 556,
+    "passed": 556,
+    "failed": 0,
+    "testedHead": "55c302717bc2acc9a14af5f13e5528447e555b4a",
+    "merge": "6fd9894a99a03045a7a470dfb1c875343986a469",
+    "tree": "7026fc0770194e64ca9aeda7a05f4dc304f18034",
+    "allStepsSuccess": true
+  }
+}

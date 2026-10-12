@@ -1,0 +1,55 @@
+{
+  "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+  "events": [
+    {
+      "at": 1790255976136,
+      "requestId": "27aba2926c7dc6cd8f2ae26580bb5df0",
+      "rayId": "a40214d43ac8b910",
+      "version": "5901a29e-3138-4275-b0e1-76d31aacf6b1",
+      "path": "/api/production-operations",
+      "status": 401,
+      "wallTimeMs": 3,
+      "cpuTimeMs": 2
+    },
+    {
+      "at": 1790255973082,
+      "requestId": "f19981c8484af84a0f47a18374330931",
+      "rayId": "a40214bd88c82bef",
+      "version": "5901a29e-3138-4275-b0e1-76d31aacf6b1",
+      "path": "/api/health",
+      "status": 404,
+      "wallTimeMs": 2,
+      "cpuTimeMs": 2
+    },
+    {
+      "at": 1790255972489,
+      "requestId": "3483bb05ec9acea314f29d774cefa758",
+      "rayId": "a40214c0bfacda14",
+      "version": "5901a29e-3138-4275-b0e1-76d31aacf6b1",
+      "path": "/api/quotes",
+      "status": 401,
+      "wallTimeMs": 7,
+      "cpuTimeMs": 6
+    },
+    {
+      "at": 1790255972376,
+      "requestId": "3090a9860bef78267e2aedd006ab9a08",
+      "rayId": "a40214bd881e0ade",
+      "version": "5901a29e-3138-4275-b0e1-76d31aacf6b1",
+      "path": "/",
+      "status": 200,
+      "wallTimeMs": 51,
+      "cpuTimeMs": 42
+    },
+    {
+      "at": 1790255969275,
+      "requestId": "9d0ee3508457d3522e644601ec1202fd",
+      "rayId": "a40214bd8f1bda14",
+      "version": "5901a29e-3138-4275-b0e1-76d31aacf6b1",
+      "path": "/",
+      "status": 200,
+      "wallTimeMs": 82,
+      "cpuTimeMs": 67
+    }
+  ]
+}

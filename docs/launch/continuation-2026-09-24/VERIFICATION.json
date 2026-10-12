@@ -1,0 +1,220 @@
+{
+  "recorded_at": "2026-09-24T13:18:55.495Z",
+  "deployment": {
+    "id": "appgdep_6ab522f3bdd08191920915dea925f513",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "title": "LOKD Security",
+    "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_ec11b79c19e88191a90bffa330801a31",
+    "type": "publish",
+    "status": "succeeded",
+    "url": "https://lokd-security.zenas-capetown.chatgpt.site",
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6a88a08505548191b266e9b711562ae3",
+    "failure_message": null,
+    "env_set_revision": 34,
+    "updated_at": "2026-09-24T13:18:25.976392+00:00"
+  },
+  "crm": {
+    "data": {
+      "data": [
+        {
+          "Owner": {
+            "name": "accounts",
+            "id": "7607722000000621001",
+            "email": "accounts@lokd.co.za"
+          },
+          "Company": "LOKD SYNTHETIC MAIL ROUTING TEST - NOT A CUSTOMER 20260922",
+          "id": "7607722000000720001",
+          "LOKD_Enquiry_Reference": "ENQ-0A1171FE"
+        },
+        {
+          "Owner": {
+            "name": "accounts",
+            "id": "7607722000000621001",
+            "email": "accounts@lokd.co.za"
+          },
+          "Company": "LOKD SYNTHETIC HOSTED TEST - NOT A CUSTOMER 20260921",
+          "id": "7607722000000709001",
+          "LOKD_Enquiry_Reference": "ENQ-F5BAD219"
+        }
+      ],
+      "info": {
+        "per_page": 20,
+        "count": 2,
+        "sort_by": "id",
+        "page": 1,
+        "sort_order": "desc",
+        "more_records": false
+      }
+    },
+    "status": "success"
+  },
+  "pr": "https://github.com/zenascapetown-code/lokd-platform/pull/16",
+  "gate": {
+    "run": 35849242641,
+    "head": "248b71c66bf2b831226b1ebbf4d78b1d5f694723",
+    "merge": "498894661bfdf6bbddca20dbe6d429d6607ef99f",
+    "tree": "9b8e7144b9831ba86bc67cf03addf125d97fc68c",
+    "passed": 556,
+    "failed": 0,
+    "classification": "existing isolated CI; fresh provider job-state verification; no rerun"
+  },
+  "prerequisites": {
+    "client_terms_files": {
+      "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+      "binding_name": "DB",
+      "table_name": "client_terms_files",
+      "columns": [
+        "id",
+        "title",
+        "version",
+        "entity_id",
+        "storage_key",
+        "file_hash",
+        "size_bytes",
+        "uploaded_by",
+        "uploaded_at"
+      ],
+      "rows": [],
+      "limit": 5,
+      "offset": 0,
+      "has_more": false,
+      "model_projection": {
+        "truncated": false,
+        "truncated_values": 0,
+        "omitted_columns": 0,
+        "omitted_rows": 0,
+        "next_offset": null
+      }
+    },
+    "client_terms_approvals": {
+      "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+      "binding_name": "DB",
+      "table_name": "client_terms_approvals",
+      "columns": [
+        "terms_id",
+        "file_hash",
+        "approved_by",
+        "approved_at"
+      ],
+      "rows": [],
+      "limit": 5,
+      "offset": 0,
+      "has_more": false,
+      "model_projection": {
+        "truncated": false,
+        "truncated_values": 0,
+        "omitted_columns": 0,
+        "omitted_rows": 0,
+        "next_offset": null
+      }
+    },
+    "client_quote_offers": {
+      "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+      "binding_name": "DB",
+      "table_name": "client_quote_offers",
+      "columns": [
+        "id",
+        "order_id",
+        "owner_user_id",
+        "terms_id",
+        "source_json",
+        "source_hash",
+        "offer_hash",
+        "issued_by",
+        "issued_at",
+        "expires_at",
+        "sequence",
+        "case_version"
+      ],
+      "rows": [],
+      "limit": 5,
+      "offset": 0,
+      "has_more": false,
+      "model_projection": {
+        "truncated": false,
+        "truncated_values": 0,
+        "omitted_columns": 0,
+        "omitted_rows": 0,
+        "next_offset": null
+      }
+    },
+    "clients": {
+      "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+      "binding_name": "DB",
+      "table_name": "clients",
+      "columns": [
+        "id",
+        "organisation_name",
+        "contact_name",
+        "contact_email",
+        "approval_status",
+        "environment",
+        "integrity_state",
+        "permanent_engagement_clause_version",
+        "permanent_engagement_clause_status",
+        "permanent_engagement_clause_acknowledged_at"
+      ],
+      "rows": [
+        {
+          "id": "CL-001",
+          "organisation_name": "Northbridge Property Services",
+          "contact_name": "Nadia Jacobs",
+          "contact_email": "nadia@northbridge.example",
+          "approval_status": "approved",
+          "environment": "demo",
+          "integrity_state": "synthetic",
+          "permanent_engagement_clause_version": "ZA-PERMANENT-ENGAGEMENT-2026-01",
+          "permanent_engagement_clause_status": "pending_acknowledgement",
+          "permanent_engagement_clause_acknowledged_at": null
+        }
+      ],
+      "limit": 5,
+      "offset": 0,
+      "has_more": false,
+      "model_projection": {
+        "truncated": false,
+        "truncated_values": 0,
+        "omitted_columns": 0,
+        "omitted_rows": 0,
+        "next_offset": null
+      }
+    },
+    "booking_collection_requests": {
+      "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+      "binding_name": "DB",
+      "table_name": "booking_collection_requests",
+      "columns": [
+        "reference",
+        "order_id",
+        "client_id",
+        "applicant_id",
+        "case_id",
+        "case_version",
+        "source_hash",
+        "amount_minor",
+        "currency",
+        "mode",
+        "state",
+        "provider_id",
+        "checkout_url",
+        "prepared_by",
+        "approved_by",
+        "revision",
+        "created_at",
+        "updated_at"
+      ],
+      "rows": [],
+      "limit": 5,
+      "offset": 0,
+      "has_more": false,
+      "model_projection": {
+        "truncated": false,
+        "truncated_values": 0,
+        "omitted_columns": 0,
+        "omitted_rows": 0,
+        "next_offset": null
+      }
+    }
+  }
+}

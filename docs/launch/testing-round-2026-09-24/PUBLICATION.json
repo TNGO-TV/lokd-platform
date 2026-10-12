@@ -1,0 +1,54 @@
+{
+  "checkedAt": "2026-09-24T14:54:57.758Z",
+  "versions": [
+    {
+      "id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_6e35e8bd7f4c8191b7772d28bcef39fa",
+      "version_number": 90,
+      "source": {
+        "commit_sha": "452951992c5f8d336d34be734c669902b75fed04"
+      },
+      "archive_storage": {
+        "archive_format": "tar",
+        "sediment_file_id": "file_0000000065488230966fc8c2ba9c1375",
+        "content_hash": "sha256:fafc21072bc2f3331fad1633c8232ff899de733680e256ddb68797230f70fc0e",
+        "size_bytes": 42905600,
+        "file_count": 277
+      },
+      "deployment_id": null
+    },
+    {
+      "id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_8ff0698fde108191b715458757384092",
+      "version_number": 89,
+      "source": {
+        "commit_sha": "6fd9894a99a03045a7a470dfb1c875343986a469"
+      },
+      "archive_storage": {
+        "archive_format": "tar",
+        "sediment_file_id": "file_000000009ab481f89478718476eeee6d",
+        "content_hash": "sha256:170df40b62623afdc408dde807b7be59a0115b8dad25bf9936bb3bdd44a9949a",
+        "size_bytes": 42905600,
+        "file_count": 277
+      },
+      "deployment_id": "appgdep_6ab5300d3a6c81919163424e1179686b"
+    }
+  ],
+  "saveRecoveredAfterReadback": true,
+  "deploymentToolError": "failed to serialize JavaScript value: expected value at line 1 column 1",
+  "deploymentCompleted": true,
+  "previousDeploymentAttempts": 3,
+  "deployment": {
+    "id": "appgdep_6ab53eb0a7148191b87dff4059ab34f1",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "title": "LOKD Security",
+    "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_6e35e8bd7f4c8191b7772d28bcef39fa",
+    "type": "publish",
+    "status": "succeeded",
+    "url": "https://lokd-security.zenas-capetown.chatgpt.site",
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6a88a08505548191b266e9b711562ae3",
+    "failure_message": null,
+    "env_set_revision": 34,
+    "updated_at": "2026-09-24T15:16:48.863874+00:00"
+  },
+  "resolvedAt": "2026-09-24T15:16:48.863874+00:00"
+}

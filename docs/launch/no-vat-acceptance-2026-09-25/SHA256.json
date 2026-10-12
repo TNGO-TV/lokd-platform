@@ -1,0 +1,38 @@
+[
+  {
+    "name": "BOOKS-COMPARISON.md",
+    "sha256": "edc944544b8c2f7e568a941fa6df822d863b58b2472a0e7a149b6a17f676e5d6"
+  },
+  {
+    "name": "BROWSER-RECEIPT.json",
+    "sha256": "005cdc7ed9ceb2a62483c6907ca580661ec6e37b3bedb0a85d7bfded9df436c9"
+  },
+  {
+    "name": "lokd-no-vat-browser.log",
+    "sha256": "cde44be6da539497a858529275822ba2ef27c00ce2501e30f6d25e99aace7dc2"
+  },
+  {
+    "name": "lokd-no-vat-ci.log",
+    "sha256": "89e12ac2691e81ceb53293d2575b9327a0dc5f87c5f73a4c1635237062a484fc"
+  },
+  {
+    "name": "lokd-no-vat-security-final.log",
+    "sha256": "636638b012a21b41f0b3a118723bc385d1eb82e0747f0c69a8786e888af35232"
+  },
+  {
+    "name": "RELEASE.json",
+    "sha256": "73e4ce05fe4034444b02d01be253705af7c1fa45b33e05316ee6bd1cbe081a26"
+  },
+  {
+    "name": "release.tar",
+    "sha256": "79a296fcecb43cba9357abb77d8662f21bcb7bedaf9ef6d54197af61aa7cead9"
+  },
+  {
+    "name": "REPORT.md",
+    "sha256": "09f6a32d35a8c70e71259db5661e7bc3153747b81e98697bab31d9feaa8e93df"
+  },
+  {
+    "name": "REVIEW.md",
+    "sha256": "e53d923d9b7ad08e6203bcdb07414a0364239ddf8818a1f9b87fba00ccc434e9"
+  }
+]

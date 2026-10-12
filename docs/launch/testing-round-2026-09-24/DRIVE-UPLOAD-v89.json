@@ -1,0 +1,58 @@
+{
+  "at": "2026-09-24T15:17:56.743Z",
+  "upload": {
+    "accepted_input": "file_uri",
+    "success": true,
+    "id": "1DO3RvRP9c8lzi3wn91yQZ8APYMSetm7l",
+    "title": "LOKD-v89-source-release-20260924.tar.gpg",
+    "file_name": "LOKD-v89-source-release-20260924.tar.gpg",
+    "mime_type": "application/gpg-signature",
+    "url": "https://drive.google.com/file/d/1DO3RvRP9c8lzi3wn91yQZ8APYMSetm7l/view?usp=drivesdk",
+    "parent_id": "1u0JEL4nBvZpj4eUB1H6glsYlq9vRWY_i",
+    "structuredContent": {
+      "accepted_input": "file_uri",
+      "success": true,
+      "id": "1DO3RvRP9c8lzi3wn91yQZ8APYMSetm7l",
+      "title": "LOKD-v89-source-release-20260924.tar.gpg",
+      "file_name": "LOKD-v89-source-release-20260924.tar.gpg",
+      "mime_type": "application/gpg-signature",
+      "url": "https://drive.google.com/file/d/1DO3RvRP9c8lzi3wn91yQZ8APYMSetm7l/view?usp=drivesdk",
+      "parent_id": "1u0JEL4nBvZpj4eUB1H6glsYlq9vRWY_i"
+    }
+  },
+  "metadata": {
+    "id": "1DO3RvRP9c8lzi3wn91yQZ8APYMSetm7l",
+    "title": "LOKD-v89-source-release-20260924.tar.gpg",
+    "mime_type": "application/gpg-signature",
+    "size": "19760353",
+    "url": "https://drive.google.com/file/d/1DO3RvRP9c8lzi3wn91yQZ8APYMSetm7l/view?usp=drivesdk",
+    "display_url": "https://drive.google.com/file/d/1DO3RvRP9c8lzi3wn91yQZ8APYMSetm7l/view?usp=drivesdk",
+    "file_or_folder": "file",
+    "created_time": null,
+    "modified_time": null,
+    "parent_ids": [
+      "1u0JEL4nBvZpj4eUB1H6glsYlq9vRWY_i"
+    ],
+    "drive_id": null,
+    "current_user_can_share": null,
+    "has_augmented_permissions": null,
+    "shared": false,
+    "permissions": [
+      {
+        "type": "user",
+        "role": "owner",
+        "emailAddress": "zenas.capetown@gmail.com",
+        "domain": null,
+        "displayName": "Zenas",
+        "allowFileDiscovery": null
+      }
+    ],
+    "source_visibility_status": "permission_metadata_available"
+  },
+  "localSha256": "b665a0cd8320e60f34a92c3bed63ea16a8c22d885e329c466e5fcf308612f3e3",
+  "sizeMatches": true,
+  "privateVerified": true,
+  "providerChecksumReturned": false,
+  "downloadRestorePerformed": false,
+  "userApproved": true
+}

@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-24T13:27:06.344192+00:00",
+  "source_head": "498894661bfdf6bbddca20dbe6d429d6607ef99f",
+  "version": 88,
+  "archive": "/srv/ammosync/workspaces/lokd-security/docs/launch/continuation-2026-09-24/LOKD-v88-dummy-source-release.tar.gpg",
+  "sha256": "444832e162447accac8d27972e5c8e9dcd115a3e84b571146e5c01a29f9b1cc9",
+  "bytes": 20100401,
+  "decryption_verified": true,
+  "file_hashes_verified": true,
+  "git_restore_verified": true,
+  "files_verified": 22,
+  "runtime_secrets_included": false,
+  "key_uploaded": false,
+  "offhost_copy_verified": false,
+  "offhost_limitation": "No connected Windows filesystem or established encrypted-archive upload used in this task. Private GitHub source and native Sites build archive are independently retained.",
+  "production_snapshot": "unchanged historical v73",
+  "key_resolution": "Existing shared LOKD/TNGO recovery key confirmed by successful v87 decryption; older standalone LOKD key rejected and not used."
+}

@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-24T14:55:16.954907+00:00",
+  "source_head": "452951992c5f8d336d34be734c669902b75fed04",
+  "version": 90,
+  "archive": "/srv/ammosync/workspaces/lokd-security/docs/launch/testing-round-2026-09-24/LOKD-v90-source-release.tar.gpg",
+  "sha256": "faf2b7fa19dd25433a7c0856a43deebcace307ffc4c9268715b222455be05ad4",
+  "bytes": 19763150,
+  "decryption_verified": true,
+  "file_hashes_verified": true,
+  "git_restore_verified": true,
+  "files_verified": 61,
+  "runtime_secrets_included": false,
+  "key_uploaded": false,
+  "offhost_copy_verified": false,
+  "offhost_limitation": "Drive upload requires explicit payload/destination approval after automatic review rejected it; no fresh off-host archive verified. Private GitHub source and native Sites build archive retained.",
+  "production_snapshot": "unchanged historical v73",
+  "key_resolution": "Existing shared LOKD/TNGO recovery key confirmed by successful v87 decryption; older standalone LOKD key rejected and not used."
+}

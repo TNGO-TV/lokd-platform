@@ -1,0 +1,29 @@
+{
+  "project_id": "appgprj_6ab632f8d1c08191be82e06e7cb05f73",
+  "expected_url": "https://lokd-acceptance.zenas-capetown.chatgpt.site",
+  "access": "owner-private",
+  "version_id": "appgprj_6ab632f8d1c08191be82e06e7cb05f73~appgver_56ac0f2c893c8191beea67d5fd586df2",
+  "source_commit": "ae20eb3f5ee50e747a6868fe9125482533f66077",
+  "checkout": "/srv/ammosync/workspaces/lokd-persistent-acceptance",
+  "archive_sha256": "23391f9b2330e8fd7f7021791a44577313392535125032e306972d2a2a693ee0",
+  "environment_revision": 1,
+  "validation": {
+    "full_security_tests_passed": 573,
+    "final_boundary_tests_passed": 2,
+    "acceptance_origin_test_passed": 1,
+    "types": "passed",
+    "build": "passed"
+  },
+  "remaining": [
+    "Transfer development Clerk and approved provider credentials to secret settings (automatic approval review rejected secret output)",
+    "Configure exact synthetic sources before enabling real test-email delivery",
+    "Allow provider callbacks to reach the test deployment before Paystack order-linked testing",
+    "Perform persistent test quote delivery/acceptance and accounting collection checks"
+  ],
+  "deployment": {
+    "status": "succeeded",
+    "url": "https://lokd-acceptance.zenas-capetown.chatgpt.site",
+    "id": "appgdep_6ab6360bb808819187496ebc818fdc57"
+  },
+  "database_verification": "DB binding and quote/agreement/receipt/accounting tables confirmed through native Sites overview"
+}

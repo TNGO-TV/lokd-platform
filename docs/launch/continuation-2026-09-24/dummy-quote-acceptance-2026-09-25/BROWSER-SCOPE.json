@@ -1,0 +1,10 @@
+{
+  "mode": "isolated-development-accounts",
+  "providerDelivery": "queued-only",
+  "books": "not-contacted",
+  "payments": "not-dispatched",
+  "pdfSha256": "e3d57fe507e47a4fbab9d85dc2dbe1aaa4a34a3979e7f5eab169d90110a83afc",
+  "orderId": "ORDER-browser-order",
+  "quoteId": "QUOTE-686ec79a-f0db-4075-98dd-0c57a09c3e30",
+  "receiptHash": "acfb4d7de08612b7fa38217305f2dfc1e8aed5edd058021c23bee0ae896ccc46"
+}

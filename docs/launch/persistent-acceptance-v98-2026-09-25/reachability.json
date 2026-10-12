@@ -1,0 +1,26 @@
+[
+  {
+    "name": "anonymous quote data",
+    "path": "/api/quotes",
+    "status": 401,
+    "body": {
+      "error": "Sign in to your account."
+    }
+  },
+  {
+    "name": "forged identity headers rejected",
+    "path": "/api/quotes",
+    "status": 401,
+    "body": {
+      "error": "Sign in to your account."
+    }
+  },
+  {
+    "name": "provider callback reaches application",
+    "path": "/api/paystack/booking/webhook",
+    "status": 422,
+    "body": {
+      "error": "Explicit provider mode required."
+    }
+  }
+]

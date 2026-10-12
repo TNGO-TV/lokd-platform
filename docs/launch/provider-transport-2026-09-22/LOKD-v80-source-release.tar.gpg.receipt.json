@@ -1,0 +1,12 @@
+{
+  "source_head": "a2fd9811db4dd21c5c18d6f3645d0d33e400a97e",
+  "version": "v80",
+  "archive": "/srv/ammosync/workspaces/lokd-security/docs/launch/provider-transport-2026-09-22/LOKD-v80-source-release.tar.gpg",
+  "sha256": "9b08fff3ed76dd82af95812ab5a524c6debae01672c31d2032c02b7a9b4a4fd2",
+  "bytes": 13291888,
+  "local_decryption_and_file_hashes_verified": true,
+  "git_restore_verified": true,
+  "key_uploaded": false,
+  "production_snapshot": "unchanged historical v73",
+  "offhost_uploaded": false
+}

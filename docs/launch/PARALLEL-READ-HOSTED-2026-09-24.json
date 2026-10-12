@@ -1,0 +1,42 @@
+{
+  "version": 92,
+  "checked": "2026-09-24",
+  "browser": "Existing genuine testclient@lokd.co.za session",
+  "quote_page": "Loaded successfully; no quotes issued to this account.",
+  "production_signing": "Expanded Earlier client agreement records; no approved agreements issued to this account.",
+  "no_issued_record_acceptance_claimed": true,
+  "worker_logs": [
+    {
+      "utc": "2026-09-24T19:06:16.152Z",
+      "route": "GET /api/quotes",
+      "ray": "a40410b679e45b7c",
+      "wallMs": 710,
+      "cpuMs": 14,
+      "outcome": "ok"
+    },
+    {
+      "utc": "2026-09-24T19:06:14.701Z",
+      "route": "GET /client/agreements",
+      "ray": "a404109fdc385b7c",
+      "wallMs": 562,
+      "cpuMs": 53,
+      "outcome": "ok"
+    },
+    {
+      "utc": "2026-09-24T19:05:56.836Z",
+      "route": "GET /api/health/live",
+      "ray": "a404102bee431560",
+      "wallMs": 7,
+      "cpuMs": 6,
+      "outcome": "ok"
+    },
+    {
+      "utc": "2026-09-24T19:05:56.158Z",
+      "route": "GET /api/health/live",
+      "ray": "a404102bd9953517",
+      "wallMs": 11,
+      "cpuMs": 10,
+      "outcome": "ok"
+    }
+  ]
+}

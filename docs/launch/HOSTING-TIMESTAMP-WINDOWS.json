@@ -1,0 +1,154 @@
+[
+  {
+    "host": "lokd.co.za",
+    "sample": 0,
+    "start": "2026-09-24T18:41:26.892237+00:00",
+    "end": "2026-09-24T18:41:27.261178+00:00",
+    "headers": {
+      "date": "Thu, 24 Sep 2026 18:41:27 GMT",
+      "cf-ray": "a403ec602d2458f4-CPT"
+    },
+    "status": "live",
+    "checkedAt": "2026-09-24T18:41:27.265Z",
+    "beforeCheckedMs": 372.763,
+    "afterCheckedMs": -3.822,
+    "exit": 0,
+    "http_code": 200,
+    "time_appconnect": 0.057468,
+    "time_starttransfer": 0.269965,
+    "time_total": 0.27199
+  },
+  {
+    "host": "lokd.co.za",
+    "sample": 1,
+    "start": "2026-09-24T18:41:27.308024+00:00",
+    "end": "2026-09-24T18:41:27.441200+00:00",
+    "headers": {
+      "date": "Thu, 24 Sep 2026 18:41:27 GMT",
+      "cf-ray": "a403ec6259164807-CPT"
+    },
+    "status": "live",
+    "checkedAt": "2026-09-24T18:41:27.451Z",
+    "beforeCheckedMs": 142.976,
+    "afterCheckedMs": -9.8,
+    "exit": 0,
+    "http_code": 200,
+    "time_appconnect": 0.05113,
+    "time_starttransfer": 0.09806,
+    "time_total": 0.098683
+  },
+  {
+    "host": "lokd.co.za",
+    "sample": 2,
+    "start": "2026-09-24T18:41:27.477955+00:00",
+    "end": "2026-09-24T18:41:27.607219+00:00",
+    "headers": {
+      "date": "Thu, 24 Sep 2026 18:41:27 GMT",
+      "cf-ray": "a403ec637b364193-CPT"
+    },
+    "status": "live",
+    "checkedAt": "2026-09-24T18:41:27.623Z",
+    "beforeCheckedMs": 145.045,
+    "afterCheckedMs": -15.781,
+    "exit": 0,
+    "http_code": 200,
+    "time_appconnect": 0.05351,
+    "time_starttransfer": 0.092079,
+    "time_total": 0.092652
+  },
+  {
+    "host": "lokd.co.za",
+    "sample": 3,
+    "start": "2026-09-24T18:41:27.633445+00:00",
+    "end": "2026-09-24T18:41:27.763733+00:00",
+    "headers": {
+      "date": "Thu, 24 Sep 2026 18:41:27 GMT",
+      "cf-ray": "a403ec647d2af047-CPT"
+    },
+    "status": "live",
+    "checkedAt": "2026-09-24T18:41:27.782Z",
+    "beforeCheckedMs": 148.555,
+    "afterCheckedMs": -18.267,
+    "exit": 0,
+    "http_code": 200,
+    "time_appconnect": 0.057794,
+    "time_starttransfer": 0.101224,
+    "time_total": 0.101846
+  },
+  {
+    "host": "lokd-security.zenas-capetown.chatgpt.site",
+    "sample": 0,
+    "start": "2026-09-24T18:41:27.795906+00:00",
+    "end": "2026-09-24T18:41:28.131212+00:00",
+    "headers": {
+      "date": "Thu, 24 Sep 2026 18:41:28 GMT",
+      "cf-ray": "a403ec658d5b41e2-CPT"
+    },
+    "status": "live",
+    "checkedAt": "2026-09-24T18:41:28.149Z",
+    "beforeCheckedMs": 353.094,
+    "afterCheckedMs": -17.788,
+    "exit": 0,
+    "http_code": 200,
+    "time_appconnect": 0.05666,
+    "time_starttransfer": 0.296507,
+    "time_total": 0.297122
+  },
+  {
+    "host": "lokd-security.zenas-capetown.chatgpt.site",
+    "sample": 1,
+    "start": "2026-09-24T18:41:28.161073+00:00",
+    "end": "2026-09-24T18:41:30.478066+00:00",
+    "headers": {
+      "date": "Thu, 24 Sep 2026 18:41:30 GMT",
+      "cf-ray": "a403ec67cdf9152c-CPT"
+    },
+    "status": "live",
+    "checkedAt": "2026-09-24T18:41:30.406Z",
+    "beforeCheckedMs": 2244.927,
+    "afterCheckedMs": 72.066,
+    "exit": 0,
+    "http_code": 200,
+    "time_appconnect": 0.055571,
+    "time_starttransfer": 2.274789,
+    "time_total": 2.27557
+  },
+  {
+    "host": "lokd-security.zenas-capetown.chatgpt.site",
+    "sample": 2,
+    "start": "2026-09-24T18:41:30.509349+00:00",
+    "end": "2026-09-24T18:41:31.098389+00:00",
+    "headers": {
+      "date": "Thu, 24 Sep 2026 18:41:31 GMT",
+      "cf-ray": "a403ec779cd87404-JNB"
+    },
+    "status": "live",
+    "checkedAt": "2026-09-24T18:41:31.049Z",
+    "beforeCheckedMs": 539.651,
+    "afterCheckedMs": 49.389,
+    "exit": 0,
+    "http_code": 200,
+    "time_appconnect": 0.239828,
+    "time_starttransfer": 0.556367,
+    "time_total": 0.557001
+  },
+  {
+    "host": "lokd-security.zenas-capetown.chatgpt.site",
+    "sample": 3,
+    "start": "2026-09-24T18:41:31.129134+00:00",
+    "end": "2026-09-24T18:41:31.494709+00:00",
+    "headers": {
+      "date": "Thu, 24 Sep 2026 18:41:31 GMT",
+      "cf-ray": "a403ec7b8acd4fa7-JNB"
+    },
+    "status": "live",
+    "checkedAt": "2026-09-24T18:41:31.476Z",
+    "beforeCheckedMs": 346.866,
+    "afterCheckedMs": 18.709,
+    "exit": 0,
+    "http_code": 200,
+    "time_appconnect": 0.234575,
+    "time_starttransfer": 0.326023,
+    "time_total": 0.327219
+  }
+]

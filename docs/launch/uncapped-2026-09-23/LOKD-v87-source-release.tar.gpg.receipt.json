@@ -1,0 +1,13 @@
+{
+  "source_head": "e23dbfdb3b80e930efdb9ef27dae7257ad9dd1ae",
+  "version": "v87",
+  "archive": "/srv/ammosync/workspaces/lokd-security/docs/launch/uncapped-2026-09-23/LOKD-v87-source-release.tar.gpg",
+  "sha256": "c9e7393582f7160833f5c5adec9d7d073aaa84a2e56cef046e25eba8a0c79b64",
+  "bytes": 13710811,
+  "local_decryption_and_file_hashes_verified": true,
+  "git_restore_verified": true,
+  "key_uploaded": false,
+  "production_snapshot": "unchanged historical v73",
+  "offhost_uploaded": true,
+  "offhost_sha256_verified": true
+}

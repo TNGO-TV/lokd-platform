@@ -1,0 +1,66 @@
+[
+  {
+    "http_code": 200,
+    "url_effective": "https://lokd.co.za/",
+    "num_redirects": 0,
+    "time_starttransfer": 0.532843,
+    "time_total": 0.533161,
+    "url": "https://lokd.co.za/"
+  },
+  {
+    "http_code": 200,
+    "url_effective": "https://lokd.co.za/api/health/live",
+    "num_redirects": 0,
+    "time_starttransfer": 0.155414,
+    "time_total": 0.155493,
+    "url": "https://lokd.co.za/api/health/live"
+  },
+  {
+    "http_code": 200,
+    "url_effective": "https://portal.lokd.co.za/sign-in?return_to=%2Fclient",
+    "num_redirects": 1,
+    "time_starttransfer": 8.072194,
+    "time_total": 8.072389,
+    "url": "https://portal.lokd.co.za/client"
+  },
+  {
+    "http_code": 200,
+    "url_effective": "https://operations.lokd.co.za/sign-in?return_to=%2Fops",
+    "num_redirects": 1,
+    "time_starttransfer": 7.369155,
+    "time_total": 7.369335,
+    "url": "https://operations.lokd.co.za/ops"
+  },
+  {
+    "http_code": 200,
+    "url_effective": "https://officers.lokd.co.za/sign-in?return_to=%2Fofficer",
+    "num_redirects": 1,
+    "time_starttransfer": 2.570766,
+    "time_total": 2.570977,
+    "url": "https://officers.lokd.co.za/officer"
+  },
+  {
+    "http_code": 404,
+    "url_effective": "https://lokd.co.za/file.svg",
+    "num_redirects": 0,
+    "time_starttransfer": 0.068948,
+    "time_total": 0.069073,
+    "url": "https://lokd.co.za/file.svg"
+  },
+  {
+    "http_code": 404,
+    "url_effective": "https://www.lokd.co.za/",
+    "num_redirects": 0,
+    "time_starttransfer": 0.035218,
+    "time_total": 0.035304,
+    "url": "https://www.lokd.co.za/"
+  },
+  {
+    "http_code": 401,
+    "url_effective": "https://lokd.co.za/api/quotes",
+    "num_redirects": 0,
+    "time_starttransfer": 0.042749,
+    "time_total": 0.042843,
+    "url": "https://lokd.co.za/api/quotes"
+  }
+]

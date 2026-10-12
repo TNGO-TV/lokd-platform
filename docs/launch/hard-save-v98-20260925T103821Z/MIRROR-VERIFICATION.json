@@ -1,0 +1,29 @@
+{
+  "verified_at_utc": "2026-09-25T10:55:15.804422+00:00",
+  "local_report_and_receipts_match_vps": true,
+  "private_vps_directory": "/srv/ammosync/private-data/lokd-hard-save-v98-20260925T103821Z",
+  "vps_document_mirror": "/srv/ammosync/workspaces/lokd-security/docs/launch/hard-save-v98-20260925T103821Z",
+  "files": {
+    "HANDOVER-NEW-THREAD-v98-HARD-SAVE-2026-09-25.md": "db223907cc470dcc9b68a28329b3a6b98bcf5ba94f8ab543597df6fa8f51120d",
+    "BACKUP-VERIFICATION.json": "e377694df118134aab87fb3694f10458fa7d992689c5346d221e61614f696b4d",
+    "FINAL-SUPPLEMENT-VERIFICATION.json": "e51c8e24f776973337860b6cbaa7c372e90ada6a50be405ed9027cc53ec6f671",
+    "SITE-STATE.json": "47ed520484867f684ec72c0595c6eee7062cd75bc3723fc4577ce653c5c6270b",
+    "README.md": "0d80da0df38e9e201a65ea3368365669bf283bb57d544152cceb8f0e291fa147",
+    "FILE-MANIFEST.json": "5ee85333a776230feb583e666d11812fff47b7aaddbab21b735813ce8e2b7c88",
+    "WINDOWS-MANIFEST.json": "a2db83444f9b10595f7ec445570b073dfa6fbe1d8c1fca2a56ab54e5825fc698"
+  },
+  "encrypted_archives_verified_on_vps_and_windows": [
+    {
+      "name": "LOKD-HARD-SAVE-v98-20260925T103821Z.tar.gpg",
+      "sha256": "4e9675683b178bbfc0505b29cecb38cbe9ad5f38dcdab356325674172f9a54a9",
+      "bytes": 1238619441
+    },
+    {
+      "name": "LOKD-HANDOVER-FINAL-v98-20260925T103821Z.tar.gpg",
+      "sha256": "4b7a0a4a25e98b1fe32e15b8ecf39320b4a580be39753420e5a59821eee85a85",
+      "bytes": 288439
+    }
+  ],
+  "cloud_sync_verified": false,
+  "hosted_database_snapshot": false
+}

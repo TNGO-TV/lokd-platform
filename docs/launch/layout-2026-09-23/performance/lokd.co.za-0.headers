@@ -1,0 +1,17 @@
+HTTP/2 200 
+date: Wed, 23 Sep 2026 09:02:38 GMT
+content-type: application/json
+content-length: 82
+cache-control: no-store
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: RSC, Accept, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Next-Url, X-Vinext-Interception-Context, X-Vinext-Mounted-Slots, X-Vinext-Rsc-Render-Mode
+content-security-policy: default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' https://clerk.lokd.co.za https://challenges.cloudflare.com https://*.protect.clerk.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://img.clerk.com https://lokd.co.za; font-src 'self' data:; connect-src 'self' https://clerk.lokd.co.za https://*.protect.clerk.com:* https://clerk-telemetry.com https://*.clerk-telemetry.com; frame-src 'self' https://challenges.cloudflare.com https://*.protect.clerk.com; worker-src 'self' blob:
+permissions-policy: camera=(), microphone=(), geolocation=(), payment=()
+referrer-policy: no-referrer
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-robots-tag: noindex, nofollow
+set-cookie: __cf_bm=CNAJIc_V2vq7i628TOnlr_k_ohrhkQrm14TlB9CFVmE-1790154158.0159867-1.0.1.1-m5qBBrXaM6Lgkxppir_HkoagblB2BLPF_5jtlf5YbsxJG_SXM7CjhcL1jlHVBBRtq_dbeb9q6EDC4.aZ36I9zvFzFNHeFuHxZSQz0lSk5yfN8tSRFJDvREGUGcWdPWNW; HttpOnly; SameSite=None; Secure; Path=/; Domain=lokd.co.za; Expires=Wed, 23 Sep 2026 09:32:38 GMT
+server: cloudflare
+cf-ray: a3f85f1f9cfebc14-JNB
+

@@ -1,0 +1,149 @@
+{
+  "at": "2026-09-24T16:19:38.355416+00:00",
+  "results": [
+    {
+      "protocol": "--http1.1",
+      "agent": "curl",
+      "sample": 1,
+      "http_code": 200,
+      "http_version": "1.1",
+      "time_appconnect": 0.019698,
+      "time_starttransfer": 3.634363,
+      "time_total": 3.634408,
+      "remote_ip": "162.159.143.30",
+      "num_connects": 1
+    },
+    {
+      "protocol": "--http1.1",
+      "agent": "curl",
+      "sample": 2,
+      "http_code": 200,
+      "http_version": "1.1",
+      "time_appconnect": 0.007092,
+      "time_starttransfer": 2.935517,
+      "time_total": 2.935556,
+      "remote_ip": "172.66.3.26",
+      "num_connects": 1
+    },
+    {
+      "protocol": "--http1.1",
+      "agent": "node",
+      "sample": 1,
+      "http_code": 200,
+      "http_version": "1.1",
+      "time_appconnect": 0.011376,
+      "time_starttransfer": 0.049253,
+      "time_total": 0.049276,
+      "remote_ip": "172.66.3.26",
+      "num_connects": 1
+    },
+    {
+      "protocol": "--http1.1",
+      "agent": "node",
+      "sample": 2,
+      "http_code": 200,
+      "http_version": "1.1",
+      "time_appconnect": 0.009145,
+      "time_starttransfer": 0.041604,
+      "time_total": 0.04165,
+      "remote_ip": "162.159.143.30",
+      "num_connects": 1
+    },
+    {
+      "protocol": "--http1.1",
+      "agent": "Mozilla/5.0",
+      "sample": 1,
+      "http_code": 200,
+      "http_version": "1.1",
+      "time_appconnect": 0.007043,
+      "time_starttransfer": 0.182444,
+      "time_total": 0.182479,
+      "remote_ip": "172.66.3.26",
+      "num_connects": 1
+    },
+    {
+      "protocol": "--http1.1",
+      "agent": "Mozilla/5.0",
+      "sample": 2,
+      "http_code": 200,
+      "http_version": "1.1",
+      "time_appconnect": 0.013909,
+      "time_starttransfer": 0.06393,
+      "time_total": 0.063955,
+      "remote_ip": "172.66.3.26",
+      "num_connects": 1
+    },
+    {
+      "protocol": "--http2",
+      "agent": "curl",
+      "sample": 1,
+      "http_code": 200,
+      "http_version": "2",
+      "time_appconnect": 0.011185,
+      "time_starttransfer": 0.042933,
+      "time_total": 0.04299,
+      "remote_ip": "162.159.143.30",
+      "num_connects": 1
+    },
+    {
+      "protocol": "--http2",
+      "agent": "curl",
+      "sample": 2,
+      "http_code": 200,
+      "http_version": "2",
+      "time_appconnect": 0.006101,
+      "time_starttransfer": 0.040362,
+      "time_total": 0.040457,
+      "remote_ip": "172.66.3.26",
+      "num_connects": 1
+    },
+    {
+      "protocol": "--http2",
+      "agent": "node",
+      "sample": 1,
+      "http_code": 200,
+      "http_version": "2",
+      "time_appconnect": 0.011632,
+      "time_starttransfer": 0.066062,
+      "time_total": 0.066138,
+      "remote_ip": "172.66.3.26",
+      "num_connects": 1
+    },
+    {
+      "protocol": "--http2",
+      "agent": "node",
+      "sample": 2,
+      "http_code": 200,
+      "http_version": "2",
+      "time_appconnect": 0.008586,
+      "time_starttransfer": 0.058809,
+      "time_total": 0.058894,
+      "remote_ip": "162.159.143.30",
+      "num_connects": 1
+    },
+    {
+      "protocol": "--http2",
+      "agent": "Mozilla/5.0",
+      "sample": 1,
+      "http_code": 200,
+      "http_version": "2",
+      "time_appconnect": 0.009218,
+      "time_starttransfer": 0.043235,
+      "time_total": 0.043282,
+      "remote_ip": "162.159.143.30",
+      "num_connects": 1
+    },
+    {
+      "protocol": "--http2",
+      "agent": "Mozilla/5.0",
+      "sample": 2,
+      "http_code": 200,
+      "http_version": "2",
+      "time_appconnect": 0.007646,
+      "time_starttransfer": 0.039064,
+      "time_total": 0.039129,
+      "remote_ip": "172.66.3.26",
+      "num_connects": 1
+    }
+  ]
+}

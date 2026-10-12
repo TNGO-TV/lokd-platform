@@ -1,0 +1,57 @@
+{
+  "created_at_utc": "2026-09-25T10:49:50.108598+00:00",
+  "checkpoint": "HARD-SAVE-v98-20260925T103821Z",
+  "remote_archive": "/srv/ammosync/private-data/lokd-hard-save-v98-20260925T103821Z/LOKD-HARD-SAVE-v98-20260925T103821Z.tar.gpg",
+  "archive": "LOKD-HARD-SAVE-v98-20260925T103821Z.tar.gpg",
+  "sha256": "4e9675683b178bbfc0505b29cecb38cbe9ad5f38dcdab356325674172f9a54a9",
+  "bytes": 1238619441,
+  "encryption": "GPG symmetric AES256, existing separately held recovery key",
+  "decryption_verified": true,
+  "file_hashes_verified": true,
+  "files_verified": 4311,
+  "nested_windows_files_verified": 739,
+  "git_restore_verified": true,
+  "git_repositories_restored": 3,
+  "dirty_patch_applicability_verified": true,
+  "source_state": {
+    "canonical": {
+      "original_path": "/srv/ammosync/workspaces/lokd-security",
+      "head": "6982cdad514f1ab0af54e0b62b19e260eb7d5e2e",
+      "tree": "7dcd8ce8ad270f7d82768a429ac740430dbdb443",
+      "branch": "codex/operations-account-access"
+    },
+    "published-live": {
+      "original_path": "/srv/ammosync/workspaces/lokd-dummy-quote-acceptance",
+      "head": "26f500c2eeeb1ea866ab8c9f7c3b718158d5ac42",
+      "tree": "7dcd8ce8ad270f7d82768a429ac740430dbdb443",
+      "branch": "codex/dummy-quote-acceptance"
+    },
+    "persistent-acceptance": {
+      "original_path": "/srv/ammosync/workspaces/lokd-persistent-acceptance",
+      "head": "4ec3adcd935cc97b927841776b15bbfb0294a761",
+      "tree": "a2816be8a4963bf235b4b00e325b6e271980184e",
+      "branch": "codex/persistent-acceptance"
+    }
+  },
+  "protected_development_sessions_included": true,
+  "existing_checkout_local_configuration_included_encrypted": true,
+  "recovery_key_included": false,
+  "key_copied_or_displayed": false,
+  "current_hosted_database_and_objects_snapshot": false,
+  "full_hosted_runtime_secret_export": false,
+  "external_provider_account_backup": false,
+  "browser_cookies_exported": false,
+  "live_version": 98,
+  "acceptance_version": 2,
+  "live_environment_revision": 36,
+  "acceptance_environment_revision": 2,
+  "offhost_copy_verified": true,
+  "cloud_sync_verified": false,
+  "scope": "Three source histories, working files and dirty patches, evidence, release archives, Windows workspace, private development state; not fresh hosted D1/R2/provider backup.",
+  "offhost_copy_path": "C:\\Users\\marke\\OneDrive\\Documents\\ChatGPT\\LOKD Completion\\HARD-SAVE-v98-20260925T103821Z\\LOKD-HARD-SAVE-v98-20260925T103821Z.tar.gpg",
+  "offhost_verified_at_utc": "2026-09-25T10:53:12.850128+00:00",
+  "archived_checkpoint_draft_handover_sha256": "e24b1f878c4c7f709a75715f31f64d30087a417cc69b5243b27c78a69639f3b2",
+  "final_handover_supplement": "LOKD-HANDOVER-FINAL-v98-20260925T103821Z.tar.gpg",
+  "handover_correction": "Acceptance branch is codex/persistent-acceptance, as already correctly recorded in the archived source manifest. Final report supersedes the archived draft branch label.",
+  "handover_sha256": "db223907cc470dcc9b68a28329b3a6b98bcf5ba94f8ab543597df6fa8f51120d"
+}

@@ -1,0 +1,113 @@
+{
+  "at": "2026-09-24T14:43:15.462Z",
+  "events": [
+    {
+      "timestamp": 1790260970337,
+      "path": "/api/health/live",
+      "host": null,
+      "status": 200,
+      "wallTimeMs": 1,
+      "cpuTimeMs": 0,
+      "outcome": "ok"
+    },
+    {
+      "timestamp": 1790260969608,
+      "path": "/api/health/live",
+      "host": null,
+      "status": 200,
+      "wallTimeMs": 1,
+      "cpuTimeMs": 1,
+      "outcome": "ok"
+    },
+    {
+      "timestamp": 1790260969370,
+      "path": "/",
+      "host": null,
+      "status": 200,
+      "wallTimeMs": 70,
+      "cpuTimeMs": 58,
+      "outcome": "ok"
+    },
+    {
+      "timestamp": 1790260969111,
+      "path": "/",
+      "host": null,
+      "status": 200,
+      "wallTimeMs": 16,
+      "cpuTimeMs": 10,
+      "outcome": "ok"
+    },
+    {
+      "timestamp": 1790260968453,
+      "path": "/api/health/live",
+      "host": null,
+      "status": 200,
+      "wallTimeMs": 1,
+      "cpuTimeMs": 1,
+      "outcome": "ok"
+    },
+    {
+      "timestamp": 1790260965394,
+      "path": "/api/health/live",
+      "host": null,
+      "status": 200,
+      "wallTimeMs": 9,
+      "cpuTimeMs": 9,
+      "outcome": "ok"
+    },
+    {
+      "timestamp": 1790260965131,
+      "path": "/",
+      "host": null,
+      "status": 200,
+      "wallTimeMs": 24,
+      "cpuTimeMs": 22,
+      "outcome": "ok"
+    },
+    {
+      "timestamp": 1790260964693,
+      "path": "/",
+      "host": null,
+      "status": 200,
+      "wallTimeMs": 11,
+      "cpuTimeMs": 10,
+      "outcome": "ok"
+    },
+    {
+      "timestamp": 1790260963606,
+      "path": "/api/health/live",
+      "host": null,
+      "status": 200,
+      "wallTimeMs": 1,
+      "cpuTimeMs": 1,
+      "outcome": "ok"
+    },
+    {
+      "timestamp": 1790260962027,
+      "path": "/api/health/live",
+      "host": null,
+      "status": 200,
+      "wallTimeMs": 2,
+      "cpuTimeMs": 2,
+      "outcome": "ok"
+    },
+    {
+      "timestamp": 1790260959408,
+      "path": "/",
+      "host": null,
+      "status": 200,
+      "wallTimeMs": 46,
+      "cpuTimeMs": 38,
+      "outcome": "ok"
+    },
+    {
+      "timestamp": 1790260959210,
+      "path": "/",
+      "host": null,
+      "status": 200,
+      "wallTimeMs": 13,
+      "cpuTimeMs": 12,
+      "outcome": "ok"
+    }
+  ]
+}

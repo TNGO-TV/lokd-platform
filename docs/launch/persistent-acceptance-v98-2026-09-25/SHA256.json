@@ -1,0 +1,50 @@
+[
+  {
+    "name": "client-quote.json",
+    "sha256": "e77ff31de6b449af56c8f44e8618c4574ddfff389bbbe161b0ffc115597848b7"
+  },
+  {
+    "name": "INITIAL-SETUP.json",
+    "sha256": "544490a501a033c04b0777bca5594e07ea8e35a4b9f177ae0780c37725529ff8"
+  },
+  {
+    "name": "journey.json",
+    "sha256": "6766c90de174cae9c4e17397699a1c7f80f5a7ec4a68068f5279c83baf3cdb9e"
+  },
+  {
+    "name": "lokd-persistent-v98-build.log",
+    "sha256": "f887f4ca2d763198f790659bd009080796a791816ac386700dfc2b65f3bea1df"
+  },
+  {
+    "name": "lokd-persistent-v98-security.log",
+    "sha256": "08de704ffcbac92534b9db5543457bc801bcb48965373e2a85ec66b1a382ff91"
+  },
+  {
+    "name": "notification-state.json",
+    "sha256": "04d12a4c28ff08e42b66293c770fd4b5ccea3f22d61b58fcbcf60735b0b20e8a"
+  },
+  {
+    "name": "PROVIDER-CONFIG.example",
+    "sha256": "1cd8e4dc23da342918a42d420430f09d4e6db274446ed093f73aaccf7b93309f"
+  },
+  {
+    "name": "reachability.json",
+    "sha256": "6975069fd05c968be5656ad80d262f2c8a02b2237d18e8641e7b151a9d07fd82"
+  },
+  {
+    "name": "RELEASE.json",
+    "sha256": "8d5006b804aac19372ab05c78cd03b7936f5cfc602cfe6218e21c0e742aae747"
+  },
+  {
+    "name": "release.tar",
+    "sha256": "dfdd34bfea4ff1f790e80051a0513a54820420deb82aea7586ead680bb2b3b4c"
+  },
+  {
+    "name": "REPORT.md",
+    "sha256": "120b1c5dfefa49f40e4b643b8d05dbaad31b496430b13f733a963dfec4c4bbb2"
+  },
+  {
+    "name": "SYNTHETIC-SOURCE-PACK.md",
+    "sha256": "4267f95368c21cb55e82ca1cc923f732c71b34315b37b8dc3af9cdb8637d973e"
+  }
+]

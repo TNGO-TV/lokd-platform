@@ -1,0 +1,198 @@
+{
+  "origin": "https://lokd.co.za",
+  "classification": "actual anonymous hosted browser",
+  "results": [
+    {
+      "width": 1440,
+      "overflow": false,
+      "groups": [
+        {
+          "links": [
+            {
+              "label": "LOKD on Facebook",
+              "href": "https://www.facebook.com/lokdsecurity/",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            },
+            {
+              "label": "LOKD on YouTube",
+              "href": "https://www.youtube.com/@lokdsecurity",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            },
+            {
+              "label": "LOKD on Instagram",
+              "href": "https://www.instagram.com/lokdsecurity/",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            }
+          ],
+          "visible": true
+        },
+        {
+          "links": [
+            {
+              "label": "LOKD on Facebook",
+              "href": "https://www.facebook.com/lokdsecurity/",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            },
+            {
+              "label": "LOKD on YouTube",
+              "href": "https://www.youtube.com/@lokdsecurity",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            },
+            {
+              "label": "LOKD on Instagram",
+              "href": "https://www.instagram.com/lokdsecurity/",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            }
+          ],
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "overflow": false,
+      "groups": [
+        {
+          "links": [
+            {
+              "label": "LOKD on Facebook",
+              "href": "https://www.facebook.com/lokdsecurity/",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            },
+            {
+              "label": "LOKD on YouTube",
+              "href": "https://www.youtube.com/@lokdsecurity",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            },
+            {
+              "label": "LOKD on Instagram",
+              "href": "https://www.instagram.com/lokdsecurity/",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            }
+          ],
+          "visible": true
+        },
+        {
+          "links": [
+            {
+              "label": "LOKD on Facebook",
+              "href": "https://www.facebook.com/lokdsecurity/",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            },
+            {
+              "label": "LOKD on YouTube",
+              "href": "https://www.youtube.com/@lokdsecurity",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            },
+            {
+              "label": "LOKD on Instagram",
+              "href": "https://www.instagram.com/lokdsecurity/",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            }
+          ],
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "overflow": false,
+      "groups": [
+        {
+          "links": [
+            {
+              "label": "LOKD on Facebook",
+              "href": "https://www.facebook.com/lokdsecurity/",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            },
+            {
+              "label": "LOKD on YouTube",
+              "href": "https://www.youtube.com/@lokdsecurity",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            },
+            {
+              "label": "LOKD on Instagram",
+              "href": "https://www.instagram.com/lokdsecurity/",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            }
+          ],
+          "visible": true
+        },
+        {
+          "links": [
+            {
+              "label": "LOKD on Facebook",
+              "href": "https://www.facebook.com/lokdsecurity/",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            },
+            {
+              "label": "LOKD on YouTube",
+              "href": "https://www.youtube.com/@lokdsecurity",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            },
+            {
+              "label": "LOKD on Instagram",
+              "href": "https://www.instagram.com/lokdsecurity/",
+              "text": "",
+              "svg": true,
+              "width": 36,
+              "height": 36
+            }
+          ],
+          "visible": true
+        }
+      ]
+    }
+  ]
+}

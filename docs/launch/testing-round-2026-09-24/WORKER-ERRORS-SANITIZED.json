@@ -1,0 +1,69 @@
+{
+  "checkedAt": "2026-09-24T14:32:21.905Z",
+  "errorsOnly": true,
+  "events": [
+    {
+      "timestamp": 1790260247267,
+      "path": "/wp-login.php",
+      "status": 404,
+      "outcome": "ok",
+      "wallTimeMs": 10
+    },
+    {
+      "timestamp": 1790259916706,
+      "path": "/api/production-operations",
+      "status": 401,
+      "outcome": "ok",
+      "wallTimeMs": 2
+    },
+    {
+      "timestamp": 1790259916675,
+      "path": "/api/operational-delivery",
+      "status": 401,
+      "outcome": "ok",
+      "wallTimeMs": 4
+    },
+    {
+      "timestamp": 1790259916642,
+      "path": "/api/quotes",
+      "status": 401,
+      "outcome": "ok",
+      "wallTimeMs": 4
+    },
+    {
+      "timestamp": 1790259916613,
+      "path": "/api/paystack/booking/webhook",
+      "status": 422,
+      "outcome": "ok",
+      "wallTimeMs": 2
+    },
+    {
+      "timestamp": 1790259916578,
+      "path": "/api/paystack/booking/webhook",
+      "status": 401,
+      "outcome": "ok",
+      "wallTimeMs": 1
+    },
+    {
+      "timestamp": 1790259916535,
+      "path": "/api/paystack/test/webhook",
+      "status": 401,
+      "outcome": "ok",
+      "wallTimeMs": 1
+    },
+    {
+      "timestamp": 1790259837119,
+      "path": "/login",
+      "status": 404,
+      "outcome": "ok",
+      "wallTimeMs": 3
+    },
+    {
+      "timestamp": 1790259836533,
+      "path": "/services",
+      "status": 404,
+      "outcome": "ok",
+      "wallTimeMs": 2
+    }
+  ]
+}

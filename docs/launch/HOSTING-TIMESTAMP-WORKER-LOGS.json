@@ -1,0 +1,135 @@
+[
+  {
+    "utc": "2026-09-24T18:41:28.149Z",
+    "route": "GET /api/health/live",
+    "wallMs": 2,
+    "cpuMs": 1,
+    "ray": "a403ec658d5b41e2"
+  },
+  {
+    "utc": "2026-09-24T18:41:27.782Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 1,
+    "ray": "a403ec647d2af047"
+  },
+  {
+    "utc": "2026-09-24T18:41:27.623Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 1,
+    "ray": "a403ec637b364193"
+  },
+  {
+    "utc": "2026-09-24T18:41:27.265Z",
+    "route": "GET /api/health/live",
+    "wallMs": 2,
+    "cpuMs": 2,
+    "ray": "a403ec602d2458f4"
+  },
+  {
+    "utc": "2026-09-24T18:40:55.561Z",
+    "route": "GET /api/health/live",
+    "wallMs": 2,
+    "cpuMs": 2,
+    "ray": "a403eb9b1f2dada1"
+  },
+  {
+    "utc": "2026-09-24T18:40:55.510Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 0,
+    "ray": "a403eb9acb28d0e9"
+  },
+  {
+    "utc": "2026-09-24T18:40:55.467Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 1,
+    "ray": "a403eb8c5ee03575"
+  },
+  {
+    "utc": "2026-09-24T18:40:53.149Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 1,
+    "ray": "a403eb791bba90cf"
+  },
+  {
+    "utc": "2026-09-24T18:40:50.069Z",
+    "route": "GET /api/health/live",
+    "wallMs": 2,
+    "cpuMs": 2,
+    "ray": "a403eb78cc01fff4"
+  },
+  {
+    "utc": "2026-09-24T18:40:50.018Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 0,
+    "ray": "a403eb786eaae72e"
+  },
+  {
+    "utc": "2026-09-24T18:40:49.955Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 1,
+    "ray": "a403eb624afb599e"
+  },
+  {
+    "utc": "2026-09-24T18:40:46.425Z",
+    "route": "GET /api/health/live",
+    "wallMs": 2,
+    "cpuMs": 2,
+    "ray": "a403eb50ee4025c1"
+  },
+  {
+    "utc": "2026-09-24T18:38:14.120Z",
+    "route": "GET /api/health/live",
+    "wallMs": 3,
+    "cpuMs": 2,
+    "ray": "a403e7aa0c416c9c"
+  },
+  {
+    "utc": "2026-09-24T18:38:14.021Z",
+    "route": "GET /api/health/live",
+    "wallMs": 3,
+    "cpuMs": 2,
+    "ray": "a403e7a94fe773dc"
+  },
+  {
+    "utc": "2026-09-24T18:38:13.875Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 0,
+    "ray": "a403e7a88f65c479"
+  },
+  {
+    "utc": "2026-09-24T18:38:13.777Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 1,
+    "ray": "a403e7a7fa6f3575"
+  },
+  {
+    "utc": "2026-09-24T18:38:13.680Z",
+    "route": "GET /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 1,
+    "ray": "a403e7a74a24599e"
+  },
+  {
+    "utc": "2026-09-24T18:38:10.533Z",
+    "route": "GET /api/health/live",
+    "wallMs": 8,
+    "cpuMs": 8,
+    "ray": "a403e77a984273b8"
+  },
+  {
+    "utc": "2026-09-24T18:37:08.064Z",
+    "route": "HEAD /api/health/live",
+    "wallMs": 1,
+    "cpuMs": 1,
+    "ray": "a403e5f4d95ffbb0"
+  }
+]

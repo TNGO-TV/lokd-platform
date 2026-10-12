@@ -1,0 +1,23 @@
+{
+  "at": "2026-09-24T14:25:51.631576+00:00",
+  "source_head": "6fd9894a99a03045a7a470dfb1c875343986a469",
+  "version": 89,
+  "archive": "/srv/ammosync/workspaces/lokd-security/docs/launch/testing-round-2026-09-24/LOKD-v89-source-release.tar.gpg",
+  "sha256": "b665a0cd8320e60f34a92c3bed63ea16a8c22d885e329c466e5fcf308612f3e3",
+  "bytes": 19760353,
+  "decryption_verified": true,
+  "file_hashes_verified": true,
+  "git_restore_verified": true,
+  "files_verified": 37,
+  "runtime_secrets_included": false,
+  "key_uploaded": false,
+  "offhost_copy_verified": false,
+  "offhost_limitation": "Upload and metadata readback verified after owner approval. Provider checksum was not returned; no downloaded-byte restore performed. See DRIVE-UPLOAD-v89.json.",
+  "production_snapshot": "unchanged historical v73",
+  "key_resolution": "Existing shared LOKD/TNGO recovery key confirmed by successful v87 decryption; older standalone LOKD key rejected and not used.",
+  "offhost_upload_verified": true,
+  "offhost_drive_file_id": "1DO3RvRP9c8lzi3wn91yQZ8APYMSetm7l",
+  "offhost_private_verified": true,
+  "offhost_size_verified": true,
+  "offhost_byte_hash_verified": false
+}

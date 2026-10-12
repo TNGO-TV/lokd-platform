@@ -1,0 +1,116 @@
+[
+  {
+    "utc": "2026-09-23T09:02:37.226998+00:00",
+    "host": "lokd.co.za",
+    "sample": 0,
+    "exit": 0,
+    "http_code": 200,
+    "time_namelookup": 0.801684,
+    "time_connect": 0.802064,
+    "time_appconnect": 0.810858,
+    "time_starttransfer": 1.208024,
+    "time_total": 1.208122,
+    "num_redirects": 0,
+    "remote_ip": "162.159.143.30",
+    "headers": {
+      "date": "Wed, 23 Sep 2026 09:02:38 GMT",
+      "server": "cloudflare",
+      "cf-ray": "a3f85f1f9cfebc14-JNB"
+    }
+  },
+  {
+    "utc": "2026-09-23T09:02:38.442750+00:00",
+    "host": "lokd.co.za",
+    "sample": 1,
+    "exit": 0,
+    "http_code": 200,
+    "time_namelookup": 0.000797,
+    "time_connect": 0.001134,
+    "time_appconnect": 0.00666,
+    "time_starttransfer": 0.043405,
+    "time_total": 0.043531,
+    "num_redirects": 0,
+    "remote_ip": "162.159.143.30",
+    "headers": {
+      "date": "Wed, 23 Sep 2026 09:02:38 GMT",
+      "server": "cloudflare",
+      "cf-ray": "a3f85f222f5f8468-JNB"
+    }
+  },
+  {
+    "utc": "2026-09-23T09:02:38.492384+00:00",
+    "host": "operations.lokd.co.za",
+    "sample": 0,
+    "exit": 0,
+    "http_code": 200,
+    "time_namelookup": 0.001763,
+    "time_connect": 0.002168,
+    "time_appconnect": 0.011336,
+    "time_starttransfer": 1.606954,
+    "time_total": 1.607155,
+    "num_redirects": 0,
+    "remote_ip": "2606:4700::6812:17ba",
+    "headers": {
+      "date": "Wed, 23 Sep 2026 09:02:40 GMT",
+      "server": "cloudflare",
+      "cf-ray": "a3f85f228eaf517e-JNB"
+    }
+  },
+  {
+    "utc": "2026-09-23T09:02:40.110068+00:00",
+    "host": "operations.lokd.co.za",
+    "sample": 1,
+    "exit": 0,
+    "http_code": 200,
+    "time_namelookup": 0.001005,
+    "time_connect": 0.001565,
+    "time_appconnect": 0.015909,
+    "time_starttransfer": 1.71546,
+    "time_total": 1.715662,
+    "num_redirects": 0,
+    "remote_ip": "2606:4700::6812:17ba",
+    "headers": {
+      "date": "Wed, 23 Sep 2026 09:02:41 GMT",
+      "server": "cloudflare",
+      "cf-ray": "a3f85f2ccf2cbbf0-JNB"
+    }
+  },
+  {
+    "utc": "2026-09-23T09:02:41.837085+00:00",
+    "host": "lokd-security.zenas-capetown.chatgpt.site",
+    "sample": 0,
+    "exit": 0,
+    "http_code": 200,
+    "time_namelookup": 0.007544,
+    "time_connect": 0.007987,
+    "time_appconnect": 0.024465,
+    "time_starttransfer": 1.59086,
+    "time_total": 1.590964,
+    "num_redirects": 0,
+    "remote_ip": "2606:4700::6812:17ba",
+    "headers": {
+      "date": "Wed, 23 Sep 2026 09:02:43 GMT",
+      "server": "cloudflare",
+      "cf-ray": "a3f85f37ab685de5-JNB"
+    }
+  },
+  {
+    "utc": "2026-09-23T09:02:43.436088+00:00",
+    "host": "lokd-security.zenas-capetown.chatgpt.site",
+    "sample": 1,
+    "exit": 0,
+    "http_code": 200,
+    "time_namelookup": 0.000666,
+    "time_connect": 0.001129,
+    "time_appconnect": 0.01023,
+    "time_starttransfer": 1.027126,
+    "time_total": 1.027256,
+    "num_redirects": 0,
+    "remote_ip": "2606:4700::6812:17ba",
+    "headers": {
+      "date": "Wed, 23 Sep 2026 09:02:44 GMT",
+      "server": "cloudflare",
+      "cf-ray": "a3f85f418ee7421a-JNB"
+    }
+  }
+]

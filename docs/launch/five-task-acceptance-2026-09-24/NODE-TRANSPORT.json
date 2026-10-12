@@ -1,0 +1,86 @@
+{
+  "at": "2026-09-24T16:20:30.454Z",
+  "results": [
+    {
+      "agent": "node",
+      "sample": 1,
+      "status": 200,
+      "firstByteMs": 3731.008056,
+      "totalMs": 3732.88335,
+      "ray": "a4031dc05f3e73dd-JNB",
+      "cache": null
+    },
+    {
+      "agent": "node",
+      "sample": 2,
+      "status": 200,
+      "firstByteMs": 2751.079623,
+      "totalMs": 2751.939605,
+      "ray": "a4031dd76f5573dd-JNB",
+      "cache": null
+    },
+    {
+      "agent": "node",
+      "sample": 3,
+      "status": 200,
+      "firstByteMs": 46.42371700000058,
+      "totalMs": 47.73751900000025,
+      "ray": "a4031de8ae4773dd-JNB",
+      "cache": null
+    },
+    {
+      "agent": "curl",
+      "sample": 1,
+      "status": 200,
+      "firstByteMs": 37.50421599999936,
+      "totalMs": 38.42380799999955,
+      "ray": "a4031de8ee7e73dd-JNB",
+      "cache": null
+    },
+    {
+      "agent": "curl",
+      "sample": 2,
+      "status": 200,
+      "firstByteMs": 41.13121500000034,
+      "totalMs": 41.650036,
+      "ray": "a4031de92ea473dd-JNB",
+      "cache": null
+    },
+    {
+      "agent": "curl",
+      "sample": 3,
+      "status": 200,
+      "firstByteMs": 33.25424600000042,
+      "totalMs": 33.58004700000038,
+      "ray": "a4031de96ed173dd-JNB",
+      "cache": null
+    },
+    {
+      "agent": "Mozilla/5.0",
+      "sample": 1,
+      "status": 200,
+      "firstByteMs": 35.369801000000734,
+      "totalMs": 35.60231199999998,
+      "ray": "a4031de9aee873dd-JNB",
+      "cache": null
+    },
+    {
+      "agent": "Mozilla/5.0",
+      "sample": 2,
+      "status": 200,
+      "firstByteMs": 35.406441999999515,
+      "totalMs": 35.80772199999956,
+      "ray": "a4031de9df0b73dd-JNB",
+      "cache": null
+    },
+    {
+      "agent": "Mozilla/5.0",
+      "sample": 3,
+      "status": 200,
+      "firstByteMs": 34.39948899999945,
+      "totalMs": 35.996852999999646,
+      "ray": "a4031dea1f2473dd-JNB",
+      "cache": null
+    }
+  ]
+}

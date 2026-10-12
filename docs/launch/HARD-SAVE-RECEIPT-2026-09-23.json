@@ -1,0 +1,16 @@
+{
+  "created_at_utc": "20260923T084920Z",
+  "source_head": "e23dbfdb3b80e930efdb9ef27dae7257ad9dd1ae",
+  "version": 87,
+  "environment_revision": 34,
+  "remote_archive": "/srv/ammosync/workspaces/lokd-security/docs/launch/LOKD-HARD-SAVE-20260923T084920Z.tar.gpg",
+  "sha256": "cdb9a7972bc60aef59b313234c91e2c2cb2fcd009c59c9aefd118ec3b0be8d7d",
+  "bytes": 14320427,
+  "files_verified": 235,
+  "decryption_verified": true,
+  "git_restore_verified": true,
+  "includes_current_handover_and_dirty_patch": true,
+  "full_current_database_backup": false,
+  "runtime_secrets_included": false,
+  "offhost_copy_verified": true
+}

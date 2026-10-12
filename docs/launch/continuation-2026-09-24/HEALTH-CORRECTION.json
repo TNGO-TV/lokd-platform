@@ -1,0 +1,12 @@
+{
+  "classification": "actual hosted anonymous HTTPS",
+  "url": "https://operations.lokd.co.za/api/health/live",
+  "status": 200,
+  "seconds": 2.868664,
+  "body": {
+    "status": "live",
+    "service": "lokd-security",
+    "checkedAt": "2026-09-24T13:20:35.093Z"
+  },
+  "correction": "HOSTED.json initially probed /api/health, which is not a defined liveness route. That 404 is a probe error, not a regression."
+}

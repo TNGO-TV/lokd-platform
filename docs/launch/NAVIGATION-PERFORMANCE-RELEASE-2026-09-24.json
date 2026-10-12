@@ -1,0 +1,138 @@
+{
+  "version": 91,
+  "environment": 34,
+  "pr": "https://github.com/zenascapetown-code/lokd-platform/pull/19",
+  "ci": "https://github.com/zenascapetown-code/lokd-platform/actions/runs/36039447015",
+  "tests": 557,
+  "failed": 0,
+  "head": "d65a6f99f5a98e945964920569af43a026d2ab79",
+  "merge": "461104aa467cbf379abc5857329b4a27ed31c320",
+  "tree": "51c8c2ebe9e7edf7a3d78b8ed9668313eb52c9fb",
+  "saved": {
+    "id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_24f6eb8a75348191b283e4810478f3bb",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "version_number": 91,
+    "source": {
+      "commit_sha": "d65a6f99f5a98e945964920569af43a026d2ab79"
+    },
+    "archive_storage": {
+      "archive_format": "tar",
+      "sediment_file_id": "file_0000000003a481f5bedde846ad2ec133",
+      "content_hash": "sha256:8d074e4faedb1340ddc621376be27f73e752b9a145e04c37346974f309230454",
+      "size_bytes": 42895360,
+      "file_count": 277
+    },
+    "screenshot_url": null,
+    "deployment_id": null
+  },
+  "deployment": {
+    "id": "appgdep_6ab5697c497c8191be4afebe01dcc7b2",
+    "project_id": "appgprj_6a88a08505548191b266e9b711562ae3",
+    "title": "LOKD Security",
+    "version_id": "appgprj_6a88a08505548191b266e9b711562ae3~appgver_24f6eb8a75348191b283e4810478f3bb",
+    "type": "publish",
+    "status": "succeeded",
+    "url": "https://lokd-security.zenas-capetown.chatgpt.site",
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6a88a08505548191b266e9b711562ae3",
+    "failure_message": null,
+    "env_set_revision": 34,
+    "updated_at": "2026-09-24T18:19:08.989811+00:00"
+  },
+  "before": [
+    {
+      "utc": "2026-09-24T18:12:56.010Z",
+      "route": "GET /api/signup",
+      "wall": 1683,
+      "cpu": 8,
+      "ray": "a403c28f79466151"
+    },
+    {
+      "utc": "2026-09-24T18:12:55.367Z",
+      "route": "GET /client/test-cycle.rsc",
+      "wall": 1010,
+      "cpu": 6,
+      "ray": "a403c28fa9db6151"
+    },
+    {
+      "utc": "2026-09-24T18:12:55.023Z",
+      "route": "GET /client/agreements.rsc",
+      "wall": 313,
+      "cpu": 7,
+      "ray": "a403c28f99b26151"
+    },
+    {
+      "utc": "2026-09-24T18:12:54.970Z",
+      "route": "GET /sign-out.rsc",
+      "wall": 311,
+      "cpu": 7,
+      "ray": "a403c28f99986151"
+    },
+    {
+      "utc": "2026-09-24T18:12:54.869Z",
+      "route": "GET /client/service.rsc",
+      "wall": 404,
+      "cpu": 8,
+      "ray": "a403c28fa9d16151"
+    },
+    {
+      "utc": "2026-09-24T18:12:54.850Z",
+      "route": "GET /client/sandbox.rsc",
+      "wall": 403,
+      "cpu": 27,
+      "ray": "a403c28fa9d46151"
+    },
+    {
+      "utc": "2026-09-24T18:12:54.643Z",
+      "route": "GET /client.rsc",
+      "wall": 298,
+      "cpu": 9,
+      "ray": "a403c28f99ae6151"
+    },
+    {
+      "utc": "2026-09-24T18:12:53.005Z",
+      "route": "GET /client",
+      "wall": 347,
+      "cpu": 41,
+      "ray": "a403c2847d9b6151"
+    },
+    {
+      "utc": "2026-09-24T18:12:51.941Z",
+      "route": "GET /client",
+      "wall": 2227,
+      "cpu": 11,
+      "ray": "a403c25e5f3a6151"
+    }
+  ],
+  "after": [
+    {
+      "utc": "2026-09-24T18:19:36.268Z",
+      "route": "GET /api/health/live",
+      "wall": 1,
+      "cpu": 1,
+      "ray": "a403cc5f8d6afdcd"
+    },
+    {
+      "utc": "2026-09-24T18:19:36.200Z",
+      "route": "GET /api/health/live",
+      "wall": 6,
+      "cpu": 6,
+      "ray": "a403cc5d3b590f09"
+    },
+    {
+      "utc": "2026-09-24T18:19:24.771Z",
+      "route": "GET /api/signup",
+      "wall": 1096,
+      "cpu": 8,
+      "ray": "a403cc10e9756151"
+    },
+    {
+      "utc": "2026-09-24T18:19:22.889Z",
+      "route": "GET /client",
+      "wall": 575,
+      "cpu": 51,
+      "ray": "a403cbf6ab186151"
+    }
+  ],
+  "verification": "Actual testclient session retained its enquiry; six speculative initial route requests removed. Agreements clicked and loaded normally. Hosting-path health latency remains unresolved. Real payments deferred."
+}

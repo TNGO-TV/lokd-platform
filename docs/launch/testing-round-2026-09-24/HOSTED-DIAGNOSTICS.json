@@ -1,0 +1,98 @@
+{
+  "classification": "actual anonymous hosted Chromium",
+  "checkedAt": "2026-09-24T14:23:59.588Z",
+  "results": [
+    {
+      "path": "/",
+      "status": 200,
+      "elapsedMs": 9220,
+      "errors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "nonceChecks": [
+        {
+          "propertyPresent": true,
+          "attribute": ""
+        }
+      ]
+    },
+    {
+      "path": "/services",
+      "status": 404,
+      "elapsedMs": 549,
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ],
+      "failed": [
+        {
+          "url": "https://lokd.co.za/services",
+          "status": 404
+        }
+      ]
+    },
+    {
+      "path": "/login",
+      "status": 404,
+      "elapsedMs": 566,
+      "errors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ],
+      "failed": [
+        {
+          "url": "https://lokd.co.za/login",
+          "status": 404
+        }
+      ]
+    },
+    {
+      "path": "/api/presence",
+      "status": 200,
+      "elapsedMs": 911,
+      "errors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "body": {
+        "areas": [],
+        "checkedAt": "2026-09-24T14:23:57.711Z",
+        "precision": "Approximately 11 km areas",
+        "expiresAfterSeconds": 180
+      }
+    },
+    {
+      "path": "/api/health/ready",
+      "status": 200,
+      "elapsedMs": 959,
+      "errors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "body": {
+        "status": "ready",
+        "service": "lokd-security",
+        "checkedAt": "2026-09-24T14:23:59.045Z",
+        "productionActivationAuthorized": false,
+        "payrollMode": "shadow_settlement_locked",
+        "readinessScope": "current_schema_objects_and_evidence_binding",
+        "schemaMigration": "0077_hesitant_bishop.sql",
+        "expectedSchema": {
+          "requiredTables": 218,
+          "requiredTriggers": 794,
+          "requiredViews": 68,
+          "requiredIndexes": 311
+        },
+        "infrastructureReady": true,
+        "providerConnectivity": "not_assessed",
+        "operationalAcceptance": "not_assessed",
+        "checks": {
+          "requiredTables": 218,
+          "requiredTriggers": 794,
+          "requiredViews": 68,
+          "requiredIndexes": 311,
+          "schemaComplete": true,
+          "evidenceStoreBound": true
+        }
+      }
+    }
+  ]
+}

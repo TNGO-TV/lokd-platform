@@ -1,0 +1,20 @@
+{
+  "at": "2026-09-24T12:10:41.710062-07:00",
+  "source_head": "ee2500dc05fe536b968e824f6cc0bced3931cbbe",
+  "tree": "05ec34d9da5c4104c2f93dee66c2e5d86460374e",
+  "tested_source": "35290785a0f0f830701811d65f21f3ae88490014",
+  "version": 92,
+  "archive": "/srv/ammosync/workspaces/lokd-security/docs/launch/parallel-reads-2026-09-24/LOKD-v92-source-release.tar.gpg",
+  "sha256": "4f410e98107c3f53e64cd8d4752e2074b7d46d3dd6abd8715516d3d20ca9aee0",
+  "bytes": 19101360,
+  "decryption_verified": true,
+  "file_hashes_verified": true,
+  "git_restore_verified": true,
+  "files_verified": 13,
+  "runtime_secrets_included": false,
+  "key_uploaded": false,
+  "offhost_copy_verified": true,
+  "cloudSyncVerified": false,
+  "production_snapshot": "No fresh production database snapshot; historical v73 recovery remains separate.",
+  "scope": "Source history, exact published build, reviewed dirty launch documents and whitelisted sanitized acceptance evidence."
+}

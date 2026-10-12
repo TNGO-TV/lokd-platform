@@ -1,0 +1,101 @@
+[
+  {
+    "utc": "2026-09-23T08:54:47.075Z",
+    "ray": "a3f853995f971673",
+    "request": "a564197ef9a933ae05f2f9159bda9316",
+    "path": "/api/presence",
+    "status": 200,
+    "wallMs": 1069,
+    "cpuMs": 9
+  },
+  {
+    "utc": "2026-09-23T08:53:08.734Z",
+    "ray": "a3f851223debe08f",
+    "request": "0591e75074d7db7cfa7e591f932a0352",
+    "path": "/api/booking-refunds",
+    "status": 200,
+    "wallMs": 3737,
+    "cpuMs": 12
+  },
+  {
+    "utc": "2026-09-23T08:53:07.338Z",
+    "ray": "a3f851223de6e08f",
+    "request": "ceef11ccdf13e27ec4ef0a621ce30654",
+    "path": "/api/payment-execution",
+    "status": 200,
+    "wallMs": 2335,
+    "cpuMs": 7
+  },
+  {
+    "utc": "2026-09-23T08:53:06.690Z",
+    "ray": "a3f851223df8e08f",
+    "request": "6b25c73e6706da64ec3c15f9edd2b47c",
+    "path": "/api/finance-documents",
+    "status": 200,
+    "wallMs": 1686,
+    "cpuMs": 6
+  },
+  {
+    "utc": "2026-09-23T08:53:04.897Z",
+    "ray": "a3f850d9ae8ce08f",
+    "request": "1ff9180485679db3ccd4d37a27107809",
+    "path": "/api/production-operations",
+    "status": 200,
+    "wallMs": 11495,
+    "cpuMs": 23
+  },
+  {
+    "utc": "2026-09-23T09:02:44.457Z",
+    "ray": "a3f85f418ee7421a",
+    "request": "515a6e3a56d171b4492514c3abeda730",
+    "path": "/api/health/live",
+    "status": 200,
+    "wallMs": 1,
+    "cpuMs": 0
+  },
+  {
+    "utc": "2026-09-23T09:02:43.423Z",
+    "ray": "a3f85f37ab685de5",
+    "request": "f194820c5b2849d65fe17cd32182a5aa",
+    "path": "/api/health/live",
+    "status": 200,
+    "wallMs": 1,
+    "cpuMs": 1
+  },
+  {
+    "utc": "2026-09-23T09:02:41.817Z",
+    "ray": "a3f85f2ccf2cbbf0",
+    "request": "480e174070104e8defc5acf2f7ada4c2",
+    "path": "/api/health/live",
+    "status": 200,
+    "wallMs": 7,
+    "cpuMs": 6
+  },
+  {
+    "utc": "2026-09-23T09:02:40.073Z",
+    "ray": "a3f85f228eaf517e",
+    "request": "b510a13f2c4f807cecee2c6882530422",
+    "path": "/api/health/live",
+    "status": 200,
+    "wallMs": 1,
+    "cpuMs": 1
+  },
+  {
+    "utc": "2026-09-23T09:02:38.457Z",
+    "ray": "a3f85f222f5f8468",
+    "request": "490981866c5775459c7d75924ba0772c",
+    "path": "/api/health/live",
+    "status": 200,
+    "wallMs": 1,
+    "cpuMs": 1
+  },
+  {
+    "utc": "2026-09-23T09:02:38.400Z",
+    "ray": "a3f85f1f9cfebc14",
+    "request": "072fd4affc7b62f71b6a34714e4ea789",
+    "path": "/api/health/live",
+    "status": 200,
+    "wallMs": 9,
+    "cpuMs": 8
+  }
+]

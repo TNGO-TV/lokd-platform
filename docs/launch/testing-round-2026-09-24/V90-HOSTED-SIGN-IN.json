@@ -1,0 +1,44 @@
+{
+  "classification": "actual hosted anonymous sign-in form rendering; no credentials submitted",
+  "results": [
+    {
+      "host": "portal.lokd.co.za",
+      "productionClerkPolicy": true,
+      "url": "https://portal.lokd.co.za/sign-in",
+      "formVisible": true,
+      "errors": [],
+      "failed": [],
+      "headings": [
+        "Client sign in",
+        "Sign in to LOKD Security"
+      ],
+      "overflow": false
+    },
+    {
+      "host": "operations.lokd.co.za",
+      "productionClerkPolicy": true,
+      "url": "https://operations.lokd.co.za/sign-in",
+      "formVisible": true,
+      "errors": [],
+      "failed": [],
+      "headings": [
+        "Operations sign in",
+        "Sign in to LOKD Security"
+      ],
+      "overflow": false
+    },
+    {
+      "host": "officers.lokd.co.za",
+      "productionClerkPolicy": true,
+      "url": "https://officers.lokd.co.za/sign-in",
+      "formVisible": true,
+      "errors": [],
+      "failed": [],
+      "headings": [
+        "Officer sign in",
+        "Sign in to LOKD Security"
+      ],
+      "overflow": false
+    }
+  ]
+}

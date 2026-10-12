@@ -1,0 +1,12 @@
+{
+  "source_head": "12f5f0cedc5c4f9b6cbed35bcad7613d57d0cd7f",
+  "version": "v85",
+  "archive": "/srv/ammosync/workspaces/lokd-security/docs/launch/cleanup-2026-09-23/LOKD-v85-source-release.tar.gpg",
+  "sha256": "35bbdf2a946a99f0baa1205d1640bac72a7a830fcf4827eefb1805df90a9fb51",
+  "bytes": 13420247,
+  "local_decryption_and_file_hashes_verified": true,
+  "git_restore_verified": true,
+  "key_uploaded": false,
+  "production_snapshot": "unchanged historical v73",
+  "offhost_uploaded": false
+}

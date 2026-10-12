@@ -1,0 +1,118 @@
+{
+  "pr": "https://github.com/zenascapetown-code/lokd-platform/pull/13",
+  "tested_head": "977618b7489dfdec255b86e5301bac553733209f",
+  "base": "bd349ef1517051671d4c03d152b6028158e7cd09",
+  "merge": "12f5f0cedc5c4f9b6cbed35bcad7613d57d0cd7f",
+  "ci_run": 35827236930,
+  "identical_tree": true,
+  "jobs": [
+    {
+      "id": 107071621995,
+      "run_id": 35827236930,
+      "workflow_name": "LOKD security gate",
+      "head_branch": "codex/launch-client-clarity",
+      "run_url": "https://api.github.com/repos/zenascapetown-code/lokd-platform/actions/runs/35827236930",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUPCJvc8AAAAY7fdLaw",
+      "head_sha": "977618b7489dfdec255b86e5301bac553733209f",
+      "url": "https://api.github.com/repos/zenascapetown-code/lokd-platform/actions/jobs/107071621995",
+      "html_url": "https://github.com/zenascapetown-code/lokd-platform/actions/runs/35827236930/job/107071621995",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-09-23T06:32:53Z",
+      "started_at": "2026-09-23T06:32:56Z",
+      "completed_at": "2026-09-23T06:39:00Z",
+      "name": "security",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-09-23T06:32:57Z",
+          "completed_at": "2026-09-23T06:32:58Z"
+        },
+        {
+          "name": "Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-09-23T06:32:58Z",
+          "completed_at": "2026-09-23T06:32:59Z"
+        },
+        {
+          "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-09-23T06:32:59Z",
+          "completed_at": "2026-09-23T06:33:06Z"
+        },
+        {
+          "name": "Match accepted npm toolchain",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-09-23T06:33:06Z",
+          "completed_at": "2026-09-23T06:33:10Z"
+        },
+        {
+          "name": "Install locked dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-09-23T06:33:10Z",
+          "completed_at": "2026-09-23T06:33:29Z"
+        },
+        {
+          "name": "Run security gate",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-09-23T06:33:29Z",
+          "completed_at": "2026-09-23T06:38:55Z"
+        },
+        {
+          "name": "Ensure validation did not change tracked source",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-09-23T06:38:55Z",
+          "completed_at": "2026-09-23T06:38:55Z"
+        },
+        {
+          "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-09-23T06:38:55Z",
+          "completed_at": "2026-09-23T06:38:55Z"
+        },
+        {
+          "name": "Post Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-09-23T06:38:55Z",
+          "completed_at": "2026-09-23T06:38:56Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-09-23T06:38:56Z",
+          "completed_at": "2026-09-23T06:38:56Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/zenascapetown-code/lokd-platform/check-runs/107071621995",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000000115,
+      "runner_name": "GitHub Actions 1000000115",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}

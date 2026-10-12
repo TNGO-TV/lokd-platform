@@ -1,0 +1,11 @@
+{
+  "source_head": "98f10774cf1f1b674722f0c1d41251f256e9a701",
+  "archive": "/home/ammosync/.codex/visualizations/2026/09/21/01a0c49f-ac8d-78e2-abca-48239538b448/LOKD-operations-access-source-release.tar.gpg",
+  "sha256": "e2ad8ab42e06b43a680b0d9bccefa894e3034267cf61ec1ae777cd1356b48e94",
+  "bytes": 13322482,
+  "local_decryption_and_file_hashes_verified": true,
+  "git_restore_verified": true,
+  "key_uploaded": false,
+  "production_snapshot": "unchanged v73; source/release only",
+  "offhost_uploaded": false
+}
