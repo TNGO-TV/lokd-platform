@@ -296,7 +296,7 @@ export function priceSpecialistCostFloor(input: SpecialistCostInput): Specialist
   const marginBasisPoints = subtotalCents > 0 ? Math.floor(marginCents * 10_000 / subtotalCents) : 0;
   const partnerReviewRequired = configuration.vehicleClass === "armoured_partner";
   const reviewReasons = [
-    ...(partnerReviewRequired ? ["An independently verified armoured-vehicle partner quote must replace the conservative reserve before payment."] : []),
+    ...(partnerReviewRequired ? ["An independently verified armoured-vehicle partner quote must replace the conservative reserve."] : []),
     ...(configuration.overnightDays ? ["Accommodation, subsistence and working-time plan require Operations review."] : []),
   ];
 
