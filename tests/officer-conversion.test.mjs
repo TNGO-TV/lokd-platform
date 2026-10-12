@@ -61,11 +61,10 @@ test("private recruitment uses 15 percent of first-year guaranteed cash subject 
   }).calculatedFeeCents, 1_800_000);
 });
 
-test("handover fails closed on PEA, clause, employer, close-out, transfer and cleared-funds controls", () => {
+test("handover readiness ignores the PEA checklist but keeps case and funding controls", () => {
   const blocked = officerConversionReadiness({
     status: "offer_accepted",
     clauseAcknowledged: true,
-    peaGatePassed: false,
     offerAccepted: true,
     clientEmployerPackReady: true,
     lokdPayrollCloseoutReady: true,
@@ -73,12 +72,10 @@ test("handover fails closed on PEA, clause, employer, close-out, transfer and cl
     feePaid: false,
   });
   assert.equal(blocked.ready, false);
-  assert.match(blocked.blockers.join(" "), /Private Employment Agency/);
   assert.match(blocked.blockers.join(" "), /fee has not been cleared/);
   assert.equal(officerConversionReadiness({
     status: "offer_accepted",
     clauseAcknowledged: true,
-    peaGatePassed: true,
     offerAccepted: true,
     clientEmployerPackReady: true,
     lokdPayrollCloseoutReady: true,

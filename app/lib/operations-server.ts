@@ -1485,7 +1485,6 @@ export async function readOperationsState(db: D1Database): Promise<OperationsCom
     const readiness = officerConversionReadiness({
       status: row.status,
       clauseAcknowledged: row.clauseStatus === "acknowledged" && Boolean(clauseAcknowledgedAt),
-      peaGatePassed,
       offerAccepted: Boolean(row.offerAcceptedAt),
       clientEmployerPackReady: row.clientEmployerPackStatus === "ready",
       lokdPayrollCloseoutReady: row.lokdPayrollCloseoutStatus === "ready",
@@ -2004,7 +2003,7 @@ export async function applyOperationsAction(db: D1Database, payload: OperationsA
         WHERE id = ? AND version = ? AND status = 'offer_notified'
           AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(now, now, caseId, version);
       auditType = "conversion_offer_accepted";
-      auditDetail = "Offer acceptance recorded; the client fee is payable but may not be charged on credit or cleared before the PEA gate passes.";
+      auditDetail = "Offer acceptance recorded; the client fee is payable but may not be charged on credit.";
     } else if (payload.step === "confirm_client_employer_pack") {
       if (!current.offerAcceptedAt) throw new OperationsError("Record offer acceptance before the employer handover pack.", 409);
       update = db.prepare(`UPDATE officer_conversion_cases SET client_employer_pack_status = 'ready',
@@ -2027,12 +2026,6 @@ export async function applyOperationsAction(db: D1Database, payload: OperationsA
       auditType = "conversion_psira_transfer_ready";
       auditDetail = "Applicable PSiRA transfer and employment formalities marked ready in the synthetic case.";
     } else if (payload.step === "mark_fee_paid") {
-      const peaGate = await db.prepare(`SELECT code FROM launch_controls WHERE code = ? AND status = 'passed'
-        AND evidence_level IN ('system_verified','independently_verified') AND evidence_reference IS NOT NULL
-        AND verified_at IS NOT NULL AND datetime(verified_at) <= datetime('now')
-        AND expires_at IS NOT NULL AND datetime(expires_at) >= datetime('now')`)
-        .bind(OFFICER_CONVERSION_POLICY.peaGateCode).first<{ code: string }>();
-      if (!peaGate) throw new OperationsError("PEA registration evidence must be passed and current before any placement fee can clear.", 409);
       if (!current.offerAcceptedAt || current.clauseStatus !== "acknowledged" || !current.clauseAcknowledgedAt) {
         throw new OperationsError("An accepted offer and acknowledged client clause are required before fee clearance.", 409);
       }
@@ -2051,15 +2044,9 @@ export async function applyOperationsAction(db: D1Database, payload: OperationsA
       auditType = "officer_conversion_withdrawn";
       auditDetail = "Conversion case withdrawn; the officer remains unrestricted and no client fee is due.";
     } else {
-      const peaGate = await db.prepare(`SELECT code FROM launch_controls WHERE code = ? AND status = 'passed'
-        AND evidence_level IN ('system_verified','independently_verified') AND evidence_reference IS NOT NULL
-        AND verified_at IS NOT NULL AND datetime(verified_at) <= datetime('now')
-        AND expires_at IS NOT NULL AND datetime(expires_at) >= datetime('now')`)
-        .bind(OFFICER_CONVERSION_POLICY.peaGateCode).first<{ code: string }>();
       const readiness = officerConversionReadiness({
         status: current.status,
         clauseAcknowledged: current.clauseStatus === "acknowledged" && Boolean(current.clauseAcknowledgedAt),
-        peaGatePassed: Boolean(peaGate),
         offerAccepted: Boolean(current.offerAcceptedAt),
         clientEmployerPackReady: current.clientEmployerPackStatus === "ready",
         lokdPayrollCloseoutReady: current.lokdPayrollCloseoutStatus === "ready",
@@ -2072,7 +2059,7 @@ export async function applyOperationsAction(db: D1Database, payload: OperationsA
           AND fee_status = 'paid' AND environment = 'demo' AND integrity_state = 'synthetic'`)
         .bind(now, now, caseId, version);
       auditType = "officer_conversion_completed";
-      auditDetail = "Client employer handover completed after clause, PEA, prefunding, payroll close-out and transfer controls passed.";
+      auditDetail = "Client employer handover completed after clause, prefunding, payroll close-out and transfer controls passed.";
     }
     const result = await update.run();
     if (!result.meta.changes) throw new OperationsError("This conversion case changed before your action. Refresh and try again.", 409);
