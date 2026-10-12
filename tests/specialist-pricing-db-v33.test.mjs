@@ -156,14 +156,6 @@ function seedAssignmentPlan(database, bookingId, quote) {
      ?,?,?,1,'POST-V33',?)`, past, past, expiry, past);
 }
 
-function passSpecialistGates(database) {
-  run(database, `UPDATE launch_controls SET status='passed',evidence_level='independently_verified',
-    evidence_reference='specialist:evidence:v33',verified_by='board-and-compliance',
-    verified_at='2025-01-01T00:00:00.000Z',expires_at='2040-12-31T23:59:59.999Z',version=version+1,
-    updated_at='2025-01-01T00:00:00.000Z' WHERE code IN
-    ('S1_ARMED_SERVICE_AUTHORITY','S3_SPECIALIST_INSURANCE','S4_SPECIALIST_BOARD_APPROVAL')`);
-}
-
 test("database validates the specialist cost floor, VAT and margin contract", () => {
   const database = migratedDatabase();
   try {
@@ -180,7 +172,7 @@ test("database validates the specialist cost floor, VAT and margin contract", ()
   }
 });
 
-test("Armed progress requires plan, authority and exact cleared VAT-inclusive funding", () => {
+test("Armed progress requires its plan and exact cleared VAT-inclusive funding, not launch gates", () => {
   const database = migratedDatabase();
   try {
     run(database, `INSERT INTO clients
@@ -190,8 +182,6 @@ test("Armed progress requires plan, authority and exact cleared VAT-inclusive fu
     insertSpecialistBooking(database, "BK-V33", quote);
     seedAssignmentPlan(database, "BK-V33", quote);
 
-    assert.throws(() => run(database, `UPDATE bookings SET status='awaiting_payment',funding_status='awaiting_payment' WHERE id='BK-V33'`), /specialist_service_authority_not_current/);
-    passSpecialistGates(database);
     run(database, `UPDATE bookings SET status='awaiting_payment',funding_status='awaiting_payment' WHERE id='BK-V33'`);
     assert.throws(() => run(database, `UPDATE bookings SET status='matching',funding_status='paid_in_full' WHERE id='BK-V33'`), /specialist_full_cleared_advance_funding_required/);
 

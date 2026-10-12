@@ -71,7 +71,6 @@ export function calculateOfficerConversionFee(input: FeeInput) {
 export type OfficerConversionReadinessInput = {
   status: string;
   clauseAcknowledged: boolean;
-  peaGatePassed: boolean;
   offerAccepted: boolean;
   clientEmployerPackReady: boolean;
   lokdPayrollCloseoutReady: boolean;
@@ -83,7 +82,6 @@ export function officerConversionReadiness(input: OfficerConversionReadinessInpu
   const blockers: string[] = [];
   if (input.status === "withdrawn") blockers.push("The case has been withdrawn.");
   if (!input.clauseAcknowledged) blockers.push("The client has not acknowledged the permanent-engagement clause.");
-  if (!input.peaGatePassed) blockers.push("Private Employment Agency registration evidence is not passed and current.");
   if (!input.offerAccepted) blockers.push("No accepted client employment offer is recorded.");
   if (!input.clientEmployerPackReady) blockers.push("The client employer, payroll and employment-contract pack is incomplete.");
   if (!input.lokdPayrollCloseoutReady) blockers.push("LOKD final payroll and leave close-out is incomplete.");
