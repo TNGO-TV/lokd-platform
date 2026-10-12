@@ -26,7 +26,8 @@ export class DeliveryError extends Error {
  disposition:'blocked'|'failed'|'retry_wait'|'cancelled'|'uncertain';
  constructor(code:string,disposition:DeliveryError['disposition']='blocked'){super(code);this.code=code;this.disposition=disposition;}
 }
-export function allowlisted(list:string|undefined,value:string){return (list??'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean).includes(value.toLowerCase());}
+// A single '*' entry opens the list (owner decision: deliver to every real applicant and client).
+export function allowlisted(list:string|undefined,value:string){const entries=(list??'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);return entries.includes('*')||entries.includes(value.toLowerCase());}
 export const emailValid=(v:unknown):v is string=>typeof v==='string'&&v.length<=254&&/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(v);
 
 export async function providerJson(url:string,init:RequestInit,transport:typeof fetch=fetch):Promise<Record<string,unknown>>{

@@ -55,6 +55,20 @@ async function requestFor(db:D1Database,job:Job,runtime:OperationalRuntime,resol
   recipient=await resolveEmail(envelope.owner);
   subject=job.source_id.startsWith('QUOTE-')?'Your LOKD quote is ready to review':'Your LOKD agreement is ready to review';
   text=`Sign in to your LOKD account to review and accept your agreement. Only its named signer can accept it.\n\n${envelope.kind==='client'?CLIENT_PORTAL_URL:OFFICER_PORTAL_URL}/${envelope.kind}/agreements#${encodeURIComponent(job.source_id)}\n\nAgreement reference: ${job.source_id}\nIf the agreement has expired or been withdrawn, contact LOKD Operations.`;
+ }else if(job.kind==='applicant_email'){
+  // Acknowledgement to the officer who applied at /join. Vetting has started; nothing is promised.
+  const application=await db.prepare("SELECT id,full_name,email_normalized FROM officer_applications WHERE id=? AND environment='prelaunch' AND integrity_state='user_submitted' AND status!='withdrawn'").bind(job.source_id).first<{id:string;full_name:string;email_normalized:string}>();
+  if(!application)throw new DeliveryError('application_withdrawn','cancelled');
+  recipient=application.email_normalized;
+  subject='LOKD has received your officer application';
+  text=`Hello ${application.full_name},\n\nThank you for applying to LOKD Security. Your application reference is ${application.id}.\n\nWhat happens next: sign in at ${OFFICER_PORTAL_URL}/officer with this email address and link your application. If you are PSiRA registered, submit your PSiRA number there so Operations can check it against the official register. Operations will review your application and contact you if anything more is needed.\n\nThis is an acknowledgement only. It is not an offer of employment, a guarantee of work, or confirmation that any check has been passed.\n\nLOKD Security Operations`;
+ }else if(job.kind==='enquiry_ack_email'){
+  // Acknowledgement to the client who enquired at /contact.
+  const enquiry=await db.prepare("SELECT id,contact_name,organisation_name,email_normalized FROM client_enquiries e WHERE id=? AND environment='prelaunch' AND integrity_state='user_submitted' AND status!='closed' AND NOT EXISTS(SELECT 1 FROM signup_cases c WHERE c.source_id=e.id AND c.kind='client' AND c.status='withdrawn')").bind(job.source_id).first<{id:string;contact_name:string;organisation_name:string;email_normalized:string}>();
+  if(!enquiry)throw new DeliveryError('enquiry_closed_or_withdrawn','cancelled');
+  recipient=enquiry.email_normalized;
+  subject='LOKD has received your security enquiry';
+  text=`Hello ${enquiry.contact_name},\n\nThank you for your enquiry on behalf of ${enquiry.organisation_name}. Your reference is ${enquiry.id}.\n\nLOKD Operations will review the site details you provided and come back to you with a security plan and a quote. You can follow your enquiry by signing in at ${CLIENT_PORTAL_URL}/client with this email address.\n\nThis is an acknowledgement only; no booking or service is confirmed until a quote has been issued and accepted.\n\nLOKD Security Operations`;
  }else{
   const source=job.kind==='enquiry_email'
    ?await db.prepare("SELECT id FROM client_enquiries e WHERE id=? AND environment='prelaunch' AND integrity_state='user_submitted' AND status!='closed' AND NOT EXISTS(SELECT 1 FROM signup_cases c WHERE c.source_id=e.id AND c.kind='client' AND c.status='withdrawn')").bind(job.source_id).first()

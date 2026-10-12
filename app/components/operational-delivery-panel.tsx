@@ -3,7 +3,7 @@ import {useEffect,useState} from 'react';
 import {readWorkspaceResponse,workspaceAccessDenied} from './workspace-request';
 import styles from './signup-portal.module.css';
 type Job={id:string;kind:string;sourceId:string;state:string;attempts:number;recipient:string|null;providerId:string|null;lastError:string|null;updatedAt:string};
-const labels:Record<string,string>={enquiry_crm:'Enquiry company check',enquiry_email:'Team enquiry notice',booking_email:'Team booking notice',contract_email:'Agreement email'};
+const labels:Record<string,string>={enquiry_crm:'Enquiry company check',enquiry_email:'Team enquiry notice',booking_email:'Team booking notice',contract_email:'Agreement email',applicant_email:'Applicant acknowledgement',enquiry_ack_email:'Client enquiry acknowledgement'};
 const states:Record<string,string>={queued:'Queued',blocked:'Needs configuration or review',dispatching:'Sending',retry_wait:'Waiting to retry',sent:'Accepted by provider',delivered:'Email delivery confirmed',failed:'Failed',uncertain:'Outcome uncertain — reconcile before retrying',cancelled:'Cancelled'};
 export default function OperationalDeliveryPanel(){
  const [evidence,setEvidence]=useState<Record<string,string>>({}),[confirmed,setConfirmed]=useState<Record<string,boolean>>({});
