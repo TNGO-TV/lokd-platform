@@ -22,9 +22,16 @@ export function assessAudit(report,lock,now=Date.now()) {
  const visit=(name,parents=new Set())=>{
   if(parents.has(name))throw Error('Cyclic advisory graph');
   const finding=report.vulnerabilities[name];
-  if(!finding||!Array.isArray(finding.via)||!finding.via.length)throw Error('Incomplete advisory graph');
+  if(!finding||finding.name!==name||!Array.isArray(finding.via)||!finding.via.length)throw Error('Incomplete advisory graph');
   const chain=new Set([...parents,name]);
-  for(const via of finding.via)if(typeof via==='string')visit(via,chain);
+  const rootLevels=finding.via.map(via=>{
+   if(typeof via==='string')return visit(via,chain);
+   if(!via?.url||!severities.includes(via.severity))throw Error('Invalid advisory record');
+   return severities.indexOf(via.severity);
+  });
+  const highest=Math.max(...rootLevels);
+  if(severities.indexOf(finding.severity)!==highest)throw Error('Inconsistent finding and root advisory severity');
+  return highest;
  };
  for(const name of Object.keys(report.vulnerabilities))visit(name);
  for(const finding of findings){

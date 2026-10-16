@@ -35,3 +35,15 @@ test('deployed bundle boundary rejects both bundled and external glob parsers',(
   assert.throws(()=>assertDependencyBoundary({app:{...chunk,dynamicImports:[id]}}),/Development-only/);
  }
 });
+
+test('finding severity must agree with direct and transitive advisory roots',()=>{
+ for(const severity of ['info','low','moderate','critical']){
+  const r=report();r.vulnerabilities.braces.via[0].severity=severity;
+  assert.throws(()=>assessAudit(r,lock(),now),/root advisory severity/);
+ }
+ const r=report();r.vulnerabilities.parent={name:'parent',severity:'high',nodes:['node_modules/parent'],via:['braces']};
+ r.metadata.vulnerabilities.total=2;r.metadata.vulnerabilities.high=2;
+ assert.equal(assessAudit(r,lock(),now).ok,true);
+ r.vulnerabilities.parent.severity='critical';r.metadata.vulnerabilities.high=1;r.metadata.vulnerabilities.critical=1;
+ assert.throws(()=>assessAudit(r,lock(),now),/root advisory severity/);
+});

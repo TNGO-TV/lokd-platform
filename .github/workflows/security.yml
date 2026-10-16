@@ -27,7 +27,20 @@ jobs:
         run: npm install --global npm@9.2.0
       - name: Install locked dependencies
         run: npm run install:ci
-      - name: Run security gate
-        run: npm run check:security
+      - name: Validate native release candidate (no deployment)
+        run: bash scripts/deploy-native-cf.sh --prepare
       - name: Ensure validation did not change tracked source
         run: git diff --exit-code HEAD
+      - name: Retain validated native candidate and evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: native-candidate-${{ github.sha }}
+          retention-days: 14
+          if-no-files-found: error
+          include-hidden-files: true
+          path: |
+            dist/
+            .sites-runtime/release/candidate.json
+            .sites-runtime/release/validation.log
+            test-results/dependency-audit.json
+            test-results/dependency-boundary-*.json
