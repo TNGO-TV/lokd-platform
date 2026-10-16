@@ -27,6 +27,8 @@ jobs:
         run: npm install --global npm@9.2.0
       - name: Install locked dependencies
         run: npm run install:ci
+      - name: Install isolated browser runtime
+        run: node node_modules/@playwright/test/cli.js install --with-deps chromium
       - name: Validate native release candidate (no deployment)
         run: bash scripts/deploy-native-cf.sh --prepare
       - name: Ensure validation did not change tracked source
@@ -44,3 +46,4 @@ jobs:
             .sites-runtime/release/validation.log
             test-results/dependency-audit.json
             test-results/dependency-boundary-*.json
+            test-results/offline-browser/

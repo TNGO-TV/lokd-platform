@@ -9,6 +9,7 @@ const zeroFindings = { total: 0, info: 0, low: 0, moderate: 0, high: 0, critical
 const passingAudit = () => ({ npmExit: 0, report: { auditReportVersion: 2, metadata: { vulnerabilities: { ...zeroFindings } }, vulnerabilities: {} },
   assessment: { ok: true, blocked: [], dispositions: [], raw: { ...zeroFindings } } });
 const passingBoundary = () => ({ checkedPackages: ['braces', 'micromatch', 'fast-glob'], moduleCount: 1, moduleGraphSha256: 'a'.repeat(64) });
+const passingBrowser = () => ({stats:{expected:8,unexpected:0,flaky:0,skipped:0},errors:[]});
 
 function fixture(t) {
   const root = mkdtempSync(path.join(os.tmpdir(), 'lokd-release-'));
@@ -37,6 +38,7 @@ function fixture(t) {
     put('.sites-runtime/release/validation.log', 'All security checks passed\n');
     put('test-results/dependency-audit.json', JSON.stringify(passingAudit()));
     put('test-results/dependency-boundary-rsc.json', JSON.stringify(passingBoundary()));
+    put('test-results/offline-browser/results.json', JSON.stringify(passingBrowser()));
   };
   const prepare = () => { assert.equal(run('begin').status, 0); outputs(); const sealed = run('seal'); assert.equal(sealed.status, 0, sealed.stderr); };
   return { root, put, original, env, run, outputs, prepare };
@@ -46,7 +48,7 @@ test('candidate records exact source, lock, native assets and validation evidenc
   const f = fixture(t); f.prepare();
   const receipt = JSON.parse(readFileSync(path.join(f.root, '.sites-runtime/release/candidate.json')));
   assert.match(receipt.source.commit, /^[a-f0-9]{40}$/); assert.match(receipt.source.tree, /^[a-f0-9]{40}$/);
-  assert.equal(receipt.artifacts.length, 3); assert.equal(receipt.validations.length, 3);
+  assert.equal(receipt.artifacts.length, 3); assert.equal(receipt.validations.length, 4);
   assert.equal(f.run('verify').status, 0); assert.match(receipt.migrationRequirement, /0082 before deploying/);
 });
 
@@ -54,6 +56,7 @@ test('artifact, validation, lock and untracked source drift independently block 
   for (const [name, edit] of [
     ['artifact', (f) => f.put('dist/client/index.html', 'changed')],
     ['validation', (f) => f.put('test-results/dependency-audit.json', 'changed')],
+    ['browser evidence', (f) => f.put('test-results/offline-browser/results.json', 'changed')],
     ['lock', (f) => f.put('package-lock.json', '{"changed":true}')],
     ['untracked source', (f) => f.put('unexpected.js', 'changed')],
   ]) {
@@ -149,11 +152,12 @@ printf '%s\\n' "$HOME" > .sites-runtime/deploy-home
 echo deployed >> .sites-runtime/deploy-calls
 `);
   f.put('.sites-runtime/stub-build.cjs', `const fs=require('node:fs');
-for(const dir of ['dist/server','dist/client','test-results'])fs.mkdirSync(dir,{recursive:true});
+for(const dir of ['dist/server','dist/client','test-results/offline-browser'])fs.mkdirSync(dir,{recursive:true});
 const original=JSON.parse(fs.readFileSync('wrangler.jsonc'));
 fs.writeFileSync('dist/server/wrangler.json',JSON.stringify({...original,main:'index.js',assets:{...original.assets,directory:'../client'}}));
 fs.writeFileSync('dist/server/index.js','export default {};');fs.writeFileSync('dist/client/index.html','candidate');
 fs.writeFileSync('test-results/dependency-audit.json',${JSON.stringify(JSON.stringify(passingAudit()))});fs.writeFileSync('test-results/dependency-boundary-rsc.json',${JSON.stringify(JSON.stringify(passingBoundary()))});
+fs.writeFileSync('test-results/offline-browser/results.json',${JSON.stringify(JSON.stringify(passingBrowser()))});
 `);
   execFileSync('chmod', ['+x', 'node_modules/.bin/npm', 'node_modules/.bin/wrangler'], { cwd: f.root });
   const runShell = (mode) => spawnSync('bash', ['scripts/deploy-native-cf.sh', mode], {

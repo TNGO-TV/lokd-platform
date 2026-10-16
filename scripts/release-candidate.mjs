@@ -14,6 +14,7 @@ const validationFiles = [
   `${release}/validation.log`,
   'test-results/dependency-audit.json',
   'test-results/dependency-boundary-rsc.json',
+  'test-results/offline-browser/results.json',
 ];
 const hash = (data) => createHash('sha256').update(data).digest('hex');
 const json = (file) => JSON.parse(readFileSync(file, 'utf8'));
@@ -87,6 +88,11 @@ function validations() {
   // Include every generated bundle boundary (rsc, ssr, etc.), not only rsc.
   const extras = readdirSync('test-results').filter((name) => /^dependency-boundary-.+\.json$/.test(name)).map((name) => `test-results/${name}`);
   const files = [...new Set([...validationFiles, ...extras])].sort().map(regularFile);
+  const browser = json('test-results/offline-browser/results.json');
+  requireCondition(browser.stats?.expected === 8 && browser.stats.unexpected === 0
+    && browser.stats.flaky === 0 && browser.stats.skipped === 0
+    && Array.isArray(browser.errors) && browser.errors.length === 0,
+  'All eight isolated desktop/mobile browser checks must pass.');
   const audit = json('test-results/dependency-audit.json');
   requireCondition([0, 1].includes(audit.npmExit), 'Audit evidence needs a completed npm process.');
   requireCondition(audit.assessment?.ok === true && Array.isArray(audit.assessment.blocked) && audit.assessment.blocked.length === 0, 'Audit assessment must pass with no blocked advisories.');
