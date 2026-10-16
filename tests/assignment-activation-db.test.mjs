@@ -1647,6 +1647,7 @@ test('production intake prepares pending records and reconciles reviewed correct
  assert.equal(saved().state,'initialization_unknown');
  await act(applicant,command('initialize_collection'),async()=>{dispatches++;throw Error('must never redispatch');});assert.equal(dispatches,1);
  assert.equal((await readBookingCollections(db,{...applicant,userId:'intruder'})).collections.length,0);
+ assert.equal((await readBookingCollections(db,owner,true)).collections.length,0,'test collections are unavailable in production reads');
  assert.throws(()=>database.prepare('UPDATE booking_collection_requests SET amount_minor=1,revision=revision+1').run(),/immutable/);
  const r=saved(),meta=collectionMetadata({reference:r.reference,orderId:r.order_id,clientId:r.client_id,applicantId:r.applicant_id,caseId:r.case_id,caseVersion:r.case_version,sourceHash:r.source_hash,amountMinor:r.amount_minor,currency:r.currency,mode:r.mode});
  const transaction={id:9001,reference:r.reference,domain:'test',status:'success',amount:r.amount_minor,currency:'ZAR',paid_at:new Date(Date.now()-1000).toISOString(),metadata:meta};
@@ -1663,7 +1664,7 @@ test('production intake prepares pending records and reconciles reviewed correct
  assert.equal(database.prepare('SELECT funding_status FROM bookings WHERE id=?').get(setup.orderId).funding_status,'unfunded');
  assert.equal(database.prepare('SELECT count(*) n FROM booking_funding_reconciliations WHERE booking_id=?').get(setup.orderId).n,0);
 
- const {operateBookingSettlement}=await import('../app/lib/booking-settlements.ts');
+ const {operateBookingSettlement,readBookingSettlements}=await import('../app/lib/booking-settlements.ts');
  const settle=(a,input,rt=runtime,fetcher=settlementTransport)=>operateBookingSettlement(db,a,input,headers,rt,fetcher);
  const settledAt=new Date().toISOString(),settlement={id:901,domain:'test',status:'success',currency:'ZAR',total_processed:r.amount_minor,total_fees:100,total_amount:r.amount_minor-100,effective_amount:r.amount_minor-100,deductions:null,settlement_date:settledAt};
  const paged=rows=>Response.json({status:true,data:rows,meta:{page:1,pageCount:1,total:rows.length,perPage:100}});
@@ -1709,6 +1710,12 @@ test('production intake prepares pending records and reconciles reviewed correct
  const liveReview=database.prepare('SELECT * FROM booking_settlement_reviews WHERE id=?').get(preparedLive.settlementReviewId);
  const liveApproval={...approveSettlement,reference:live.reference,reviewId:liveReview.id,payloadHash:liveReview.payload_hash};
  assert.equal((await settle(owner,liveApproval,liveRuntime,liveSettlementTransport)).cleared,true);
+ const mixedCollections=await readBookingCollections(db,owner),productionCollections=await readBookingCollections(db,owner,true);
+ assert.ok(mixedCollections.collections.some(row=>row.mode==='test'));
+ assert.deepEqual(productionCollections.collections.map(row=>row.reference),[live.reference]);
+ const mixedSettlements=await readBookingSettlements(db,owner),productionSettlements=await readBookingSettlements(db,owner,true);
+ assert.ok(mixedSettlements.settlementReviews.some(row=>row.mode==='test'));
+ assert.deepEqual(productionSettlements.settlementReviews.map(row=>row.reference),[live.reference]);
  assert.equal((await invoiceDocument.read()).documents[0].currentState,'paid');assert.equal((await invoiceDocument.read()).documents[0].asIssuedState,'unpaid');
  assert.equal(database.prepare('SELECT funding_status FROM bookings WHERE id=?').get(setup.orderId).funding_status,'unfunded');
  await assert.rejects(()=>settle(owner,{action:'apply_booking_funding',reference:live.reference},liveRuntime),/site, pricing/);

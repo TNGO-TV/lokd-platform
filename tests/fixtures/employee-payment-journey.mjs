@@ -57,6 +57,14 @@ export async function employeePaymentJourney({database,db,maker,owner,finance,of
  await assert.rejects(()=>operate(db,finance,command('verify_employee_test'),headers,runtime,transport),/webhook evidence changed/);db.afterRead=null;assert.equal((await read(db,finance)).employeePayments.find(i=>i.reference===ref).providerState,'reversed_test');
  await receiveEmployeeTransferWebhook(await signed('transfer.success',{...transfer,id:988}),db,runtime);assert.equal((await read(db,finance)).employeePayments.find(i=>i.reference===ref).providerState,'review_required');
  const liveDestinationId=await destination('live');ref=(await operate(db,maker,{...input,requestKey:'employee-payment-live',destinationId:liveDestinationId},headers,runtime,transport)).reference;await operate(db,finance,command('approve_employee_payment'),headers,runtime,transport);
+ const historicalCount=database.prepare('SELECT count(*) n FROM employee_payment_instructions').get().n;
+ const allPayments=(await read(db,finance)).employeePayments;
+ const livePayments=(await read(db,finance,true)).employeePayments;
+ assert.ok(allPayments.some(row=>row.mode==='test'),'isolated history remains available');
+ assert.ok(livePayments.some(row=>row.reference===ref),'the real live instruction remains actionable');
+ assert.ok(livePayments.every(row=>row.mode==='live'),'production reader excludes saved test instructions');
+ assert.ok((await read(db,finance,true)).employeePaymentCandidates.every(row=>row.mode==='live'));
+ assert.equal(database.prepare('SELECT count(*) n FROM employee_payment_instructions').get().n,historicalCount);
  const {operatePaymentRecovery}=await import('../../app/lib/payment-recovery.ts');
  await assert.rejects(()=>operatePaymentRecovery(db,finance,{...command('propose_test_disposition'),kind:'employee'},headers),e=>e.status===423);
  const {paymentExecutionJourney}=await import('./payment-execution-journey.mjs');

@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 import { env } from "cloudflare:workers";
-import { GET, PATCH, POST } from "../../../app/api/evidence/route.ts";
+import { GET, POST } from "../../../app/api/evidence/route.ts";
 
 class Prepared {
   constructor(owner, sql, values = []) { this.owner = owner; this.sql = sql; this.values = values; }

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LegalDefs, LegalDocument, LegalList, LEGAL_NOTICES_EMAIL, LEGAL_OPERATOR } from "../components/legal-document";
+import { LegalDefs, LegalDocument, LegalList, LEGAL_NOTICES_ADDRESS, LEGAL_OPERATOR } from "../components/legal-document";
 
 export const metadata: Metadata = {
   title: "Terms and Conditions",
-  description: "Terms and conditions for LOKD Security quotes, inspections, guarding, and related private security services operated by The Tactical Nation, Inc.",
+  description: "Terms and conditions for LOKD Security quotes, inspections, guarding, and related private security services operated by Lokd Security (Pty) Ltd.",
   alternates: { canonical: "/terms-and-conditions" },
 };
 
@@ -202,7 +202,7 @@ export default function TermsAndConditionsPage() {
           title: "Notices and contact",
           body: (
             <>
-              <p>Notices under these terms may be sent to <a href={`mailto:${LEGAL_NOTICES_EMAIL}`}>{LEGAL_NOTICES_EMAIL}</a>.</p>
+              <p>Notices under these terms may be addressed to {LEGAL_OPERATOR} at <span>{LEGAL_NOTICES_ADDRESS}</span>.</p>
               <p>{LEGAL_OPERATOR} — LOKD Security.</p>
             </>
           ),
@@ -214,9 +214,9 @@ export default function TermsAndConditionsPage() {
           ),
         },
         {
-          title: "Sister brands",
+          title: "Company identification",
           body: (
-            <p>LOKD Security is operated by {LEGAL_OPERATOR}. Custom Nation, Tervory AI, and Shot Bonus are separate offerings operated by {LEGAL_OPERATOR} and are not part of this Agreement. Website use is also subject to the <Link href="/terms">Terms of Use</Link> and the <Link href="/privacy">Privacy Notice</Link>.</p>
+            <p>LOKD Security is operated by {LEGAL_OPERATOR}, at <span>{LEGAL_NOTICES_ADDRESS}</span>. Website use is also subject to the <Link href="/terms">Terms of Use</Link> and the <Link href="/privacy">Privacy Notice</Link>.</p>
           ),
         },
       ]}

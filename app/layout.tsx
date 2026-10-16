@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { pilotStage } from './lib/pilot-runtime';
+import { pageTestSurfacesEnabled } from './lib/test-surface-page';
 import type { Metadata } from "next";
 import { env } from "cloudflare:workers";
 import { LokdClerkProvider } from "./components/clerk-login";
@@ -12,7 +12,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(PUBLIC_SITE_URL),
   title: { default: "LOKD Security | Guarding, Armed Security and VIP Protection", template: "%s | LOKD Security" },
-  description: "Unarmed guarding, armed security and VIP protection in South Africa, built around verified officers, controlled operations and auditable service delivery.",
+  description: "Unarmed guarding, armed security and VIP protection in South Africa, with application review, controlled operations and auditable service delivery.",
   alternates: { canonical: "/" },
   applicationName: "LOKD Security",
   category: "business",
@@ -23,13 +23,13 @@ export const metadata: Metadata = {
     siteName: "LOKD Security",
     url: PUBLIC_SITE_URL,
     title: "LOKD Security | Guarding, Armed Security and VIP Protection",
-    description: "Unarmed guarding, armed security and VIP protection built around verified officers, controlled operations and auditable service delivery.",
+    description: "Unarmed guarding, armed security and VIP protection with application review, controlled operations and auditable service delivery.",
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "LOKD Security Platform" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "LOKD Security | Guarding, Armed Security and VIP Protection",
-    description: "Unarmed guarding, armed security and VIP protection built around verified officers and controlled operations.",
+    description: "Unarmed guarding, armed security and VIP protection with application review and controlled operations.",
     images: ["/og.png"],
   },
   icons: {
@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const publishableKey = runtime.CLERK_PUBLISHABLE_KEY || runtime.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   return (
     <html lang="en">
-      <body><LokdClerkProvider publishableKey={publishableKey} nonce={nonce}>{children}<OrganisationJsonLd />{user && pilotStage() === "demo" && <PilotFeedback />}</LokdClerkProvider></body>
+      <body><LokdClerkProvider publishableKey={publishableKey} nonce={nonce}>{children}<OrganisationJsonLd />{user && await pageTestSurfacesEnabled() && <PilotFeedback />}</LokdClerkProvider></body>
     </html>
   );
 }

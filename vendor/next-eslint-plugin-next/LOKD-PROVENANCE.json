@@ -1,0 +1,16 @@
+{
+  "upstreamPackage": "@next/eslint-plugin-next",
+  "upstreamVersion": "16.4.2",
+  "archiveSha256": "8cf391fbf324028ff23d768ea8b1987f54d38af4b5c9da58c770ba7f8691c76f",
+  "changes": [
+    "Replace the single fast-glob directory caller with pinned tinyglobby0.2.17/picomatch4.0.7 and an explicit directory compatibility adapter.",
+    "Normalize doubled separators, preserve static directory trailing slash, exclude recursive pattern root, and include matching traversed directory symlinks.",
+    "All other Next rule implementations retain upstream bytes."
+  ],
+  "status": "local candidate; compatibility tests and independent acceptance required",
+  "compatibilityEvidence": [
+    "reports/evidence/phase3-glob-compatibility.json",
+    "reports/fixes/phase3-review-next-glob-v4-parity.json",
+    "reports/fixes/phase3-review-next-linked-v4-parity.json"
+  ]
+}

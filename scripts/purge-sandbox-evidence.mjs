@@ -1,5 +1,5 @@
 // Local SQLite maintenance only. Example:
-// node --experimental-strip-types --experimental-loader=./tests/cloudflare-loader.mjs scripts/purge-sandbox-evidence.mjs --primary /path/primary.sqlite --sandbox /path/sandbox.sqlite --actor local-owner --limit 50
+// node --experimental-strip-types --import ./tests/register-cloudflare.mjs scripts/purge-sandbox-evidence.mjs --primary /path/primary.sqlite --sandbox /path/sandbox.sqlite --actor local-owner --limit 50
 import {DatabaseSync} from 'node:sqlite';
 import {realpathSync,statSync} from 'node:fs';
 import {purgeSandboxEvidence} from '../app/lib/sandbox-retention.ts';

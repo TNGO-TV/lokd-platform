@@ -29,8 +29,13 @@ def restore(snapshot,path):
   if t['name']=='sqlite_sequence':db.execute('DELETE FROM sqlite_sequence')
   sql='INSERT INTO '+quote(t['name'])+' ('+','.join(quote(cols[i]['name']) for i in indices)+') VALUES ('+','.join('?' for _ in indices)+')'
   db.executemany(sql,([cell(row[i]) for i in indices] for row in t['rows']))
- for s in snapshot['schema']:
-  if s['type']!='table' and s['sql']:db.execute(s['sql'])
+ # sqlite_schema is sorted by type/name for verification, not dependency order.
+ # Views must exist before their INSTEAD OF triggers. SQLite allows views to
+ # reference views created later; create all views before indexes and triggers.
+ # Keep triggers absent while loading cells so restore never replays side effects.
+ for kind in ('view','index','trigger'):
+  for s in snapshot['schema']:
+   if s['type']==kind and s['sql']:db.execute(s['sql'])
  db.commit()
  schema=[dict(zip(['type','name','tbl_name','sql'],r)) for r in db.execute('SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY type,name')]
  expected=[s for s in snapshot['schema'] if not s['name'].startswith('sqlite_') or s['name']=='sqlite_sequence' or s['sql'] is None]

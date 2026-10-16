@@ -1,4 +1,5 @@
-import { env } from "cloudflare:workers";
+import {blockedTestSurface,rehearsalEnv as env} from '../../lib/test-surface-runtime';
+
 import { PilotAccessError, requirePilotApiRole } from "../../lib/pilot-runtime";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,8 @@ class ServiceRecordError extends Error {
 }
 
 export async function GET(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     const principal = requirePilotApiRole(request, "client");
     const clientId = principal.clientId ?? (principal.owner ? "CL-001" : null);

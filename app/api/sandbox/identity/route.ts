@@ -1,3 +1,5 @@
+import {workspaceCommandReceipt} from '../../../lib/workspace-command-receipt';
+import {blockedTestSurface} from '../../../lib/test-surface-runtime';
 import {executeSandboxCommand} from '../../../lib/sandbox-command';
 import {readFinanceBody} from '../../../lib/finance-workflow-request';
 import {env} from 'cloudflare:workers';
@@ -10,7 +12,9 @@ import {readPrivateIdentityEvidence} from '../../../lib/production-identity-evid
 import * as identity from '../../../lib/production-identity';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>Response.json(data,{status,headers:{'cache-control':'private, no-store','referrer-policy':'no-referrer'}});
-export async function POST(request:Request){try{
+export async function POST(request:Request){
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+try{
  requireSameOriginJson(request);const runtime=env as unknown as SandboxRuntime,{db,policy,policyHash}=await requireSandboxCompletion(runtime);
  const userId=request.headers.get('x-lokd-verified-user-id'),email=request.headers.get('x-lokd-verified-email');if(!userId||!email)throw new SignupError('Sign in.',401);
  const principal=principalForEmail(email),operations=principalHasRole(principal,'operations');if(operations)requirePilotApiRole(request,'operations');
@@ -33,5 +37,5 @@ export async function POST(request:Request){try{
  case 'download':{const r=await readPrivateIdentityEvidence(db,actor,i.id,await sandboxEvidenceReader(runtime));r.headers.set('x-lokd-evidence-mode','simulator');return r;}
  default:throw new SignupError('Unsupported sandbox identity action.');
  }
- return reply({requestKey:body.requestKey,commandStatus:body.requestKey?'completed':undefined,mode:'simulator',policyVersion:policy.version,policyHash,productionIdentityVerified:false,productionWorkEligible:false,data});
+ return reply({commandReceipt:await workspaceCommandReceipt('sandbox-identity',body),requestKey:body.requestKey,commandStatus:body.requestKey?'completed':undefined,mode:'simulator',policyVersion:policy.version,policyHash,productionIdentityVerified:false,productionWorkEligible:false,data});
  }catch(e){return e instanceof SignupError||e instanceof PilotAccessError?reply({error:e.message},e.status):reply({error:'Sandbox evidence or authority changed. Refresh before retrying.'},409);}}

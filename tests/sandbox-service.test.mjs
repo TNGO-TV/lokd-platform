@@ -17,7 +17,8 @@ test('consented scan checks actual clock/distance observations, ownership and cu
  await assert.rejects(sandboxScan(x.runtime,applicant,{...good,scenario:'stale_clock'},new Headers()),/different/);
  assert.equal(x.database.prepare('SELECT count(*) n FROM sandbox_scan_receipts').get().n,6);
  clock.set(Date.parse(x.times.starts)+1000);
- const location={action:'share',mode:'live',consent:true,latitude:-26.1,longitude:28.1};await writePresence(x.db,applicant.userId,null,location);assert.equal((await publicPresence(x.db)).areas.length,1);clock.advance(180001);assert.equal((await publicPresence(x.db)).areas.length,0);await writePresence(x.db,applicant.userId,null,location);await writePresence(x.db,applicant.userId,null,{action:'stop',mode:'live'});assert.equal((await publicPresence(x.db)).areas.length,0);
+ const presenceSession=await writePresence(x.db,applicant.userId,null,{action:'start',mode:'live',consent:true,expectedRevision:0});
+ const location={...presenceSession,action:'share',mode:'live',consent:true,latitude:-26.1,longitude:28.1};await writePresence(x.db,applicant.userId,null,location);assert.equal((await publicPresence(x.db)).areas.length,1);clock.advance(180001);assert.equal((await publicPresence(x.db)).areas.length,0);await writePresence(x.db,applicant.userId,null,location);await writePresence(x.db,applicant.userId,null,{action:'stop',mode:'live'});assert.equal((await publicPresence(x.db)).areas.length,0);
  const capture=x.database.prepare('SELECT id FROM sandbox_identity_captures').get();await withdrawSandboxCapture(x.runtime,applicant,capture.id);assert.equal((await readPublicPassport(x.db,x.passport.token)).status,'suspended');
  await assert.rejects(sandboxScan(x.runtime,applicant,good,new Headers()));assert.equal(x.database.prepare('SELECT count(*) n FROM sandbox_scan_receipts').get().n,6);
  }finally{x.close();}});

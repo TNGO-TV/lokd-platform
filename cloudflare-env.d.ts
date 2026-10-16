@@ -2,6 +2,9 @@ type OperationalRuntimeEnv = import('./app/lib/operational-provider').Operationa
 declare namespace Cloudflare {
   interface Env extends OperationalRuntimeEnv {
     DB?: D1Database;
+    TEST_DB?: D1Database;
+    TEST_BUCKET?: R2Bucket;
+    LOKD_TEST_SURFACES_ENABLED?: string;
     PAYSTACK_TEST_SECRET_KEY?: string;
     PAYSTACK_LIVE_SECRET_KEY?: string;
     LOKD_COLLECTION_LIVE_ENABLED?: string;

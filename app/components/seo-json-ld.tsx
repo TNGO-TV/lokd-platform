@@ -14,11 +14,11 @@ export async function OrganisationJsonLd() {
     name: "LOKD",
     legalName: COMPANY_NAME,
     email: BOOKINGS_EMAIL,
-    address: { "@type": "PostalAddress", streetAddress: "71 Louis Trichardt Street, Parktown Estates", addressLocality: "Pretoria", postalCode: "0002", addressCountry: "ZA" },
+    address: { "@type": "PostalAddress", streetAddress: "71 Louis Trichardt Street", addressLocality: "Pretoria", postalCode: "0002", addressCountry: "ZA" },
     sameAs: ["https://www.facebook.com/lokdsecurity/", "https://www.youtube.com/@lokdsecurity", "https://www.instagram.com/lokdsecurity/"],
     url: canonicalUrl(),
     logo: canonicalUrl("/lokd-logo.png"),
-    description: "An employer-led South African security service building verified officers, controlled operations and auditable service delivery.",
+    description: "South African security services with officer application review, controlled operations and auditable service delivery.",
     areaServed: { "@type": "Country", name: "South Africa" },
   }) }} />;
 }

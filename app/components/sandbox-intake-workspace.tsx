@@ -1,4 +1,5 @@
 'use client';
+import {workspaceAutoContract} from '../lib/workspace-response-contracts';
 import { useRef, useState } from 'react';
 import { OfficerApplicationJourney } from '../join/page';
 import ClientEnquiryForm from './client-enquiry-form';
@@ -16,7 +17,7 @@ export default function SandboxIntakeWorkspace({ kind }: {
             mode: string;
             policyVersion: string;
             productionWorkEligible: boolean;
-        }>(await fetch('/api/sandbox/application', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ service: 'intake', input: { kind, id: reference, action: 'link', expectedVersion: 0 } }) }));
+        }>(await fetch('/api/sandbox/application', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ service: 'intake', input: { kind, id: reference, action: 'link', expectedVersion: 0 } }) }),workspaceAutoContract("sandbox-intake-workspace.tsx/6c6637e6a280"));
         if (result.mode !== 'sandbox' || result.policyVersion !== 'lokd-sandbox-completion-v1' || result.productionWorkEligible !== false)
             throw Error('The isolated account-link boundary could not be confirmed.');
         setLinked(true);

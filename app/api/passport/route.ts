@@ -1,5 +1,6 @@
+import {blockedTestSurface,rehearsalEnv as env} from '../../lib/test-surface-runtime';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
-import { env } from "cloudflare:workers";
+
 import { liveShiftScanEnabled, PilotAccessError, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 import { evaluateBookingReadiness, readPublicPassport, tokenHash } from "../../lib/passport-server";
 
@@ -20,6 +21,8 @@ function response(payload: unknown, status = 200) {
 }
 
 export async function GET(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     const url = new URL(request.url);
     const token = url.searchParams.get("token") ?? "";
@@ -34,6 +37,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     if (!liveShiftScanEnabled()) return response({ error: "Shift arrival recording is locked until the controlled pilot is activated." }, 423);
     requireSameOriginJson(request);

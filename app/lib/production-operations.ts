@@ -1,3 +1,4 @@
+import {requireLiveFinanceCommand} from './production-finance-boundary';
 import {operatorApprovalLimit} from './operator-approval-limit';
 import {readPartnerPayments,operatePartnerPayment} from './partner-payments';
 import {readPartnerDestinations,operatePartnerDestination} from './partner-destinations';
@@ -29,14 +30,15 @@ export async function readProductionOperations(db:D1Database,actor:SigningActor)
  // Each reader retains its own live entitlement and ownership checks. Do not
  // cache grants or move mutation/approval commands into these groups.
  const [partner,collections,workforce,evidence]=await Promise.all([
-  (async()=>({...await readPartnerPayments(db,actor),...await readPartnerDestinations(db,actor),...await readPartnerPayables(db,actor),...await readEmployeePayments(db,actor)}))(),
-  (async()=>({...await readPaymentDestinations(db,actor),...await readBookingSettlements(db,actor),...await readBookingCollections(db,actor),...await readProductionPayroll(db,actor)}))(),
+  (async()=>({...await readPartnerPayments(db,actor,true),...await readPartnerDestinations(db,actor,true),...await readPartnerPayables(db,actor),...await readEmployeePayments(db,actor,true)}))(),
+  (async()=>({...await readPaymentDestinations(db,actor,true),...await readBookingSettlements(db,actor,true),...await readBookingCollections(db,actor,true),...await readProductionPayroll(db,actor)}))(),
   (async()=>({...await readProductionPayrollPolicies(db,actor),...await readProductionSchedule(db,actor),...await readProductionService(db,actor)}))(),
   (async()=>({...await readProductionEvidence(db,actor),...await readClientReviews(db,actor),...await readProductionOrders(db,actor)}))(),
  ]);
  return {...partner,...collections,...workforce,...evidence,rosters:rosters.results,approvals:approvals.results,shifts:shifts.results,operators:operators.results,owner:actor.owner};
 }
 export async function operateProduction(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,liveCheckInEnabled=false,collectionRuntime:CollectionRuntime={}){
+ await requireLiveFinanceCommand(db,input);
  const now=new Date().toISOString();
  if(['prepare_partner_payable','approve_partner_payable','reject_partner_payable','hold_partner_payable','export_partner_payable'].includes(String(input.action)))return operatePartnerPayable(db,actor,input,headers);
  if(['prepare_employee_payment','approve_employee_payment','cancel_employee_payment','dispatch_employee_test','verify_employee_test'].includes(String(input.action)))return operateEmployeePayment(db,actor,input,headers,collectionRuntime);

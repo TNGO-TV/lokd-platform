@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-node --experimental-loader=./tests/cloudflare-loader.mjs --test \
+node --import ./tests/register-cloudflare.mjs --test \
   tests/clerk-access.test.mjs tests/operations-mfa.test.mjs \
   tests/psira-verification.test.mjs tests/application-network-flow.test.mjs \
   tests/agreement-acceptance.test.mjs tests/unified-predeployment.test.mjs
-node --experimental-loader=./tests/cloudflare-loader.mjs --test --test-name-pattern='signed agreement gate|agreement revocation during commit' tests/assignment-activation-db.test.mjs
+node --import ./tests/register-cloudflare.mjs --test --test-name-pattern='signed agreement gate|agreement revocation during commit' tests/assignment-activation-db.test.mjs
 printf '%s\n' 'LOCAL acceptance mechanics passed. This does not confirm production MFA, provider integration, legal execution or money movement.'

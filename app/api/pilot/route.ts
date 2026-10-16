@@ -1,5 +1,6 @@
+import {blockedTestSurface,rehearsalEnv as env} from '../../lib/test-surface-runtime';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
-import { env } from "cloudflare:workers";
+
 import {
   PilotAccessError,
   pilotStage,
@@ -3892,6 +3893,8 @@ function requireDemoTransactionModel() {
 }
 
 export async function GET(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     const scope = scopeFromRequest(request);
     const viewer = requirePilotApiRole(request, scope);
@@ -3940,6 +3943,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     requireSameOriginJson(request);
     const scope = scopeFromRequest(request);

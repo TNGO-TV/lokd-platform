@@ -1,4 +1,5 @@
 'use client';
+import {workspaceAutoContract} from '../lib/workspace-response-contracts';
 import {useState} from 'react';
 import {readWorkspaceResponse,workspaceAccessDenied,workspaceFailure} from './workspace-request';
 export default function SandboxCommandRecovery({scope,getBody,endpoint,onRecovered,onDenied,onRejected}:{scope:string;getBody:()=>string|null;endpoint:string;onRecovered:(result:Record<string,unknown>)=>void;onDenied:()=>void;onRejected:()=>void}){
@@ -6,7 +7,7 @@ export default function SandboxCommandRecovery({scope,getBody,endpoint,onRecover
  async function recover(retry=false){const body=getBody();if(busy||!body)return;setBusy(true);setMessage('');try{
  const original=JSON.parse(body) as {requestKey:string};
  const response=await fetch(retry?endpoint:'/api/sandbox/discovery?'+new URLSearchParams({view:'command',scope,requestKey:original.requestKey}),retry?{method:'POST',headers:{'content-type':'application/json'},body}:{cache:'no-store'});
- const envelope=await readWorkspaceResponse<{mode:string;policyVersion:string;productionWorkEligible:boolean;commandStatus?:string;data:Record<string,unknown>|null}>(response);
+ const envelope=await readWorkspaceResponse<{mode:string;policyVersion:string;productionWorkEligible:boolean;commandStatus?:string;data:Record<string,unknown>|null}>(response,workspaceAutoContract("sandbox-command-recovery.tsx/79d663ea32ea"));
  if(!['sandbox','simulator'].includes(envelope.mode)||envelope.policyVersion!=='lokd-sandbox-completion-v1'||envelope.productionWorkEligible!==false)throw Error('The isolated recovery boundary could not be verified.');
  if(retry){if(response.status===202||envelope.commandStatus==='pending'||!envelope.data){setMessage('The original command is pending. Refresh its receipt; a replacement cannot be submitted.');return;}onRecovered(envelope.data);return;}
  if(!envelope.data)throw Error('No original command receipt was returned.');

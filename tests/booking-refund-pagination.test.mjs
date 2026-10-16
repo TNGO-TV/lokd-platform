@@ -14,7 +14,7 @@ function fixture(){
  INSERT INTO operator_accounts VALUES('op','page@example.test','active','production','production_verified',1000);
  CREATE TABLE operator_role_assignments(operator_id TEXT,role TEXT,status TEXT,environment TEXT,integrity_state TEXT);
  INSERT INTO operator_role_assignments VALUES('op','funding_reconciler','active','production','production_verified');
- CREATE TABLE booking_refund_sources(reference TEXT PRIMARY KEY,provider_id TEXT,amount_minor INTEGER,applicant_id TEXT,source_json TEXT);
+ CREATE TABLE booking_refund_sources(reference TEXT PRIMARY KEY,provider_id TEXT,amount_minor INTEGER,applicant_id TEXT,source_json TEXT,mode TEXT);
  CREATE TABLE booking_refund_cases(id TEXT PRIMARY KEY,reference TEXT,payload_json TEXT);
  CREATE TABLE booking_refund_decisions(case_id TEXT,decision TEXT);
  CREATE TABLE booking_refund_claims(case_id TEXT,id TEXT);
@@ -25,7 +25,7 @@ function fixture(){
  CREATE TABLE booking_refund_state(reference TEXT PRIMARY KEY,state TEXT);
  CREATE TABLE payment_live_control(id INTEGER,enabled INTEGER);INSERT INTO payment_live_control VALUES(1,0);
  CREATE TABLE booking_refund_control(id INTEGER,enabled INTEGER);INSERT INTO booking_refund_control VALUES(1,0);`);
- const insert=(ref,amount,user)=>{database.prepare('INSERT INTO booking_refund_sources VALUES(?,?,?,?,?)').run(ref,'provider',amount,user,'{}');database.prepare('INSERT INTO booking_refund_cases VALUES(?,?,?)').run('case-'+ref,ref,'{}');database.prepare('INSERT INTO booking_refund_receipts VALUES(?,?,?)').run('receipt-'+ref,'case-'+ref,'{}');database.prepare('INSERT INTO booking_refund_observations VALUES(?,?,?)').run('observation-'+ref,'case-'+ref,'{}');database.prepare('INSERT INTO booking_refund_state VALUES(?,?)').run(ref,'held');};
+ const insert=(ref,amount,user,mode='live')=>{database.prepare('INSERT INTO booking_refund_sources VALUES(?,?,?,?,?,?)').run(ref,'provider',amount,user,'{}',mode);database.prepare('INSERT INTO booking_refund_cases VALUES(?,?,?)').run('case-'+ref,ref,'{}');database.prepare('INSERT INTO booking_refund_receipts VALUES(?,?,?)').run('receipt-'+ref,'case-'+ref,'{}');database.prepare('INSERT INTO booking_refund_observations VALUES(?,?,?)').run('observation-'+ref,'case-'+ref,'{}');database.prepare('INSERT INTO booking_refund_state VALUES(?,?)').run(ref,'held');};
  for(let i=0;i<620;i++)insert('allowed-'+String(i).padStart(4,'0'),100,'other-user');
  // Hidden rows deliberately sort before sources and after visible rowids. They
  // must not consume a page, expose counts or prevent older visible rows loading.
@@ -83,4 +83,18 @@ test('refund GET validates pagination and retains private no-store responses',as
   const good=await get('?dataset=sources&pageSize=2');assert.equal(good.status,200);assert.equal(good.headers.get('cache-control'),'private, no-store');assert.equal((await good.json()).sources.length,2);
   for(const query of ['?pageSize=101','?pageSize=1&pageSize=2','?offset=5','?dataset=cases&sourcesCursor=bad','?cursor=bad','?dataset=invalid']){const r=await get(query);assert.equal(r.status,400,query);assert.equal(r.headers.get('cache-control'),'private, no-store');}
  }finally{if(oldDb===undefined)delete env.DB;else env.DB=oldDb;if(oldAccess===undefined)delete env.LOKD_PILOT_ACCESS_JSON;else env.LOKD_PILOT_ACCESS_JSON=oldAccess;f.close();}
+});
+
+test('production refund pages filter test history before paging and bind cursors to the mode boundary',async()=>{
+ const f=fixture();try{
+  for(let i=0;i<130;i++)f.insert('000-test-'+String(i).padStart(4,'0'),100,'other-user','test');
+  for(const dataset of Object.keys(keys)){
+   const page=await readBookingRefunds(f.db,actor,headers(),{}, {dataset,pageSize:7},true);
+   assert.equal(page[keys[dataset]].length,7);assert.equal(JSON.stringify(page).includes('000-test'),false);
+   const historical=await readBookingRefunds(f.db,actor,headers(),{}, {dataset,reference:'000-test-0000'});assert.equal(historical[keys[dataset]].length,1);
+   const hidden=await readBookingRefunds(f.db,actor,headers(),{}, {dataset,reference:'000-test-0000'},true);assert.equal(hidden[keys[dataset]].length,0);
+   await assert.rejects(()=>readBookingRefunds(f.db,actor,headers(),{}, {dataset,cursor:page.pagination[dataset].nextCursor}),e=>e.status===400);
+  }
+  assert.equal(f.database.prepare("SELECT count(*) n FROM booking_refund_sources WHERE mode='test'").get().n,130);
+ }finally{f.close();}
 });

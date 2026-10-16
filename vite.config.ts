@@ -1,15 +1,17 @@
 import vinext from "vinext";
+import {rscSourceMaps} from "./build/rsc-source-maps.ts";
 import { defineConfig } from "vite";
-import hostingConfig from "./.openai/hosting.json";
-import { sites } from "./build/sites-vite-plugin";
+import hostingConfig from "./.openai/hosting.json" with { type: "json" };
+import { sites } from "./build/sites-vite-plugin.ts";
+import { dependencyBoundary } from "./build/dependency-boundary.ts";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
 
 const { d1, r2 } = hostingConfig;
 
-// Native CF deploy: wrangler.jsonc owns real D1/R2 + cron. Empty vite placeholders
-// so dist/server/wrangler.json does not duplicate DB/BUCKET bindings.
+// Native builds inherit real bindings and policy from wrangler.jsonc.
+// The generated config is validated and deployed without a second build.
 const nativeCf = process.env.LOKD_NATIVE_CF === "1";
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
@@ -18,10 +20,6 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = nativeCf
   ? {
       main: "./worker/index.ts",
-      compatibility_flags: ["nodejs_compat"],
-      // cron owned by wrangler.jsonc only
-      d1_databases: [],
-      r2_buckets: [],
     }
   : {
       main: "./worker/index.ts",
@@ -73,11 +71,13 @@ export default defineConfig(async ({command}) => {
     },
     plugins: [
       vinext(),
+      rscSourceMaps(),
       sites(),
+      dependencyBoundary(),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
-        config: sandboxLocal?{...localBindingConfig,d1_databases:[...localBindingConfig.d1_databases,{binding:'SANDBOX_DB',database_name:'lokd-sandbox-completion-local',database_id:'00000000-0000-4000-8000-000000000002'}]}:localBindingConfig,
+        config: sandboxLocal?{...localBindingConfig,d1_databases:[...(localBindingConfig.d1_databases??[]),{binding:'SANDBOX_DB',database_name:'lokd-sandbox-completion-local',database_id:'00000000-0000-4000-8000-000000000002'}]}:localBindingConfig,
       }),
     ],
   };

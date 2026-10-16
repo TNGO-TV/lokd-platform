@@ -1,12 +1,16 @@
 'use client';
+import {psiraResponse} from '../lib/workspace-response-contracts';
+import {matchesWorkspaceCommand} from '../lib/workspace-command-receipt';
 import {readWorkspaceResponse,WorkspaceRequestError,workspaceFailure,workspaceAccessDenied} from './workspace-request';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, useRef, type FormEvent } from 'react';
 import { PSIRA_SOURCE, type PsiraCase, type PsiraEvidence } from '../lib/psira-verification';
 import styles from './psira-verification.module.css';
 
-const readResponse=(response:Response)=>readWorkspaceResponse<{cases:PsiraCase[];error?:string}>(response);
+type State={cases:PsiraCase[]};
+const readResponse=(response:Response)=>readWorkspaceResponse<State>(response,psiraResponse);
 
 export default function PsiraVerificationPanel({ scope }: { scope: 'officer' | 'operations' }) {
+  const inFlight=useRef(false);
   const [cases,setCases]=useState<PsiraCase[]>([]);
   const [error,setError]=useState('');
   const [message,setMessage]=useState('');
@@ -17,17 +21,17 @@ export default function PsiraVerificationPanel({ scope }: { scope: 'officer' | '
   const [declaration,setDeclaration]=useState('');
   const endpoint=`/api/psira?scope=${scope}`;
   const refresh=useCallback(async()=>{
-    setLoading(true);setError('');
-    try {const response=await fetch(endpoint,{cache:'no-store'});const data=await readResponse(response);setCases(data.cases);setCanAccess(true);}catch(e){if(workspaceAccessDenied(e)){setCases([]);setCanAccess(false);setNumber('');setDeclaration('');}setError(workspaceFailure(e,'Unable to load verification records.'));}finally{setLoading(false);}
+    if(inFlight.current)return;inFlight.current=true;setLoading(true);setError('');
+    try {const response=await fetch(endpoint,{cache:'no-store'});const data=await readResponse(response);setCases(data.cases);setCanAccess(true);}catch(e){if(workspaceAccessDenied(e)){setCases([]);setCanAccess(false);setNumber('');setDeclaration('');}setError(workspaceFailure(e,'Unable to load verification records.'));}finally{inFlight.current=false;setLoading(false);}
   },[endpoint]);
   useEffect(()=>{const timer=setTimeout(()=>void refresh(),0);return()=>clearTimeout(timer);},[refresh]);
   async function action(body: Record<string,unknown>) {
-    setBusy(true);setError('');setMessage('');
-    try {const response=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const data=await readResponse(response);setCases(data.cases);setMessage('Verification record saved.');}catch(e){if(workspaceAccessDenied(e)){setCases([]);setCanAccess(false);setNumber('');setDeclaration('');}setError(workspaceFailure(e,'Unable to save the record.'));}finally{setBusy(false);}
+    if(inFlight.current||loading||!canAccess||error)return;inFlight.current=true;setBusy(true);setError('');setMessage('');
+    try {const response=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const data=await readResponse(response);if(!await matchesWorkspaceCommand(data,'psira',body))throw Error('The verification action is unconfirmed. Refresh the original record before retrying.');setCases(data.cases);setMessage('Verification record saved.');}catch(e){if(workspaceAccessDenied(e)){setCases([]);setCanAccess(false);setNumber('');setDeclaration('');}setError(workspaceFailure(e,'Unable to save the record.'));}finally{inFlight.current=false;setBusy(false);}
   }
   return <main className={styles.page}>
     <header><a href={scope==='officer'?'/officer':'/ops'}>← Back to {scope==='officer'?'Officer':'Operations'}</a><p className={styles.kicker}>LOKD · Registration evidence</p><h1>PSiRA verification</h1><p>A registration lookup and a match to the person are separate checks. Submission alone never verifies an officer.</p></header>
-    {error&&<WorkspaceRequestError message={error}/>}{message&&<p role="status">{message}</p>}
+    {error&&<WorkspaceRequestError message={error}/>}{error&&cases.length>0&&<p role="status">Last verified records are shown. Drafts are retained; actions are disabled until refresh succeeds.</p>}{message&&<p role="status">{message}</p>}
     <button type="button" disabled={busy||loading} onClick={()=>void refresh()}>Refresh records</button>
     {loading&&<p role="status">Loading verification records…</p>}{<>
       {scope==='officer'&&canAccess&&<form className={styles.card} onSubmit={e=>{e.preventDefault();void action({action:'submit',psiraNumber:number,declaration,expectedVersion:cases[0]?.version});}}><h2>Your registration pathway</h2><label>Registration pathway<select required value={declaration} onChange={e=>setDeclaration(e.target.value)}><option value="">Choose your pathway</option><option value="registered">I am registered (including renewal needed)</option><option value="not_registered">I am not registered</option><option value="training">I am applying for training</option></select></label>{declaration==='registered'&&<label>PSiRA number<input inputMode="numeric" pattern="[0-9]{1,12}" maxLength={12} required value={number} onChange={e=>setNumber(e.target.value)} /></label>}<p>{declaration==='registered'?"Verification is mandatory before security-work approval.":"Training and unregistered applicants follow a separate intake; no registration lookup or automatic rejection is required."}</p><p>Operations will check the official register and separately match the result to your identity. Replacing a number resets the current verification.</p><button disabled={busy||loading||!!error}>Submit for review</button></form>}

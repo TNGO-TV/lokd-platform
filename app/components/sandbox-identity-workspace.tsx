@@ -1,4 +1,5 @@
 'use client';
+import {workspaceAutoContract} from '../lib/workspace-response-contracts';
 import { useRef, useState, useEffect, useEffectEvent, type FormEvent } from 'react';
 import { readWorkspaceResponse, workspaceFailure, workspaceAccessDenied, WorkspaceResponseError } from './workspace-request';
 import SandboxCommandRecovery from './sandbox-command-recovery';
@@ -26,7 +27,7 @@ export default function SandboxIdentityWorkspace({ operations = false, owner = f
     const [sources,setSources]=useState<{applications:{id:string;version:number;details:Record<string,string>}[];captures:Record<string,unknown>[];cases:Record<string,unknown>[];grants:Record<string,unknown>[]} >({applications:[],captures:[],cases:[],grants:[]});
     const [sourcePage,setSourcePage]=useState(0),[moreSources,setMoreSources]=useState(false),[policy,setPolicy]=useState<{consentText:string;consentVersion:string}|null>(null);
     async function discover(offset=0){const access=accessGeneration.current,request=++discoveryGeneration.current;try{
-      const results=await Promise.all(['intake&kind=officer','identity'].map(async view=>readWorkspaceResponse<{mode:string;policyVersion:string;productionWorkEligible:boolean;policy:{consentText:string;consentVersion:string};data:Record<string,unknown>}>(await fetch('/api/sandbox/discovery?view='+view+'&offset='+offset,{cache:'no-store'}))));
+      const results=await Promise.all(['intake&kind=officer','identity'].map(async view=>readWorkspaceResponse<{mode:string;policyVersion:string;productionWorkEligible:boolean;policy:{consentText:string;consentVersion:string};data:Record<string,unknown>}>(await fetch('/api/sandbox/discovery?view='+view+'&offset='+offset,{cache:'no-store'}),workspaceAutoContract("sandbox-identity-workspace.tsx/8b87f391f98a"))));
       if(access!==accessGeneration.current||request!==discoveryGeneration.current)return;
       if(results.some(r=>r.mode!=='simulator'||r.policyVersion!=='lokd-sandbox-completion-v1'||r.productionWorkEligible!==false))throw Error('The source boundary could not be verified.');
       setSources({applications:results[0].data.records as typeof sources.applications,captures:results[1].data.captures as typeof sources.captures,cases:results[1].data.cases as typeof sources.cases,grants:results[1].data.grants as typeof sources.grants});setPolicy(results[1].policy);setSourcePage(offset);setMoreSources(!!results[0].data.hasMore||!!results[1].data.hasMore);setError('');
@@ -58,7 +59,7 @@ export default function SandboxIdentityWorkspace({ operations = false, owner = f
                 setNotice('Private simulated evidence downloaded. The backend records this protected access.');
                 return null;
             }
-            const result = await readWorkspaceResponse<Envelope>(response);
+            const result = await readWorkspaceResponse<Envelope>(response,workspaceAutoContract("sandbox-identity-workspace.tsx/47a1436c7090"));
             if(access!==accessGeneration.current)return null;
             if(action==='capture'&&response.status===202){setCaptureUncertain(true);setNotice('The original capture is pending. Recover its original receipt.');return null;}
             if (result.mode !== 'simulator' || result.policyVersion !== 'lokd-sandbox-completion-v1' || result.productionIdentityVerified !== false || result.productionWorkEligible !== false)

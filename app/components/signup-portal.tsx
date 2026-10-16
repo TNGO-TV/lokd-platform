@@ -1,4 +1,8 @@
 'use client';
+import {readWorkspaceResponse,workspaceAccessDenied} from './workspace-request';
+import {signupResponse,productionSigningResponse} from '../lib/workspace-response-contracts';
+import {matchesWorkspaceCommand} from '../lib/workspace-command-receipt';
+import {useTestSurface} from './test-surface-context';
 import {useCallback,useEffect,useState,useRef,type FormEvent} from 'react';
 import Link from 'next/link';
 import {useSearchParams} from 'next/navigation';
@@ -7,34 +11,32 @@ import {applicationPsiraDeclaration} from '../lib/psira-pathway';
 import styles from './signup-portal.module.css';
 import OfficerPresencePanel from './officer-presence-panel';
 import TestAgreementPanel from './test-agreement-panel';
+export type SignupResponse={records:SignupRecord[];hasMore:boolean;email:string};
 const fieldLabels:Record<string,string>={fullName:'Full name',mobile:'Mobile number',city:'City or town',province:'Province',psiraStatus:'PSiRA position',psiraNumber:'PSiRA number',psiraGrade:'PSiRA grade',organisationName:'Organisation',contactName:'Contact name',siteArea:'Site area',message:'Site brief',pathway:'Pathway',siteType:'Site type',requiredStart:'Planning window',serviceType:'Service',services:'Work interests',purposes:'Work environments',training:'Training interests'};
 const options:Record<string,string[]>={pathway:['qualified','training'],province:['Gauteng','Western Cape','Free State','KwaZulu-Natal','Eastern Cape','Mpumalanga','Limpopo','North West','Northern Cape'],psiraStatus:['active','expired','in_training','not_registered'],psiraGrade:['','Grade A','Grade B','Grade C','Grade D','Grade E']};
 const valueLabel=(value:string)=>({active:'Registered and current',expired:'Registered · renewal needed',in_training:'Currently in training',not_registered:'Not yet registered'}[value]??value.replaceAll('_',' '));
-function intakeError(status:number,detail?:string){
- const next:Record<number,string>={401:'Your session has expired. Sign in again, then refresh.',403:'This account cannot access this action. Use the account linked to the submission or ask Operations to review access.',409:'This record changed. Copy any unsaved edits before refreshing, then review the latest details.',423:'This action is currently locked. Review the requirements or contact Operations.',503:'The service is temporarily unavailable. Your unsaved inputs are kept here; try again shortly.'};
- return [detail,next[status]].filter(Boolean).join(' ')||'Unable to complete the request. Refresh to check the current status.';
-}
 function date(value:string){return new Date(value).toLocaleString('en-ZA',{timeZone:'Africa/Johannesburg'});}
 export default function SignupPortal({kind:initialKind,operations=false}:{kind:SignupKind;operations?:boolean}) {
  const searchParams=useSearchParams();
  const kind=operations?(searchParams.get('kind')==='client'?'client':'officer'):initialKind;
+ return <SignupWorkspace key={kind+':'+operations} kind={kind} operations={operations}/>;
+}
+function SignupWorkspace({kind,operations}:{kind:SignupKind;operations:boolean}){
  const [records,setRecords]=useState<SignupRecord[]>([]),[email,setEmail]=useState(''),[offset,setOffset]=useState(0),[hasMore,setHasMore]=useState(false),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const generation=useRef(0),writeLock=useRef(false);
- const clearPrivate=useCallback(()=>{generation.current++;setRecords([]);setEmail('');setHasMore(false);},[]);
+ const clearPrivate=useCallback(()=>{generation.current++;setRecords([]);setEmail('');setHasMore(false);setLoading(false);},[]);
  const endpoint=`/api/signup?scope=${operations?'operations':kind}${operations?`&kind=${kind}`:''}`;
  const refresh=useCallback(async()=>{
   const request=++generation.current;setLoading(true);setError('');
-  try{const response=await fetch(`${endpoint}&offset=${offset}`,{cache:'no-store'});const data=await response.json() as {error?:string;records?:SignupRecord[];hasMore?:boolean;email?:string};if(request!==generation.current)return false;if([401,403].includes(response.status))clearPrivate();if(!response.ok||!Array.isArray(data.records))throw new Error(intakeError(response.status,data.error));setRecords(data.records);setHasMore(data.hasMore===true);setEmail(data.email??'');return true;}
-  catch(cause){setError(cause instanceof Error?cause.message:'Unable to load your submissions.');return false;}
-  finally{setLoading(false);}
- },[endpoint,offset,clearPrivate]);
- // This effect synchronises the selected intake page with its remote record.
- // eslint-disable-next-line react-hooks/set-state-in-effect
- useEffect(()=>{void refresh();},[refresh]);
+  try{const response=await fetch(`${endpoint}&offset=${offset}`,{cache:'no-store'});const data=await readWorkspaceResponse<SignupResponse>(response,value=>signupResponse(value,kind));if(request!==generation.current)return false;setRecords(data.records);setHasMore(data.hasMore);setEmail(data.email);return true;}
+  catch(cause){if(request!==generation.current)return false;if(workspaceAccessDenied(cause))clearPrivate();setError(cause instanceof Error?cause.message:'Unable to load your submissions.');return false;}
+  finally{if(request===generation.current)setLoading(false);}
+ },[endpoint,offset,kind,clearPrivate]);
+ useEffect(()=>{const requests=generation;const timer=setTimeout(()=>void refresh(),0);return()=>{clearTimeout(timer);requests.current++;};},[refresh]);
  async function run(body:Record<string,unknown>) {
-  if(writeLock.current)return false;writeLock.current=true;setBusy(true);setError('');setNotice('');
-  try{const response=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...body,kind})});const data=await response.json() as {error?:string};if([401,403].includes(response.status))clearPrivate();if(!response.ok)throw new Error(intakeError(response.status,data.error));const refreshed=await refresh();setNotice(refreshed?'Saved. The latest status is shown below.':'Saved, but the latest status could not be loaded. Refresh to check it before making another change.');return true;}
-  catch(cause){setError(cause instanceof Error?cause.message:'Unable to save.');return false;}
+  if(writeLock.current||loading||error)return false;writeLock.current=true;setBusy(true);setError('');setNotice('');
+  try{const submitted={...body,kind};const response=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(submitted)});await readWorkspaceResponse(response,async value=>Boolean(value&&typeof value==='object'&&'ok' in value&&value.ok===true)&&await matchesWorkspaceCommand(value,'signup',submitted));const refreshed=await refresh();setNotice(refreshed?'Saved. The latest status is shown below.':'Saved, but the latest status could not be loaded. Refresh to check it before making another change.');return true;}
+  catch(cause){if(workspaceAccessDenied(cause))clearPrivate();setError(cause instanceof Error?cause.message:'Unable to save.');return false;}
   finally{writeLock.current=false;setBusy(false);}
  }
  return <main className={styles.shell}>
@@ -45,14 +47,31 @@ export default function SignupPortal({kind:initialKind,operations=false}:{kind:S
   {error&&<div className={styles.error} role="alert">{error} <a href={`/sign-in?return_to=${encodeURIComponent(operations?'/ops/intake?kind='+kind:'/'+kind)}`}>Sign in again</a> <button disabled={busy||loading} onClick={()=>void refresh()}>Refresh</button></div>}
   {notice&&<p role="status">{notice}</p>}
   {loading&&<p role="status">Loading submissions…</p>}
-  {!loading&&!error&&records.length===0?<section className={styles.card}><h2>{operations?'No submissions on this page':'No submission linked to this email yet'}</h2><p>{operations?'New applications will appear here.':'Sign in with the same verified email used on your application. A reference alone cannot open someone else’s submission.'}</p>{!operations&&<a className={styles.primary} href={`https://lokd.co.za/${kind==='officer'?'join':'contact'}`}>{kind==='officer'?'Start an application':'Submit a site enquiry'}</a>}<button disabled={busy} onClick={()=>void refresh()}>Check again</button></section>:records.map(record=><RecordCard key={`${record.kind}:${record.id}:${record.version}`} record={record} operations={operations} busy={busy||loading} run={run}/>)}
+  {!loading&&!error&&records.length===0?<section className={styles.card}><h2>{operations?'No submissions on this page':'No submission linked to this email yet'}</h2><p>{operations?'New applications will appear here.':'Sign in with the same verified email used on your application. A reference alone cannot open someone else’s submission.'}</p>{!operations&&<a className={styles.primary} href={`https://lokd.co.za/${kind==='officer'?'join':'contact'}`}>{kind==='officer'?'Start an application':'Submit a site enquiry'}</a>}<button disabled={busy} onClick={()=>void refresh()}>Check again</button></section>:records.map(record=><RecordCard key={`${record.kind}:${record.id}:${record.version}`} record={record} operations={operations} busy={busy||loading||Boolean(error)} run={run} refresh={refresh} onUnconfirmed={setError}/>)}
   {!operations&&kind==='officer'&&<OfficerPresencePanel/>}
-  <nav className={styles.pagination} aria-label="Submission pages"><button disabled={offset===0||loading||busy} onClick={()=>setOffset(Math.max(0,offset-50))}>Previous</button><span>Page {offset/50+1}</span><button disabled={!hasMore||loading||busy} onClick={()=>setOffset(offset+50)}>Next</button></nav>
+  <nav className={styles.pagination} aria-label="Submission pages"><button disabled={offset===0||loading||busy||Boolean(error)} onClick={()=>setOffset(Math.max(0,offset-50))}>Previous</button><span>Page {offset/50+1}</span><button disabled={!hasMore||loading||busy||Boolean(error)} onClick={()=>setOffset(offset+50)}>Next</button></nav>
  </main>;
 }
-function RecordCard({record,operations,busy,run}:{record:SignupRecord;operations:boolean;busy:boolean;run:(body:Record<string,unknown>)=>Promise<boolean>}) {
+function RecordCard({record,operations,busy,run,refresh,onUnconfirmed}:{record:SignupRecord;operations:boolean;busy:boolean;run:(body:Record<string,unknown>)=>Promise<boolean>;refresh:()=>Promise<boolean>;onUnconfirmed:(message:string)=>void}) {
+ const testTools=useTestSurface();
  const [productionReference,setProductionReference]=useState('');
- async function prepareProduction(){try{const response=await fetch('/api/agreements/production?scope=operations&kind='+record.kind,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'prepare_entity',kind:record.kind,caseId:record.id,caseVersion:record.version})});const body=await response.json() as {error?:string;result?:{entityId:string}};if(!response.ok)throw Error(body.error);setProductionReference('Prepared '+body.result?.entityId+'. Verification and approvals remain pending.');}catch(e){setProductionReference(e instanceof Error?e.message:'Preparation failed.');}}
+ const prepareLock=useRef(false);
+ const [preparing,setPreparing]=useState(false);
+ async function prepareProduction(){
+  if(prepareLock.current||busy)return;
+  prepareLock.current=true;setPreparing(true);setProductionReference('');
+  try{
+   const submitted={action:'prepare_entity',kind:record.kind,caseId:record.id,caseVersion:record.version};
+   const response=await fetch('/api/agreements/production?scope=operations&kind='+record.kind,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(submitted)});
+   const body=await readWorkspaceResponse<{result?:{entityId?:unknown;grantsAccess?:unknown;workEligible?:unknown};entities:{kind:string;case_id:string;case_version:number;entity_id:string}[]}>(response,async value=>productionSigningResponse(value)&&await matchesWorkspaceCommand(value,'production-signing',submitted));
+   const id=body?.result?.entityId;
+   if(typeof id!=='string'||!id.trim()||id.length>100||body.result?.grantsAccess!==false||body.result?.workEligible!==false||!Array.isArray(body.entities)||!body.entities.some(link=>link.kind===record.kind&&link.case_id===record.id&&link.case_version===record.version&&link.entity_id===id))throw Error('Preparation was not confirmed by a matching saved record. Refresh and review the original submission before retrying.');
+   let refreshed=false;try{refreshed=await refresh();}catch{/* The verified saved receipt remains valid when intake refresh fails. */}
+   setProductionReference('Prepared '+id+'. Verification and approvals remain pending.'+(refreshed?'':' The latest intake status could not be refreshed. Check it before another action.'));
+  }catch(e){onUnconfirmed(e instanceof Error?e.message:'Preparation could not be confirmed.');if(workspaceAccessDenied(e))await refresh();setProductionReference((e instanceof Error?e.message:'Preparation could not be confirmed.')+' A failed confirmation does not prove that nothing was saved. Review the original record before retrying.');}
+  finally{prepareLock.current=false;setPreparing(false);}
+ }
+
  const [editing,setEditing]=useState(false),[confirmWithdraw,setConfirmWithdraw]=useState(false),[values,setValues]=useState(record.details);
  const send=(body:Record<string,unknown>)=>run({id:record.id,expectedVersion:record.version,...body});
  const fields=record.kind==='officer'?['fullName','mobile','city','province','pathway','psiraStatus','psiraNumber','psiraGrade']:['organisationName','contactName','mobile','siteArea','message'];
@@ -61,13 +80,13 @@ function RecordCard({record,operations,busy,run}:{record:SignupRecord;operations
  async function review(event:FormEvent<HTMLFormElement>){event.preventDefault();const form=new FormData(event.currentTarget);await send({action:'review',status:form.get('status'),note:form.get('note')});}
  return <article className={styles.card}>
   <header><div><small>{record.id} · Updated {date(record.updatedAt)}</small><h2>{record.details.fullName??record.details.organisationName}</h2><p>{record.email}</p></div><strong className={styles.status}>{signupStatusLabels[record.status]}</strong></header>
-  {operations&&record.accountLinked&&record.status==='reviewed'&&<button disabled={busy} onClick={()=>void prepareProduction()}>Prepare operational record</button>}{productionReference&&<p role="status">{productionReference}</p>}
+  {operations&&record.accountLinked&&record.status==='reviewed'&&<button disabled={busy||preparing} onClick={()=>void prepareProduction()}>{preparing?'Preparing operational record…':'Prepare operational record'}</button>}{productionReference&&<p role="status">{productionReference}</p>}
   <p>{signupNextStep(record)}</p>{record.note&&<blockquote><strong>Latest update</strong><p>{record.note}</p></blockquote>}
   {record.kind==='officer'&&<div className={styles.requirements}><strong>{registered?(record.verification?.verified?'Registration review current':'Registration and identity checks pending'):'Training / registration guidance'}</strong><p>{registered?'Your PSiRA number must be checked against the official register, and the result must separately be matched to you. The registration result and identity match are reviewed separately.':'This intake does not need a PSiRA lookup. It does not approve paid security work; you can correct your registration position when it changes.'}</p>{registered&&<p>Registration: {valueLabel(record.verification?.registrationStatus??'pending_review')} · Identity match: {valueLabel(record.verification?.identityMatch??'unchecked')}{record.verification?.checkedAt&&<> · Recorded {date(record.verification.checkedAt)}</>}{record.verification?.recheckAt&&<> · Recheck by {date(record.verification.recheckAt)}</>}</p>}{registered&&record.accountLinked&&!operations&&record.status!=='withdrawn'&&<Link href="/officer/psira">Open my PSiRA verification →</Link>}</div>}
   {record.kind==='officer'&&record.accountLinked&&<Link href={`${operations?'/ops':'/officer'}/readiness?applicantId=${encodeURIComponent(record.id)}`}>Identity, readiness & hold history →</Link>}
-  <details><summary>Testing tools</summary><p>Sandbox only — not identity verification, service confirmation or live payment.</p>{!operations&&record.kind==='officer'&&record.accountLinked&&record.status!=='withdrawn'&&<Link href={`/officer/identity?caseId=${encodeURIComponent(record.id)}`}>Sandbox identity & enrolment →</Link>}
+  {testTools&&<details><summary>Testing tools</summary><p>Sandbox only — not identity verification, service confirmation or live payment.</p>{!operations&&record.kind==='officer'&&record.accountLinked&&record.status!=='withdrawn'&&<Link href={`/officer/identity?caseId=${encodeURIComponent(record.id)}`}>Sandbox identity & enrolment →</Link>}
   {operations&&record.kind==='officer'&&record.accountLinked&&record.status!=='withdrawn'&&<Link href={`/ops/identity?caseId=${encodeURIComponent(record.id)}`}>Review sandbox identity evidence →</Link>}
-  {record.accountLinked&&<TestAgreementPanel kind={record.kind} caseId={record.id} operations={operations}/>}</details>
+  {record.accountLinked&&<TestAgreementPanel kind={record.kind} caseId={record.id} operations={operations}/>}</details>}
   <details><summary>View submitted details</summary><dl className={styles.details}>{Object.entries(record.details).map(([key,value])=><div key={key}><dt>{fieldLabels[key]??key}</dt><dd>{value||'Not provided'}</dd></div>)}</dl></details>
   {!operations&&!record.accountLinked&&record.status!=='withdrawn'&&<button className={styles.primary} disabled={busy} onClick={()=>void send({action:'link'})}>Link to my account</button>}
   {!operations&&record.accountLinked&&record.status!=='withdrawn'&&<div className={styles.actions}><button disabled={busy} onClick={()=>setEditing(!editing)}>{editing?'Cancel editing':'Correct my details'}</button><button disabled={busy} onClick={()=>setConfirmWithdraw(!confirmWithdraw)}>Withdraw submission</button></div>}

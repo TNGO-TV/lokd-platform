@@ -40,7 +40,7 @@ export async function consumeConnectedPayroll({db,database,officerId,shiftId,mak
  for(const table of ['disbursement_batches','employee_payment_instructions','partner_payment_instructions'])assert.equal(database.prepare(`SELECT count(*) AS n FROM ${table}`).get().n,0,table);
  assert.throws(()=>database.prepare("UPDATE payroll_runs SET status='paid',version=version+1 WHERE id=?").run(prepared.runId),/payroll|decision/);
  const {financeDocumentJourney}=await import('./finance-document-journey.mjs');
- const document=await financeDocumentJourney({db,database,maker,finance,recipient:applicant,kind:'payslip',sourceId:item.id,headers:freshHeaders(finance)});
+ const document=await financeDocumentJourney({db,database,maker,finance,recipient:applicant,kind:'payslip',sourceId:item.id,headers:freshHeaders(finance),expectsHistoricalTestPayment:false});
  assert.equal((await document.read()).documents[0].currentState,'unpaid');
  const {payrollCorrectionReviewJourney}=await import('./payroll-correction-review-journey.mjs');
  await payrollCorrectionReviewJourney({db,database,itemId:item.id,maker,finance,applicant,headers:freshHeaders});

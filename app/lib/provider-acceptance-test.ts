@@ -40,7 +40,7 @@ export async function initializeProviderTest(runtime:Runtime,actor:Actor,input:R
  if(inserted.meta.changes){
   const row=await db.prepare('SELECT * FROM provider_acceptance_tests WHERE reference=?').bind(reference).first<ProviderTest>();
   try{
-   const data=await provider(key,'/transaction/initialize',{email:row!.email,reference,amount:'100',currency:'ZAR',channels:['card'],callback_url:'https://operations.lokd.co.za/ops/payment-test',metadata:JSON.stringify(providerTestMetadata(row!))},transport);
+   const data=await provider(key,'/transaction/initialize',{email:row!.email,reference,amount:'100',currency:'ZAR',channels:['card'],callback_url:'https://demo.lokd.co.za/ops/payment-test',metadata:JSON.stringify(providerTestMetadata(row!))},transport);
    const url=typeof data.authorization_url==='string'?new URL(data.authorization_url):null;
    if(data.reference!==reference||!url||url.origin!=='https://checkout.paystack.com'||url.username||url.password)throw Error('Checkout binding mismatch');
    await db.prepare("UPDATE provider_acceptance_tests SET state='awaiting_checkout',checkout_url=?,revision=revision+1,updated_at=? WHERE reference=? AND state='initializing'").bind(url.href,new Date().toISOString(),reference).run();

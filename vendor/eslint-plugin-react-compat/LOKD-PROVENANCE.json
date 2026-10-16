@@ -1,0 +1,11 @@
+{
+  "upstreamPackage": "eslint-plugin-react",
+  "upstreamVersion": "7.37.5",
+  "archiveSha256": "45cc9f87030c2d56bf53b5db62367d3cde946cd63e6dde865d66a6b21051ba0b",
+  "archiveIntegrity": "sha512-Qteup0SqU15kdocexFNAJMvCJEfa2xUKNV4CC1xsVMrIIqEy3SQ/rqyxCWNzfrd3/ldy6HMlD2e0JDVpDg2qIA==",
+  "changes": [
+    "Local package identity and ESLint10 peer contract.",
+    "compat.cjs applies official @eslint/compat2.1.1 fixupPluginRules runtime API adapter; original rules and utilities unchanged."
+  ],
+  "status": "candidate; effective-rule and invalid-fixture parity required"
+}

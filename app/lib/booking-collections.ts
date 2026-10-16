@@ -28,8 +28,8 @@ async function orderSource(db:D1Database,id:string){
  AND c.environment='production' AND c.integrity_state='production_verified'`).bind(id).first<{id:string;client_id:string;case_version:number;owner_user_id:string;case_id:string;request_hash:string;client_price_cents:number;funding_status:string;status:string;contact_email:string}>();
 }
 export async function currentCollection(db:D1Database,r:Saved){const s=await orderSource(db,r.order_id);return Boolean(s&&s.client_id===r.client_id&&s.case_version===r.case_version&&s.owner_user_id===r.applicant_id&&s.case_id===r.case_id&&s.request_hash===r.source_hash&&s.client_price_cents===r.amount_minor&&!['cancelled','completed'].includes(s.status)&&await currentClientReview(db,r.client_id));}
-export async function readBookingCollections(db:D1Database,actor:SigningActor){
- const rows=await db.prepare(`SELECT r.* FROM booking_collection_requests r ${actor.operations?'':"WHERE r.applicant_id=? AND EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='client' AND l.entity_id=r.client_id AND l.owner_user_id=?)"} ORDER BY r.created_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId,actor.userId])).all<Saved>();
+export async function readBookingCollections(db:D1Database,actor:SigningActor,liveOnly=false){
+ const rows=await db.prepare(`SELECT r.* FROM booking_collection_requests r WHERE ${liveOnly?"r.mode='live'":"1=1"} ${actor.operations?'':"AND r.applicant_id=? AND EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='client' AND l.entity_id=r.client_id AND l.owner_user_id=?)"} ORDER BY r.created_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId,actor.userId])).all<Saved>();
  const collections=[];for(const r of rows.results){const evidence=actor.operations?(await db.prepare('SELECT source,event,payload_hash,transaction_json,recorded_at FROM booking_collection_evidence WHERE reference=? ORDER BY rowid DESC LIMIT 100').bind(r.reference).all()).results:[];
  collections.push({...r,checkout_url:actor.operations?null:r.checkout_url,evidence,current:await currentCollection(db,r)});}
  return {collections,collectionRequiresSettlement:true};

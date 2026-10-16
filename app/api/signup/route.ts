@@ -1,3 +1,4 @@
+import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from 'cloudflare:workers';
 import { principalForEmail, principalHasRole, requirePilotApiRole, requireSameOriginJson, PilotAccessError } from '../../lib/pilot-runtime';
@@ -35,5 +36,5 @@ export async function POST(request:Request){try{
  const raw = await readRequestText(request, 12000);
  let body;try{body=JSON.parse(raw);}catch{throw new SignupError('Submit a valid update.');}
  if(!body||typeof body!=='object'||Array.isArray(body)||body.kind!==selectedKind)throw new SignupError('Choose the correct intake.');
- await writeSignup(env.DB,user,body);return reply({ok:true});
+ await writeSignup(env.DB,user,body);return reply({ok:true,commandReceipt:await workspaceCommandReceipt('signup',body)});
 }catch(error){return failure(error);}}

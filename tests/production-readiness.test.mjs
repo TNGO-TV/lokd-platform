@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import {DatabaseSync} from 'node:sqlite';
+import {installFixtureClock} from './fixtures/fixture-clock.mjs';
+const FIXTURE_NOW=Date.parse('2026-10-16T12:00:00.123Z');
 import {env} from 'cloudflare:workers';
 import {POST as apply} from '../app/api/applications/route.ts';
 import {writeSignup} from '../app/lib/signup-server.ts';
@@ -15,10 +17,10 @@ class D1 {
  prepare(sql){const database=this.sql;const make=(values=[])=>({bind:(...v)=>make(v),first:async()=>database.prepare(sql).get(...values)??null,all:async()=>({results:database.prepare(sql).all(...values)}),run:async()=>({meta:{changes:Number(database.prepare(sql).run(...values).changes)}})});return make();}
  async batch(statements){this.sql.exec('BEGIN');try{const results=[];for(const stmt of statements)results.push(await stmt.run());this.sql.exec('COMMIT');return results;}catch(e){this.sql.exec('ROLLBACK');throw e;}}
 }
-async function setup(pathway='qualified',psiraStatus='active'){
- const db=new D1();env.DB=db;
+async function setup(context,pathway='qualified',psiraStatus='active'){
+ const db=new D1();const clock=installFixtureClock(context,db.sql,FIXTURE_NOW);env.DB=db;
  const response=await apply(new Request('https://lokd.co.za/api/applications',{method:'POST',headers:{origin:'https://lokd.co.za','content-type':'application/json'},body:JSON.stringify({pathway,fullName:'Synthetic Officer',mobile:'0821234567',email:'identity@example.test',city:'Johannesburg',province:'Gauteng',psiraStatus,psiraNumber:psiraStatus==='active'?'1234567':'',psiraGrade:'Grade A',services:['Unarmed'],purposes:['Commercial access'],training:pathway==='training'?['Entry-level security training']:[],over18Confirmed:true,eligibilityAcknowledged:true,contactConsent:true})}));assert.equal(response.status,202);const caseId=(await response.json()).reference;
- await writeSignup(db,{userId:'user_identity',email:'identity@example.test',operations:false},{action:'link',kind:'officer',id:caseId,expectedVersion:0});return {db,caseId,runtime:{DB:db,VERIFYNOW_API_KEY:undefined,VERIFYNOW_SANDBOX_ENABLED:'true'}};
+ await writeSignup(db,{userId:'user_identity',email:'identity@example.test',operations:false},{action:'link',kind:'officer',id:caseId,expectedVersion:0});return {db,caseId,clock,runtime:{DB:db,VERIFYNOW_API_KEY:undefined,VERIFYNOW_SANDBOX_ENABLED:'true'}};
 }
 
 const applicant={userId:'user_identity',email:'identity@example.test',operations:false};
@@ -35,8 +37,8 @@ const approve=(db,s,actor=reviewer)=>decide(db,actor,{id:s.id,outcomeId:s.outcom
 
 const maker={userId:'bridge-maker',email:'maker@example.test',operations:true,owner:false};
 const checker={userId:'bridge-checker',email:'checker@example.test',operations:true,owner:true};
-async function ready(){
- const {db,caseId}=await setup();const f=fixture();
+async function ready(context){
+ const {db,caseId,clock}=await setup(context);const f=fixture();
  await writeSignup(db,maker,{action:'review',kind:'officer',id:caseId,expectedVersion:1,status:'reviewed',note:'Synthetic intake review for isolated fixture'});
  let identity=await start(db,applicant,{...input(caseId),applicantVersion:2},f.port);identity=await approve(db,identity);
  const entity=await prepareProductionEntity(db,maker,{kind:'officer',caseId,caseVersion:2});
@@ -45,7 +47,7 @@ async function ready(){
  await writePsiraCase(db,reviewer,psiraReview);
  const psiraEvent=db.sql.prepare('SELECT latest_event_id FROM psira_verification_cases WHERE id=?').get(psiraId).latest_event_id;
  const proposal={officerId:entity.entityId,applicantVersion:2,identityOutcomeId:identity.outcomeId,psiraEventId:psiraEvent,reason:'Synthetic independent identity and registration inspection'};
- return {db,caseId,f,identity,psiraId,psiraReview,proposal};
+ return {db,caseId,clock,f,identity,psiraId,psiraReview,proposal};
 }
 const decideBridge=(db,id,actor=checker,decision='approve')=>decideOfficerReview(db,actor,{reviewId:id,decision,independentlyChecked:true,reason:'Independent inspection of exact fixture evidence'});
 
@@ -55,7 +57,7 @@ import {readPublicPassport} from '../app/lib/passport-server.ts';
 const assessor={userId:'readiness-assessor',email:'assessor@example.test',operations:true,owner:false};
 const independent={userId:'readiness-checker',email:'ready-checker@example.test',operations:true,owner:true};
 const decision=(db,kind,id,actor=independent)=>decideReadiness(db,actor,{kind,id,decision:'approve',independentlyInspected:true,reason:'Independently inspected isolated policy or applicant fixture'});
-async function base(){const x=await ready();const bridge=await prepareOfficerReview(x.db,maker,x.proposal);await decideBridge(x.db,bridge.reviewId);return {...x,officerId:x.proposal.officerId,bridgeId:bridge.reviewId};}
+async function base(context){const x=await ready(context);const bridge=await prepareOfficerReview(x.db,maker,x.proposal);await decideBridge(x.db,bridge.reviewId);return {...x,officerId:x.proposal.officerId,bridgeId:bridge.reviewId};}
 async function qualify(x,category,scope){
  const rule=await prepareReadinessRule(x.db,assessor,{code:category==='core'?'core_ready':category+'_'+scope.toLowerCase(),label:'Isolated '+category+' fixture',category,serviceType:category==='service'?scope:undefined,purposeCode:category==='purpose'?scope:undefined,requirements:['fixture assessment'],maxDays:7,evidenceReference:'private:isolated-policy-not-real',expiresAt:new Date(Date.now()+2*86400000).toISOString()});
  await decision(x.db,'rule',rule.id);
@@ -63,10 +65,10 @@ async function qualify(x,category,scope){
  const input={officerId:x.officerId,officerReviewId:x.bridgeId,ruleId:rule.id,evidence,sourcesActuallyInspected:true};
  const review=await prepareReadinessReview(x.db,assessor,input);await decision(x.db,'review',review.id);return {rule,review,input};
 }
-async function complete(){const x=await base();x.core=await qualify(x,'core','');x.service=await qualify(x,'service','Unarmed');x.purpose=await qualify(x,'purpose','commercial_access');await setReadinessOptIn(x.db,applicant,{officerId:x.officerId,serviceType:'Unarmed',expectedRevision:0,optedIn:true});x.passportInput={officerId:x.officerId,officerReviewId:x.bridgeId,reviewIds:[x.core.review.id,x.service.review.id,x.purpose.review.id],expectedSequence:0};return x;}
+async function complete(context){const x=await base(context);x.core=await qualify(x,'core','');x.service=await qualify(x,'service','Unarmed');x.purpose=await qualify(x,'purpose','commercial_access');await setReadinessOptIn(x.db,applicant,{officerId:x.officerId,serviceType:'Unarmed',expectedRevision:0,optedIn:true});x.passportInput={officerId:x.officerId,officerReviewId:x.bridgeId,reviewIds:[x.core.review.id,x.service.review.id,x.purpose.review.id],expectedSequence:0};return x;}
 
-test('no implied policy, no self approval or evidence fabrication, and opt-in belongs to officer',async()=>{
- const x=await base();
+test('no implied policy, no self approval or evidence fabrication, and opt-in belongs to officer',async context=>{
+ const x=await base(context);
  await assert.rejects(prepareReadinessReview(x.db,assessor,{officerId:x.officerId,officerReviewId:x.bridgeId,ruleId:'missing-policy',evidence:[],sourcesActuallyInspected:true}),/policy/);
  await assert.rejects(prepareReadinessRule(x.db,applicant,{}),/Operations/);
  const r=await prepareReadinessRule(x.db,assessor,{code:'core_ready',label:'Fixture',category:'core',requirements:['check'],maxDays:1,evidenceReference:'isolated policy',expiresAt:new Date(Date.now()+86400000).toISOString()});
@@ -75,8 +77,8 @@ test('no implied policy, no self approval or evidence fabrication, and opt-in be
  await assert.rejects(setReadinessOptIn(x.db,applicant,{officerId:x.officerId,serviceType:'Unarmed',expectedRevision:0,optedIn:true}),/qualification/);x.db.sql.close();
 });
 
-test('current reviewed sources produce scoped passport, private token and existing activation projections',async()=>{
- const x=await complete();const p=await prepareReadinessPassport(x.db,assessor,x.passportInput);
+test('current reviewed sources produce scoped passport, private token and existing activation projections',async context=>{
+ const x=await complete(context);const p=await prepareReadinessPassport(x.db,assessor,x.passportInput);
  assert.equal((await readProductionReadiness(x.db,applicant,x.officerId)).passport,null);
  assert.equal(await readPublicPassport(x.db,p.token),null);
  await decision(x.db,'passport',p.id);
@@ -91,8 +93,8 @@ test('current reviewed sources produce scoped passport, private token and existi
  for(const table of ['rules','reviews','decisions','optins','passports'])assert.throws(()=>x.db.sql.exec('DELETE FROM production_readiness_'+table),/immutable/);x.db.sql.close();
 });
 
-test('wrong-person, incomplete, duplicated and expired assessment evidence cannot create readiness',async()=>{
- const x=await base(),q=await qualify(x,'core','');
+test('wrong-person, incomplete, duplicated and expired assessment evidence cannot create readiness',async context=>{
+ const x=await base(context),q=await qualify(x,'core','');
  for(const evidence of [[],[...q.input.evidence,...q.input.evidence],q.input.evidence.map(e=>({...e,ownerUserId:'other'})),q.input.evidence.map(e=>({...e,sha256:'fake'})),q.input.evidence.map(e=>({...e,checkedAt:'2000-01-01T00:00:00Z'})),q.input.evidence.map(e=>({...e,expiresAt:'2000-01-01T00:00:00Z'}))])await assert.rejects(prepareReadinessReview(x.db,assessor,{...q.input,evidence}),/evidence|Evidence/);
  const r=await prepareReadinessReview(x.db,assessor,q.input);
  await assert.rejects(decision(x.db,'review',r.id,{...assessor,owner:true}),/Independent/);
@@ -100,8 +102,8 @@ test('wrong-person, incomplete, duplicated and expired assessment evidence canno
  x.db.sql.close();
 });
 
-test('old tokens and old assessment approvals cannot replace later independently approved versions',async()=>{
- const x=await complete();const first=await prepareReadinessPassport(x.db,assessor,x.passportInput);await decision(x.db,'passport',first.id);
+test('old tokens and old assessment approvals cannot replace later independently approved versions',async context=>{
+ const x=await complete(context);const first=await prepareReadinessPassport(x.db,assessor,x.passportInput);await decision(x.db,'passport',first.id);
  const second=await prepareReadinessPassport(x.db,assessor,{...x.passportInput,expectedSequence:1});
  await assert.rejects(decision(x.db,'passport',second.id,{...assessor,owner:true}),/Independent/);
  await decision(x.db,'passport',second.id);
@@ -112,9 +114,9 @@ test('old tokens and old assessment approvals cannot replace later independently
  assert.equal((await readPublicPassport(x.db,second.token)).result,'red');x.db.sql.close();
 });
 
-test('opt-out, identity/PSiRA change, policy hold and readiness suspension invalidate without rewriting history',async()=>{
- for(const change of ['optout','identity','psira','policy','review']){
- const x=await complete(),p=await prepareReadinessPassport(x.db,assessor,x.passportInput);await decision(x.db,'passport',p.id);
+test('opt-out, identity/PSiRA change, policy hold and readiness suspension invalidate without rewriting history',async context=>{
+ for(const change of ['optout','identity','psira','policy','review'])await context.test(change,async context=>{
+ const x=await complete(context),p=await prepareReadinessPassport(x.db,assessor,x.passportInput);await decision(x.db,'passport',p.id);
  const immutable=x.db.sql.prepare('SELECT * FROM production_readiness_reviews').all(),epoch=x.db.sql.prepare('SELECT revision FROM activation_evidence_epoch').get().revision;
  if(change==='optout')await setReadinessOptIn(x.db,applicant,{officerId:x.officerId,serviceType:'Unarmed',expectedRevision:1,optedIn:false});
  if(change==='identity')await suspend(x.db,reviewer,x.identity.id,'Fixture identity withdrawal');
@@ -125,11 +127,11 @@ test('opt-out, identity/PSiRA change, policy hold and readiness suspension inval
  assert.ok(x.db.sql.prepare('SELECT revision FROM activation_evidence_epoch').get().revision>epoch);
  if(change==='optout'){await setReadinessOptIn(x.db,applicant,{officerId:x.officerId,serviceType:'Unarmed',expectedRevision:2,optedIn:true});assert.equal((await readPublicPassport(x.db,p.token)).result,'red');}
  x.db.sql.close();
- }
+ });
 });
 
-test('revoked passport cannot be renewed and direct projection edits cannot revive or extend evidence',async()=>{
- const x=await complete(),p=await prepareReadinessPassport(x.db,assessor,x.passportInput);await decision(x.db,'passport',p.id);
+test('revoked passport cannot be renewed and direct projection edits cannot revive or extend evidence',async context=>{
+ const x=await complete(context),p=await prepareReadinessPassport(x.db,assessor,x.passportInput);await decision(x.db,'passport',p.id);
  assert.throws(()=>x.db.sql.prepare("UPDATE officer_passports SET next_review_at='2099-01-01' WHERE officer_id=?").run(x.officerId),/Exact approved/);
  assert.throws(()=>x.db.sql.prepare("UPDATE officer_endorsements SET expires_at='2099-01-01' WHERE officer_id=?").run(x.officerId),/Exact approved/);
  await holdReadiness(x.db,assessor,{kind:'passport',id:p.id,disposition:'revoke',reason:'Revoked fixture credential'});
@@ -138,8 +140,8 @@ test('revoked passport cannot be renewed and direct projection edits cannot revi
  assert.throws(()=>x.db.sql.prepare("UPDATE officer_passports SET status='active' WHERE officer_id=?").run(x.officerId),/Exact approved/);x.db.sql.close();
 });
 
-test('concurrent passport preparation and decisions claim once; source race fails at commit',async()=>{
- const x=await complete();const outcomes=await Promise.allSettled([prepareReadinessPassport(x.db,assessor,x.passportInput),prepareReadinessPassport(x.db,assessor,x.passportInput)]);
+test('concurrent passport preparation and decisions claim once; source race fails at commit',async context=>{
+ const x=await complete(context);const outcomes=await Promise.allSettled([prepareReadinessPassport(x.db,assessor,x.passportInput),prepareReadinessPassport(x.db,assessor,x.passportInput)]);
  assert.equal(outcomes.filter(r=>r.status==='fulfilled').length,1);const p=outcomes.find(r=>r.status==='fulfilled').value;
  const results=await Promise.allSettled([decision(x.db,'passport',p.id),decision(x.db,'passport',p.id)]);assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
  const next=await prepareReadinessPassport(x.db,assessor,{...x.passportInput,expectedSequence:1});
@@ -148,9 +150,9 @@ test('concurrent passport preparation and decisions claim once; source race fail
  assert.equal(x.db.sql.prepare("SELECT count(*) AS n FROM production_readiness_decisions WHERE kind='passport'").get().n,1);x.db.sql.close();
 });
 
-test('sandbox passport and endorsements cannot be converted by production issuance',async()=>{
- for(const kind of ['passport','endorsement']){
- const x=await base();
+test('sandbox passport and endorsements cannot be converted by production issuance',async context=>{
+ for(const kind of ['passport','endorsement'])await context.test(kind,async context=>{
+ const x=await base(context);
  if(kind==='endorsement'){
   x.db.sql.prepare("INSERT INTO officer_endorsements(id,officer_id,code,label,category,status,environment,integrity_state) VALUES('sandbox',?,'core_ready','Synthetic','core','current','demo','synthetic')").run(x.officerId);
   await assert.rejects(qualify(x,'core',''),/cannot be promoted/);
@@ -161,11 +163,11 @@ test('sandbox passport and endorsements cannot be converted by production issuan
   x.db.sql.prepare("INSERT INTO officer_passports(officer_id,passport_number,public_token_hash,environment,integrity_state) VALUES(?,'synthetic-passport','synthetic-hash','demo','synthetic')").run(x.officerId);
   await assert.rejects(prepareReadinessPassport(x.db,assessor,{officerId:x.officerId,officerReviewId:x.bridgeId,reviewIds:[x.core.review.id,x.service.review.id,x.purpose.review.id],expectedSequence:0}),/cannot be promoted/);
  }x.db.sql.close();
- }
+ });
 });
 
-test('policy replacement, withdrawal and late decisions never revive old versions',async()=>{
- const x=await complete();const p=await prepareReadinessPassport(x.db,assessor,x.passportInput);await decision(x.db,'passport',p.id);
+test('policy replacement, withdrawal and late decisions never revive old versions',async context=>{
+ const x=await complete(context);const p=await prepareReadinessPassport(x.db,assessor,x.passportInput);await decision(x.db,'passport',p.id);
  const updated=await prepareReadinessRule(x.db,assessor,{code:'core_ready',label:'Replacement fixture policy',category:'core',requirements:['replacement assessment'],maxDays:1,evidenceReference:'isolated replacement policy',expiresAt:new Date(Date.now()+86400000).toISOString()});
  await decision(x.db,'rule',updated.id);assert.equal((await readPublicPassport(x.db,p.token)).result,'red');
  await holdReadiness(x.db,assessor,{kind:'rule',id:updated.id,disposition:'suspend',reason:'Replacement policy withdrawn'});
@@ -174,20 +176,55 @@ test('policy replacement, withdrawal and late decisions never revive old version
 });
 
 
-test('same-day evidence expiry immediately invalidates public passport and deadline contract',async()=>{
- const x=await complete();const soon=new Date(Date.now()+3000).toISOString();
+test('same-day evidence expiry immediately invalidates public passport and deadline contract',async context=>{
+ const x=await complete(context);const soon=new Date(Date.now()+3000).toISOString();
  const core=await prepareReadinessReview(x.db,assessor,{...x.core.input,evidence:x.core.input.evidence.map(e=>({...e,expiresAt:soon}))});await decision(x.db,'review',core.id);
  const p=await prepareReadinessPassport(x.db,assessor,{...x.passportInput,reviewIds:[core.id,x.service.review.id,x.purpose.review.id]});await decision(x.db,'passport',p.id);
  assert.equal((await readPublicPassport(x.db,p.token)).result,'green');
- await new Promise(resolve=>setTimeout(resolve,Math.max(0,Date.parse(soon)-Date.now()+20)));
+ x.clock.set(Date.parse(soon)-1);
+ assert.equal((await readPublicPassport(x.db,p.token)).result,'green');
+ assert.equal((await readProductionReadiness(x.db,applicant,x.officerId)).passport.id,p.id);
+ x.clock.advance(1); // Equality is expired, without sleeps or evidence-date rewrites.
  assert.equal((await readPublicPassport(x.db,p.token)).result,'red');assert.equal((await readProductionReadiness(x.db,applicant,x.officerId)).passport,null);
  assert.equal(await readinessContract(x.db,x.officerId,new Date(Date.now()+60000).toISOString(),'Unarmed','commercial_access'),null);x.db.sql.close();
 });
 
 
-test('passport suspension cannot be bypassed by issuing a new sequence',async()=>{
- const x=await complete(),p=await prepareReadinessPassport(x.db,assessor,x.passportInput);await decision(x.db,'passport',p.id);
+test('passport suspension cannot be bypassed by issuing a new sequence',async context=>{
+ const x=await complete(context),p=await prepareReadinessPassport(x.db,assessor,x.passportInput);await decision(x.db,'passport',p.id);
  await holdReadiness(x.db,assessor,{kind:'passport',id:p.id,disposition:'suspend',reason:'Hold pending independent source investigation'});
  await assert.rejects(prepareReadinessPassport(x.db,assessor,{...x.passportInput,expectedSequence:1}),/Held/);
  assert.equal((await readPublicPassport(x.db,p.token)).result,'red');assert.equal(x.db.sql.prepare('SELECT count(*) AS n FROM production_readiness_passports').get().n,1);x.db.sql.close();
+});
+
+test('readiness enforces the same millisecond evidence boundaries in JavaScript and SQL',async context=>{
+ const x=await base(context),q=await qualify(x,'core',''),now=Date.now();
+ const evidence=changes=>q.input.evidence.map(e=>({...e,...changes}));
+ const insert=(items,expiresAt)=>x.db.sql.prepare('INSERT INTO production_readiness_reviews VALUES(?,?,?,?,?,?,?,?)').run(crypto.randomUUID(),x.officerId,x.bridgeId,q.rule.id,JSON.stringify(items),expiresAt,assessor.userId,new Date().toISOString());
+ try{
+  const current=evidence({checkedAt:new Date(now).toISOString(),expiresAt:new Date(now+1).toISOString()});
+  await prepareReadinessReview(x.db,assessor,{...q.input,evidence:current});
+  insert(current,new Date(now+1).toISOString());
+  const future=evidence({checkedAt:new Date(now+1).toISOString()});
+  await assert.rejects(prepareReadinessReview(x.db,assessor,{...q.input,evidence:future}),/future-dated/);
+  assert.throws(()=>insert(future,q.review.expiresAt),/Current exact readiness evidence/);
+  const expired=evidence({expiresAt:new Date(now).toISOString()});
+  await assert.rejects(prepareReadinessReview(x.db,assessor,{...q.input,evidence:expired}),/expired/);
+  assert.throws(()=>insert(expired,new Date(now).toISOString()),/Current exact readiness evidence/);
+ }finally{x.db.sql.close();}
+});
+
+test('a three millisecond JS/SQLite clock split reproduces the guard failure and aligned fixture time resolves it',async context=>{
+ const x=await base(context),q=await qualify(x,'core',''),now=Date.now();
+ try{
+  context.mock.timers.setTime(now+3); // Intentionally split clocks as observed in the native Windows probe.
+  const input={...q.input,evidence:q.input.evidence.map(e=>({...e,checkedAt:new Date().toISOString()}))};
+  assert.equal(Date.now(),now+3);
+  assert.equal(x.db.sql.prepare("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now') AS now").get().now,new Date(now).toISOString());
+  await assert.rejects(prepareReadinessReview(x.db,assessor,input),/Current exact readiness evidence/);
+  x.clock.set(now+3);
+  const result=await prepareReadinessReview(x.db,assessor,input);
+  assert.ok(result.id);
+  assert.deepEqual(JSON.parse(x.db.sql.prepare('SELECT evidence_json FROM production_readiness_reviews WHERE id=?').get(result.id).evidence_json),input.evidence);
+ }finally{x.db.sql.close();}
 });

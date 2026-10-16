@@ -1,3 +1,4 @@
+import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {env} from 'cloudflare:workers';
 import {SignupError} from '../../lib/signup-server';
 import {PilotAccessError,principalForEmail,principalHasRole,requirePilotApiRole,requireSameOriginJson} from '../../lib/pilot-runtime';
@@ -33,5 +34,5 @@ export async function POST(request:Request){try{
  else if(b.action==='accept')result=await acceptQuote(env.DB,env.BUCKET,a,b);
  else if(b.action==='cancel')result=await cancelQuote(env.DB,a,b);
  else throw new SignupError('Choose a supported quote action.');
- return reply({result,...await readQuotes(env.DB,a)});
+ return reply({result,...await readQuotes(env.DB,a),commandReceipt:await workspaceCommandReceipt('quotes',b)});
  }catch(e){return fail(e);}}

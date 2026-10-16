@@ -112,7 +112,7 @@ export const officerApplications = sqliteTable(
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
-    uniqueIndex("officer_applications_mobile_idx").on(table.mobileNormalized),
+    index("officer_applications_mobile_idx").on(table.mobileNormalized),
     index("officer_applications_status_idx").on(table.status),
     index("officer_applications_pathway_idx").on(table.pathway),
     index("officer_applications_created_idx").on(table.createdAt),
@@ -2519,8 +2519,12 @@ export const testOperatingEvents=sqliteTable('test_operating_events',{
  id:text('id').primaryKey(),cycleId:text('cycle_id').notNull(),snapshot:text('snapshot').notNull(),recordedAt:text('recorded_at').notNull(),
 });
 export const publicOfficerPresence=sqliteTable('public_officer_presence',{
- id:text('id').primaryKey(),userId:text('user_id').notNull(),officerId:text('officer_id'),mode:text('mode').notNull(),latitude:real('latitude').notNull(),longitude:real('longitude').notNull(),consentedAt:text('consented_at').notNull(),updatedAt:text('updated_at').notNull(),expiresAt:text('expires_at').notNull(),
+ id:text('id').primaryKey(),userId:text('user_id').notNull(),officerId:text('officer_id'),mode:text('mode').notNull(),latitude:real('latitude').notNull(),longitude:real('longitude').notNull(),consentedAt:text('consented_at').notNull(),updatedAt:text('updated_at').notNull(),expiresAt:text('expires_at').notNull(),consentRevision:integer('consent_revision').notNull().default(0),
 },t=>[uniqueIndex('public_presence_user_mode_idx').on(t.userId,t.mode)]);
+
+export const officerPresenceConsents=sqliteTable('officer_presence_consents',{
+ userId:text('user_id').notNull(),mode:text('mode').notNull(),revision:integer('revision').notNull(),sessionId:text('session_id'),active:integer('active').notNull(),updatedAt:text('updated_at').notNull(),
+},t=>[primaryKey({columns:[t.userId,t.mode]})]);
 
 export const productionEntityLinks=sqliteTable('production_entity_links',{
  kind:text('kind').notNull(),caseId:text('case_id').notNull(),caseVersion:integer('case_version').notNull(),ownerUserId:text('owner_user_id').notNull(),entityId:text('entity_id').notNull(),preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),
@@ -3221,3 +3225,11 @@ export const providerAcceptanceTests=sqliteTable('provider_acceptance_tests',{
  state:text('state').notNull(),checkoutUrl:text('checkout_url'),providerId:text('provider_id'),providerStatus:text('provider_status'),webhookHash:text('webhook_hash'),
  revision:integer('revision').notNull().default(1),note:text('note').notNull(),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
 },t=>[uniqueIndex('provider_acceptance_owner_scenario_idx').on(t.ownerUserId,t.version,t.scenario),check('provider_acceptance_test_amount',sql`${t.amountMinor}=100 AND ${t.currency}='ZAR'`),check('provider_acceptance_scenario',sql`${t.scenario} IN ('success','decline','cancel')`)]);
+
+
+export const clientEnquiryReceipts = sqliteTable("client_enquiry_receipts", {
+  requestKeyHash: text("request_key_hash").primaryKey(),
+  payloadHash: text("payload_hash").notNull(),
+  enquiryId: text("enquiry_id").notNull().unique().references(() => clientEnquiries.id),
+  createdAt: text("created_at").notNull(),
+});

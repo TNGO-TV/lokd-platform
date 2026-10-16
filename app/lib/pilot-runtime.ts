@@ -1,3 +1,4 @@
+import {testSurfacesEnabled} from './test-surface-policy';
 import { operationsMfaRequired } from "./operations-mfa-policy";
 import { operationsMfaStatus } from "./operations-mfa";
 import { env } from "cloudflare:workers";
@@ -49,7 +50,7 @@ export function requirePilotApiRole(request: Request, allowed: PilotRole | Pilot
       403,
     );
   }
-  const publicDemoFallback = pilotStage() === "demo"
+  const publicDemoFallback = testSurfacesEnabled(env, hostname) && pilotStage() === "demo"
     && (isLegacyPublicDemoHost(hostname) || hostname.endsWith(".chatgpt.site") || hostname === "app.local");
   if (!email) {
     if (publicDemoFallback) return publicDemoPrincipal();

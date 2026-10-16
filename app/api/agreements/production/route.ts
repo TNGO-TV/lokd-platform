@@ -1,3 +1,4 @@
+import {workspaceCommandReceipt} from '../../../lib/workspace-command-receipt';
 import {readRequestText, RequestBodyError} from '../../../lib/request-body';
 import {env} from 'cloudflare:workers';
 import {SignupError} from '../../../lib/signup-server';
@@ -17,5 +18,5 @@ export async function POST(request:Request){try{requireSameOriginJson(request);c
  else if(body.action==='issue')result=await issueProductionEnvelope(env.DB,a,body);
  else if(['sign','cancel'].includes(body.action))result=await signProductionEnvelope(env.DB,a,body);
  else throw new SignupError('Choose a supported document action.');
- return reply({result,...await readProductionSigning(env.DB,a)});
+ return reply({result,...await readProductionSigning(env.DB,a),commandReceipt:await workspaceCommandReceipt('production-signing',body)});
  }catch(e){return fail(e);}}

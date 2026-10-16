@@ -1,3 +1,5 @@
+import {env} from 'cloudflare:workers';
+import {testSurfacesEnabled} from './test-surface-policy';
 import { getLokdUser, requireLokdUser, type LokdUser } from "../lokd-auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -24,7 +26,7 @@ export async function requirePilotPageRole(role: PilotRole, returnTo: string): P
     const workspaceRedirect = workspaceRedirectForHost(hostname, role);
     if (workspaceRedirect) redirect(workspaceRedirect);
   }
-  const publicDemoFallback = pilotStage() === "demo"
+  const publicDemoFallback = testSurfacesEnabled(env, hostname) && pilotStage() === "demo"
     && (!hostname || isLegacyPublicDemoHost(hostname) || hostname.endsWith(".chatgpt.site"));
   if (publicDemoFallback) {
     const user = optionalUser ?? {

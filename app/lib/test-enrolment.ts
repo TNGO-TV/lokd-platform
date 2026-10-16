@@ -25,7 +25,7 @@ export async function initializeTestEnrolment(runtime:Runtime,user:string,email:
  if(created.meta.changes){
   const order=await currentOrder(db,user,c.source_id,c.version);
   try{
-   const data=await callPaystack(key,'/transaction/initialize',{email,reference,amount:'35000',currency:'ZAR',channels:['card'],callback_url:'https://lokd.co.za/payments/paystack/test/callback',metadata:JSON.stringify(expectedMetadata(order!))},transport);
+   const data=await callPaystack(key,'/transaction/initialize',{email,reference,amount:'35000',currency:'ZAR',channels:['card'],callback_url:'https://demo.lokd.co.za/payments/paystack/test/callback',metadata:JSON.stringify(expectedMetadata(order!))},transport);
    if(data.reference!==reference||typeof data.authorization_url!=='string'||new URL(data.authorization_url).origin!=='https://checkout.paystack.com')throw Error('Unexpected checkout binding');
    await db.prepare("UPDATE test_enrolment_orders SET state='awaiting_checkout',checkout_url=?,revision=revision+1,updated_at=? WHERE reference=? AND state='initializing'").bind(data.authorization_url,new Date().toISOString(),reference).run();
   }catch{

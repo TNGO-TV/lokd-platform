@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type {
   PilotOffer,
@@ -66,6 +67,7 @@ function dateTimeLabel(value: string) {
 }
 
 export default function OfficerApp() {
+  const router = useRouter();
   const [mode, setMode] = useState<"approved" | "applicant">("approved");
   const [notice, setNotice] = useState("");
   const [profileRequest, setProfileRequest] = useState(0);
@@ -113,7 +115,7 @@ export default function OfficerApp() {
           </button>
           <button
             onClick={() => {
-              window.location.href = "/join";
+              router.push("/join");
             }}
           >
             Apply / get qualified

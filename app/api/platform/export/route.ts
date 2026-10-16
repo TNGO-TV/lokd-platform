@@ -1,4 +1,5 @@
-import { env } from "cloudflare:workers";
+import {blockedTestSurface,rehearsalEnv as env} from '../../../lib/test-surface-runtime';
+
 import {
   ensureDemoOperator,
   ensureIntegrationDemoData,
@@ -78,6 +79,8 @@ async function loadRun(db: D1Database, payrollRunId: string): Promise<ShadowPayr
 }
 
 export async function GET(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     const actor = requirePilotApiRole(request, "operations");
     if (pilotStage() !== "demo") throw new PlatformWorkflowError("Shadow exports are disabled outside the controlled test environment.", 423);

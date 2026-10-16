@@ -1,3 +1,4 @@
+import {installRehearsal} from './fixtures/isolated-rehearsal.mjs';
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -56,9 +57,51 @@ function ownerRequest(method, body) {
   });
 }
 
+const intake = (email, fullName='Public Applicant') => new Request('https://lokd.co.za/api/applications', {
+  method:'POST',headers:{'content-type':'application/json',origin:'https://lokd.co.za'},
+  body:JSON.stringify({pathway:'qualified',fullName,mobile:'082 555 0199',email,city:'Johannesburg',province:'Gauteng',
+    psiraStatus:'active',psiraNumber:'1234567',psiraGrade:'Grade C',services:['Unarmed'],purposes:['Commercial access'],training:[],
+    over18Confirmed:true,eligibilityAcknowledged:true,contactConsent:true}),
+});
+
+test('concurrent anonymous submissions with shared/recycled phones preserve separate cases and verified account ownership', async () => {
+  const database=migratedDatabase(),db=new D1Adapter(database);
+  const {submitOfficerApplication}=await import('../app/api/applications/route.ts');
+  const {readSignupRecords,writeSignup}=await import('../app/lib/signup-server.ts');
+  try {
+    const results=await Promise.all(Array.from({length:8},(_,i)=>submitOfficerApplication(intake(`person${i}@example.test`,`Applicant ${i}`),db)));
+    const receipts=await Promise.all(results.map(async r=>{assert.equal(r.status,202);return r.json();}));
+    assert.equal(new Set(receipts.map(r=>r.reference)).size,8);
+    for(const receipt of receipts)assert.deepEqual(Object.keys(receipt).sort(),['pathwayStatus','psiraVerificationRequired','reference','saved']);
+    assert.equal(database.prepare("SELECT count(*) AS n FROM officer_applications WHERE mobile_normalized='+27825550199'").get().n,8);
+    assert.equal(database.prepare("SELECT count(*) AS n FROM audit_events WHERE event_type='officer_interest_submitted'").get().n,8);
+    const actor={userId:'first-account',email:'person0@example.test',operations:false};
+    assert.deepEqual((await readSignupRecords(db,actor,'officer')).records.map(r=>r.id),[receipts[0].reference]);
+    await assert.rejects(writeSignup(db,actor,{action:'link',kind:'officer',id:receipts[1].reference,expectedVersion:0}),e=>e.status===404);
+    await writeSignup(db,actor,{action:'link',kind:'officer',id:receipts[0].reference,expectedVersion:0});
+    // Even the same verified email on a different account cannot take an owned case.
+    await assert.rejects(writeSignup(db,{...actor,userId:'second-account'},{action:'link',kind:'officer',id:receipts[0].reference,expectedVersion:1}),e=>e.status===404);
+    // Unverified repeat submissions neither overwrite the owned case nor suppress new data.
+    const repeat=await submitOfficerApplication(intake(actor.email,'Corrected Applicant'),db);
+    assert.equal(repeat.status,202);assert.notEqual((await repeat.json()).reference,receipts[0].reference);
+    assert.equal(database.prepare('SELECT full_name FROM officer_applications WHERE id=?').get(receipts[0].reference).full_name,'Applicant 0');
+    assert.equal(database.prepare('SELECT owner_user_id FROM signup_cases WHERE source_id=?').get(receipts[0].reference).owner_user_id,actor.userId);
+  } finally {database.close();}
+});
+
+test('intake and its audit record roll back together on a failed write',async()=>{
+  const database=migratedDatabase(),db=new D1Adapter(database);
+  const {submitOfficerApplication}=await import('../app/api/applications/route.ts');
+  try {
+    database.exec("CREATE TRIGGER fail_intake_audit BEFORE INSERT ON audit_events WHEN NEW.event_type='officer_interest_submitted' BEGIN SELECT RAISE(ABORT,'fixture audit unavailable'); END;");
+    assert.equal((await submitOfficerApplication(intake('rollback@example.test'),db)).status,500);
+    assert.equal(database.prepare("SELECT count(*) AS n FROM officer_applications WHERE email_normalized='rollback@example.test'").get().n,0);
+  } finally {database.close();}
+});
+
 test("evidenced demo onboarding creates a restricted Network profile without employment", async () => {
   const database = migratedDatabase();
-  env.DB = new D1Adapter(database);
+  installRehearsal(new D1Adapter(database));
   env.LOKD_APP_STAGE = "demo";
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
   const applications = await import("../app/api/applications/route.ts");
@@ -106,16 +149,19 @@ test("public interest stays prelaunch, consent-pending and outside the synthetic
     consentVersion: record.consentVersion, consentedAt: record.consentedAt },
   { environment: "prelaunch", integrityState: "user_submitted", identityStatus: "consent_pending", consentVersion: null, consentedAt: null });
 
+  const rehearsalDb=migratedDatabase();
+  installRehearsal(new D1Adapter(rehearsalDb));
   const queueResponse = await applications.GET(ownerRequest("GET"));
   const queue = await queueResponse.json();
   assert.equal(queue.applications.some((item) => item.id === record.id), false);
+  rehearsalDb.close();
   database.close();
 });
 
 
 test("Operations identity failure and review actions never bypass assessment eligibility", async () => {
   const database = migratedDatabase();
-  env.DB = new D1Adapter(database);
+  installRehearsal(new D1Adapter(database));
   env.LOKD_APP_STAGE = "demo";
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
   const applications = await import("../app/api/applications/route.ts");
@@ -132,6 +178,35 @@ test("Operations identity failure and review actions never bypass assessment eli
   assert.equal((await act("complete_demo_identity")).status, 200);
   assert.equal(database.prepare("SELECT status FROM officer_applications WHERE id='APP-DEMO-001'").get().status, "credentials_review");
   env.LOKD_APP_STAGE = "production";
-  assert.equal((await act("demo_identity_manual_review")).status, 423);
+  assert.equal((await act("demo_identity_manual_review")).status, 404);
   database.close();
+});
+
+test('keyed Officer retries recover one atomic receipt while separate submissions remain independent',async()=>{
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitOfficerApplication}=await import('../app/api/applications/route.ts');
+ const input=await intake('keyed@example.test').json(),requestKey=crypto.randomUUID();
+ const request=(body)=>new Request('https://lokd.co.za/api/applications',{method:'POST',headers:{origin:'https://lokd.co.za','content-type':'application/json'},body:JSON.stringify(body)});
+ try{
+  const receipts=await Promise.all(Array.from({length:5},async()=>{const response=await submitOfficerApplication(request({...input,requestKey}),db);assert.equal(response.status,202);return response.json();}));
+  assert.equal(new Set(receipts.map(r=>r.reference)).size,1);assert.ok(receipts.every(r=>r.saved===true));
+  assert.equal(database.prepare('SELECT count(*) n FROM officer_application_receipts').get().n,1);
+  assert.equal(database.prepare("SELECT count(*) n FROM audit_events WHERE event_type='officer_interest_submitted'").get().n,1);
+  const changed=await submitOfficerApplication(request({...input,requestKey,city:'Cape Town'}),db);assert.equal(changed.status,409);assert.equal('reference' in await changed.json(),false);
+  const separate=await submitOfficerApplication(request({...input,requestKey:crypto.randomUUID()}),db);assert.notEqual((await separate.json()).reference,receipts[0].reference);
+  const originalBatch=db.batch.bind(db);db.batch=async statements=>{await originalBatch(statements);throw Error('Synthetic acknowledgement lost after committed batch');};
+  const recovered=await submitOfficerApplication(request({...input,requestKey:crypto.randomUUID()}),db);assert.equal(recovered.status,202);assert.equal((await recovered.json()).saved,true);
+  for(const table of ['officer_application_receipts']){assert.throws(()=>database.exec('DELETE FROM '+table),/history_required/);assert.throws(()=>database.exec('UPDATE '+table+' SET payload_hash=payload_hash'),/immutable/);}
+ }finally{database.close();}
+});
+
+test('Officer receipt migration preserves existing applications, consent and immutable audit history',async()=>{
+ const database=new DatabaseSync(':memory:');
+ for(const file of fs.readdirSync(new URL('../drizzle',import.meta.url)).filter(name=>name.endsWith('.sql')&&!name.startsWith('0086_')).sort())database.exec(fs.readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8').replaceAll('--> statement-breakpoint',''));
+ const db=new D1Adapter(database),{submitOfficerApplication}=await import('../app/api/applications/route.ts');
+ try{
+  assert.equal((await submitOfficerApplication(intake('existing@example.test'),db)).status,202);
+  const snapshot=()=>JSON.stringify(['officer_applications','audit_events','signup_cases'].map(table=>database.prepare('SELECT * FROM '+table).all()));const before=snapshot();
+  database.exec(fs.readFileSync(new URL('../drizzle/0086_officer_application_receipts.sql',import.meta.url),'utf8').replaceAll('--> statement-breakpoint',''));
+  assert.equal(snapshot(),before);assert.equal(database.prepare('SELECT count(*) n FROM officer_application_receipts').get().n,0);
+ }finally{database.close();}
 });

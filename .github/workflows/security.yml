@@ -13,21 +13,52 @@ concurrency:
 jobs:
   security:
     name: security
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22.22.1'
           package-manager-cache: false
       - name: Match accepted npm toolchain
-        run: npm install --global npm@9.2.0
+        run: npm install --global npm@11.17.0
       - name: Install locked dependencies
         run: npm run install:ci
-      - name: Run security gate
-        run: npm run check:security
+      - name: Install isolated browser runtime
+        run: node node_modules/@playwright/test/cli.js install --with-deps chromium
+      - name: Validate native release candidate (no deployment)
+        run: bash scripts/deploy-native-cf.sh --prepare
       - name: Ensure validation did not change tracked source
         run: git diff --exit-code HEAD
+      - name: Retain validated native candidate and evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
+        with:
+          name: native-candidate-${{ github.event.pull_request.head.sha || github.sha }}
+          retention-days: 14
+          if-no-files-found: error
+          include-hidden-files: true
+          path: |
+            dist/
+            .sites-runtime/release/candidate.json
+            .sites-runtime/release/validation.log
+            test-results/dependency-audit.json
+            test-results/dependency-boundary-*.json
+            test-results/offline-browser/
+      - name: Retain failed validation diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
+        with:
+          name: failed-validation-${{ github.event.pull_request.head.sha || github.sha }}
+          retention-days: 14
+          if-no-files-found: warn
+          include-hidden-files: true
+          path: |
+            dist/server/wrangler.json
+            .sites-runtime/release/validation.log
+            test-results/dependency-audit.json
+            test-results/dependency-boundary-*.json
+            test-results/offline-browser/

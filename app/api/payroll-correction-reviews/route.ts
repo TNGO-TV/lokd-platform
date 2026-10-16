@@ -1,3 +1,4 @@
+import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {readFinanceText} from '../../lib/finance-body';
 import {env} from 'cloudflare:workers';
 import {SignupError} from '../../lib/signup-server';
@@ -15,8 +16,8 @@ export async function POST(request:Request){try{
  const actor={userId,email,operations:true,owner:principal.owner};
  if(request.method==='GET')return Response.json(await readPayrollCorrectionReviews(env.DB,actor,request.headers,url.searchParams.get('itemId'),Number(url.searchParams.get('after')??0),Number(url.searchParams.get('pageSize')??25)),{headers});
  const raw=await readFinanceText(request,6000);let input;try{input=JSON.parse(raw);}catch{throw new SignupError('Invalid JSON.');}if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a correction review action.');
- if(input.action==='prepare')return Response.json(await preparePayrollCorrectionReview(env.DB,actor,input,request.headers),{headers});
- if(input.action==='decide')return Response.json(await decidePayrollCorrectionReview(env.DB,actor,input,request.headers),{headers});
+ if(input.action==='prepare')return Response.json({...await preparePayrollCorrectionReview(env.DB,actor,input,request.headers),commandReceipt:await workspaceCommandReceipt('payroll-correction-reviews',input)},{headers});
+ if(input.action==='decide')return Response.json({...await decidePayrollCorrectionReview(env.DB,actor,input,request.headers),commandReceipt:await workspaceCommandReceipt('payroll-correction-reviews',input)},{headers});
  throw new SignupError('This endpoint only records and reviews correction requests.');
 }catch(e){return Response.json({error:e instanceof SignupError||e instanceof PilotAccessError?e.message:'The payroll records or reviewer permissions changed. Refresh and review.'},{status:e instanceof SignupError||e instanceof PilotAccessError?e.status:409,headers});}}
 export const GET=POST;

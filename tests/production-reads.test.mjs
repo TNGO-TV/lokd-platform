@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import test from 'node:test';
 import {readProductionOperations} from '../app/lib/production-operations.ts';
+import {productionOperationsResponse} from '../app/lib/workspace-response-contracts.ts';
 
 function fixture(fail='') {
  const sql=new DatabaseSync(':memory:');
@@ -24,6 +25,7 @@ function fixture(fail='') {
 test('Operations reads overlap while ungranted finance and owner records remain inaccessible',async()=>{
  const f=fixture();try {
   const result=await readProductionOperations(f.db,{userId:'ungranted',email:'ungranted@example.invalid',operations:true,owner:false});
+  assert.equal(productionOperationsResponse(result),true,'actual Operations read satisfies its consumer contract');
   assert.ok(f.observed.max>1,'independent readers should overlap');assert.ok(f.observed.max<=4);
   for(const key of ['partnerPaymentAccess','partnerDestinationAccess','partnerPayableAccess','employeePaymentAccess','destinationAccess'])assert.equal(result[key],false,key);
   for(const key of ['operators','payrollRuns','payrollItems','payrollCandidates','rosters','shifts','serviceOrders'])assert.deepEqual(result[key],[],key);
@@ -33,6 +35,7 @@ test('Operations reads overlap while ungranted finance and owner records remain 
 test('ordinary account read retains ownership filters and excludes Operations-only records',async()=>{
  const f=fixture();try {
   const result=await readProductionOperations(f.db,{userId:'client-only',email:'client@example.invalid',operations:false,owner:false});
+  assert.equal(productionOperationsResponse(result),true,'actual scoped read satisfies its consumer contract');
   assert.equal(result.owner,false);assert.deepEqual(result.approvals,[]);assert.deepEqual(result.operators,[]);assert.deepEqual(result.clientReviews,[]);assert.deepEqual(result.evidenceReviews,[]);
   const scoped=f.observed.queries.filter(({query})=>/FROM (roster_slots r|shifts s|production_order_setups p|booking_collection_requests r)/.test(query));
   assert.equal(scoped.length,4);for(const q of scoped)assert.ok(q.values.includes('client-only'));

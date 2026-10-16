@@ -1,4 +1,5 @@
 'use client';
+import {workspaceAutoContract} from '../lib/workspace-response-contracts';
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { Fields, parse } from './sandbox-finance-workspace';
 import type { SandboxAction } from './sandbox-finance-actions';
@@ -37,7 +38,7 @@ function PartnerForm({ definition, onAccessLost }: {
                 policyVersion: string;
                 productionWorkEligible: boolean;
                 data: Record<string, unknown>;
-            }>(await fetch('/api/sandbox/application', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ service: 'partner_responsibility', input }) }));
+            }>(await fetch('/api/sandbox/application', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ service: 'partner_responsibility', input }) }),workspaceAutoContract("sandbox-partner-workspace.tsx/9e218caa4632"));
             if (result.mode !== 'sandbox' || result.policyVersion !== 'lokd-sandbox-completion-v1' || result.productionWorkEligible !== false)
                 throw Error('The sandbox boundary could not be verified.');
             setReceipt(result.data);

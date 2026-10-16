@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { build } from 'esbuild';
+import {fileURLToPath} from 'node:url';
 import { createHmac } from 'node:crypto';
 import { env } from 'cloudflare:workers';
 import { GET as live } from '../app/api/health/live/route.ts';
@@ -9,7 +10,7 @@ import { POST } from '../app/api/paystack/transfers/live/webhook/route.ts';
 
 // Mount the actual Worker fetch path, replacing only framework/browser services.
 // The forwarded callback executes the real route and HMAC receiver.
-const result=await build({entryPoints:[new URL('../worker/index.ts',import.meta.url).pathname],bundle:true,write:false,format:'esm',platform:'node',packages:'external',plugins:[{name:'worker-fixture',setup(b){
+const result=await build({entryPoints:[fileURLToPath(new URL('../worker/index.ts',import.meta.url))],bundle:true,write:false,format:'esm',platform:'node',packages:'external',plugins:[{name:'worker-fixture',setup(b){
   // The fixture loads its bundle from a data URL; external SDK imports need an
   // absolute module URL. The SDK is not invoked by these callback-routing tests.
   b.onResolve({filter:/^@clerk\/backend$/},()=>({path:import.meta.resolve('@clerk/backend'),external:true}));

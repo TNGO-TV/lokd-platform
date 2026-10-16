@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import test from 'node:test';
 import {DatabaseSync} from 'node:sqlite';
 import {env} from 'cloudflare:workers';
+import {signupResponse} from '../app/lib/workspace-response-contracts.ts';
+import {matchesWorkspaceCommand} from '../app/lib/workspace-command-receipt.ts';
 import {GET,POST} from '../app/api/signup/route.ts';
 import {POST as apply} from '../app/api/applications/route.ts';
 import {POST as enquire} from '../app/api/enquiries/route.ts';
@@ -22,6 +24,7 @@ const current=async(db,kind='officer',user=actor)=>(await readSignupRecords(db,u
 test('real client and officer signup links, review requests, corrections and withdrawal preserve evidence and eligibility boundaries',async()=>{
  for(const kind of ['officer','client']) {
   const db=new D1();const baselineOfficers=db.sql.prepare('SELECT count(*) AS n FROM officers').get().n;const id=await seed(db,kind);
+  assert.equal(signupResponse({...await readSignupRecords(db,actor,kind),email:actor.email},kind),true);
   let r=await current(db,kind);assert.equal(r.accountLinked,false);assert.equal(r.status,'received');
   await writeSignup(db,ops,{kind,id,expectedVersion:0,action:'review',status:'needs_information',note:'Please correct your mobile number before review.'});
   await writeSignup(db,actor,{kind,id,expectedVersion:1,action:'link'});r=await current(db,kind);assert.equal(r.version,2);assert.equal(r.accountLinked,true);assert.match(r.note,/correct your mobile/);
@@ -68,4 +71,15 @@ test('live surface cannot expose rehearsal APIs and real signup stays available'
  assert.equal(liveSurfaceResponse('/api/applications','production',true,'GET').status,423);
  for(const path of ['/api/signup','/api/psira','/api/enquiries','/api/operations/security'])assert.equal(liveSurfaceResponse(path,'production',true),null);
  assert.equal(liveSurfaceResponse('/api/applications','production',false,'POST'),null);
+});
+
+test('signup API acknowledges only the completed command and exact submitted version',async()=>{
+ const db=new D1();try{
+  const id=await seed(db);const input={kind:'officer',id,expectedVersion:0,action:'link'};
+  const request=()=>new Request('https://officers.lokd.co.za/api/signup?scope=officer',{method:'POST',headers:{origin:'https://officers.lokd.co.za','content-type':'application/json','x-lokd-verified-user-id':actor.userId,'x-lokd-verified-email':actor.email},body:JSON.stringify(input)});
+  const response=await POST(request());assert.equal(response.status,200);const body=await response.json();
+  assert.equal(body.ok,true);assert.equal(await matchesWorkspaceCommand(body,'signup',input),true);
+  assert.equal(await matchesWorkspaceCommand(body,'signup',{...input,expectedVersion:1}),false);
+  const stale=await POST(request());assert.equal(stale.status,409);assert.equal('commandReceipt' in await stale.json(),false);
+ }finally{db.sql.close();}
 });

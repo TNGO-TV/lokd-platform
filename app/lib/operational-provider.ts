@@ -48,39 +48,13 @@ export function configuredEmailProvider(runtime:OperationalRuntime){
 }
 function b64(value:string){return btoa(value);}
 function smtpDotStuff(text:string){return text.replace(/\r?\n/g,'\r\n').split('\r\n').map(line=>line.startsWith('.')?'.'+line:line).join('\r\n');}
-async function smtpReadLine(reader:ReadableStreamDefaultReader<Uint8Array>,buffer:{chunks:Uint8Array[]}):Promise<string>{
- const decoder=new TextDecoder();
- while(true){
-  const joined=new Uint8Array(buffer.chunks.reduce((n,c)=>n+c.length,0));
-  let offset=0;for(const chunk of buffer.chunks){joined.set(chunk,offset);offset+=chunk.length;}
-  const text=decoder.decode(joined);
-  const idx=text.indexOf('\r\n');
-  if(idx>=0){
-   const line=text.slice(0,idx);
-   const rest=joined.slice(idx+2);
-   buffer.chunks=rest.length?[rest]:[];
-   return line;
-  }
-  const {value,done}=await reader.read();
-  if(done)throw new DeliveryError('smtp_connection_closed','uncertain');
-  if(value)buffer.chunks.push(value);
- }
-}
-async function smtpExpect(reader:ReadableStreamDefaultReader<Uint8Array>,buffer:{chunks:Uint8Array[]},codes:number[]){
- let line=await smtpReadLine(reader,buffer);
- const code=Number(line.slice(0,3));
- while(line.length>=4&&line[3]==='-')line=await smtpReadLine(reader,buffer);
- if(!codes.includes(code))throw new DeliveryError(`smtp_reject_${code||'unknown'}`,code===421||code===450||code===451?'retry_wait':'failed');
- return line;
-}
-async function smtpWrite(writer:WritableStreamDefaultWriter<Uint8Array>,line:string){
- await writer.write(new TextEncoder().encode(line+'\r\n'));
-}
-async function sendSmtpOverSocket(runtime:OperationalRuntime,id:string,body:Record<string,unknown>):Promise<string>{
- const {connect}=await import('cloudflare:sockets');
+export const SMTP_LIMITS=Object.freeze({connectMs:10_000,readMs:10_000,writeMs:10_000,totalMs:45_000,lineBytes:4096,responseLines:64,responseBytes:65_536,totalBytes:131_072,messageBytes:1_048_576});
+type SmtpConnect=typeof import('cloudflare:sockets')['connect'];
+// Connector and limits are injectable only by in-process tests, never by request input.
+export async function sendSmtpOverSocket(runtime:OperationalRuntime,id:string,body:Record<string,unknown>,connector?:SmtpConnect,limits=SMTP_LIMITS):Promise<string>{
  const host=runtime.LOKD_SMTP_HOST!;
  const port=Number(runtime.LOKD_SMTP_PORT||'465');
- if(!Number.isFinite(port)||port===25)throw new DeliveryError('smtp_port_not_allowed');
+ if(!Number.isInteger(port)||port<1||port>65535||port===25)throw new DeliveryError('smtp_port_not_allowed');
  const user=runtime.LOKD_SMTP_USER!;
  const pass=runtime.LOKD_SMTP_PASSWORD!;
  const from=String(body.from??'');
@@ -88,64 +62,95 @@ async function sendSmtpOverSocket(runtime:OperationalRuntime,id:string,body:Reco
  if(!emailValid(from)||recipients.length!==1||!emailValid(recipients[0]))throw new DeliveryError('smtp_envelope_invalid');
  const subject=String(body.subject??'');
  const text=String(body.text??'');
+ if(!/^[A-Za-z0-9:_-]{1,160}$/.test(id)||subject.length>998||text.length>limits.messageBytes||user.length>254||pass.length>4096)throw new DeliveryError('smtp_message_too_large');
+ const marker=`LOKD-WORKER-SMTP-${id}`;
+ const mime=[`From: ${from}`,`To: ${recipients[0]}`,`Subject: ${subject.replace(/[\r\n]+/g,' ')}`,'MIME-Version: 1.0','Content-Type: text/plain; charset=utf-8',
+  `Message-ID: <${id.replace(/[^A-Za-z0-9_-]/g,'_')}@lokd.co.za>`,`X-LOKD-Delivery-Id: ${id}`,`X-LOKD-Marker: ${marker}`,'',smtpDotStuff(text),''].join('\r\n');
+ const encoder=new TextEncoder();
+ if(encoder.encode(mime+'.\r\n').byteLength>limits.messageBytes)throw new DeliveryError('smtp_message_too_large');
+ const connect=connector??(await import('cloudflare:sockets')).connect;
  const useStartTls=port===587;
- let socket=connect({hostname:host,port},{secureTransport:useStartTls?'starttls':'on',allowHalfOpen:false});
- await socket.opened;
- let writer=socket.writable.getWriter();
- let reader=socket.readable.getReader();
- const buffer:{chunks:Uint8Array[]}={chunks:[]};
+ const deadline=performance.now()+limits.totalMs;
+ let socket:ReturnType<SmtpConnect>|undefined;
+ let writer:WritableStreamDefaultWriter<Uint8Array>|undefined;
+ let reader:ReadableStreamDefaultReader<Uint8Array>|undefined;
+ let buffered=new Uint8Array(0),received=0;
+ const uncertain=(code:string)=>new DeliveryError(code,'uncertain');
+ async function bounded<T>(operation:Promise<T>,ms:number,code:string):Promise<T>{
+  const remaining=deadline-performance.now();
+  // Observe rejection even if the total deadline has already elapsed.
+  if(remaining<=0){void operation.catch(()=>undefined);throw uncertain('smtp_total_timeout');}
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  try{return await Promise.race([operation,new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(uncertain(remaining<=ms?'smtp_total_timeout':code)),Math.min(remaining,ms));})]);}
+  finally{clearTimeout(timer);}
+ }
+ async function readLine():Promise<string>{
+  while(true){
+   let end=-1;for(let i=0;i+1<buffered.length;i++)if(buffered[i]===13&&buffered[i+1]===10){end=i;break;}
+   if(end>=0){
+    if(end+2>limits.lineBytes)throw uncertain('smtp_line_too_large');
+    const line=new TextDecoder().decode(buffered.subarray(0,end));buffered=buffered.slice(end+2);return line;
+   }
+   if(buffered.length>=limits.lineBytes)throw uncertain('smtp_line_too_large');
+   const result=await bounded(reader!.read(),limits.readMs,'smtp_read_timeout');
+   if(result.done)throw uncertain('smtp_connection_closed');
+   received+=result.value.byteLength;
+   if(received>limits.totalBytes)throw uncertain('smtp_protocol_too_large');
+   const joined=new Uint8Array(buffered.length+result.value.length);joined.set(buffered);joined.set(result.value,buffered.length);buffered=joined;
+  }
+ }
+ async function expect(codes:number[]):Promise<string>{
+  let code:number|undefined,bytes=0;
+  for(let count=0;count<limits.responseLines;count++){
+   const line=await readLine();bytes+=encoder.encode(line).byteLength+2;
+   if(bytes>limits.responseBytes)throw uncertain('smtp_response_too_large');
+   const match=/^(\d{3})([ -])/.exec(line);
+   if(!match||(code!==undefined&&code!==Number(match[1])))throw uncertain('smtp_protocol_invalid');
+   code=Number(match[1]);
+   if(match[2]==='-')continue;
+   if(!codes.includes(code))throw new DeliveryError(`smtp_reject_${code}`,code===421||code===450||code===451?'uncertain':'failed');
+   return line;
+  }
+  throw uncertain('smtp_response_too_many_lines');
+ }
+ const write=(line:string)=>bounded(writer!.write(encoder.encode(line+'\r\n')),limits.writeMs,'smtp_write_timeout');
  try{
-  await smtpExpect(reader,buffer,[220]);
-  await smtpWrite(writer,`EHLO lokd-security.workers.dev`);
-  await smtpExpect(reader,buffer,[250]);
+  socket=connect({hostname:host,port},{secureTransport:useStartTls?'starttls':'on',allowHalfOpen:false});
+  await bounded(socket.opened,limits.connectMs,'smtp_connect_timeout');
+  writer=socket.writable.getWriter();reader=socket.readable.getReader();
+  await expect([220]);
+  await write('EHLO lokd-security.workers.dev');
+  await expect([250]);
   if(useStartTls){
-   await smtpWrite(writer,'STARTTLS');
-   await smtpExpect(reader,buffer,[220]);
+   await write('STARTTLS');
+   await expect([220]);
    writer.releaseLock();
    reader.releaseLock();
    socket=socket.startTls();
-   await socket.opened;
+   await bounded(socket.opened,limits.connectMs,'smtp_connect_timeout');
    writer=socket.writable.getWriter();
    reader=socket.readable.getReader();
-   buffer.chunks=[];
-   await smtpWrite(writer,`EHLO lokd-security.workers.dev`);
-   await smtpExpect(reader,buffer,[250]);
+   buffered=new Uint8Array(0);
+   await write('EHLO lokd-security.workers.dev');
+   await expect([250]);
   }
-  await smtpWrite(writer,'AUTH LOGIN');
-  await smtpExpect(reader,buffer,[334]);
-  await smtpWrite(writer,b64(user));
-  await smtpExpect(reader,buffer,[334]);
-  await smtpWrite(writer,b64(pass));
-  await smtpExpect(reader,buffer,[235]);
-  await smtpWrite(writer,`MAIL FROM:<${from}>`);
-  await smtpExpect(reader,buffer,[250]);
-  await smtpWrite(writer,`RCPT TO:<${recipients[0]}>`);
-  await smtpExpect(reader,buffer,[250,251]);
-  await smtpWrite(writer,'DATA');
-  await smtpExpect(reader,buffer,[354]);
-  const marker=`LOKD-WORKER-SMTP-${id}`;
-  const mime=[
-   `From: ${from}`,
-   `To: ${recipients[0]}`,
-   `Subject: ${subject.replace(/[\r\n]+/g,' ')}`,
-   'MIME-Version: 1.0',
-   'Content-Type: text/plain; charset=utf-8',
-   `Message-ID: <${id.replace(/[^A-Za-z0-9_-]/g,'_')}@lokd.co.za>`,
-   `X-LOKD-Delivery-Id: ${id}`,
-   `X-LOKD-Marker: ${marker}`,
-   '',
-   smtpDotStuff(text),
-   ''
-  ].join('\r\n');
-  await smtpWrite(writer,mime+'.');
-  const accepted=await smtpExpect(reader,buffer,[250]);
-  await smtpWrite(writer,'QUIT').catch(()=>undefined);
+  await write('AUTH LOGIN');await expect([334]);
+  await write(b64(user));await expect([334]);
+  await write(b64(pass));await expect([235]);
+  await write(`MAIL FROM:<${from}>`);await expect([250]);
+  await write(`RCPT TO:<${recipients[0]}>`);await expect([250,251]);
+  await write('DATA');await expect([354]);
+  await write(mime+'.');
+  const accepted=await expect([250]);
+  // A confirmed 250 remains accepted even if QUIT or socket cleanup fails.
+  await write('QUIT').catch(()=>undefined);
   const providerId=`smtp:${id}:${accepted.slice(0,80)}`;
   return providerId.slice(0,200);
  }finally{
-  try{reader.releaseLock();}catch{/* ignore */}
-  try{await writer.close();}catch{/* ignore */}
-  try{await socket.close();}catch{/* ignore */}
+  // Cleanup is best-effort and cannot extend the transaction deadline.
+  try{void reader?.cancel().catch(()=>undefined);reader?.releaseLock();}catch{/* ignore */}
+  try{void writer?.abort().catch(()=>undefined);writer?.releaseLock();}catch{/* ignore */}
+  try{void socket?.close().catch(()=>undefined);}catch{/* ignore */}
  }
 }
 async function sendSmtpViaRelay(runtime:OperationalRuntime,id:string,body:Record<string,unknown>,transport:typeof fetch):Promise<string>{

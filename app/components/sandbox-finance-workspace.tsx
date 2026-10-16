@@ -1,4 +1,6 @@
 'use client';
+import {matchesWorkspaceCommand} from '../lib/workspace-command-receipt';
+import {financePrivateResponse,workspaceAutoContract} from '../lib/workspace-response-contracts';
 import {FINANCE_SANDBOX_POLICY} from '../lib/finance-sandbox-policy';
 import { useCallback, useEffect, useRef, useState, useId, type FormEvent } from 'react';
 import { sandboxFinanceActions, type SandboxField, type SandboxAction } from './sandbox-finance-actions';
@@ -6,6 +8,11 @@ import RecordDetails from './record-details';
 import { readWorkspaceResponse, WorkspaceResponseError, workspaceAccessDenied, workspaceFailure } from './workspace-request';
 import styles from './signup-portal.module.css';
 type Values = Record<string, unknown>;
+export type CommandQueue={environment:'sandbox';commands:Command[];nextCommandAfter:string|null};
+export type CommandDetail={environment:'sandbox';command:Command};
+export type OperationEvidenceData={environment:'sandbox';operation:{id:string;version:number;data:Values};claims:Values[];evidence:{sequence:number;source:string;created_at:string;body_json:string}[];nextEvidenceAfter:number|null};
+export type TrainingCatalogue={environment:'sandbox';packages:TrainingPackage[]};
+export type EnrolmentData={environment:'sandbox';applicationId:string;applicationVersion:number;enrolmentPaid:boolean;training:Values[];workEligible:false};
 type FinanceRecord = {
     id: string;
     kind: string;
@@ -214,7 +221,7 @@ function TrainingRequest({ source, disabled, send, read }: {
     const [packages, setPackages] = useState<TrainingPackage[]>([]), [selected, setSelected] = useState(''), [loading, setLoading] = useState(false), [error, setError] = useState(''), [loaded, setLoaded] = useState(false);
     const lock = useRef(false);
     const chosen = packages.find(p => p.id === selected);
-    async function load() { if (lock.current)
+    async function load() { if (lock.current||disabled)
         return; lock.current = true; setLoading(true); try {
         const result = await read('&catalogue=training');
         if (!Array.isArray(result.packages))
@@ -230,7 +237,7 @@ function TrainingRequest({ source, disabled, send, read }: {
         lock.current = false;
         setLoading(false);
     } }
-    return <section><h3>Choose a current training package</h3><button disabled={disabled || loading} onClick={() => void load()}>Load or refresh training catalogue</button>{loading && <p role="status">Loading current package prices and exact terms…</p>}{error && <p role="alert">{error}</p>}{loaded && !packages.length && <p>No active training packages were returned.</p>}{!!packages.length && <><label>Current training package<select value={selected} disabled={disabled || loading} onChange={e => setSelected(e.target.value)}><option value="">Choose a current package</option>{packages.map(p => <option key={p.id} value={p.id}>{p.title} · {format(p.price)} · version {p.version}</option>)}</select></label>{chosen && <><p>{chosen.provider} · {format(chosen.price)} · policy {chosen.policyVersion}</p><h4>Exact package terms</h4><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{chosen.terms}</pre><p>Preparing this request binds the exact displayed terms. It does not issue a qualification or confirm payment.</p></>}</>}
+    return <section><h3>Choose a current training package</h3><button disabled={disabled || loading} onClick={() => void load()}>Load or refresh training catalogue</button>{loading && <p role="status">Loading current package prices and exact terms…</p>}{error && <p role="alert">{error}</p>}{loaded && !error && !packages.length && <p>No active training packages were returned.</p>}{!!packages.length && <><label>Current training package<select value={selected} disabled={disabled || loading} onChange={e => setSelected(e.target.value)}><option value="">Choose a current package</option>{packages.map(p => <option key={p.id} value={p.id}>{p.title} · {format(p.price)} · version {p.version}</option>)}</select></label>{chosen && <><p>{chosen.provider} · {format(chosen.price)} · policy {chosen.policyVersion}</p><h4>Exact package terms</h4><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{chosen.terms}</pre><p>Preparing this request binds the exact displayed terms. It does not issue a qualification or confirm payment.</p></>}</>}
  <FinanceForm definition={{ action: 'order_training', title: 'Request this reviewed training place', group: 'Enrolment & training', fields: [{ name: 'id', label: 'New training order reference' }, { name: 'applicationId', label: 'Linked application reference' }] }} extra={{ packageId: chosen?.id ?? '', acceptedTerms: chosen?.terms ?? '' }} source={source + JSON.stringify(chosen ?? null)} disabled={disabled || loading || !!error || !chosen} send={send}/></section>;
 }
 function EnrolmentReadiness({ disabled, read }: {
@@ -303,7 +310,7 @@ function RecordHistory({ record, read, disabled }: {
         setBusy(false);
         lock.current = false;
     } }
-    return <details><summary>Retained versions and issued facts</summary><button disabled={busy || disabled} onClick={() => void load()}>Read private history for {record.id}</button>{error && <p role="alert">{error}</p>}{loaded && !rows.length && <p>No retained versions returned.</p>}{rows.map(row => <section key={row.version}><h5>Version {row.version} · policy {row.policy_version}</h5><RecordDetails json={JSON.stringify(row.data)}/></section>)}{cursor !== null && <button disabled={busy || disabled} onClick={() => void load(cursor)}>Load more versions of {record.id}</button>}</details>;
+    return <details><summary>Retained versions and issued facts</summary><button disabled={busy || disabled} onClick={() => void load()}>Read private history for {record.id}</button>{error && <p role="alert">{error}</p>}{loaded && !error && !rows.length && <p>No retained versions returned.</p>}{rows.map(row => <section key={row.version}><h5>Version {row.version} · policy {row.policy_version}</h5><RecordDetails json={JSON.stringify(row.data)}/></section>)}{cursor !== null && <button disabled={busy || disabled} onClick={() => void load(cursor)}>Load more versions of {record.id}</button>}</details>;
 }
 function OperationEvidence({ id, read, disabled }: {
     id: string;
@@ -353,7 +360,7 @@ export default function SandboxFinanceWorkspace({ operations = false, owner = fa
     const invalidate = useCallback(() => { generation.current++; }, []);
     const load = useCallback(async (after?: number) => { if (!opened)
         return; const token = ++generation.current; setLoading(true); try {
-        const [result, authority] = await Promise.all([fetch(endpoint + '&current=true' + (after ? '&after=' + after : ''), { cache: 'no-store' }).then(response => readWorkspaceResponse<Data>(response)), fetch(endpoint + '&capabilities', { cache: 'no-store' }).then(response => readWorkspaceResponse<Capabilities>(response))]);
+        const [result, authority] = await Promise.all([fetch(endpoint + '&current=true' + (after ? '&after=' + after : ''), { cache: 'no-store' }).then(response => readWorkspaceResponse<Data>(response,workspaceAutoContract("sandbox-finance-workspace.tsx/cec3a9b89b2e"))), fetch(endpoint + '&capabilities', { cache: 'no-store' }).then(response => readWorkspaceResponse<Capabilities>(response,workspaceAutoContract("sandbox-finance-workspace.tsx/9460f16ac9b5")))]);
         if (result.environment !== 'sandbox' || !Array.isArray(result.records) || !Array.isArray(result.balances))
             throw Error('The authorised sandbox response is incomplete.');
         if (token === generation.current) {
@@ -377,10 +384,11 @@ export default function SandboxFinanceWorkspace({ operations = false, owner = fa
     const loadRef = useRef(load);
     useEffect(() => { loadRef.current = load; }, [load]);
     useEffect(() => { const timer = setTimeout(() => void loadRef.current(), 0); return () => { clearTimeout(timer); invalidate(); }; }, [opened, invalidate]);
-    async function send(body: Values) { if (lock.current)
+    async function send(body: Values) { if (lock.current||loading||!!error)
         throw Error('Another request is pending.'); lock.current = true; setBusy(true); try {
         const response = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-        const receipt = await readWorkspaceResponse<Values>(response);
+        const receipt = await readWorkspaceResponse<Values>(response,value=>matchesWorkspaceCommand(value,'finance-workflows',{workspace:opened,...body}));
+        if(!await matchesWorkspaceCommand(receipt,'finance-workflows',{workspace:opened,...body}))throw new WorkspaceResponseError('The finance action is unconfirmed. Retain and reconcile the original request.',response.status);
         await load();
         return receipt;
     }
@@ -409,7 +417,7 @@ export default function SandboxFinanceWorkspace({ operations = false, owner = fa
         const result = await readWorkspaceResponse<{
             environment: string;
             workspaces: WorkspaceChoice[];
-        }>(await fetch('/api/finance-workflows?workspaces', { cache: 'no-store' }));
+        }>(await fetch('/api/finance-workflows?workspaces', { cache: 'no-store' }),workspaceAutoContract("sandbox-finance-workspace.tsx/f03bc73b8fa5"));
         if (result.environment !== 'sandbox' || !Array.isArray(result.workspaces))
             throw Error('Authorised workspace discovery was not returned.');
         setWorkspaceChoices(result.workspaces);
@@ -436,7 +444,7 @@ export default function SandboxFinanceWorkspace({ operations = false, owner = fa
         setError(workspaceFailure(cause, 'The command queue could not be refreshed.'));
     } }
     async function readPrivate(query: string) { try {
-        const result = await readWorkspaceResponse<Values>(await fetch(endpoint + query, { cache: 'no-store' }));
+        const result = await readWorkspaceResponse<Values>(await fetch(endpoint + query, { cache: 'no-store' }),value=>financePrivateResponse(value,new URLSearchParams(query)));
         if (result.environment !== 'sandbox')
             throw Error('The sandbox environment could not be verified.');
         return result;
@@ -447,7 +455,7 @@ export default function SandboxFinanceWorkspace({ operations = false, owner = fa
         throw cause;
     } }
     async function authorizeDocument(record: FinanceRecord) { try {
-        const result = await readWorkspaceResponse<Data>(await fetch(endpoint + '&id=' + encodeURIComponent(record.id), { cache: 'no-store' }));
+        const result = await readWorkspaceResponse<Data>(await fetch(endpoint + '&id=' + encodeURIComponent(record.id), { cache: 'no-store' }),workspaceAutoContract("sandbox-finance-workspace.tsx/cec3a9b89b2e"));
         if (result.environment !== 'sandbox' || !result.records?.some(row => row.id === record.id && row.version === record.version && row.financialState === record.financialState && JSON.stringify(row.data) === JSON.stringify(record.data)))
             throw Error('Document access or its current state changed. Refresh and inspect the original document before downloading.');
     }

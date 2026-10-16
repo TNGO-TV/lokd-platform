@@ -6,6 +6,7 @@ const runtime = await import("../app/lib/pilot-runtime.ts");
 
 test("anonymous visitors receive the synthetic principal only in demo", () => {
   env.LOKD_APP_STAGE = "demo";
+  env.LOKD_TEST_SURFACES_ENABLED = "true";
   env.LOKD_PILOT_ACCESS_JSON = "";
   const principal = runtime.requirePilotApiRole(
     new Request("https://demo.lokd.co.za/api/pilot?scope=client"),
@@ -27,6 +28,7 @@ test("anonymous visitors receive the synthetic principal only in demo", () => {
 
 test("unassigned signed-in visitors fall back to public demo without gaining production access", () => {
   env.LOKD_APP_STAGE = "demo";
+  env.LOKD_TEST_SURFACES_ENABLED = "true";
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
   const publicPrincipal = runtime.requirePilotApiRole(
     new Request("https://demo.lokd.co.za/api/operations", {
@@ -51,6 +53,7 @@ test("unassigned signed-in visitors fall back to public demo without gaining pro
 
 test("the client, officer and Operations hosts require real sign-in and configured roles", () => {
   env.LOKD_APP_STAGE = "demo";
+  env.LOKD_TEST_SURFACES_ENABLED = "true";
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({
     owners: ["owner@lokd.example"],
     clients: { "client@lokd.example": "CL-001" },

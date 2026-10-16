@@ -1,3 +1,4 @@
+import {installRehearsal} from './fixtures/isolated-rehearsal.mjs';
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -24,11 +25,11 @@ class D1 {
 function setup(){
   const db=new DatabaseSync(":memory:");db.exec("PRAGMA foreign_keys=ON");
   for(const file of fs.readdirSync(new URL("../drizzle",import.meta.url)).filter(x=>x.endsWith(".sql")).sort()) db.exec(fs.readFileSync(new URL(`../drizzle/${file}`,import.meta.url),"utf8").replaceAll("--> statement-breakpoint",""));
-  env.DB=new D1(db);env.LOKD_APP_STAGE="demo";env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({owners:["maker@lokd.example","checker@lokd.example"],clients:{"client@lokd.example":"CL-001","other@lokd.example":"CL-OTHER"},officers:{"officer@lokd.example":"OFF-001","other-officer@lokd.example":"OFF-OTHER"}});
+  installRehearsal(new D1(db));env.LOKD_APP_STAGE="demo";env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({owners:["maker@lokd.example","checker@lokd.example"],clients:{"client@lokd.example":"CL-001","other@lokd.example":"CL-OTHER"},officers:{"officer@lokd.example":"OFF-001","other-officer@lokd.example":"OFF-OTHER"}});
   return db;
 }
 function request({scope="operations",email="maker@lokd.example",action,pack,host,download=false}={}){
-  host??=scope==="operations"?"operations.lokd.co.za":scope==="client"?"portal.lokd.co.za":"officers.lokd.co.za";
+  host??="demo.lokd.co.za";
   return new Request(`https://${host}/api/specialist?scope=${scope}${pack?`&pack=${pack}`:""}${download?"&download=1":""}`,{method:action?"POST":"GET",headers:{origin:`https://${host}`,"sec-fetch-site":"same-origin",...(email?{"x-lokd-verified-email":email,"x-lokd-verified-user-id":"user_fixture","x-lokd-verified-mfa-enrolled":"true","x-lokd-verified-second-factor-at":new Date(Date.now()-60000).toISOString()}:{}),...(action?{"content-type":"application/json"}:{})},body:action?JSON.stringify(action):undefined});
 }
 async function call(action,email="maker@lokd.example",status=200){const r=await POST(request({action,email}));const data=await r.json();assert.equal(r.status,status,JSON.stringify(data));return data.state??data;}
@@ -61,11 +62,11 @@ test("new specialist records reject anonymous fallback, unassigned users, wrong 
   const db=setup();try{
     assert.equal((await GET(request({email:null,host:"demo.lokd.co.za"}))).status,401);
     assert.equal((await GET(request({email:"outsider@lokd.example",host:"demo.lokd.co.za"}))).status,403);
-    assert.equal((await GET(request({host:"officers.lokd.co.za"}))).status,403);
+    assert.equal((await GET(request({host:"officers.lokd.co.za"}))).status,404);
     assert.equal((await POST(request({scope:"client",email:"client@lokd.example",action:{action:"run_rehearsals"}}))).status,403);
     const s=await call({action:"run_rehearsals"});assert.equal(s.rehearsals[0].scenarios.length,4);
     env.LOKD_APP_STAGE="production";
-    await call({action:"run_rehearsals"},"maker@lokd.example",403);
+    await call({action:"run_rehearsals"},"maker@lokd.example",404);
     assert.equal(db.prepare("SELECT count(*) AS n FROM operator_accounts WHERE environment='production'").get().n,0);
   }finally{db.close();}
 });
@@ -128,7 +129,9 @@ test("one expired required reference blocks independent approval at the database
 
 test("production commercial approval requires recent MFA and cannot use simulation evidence",async()=>{
   const db=setup();try{
-    env.LOKD_APP_STAGE="production";
+    env.LOKD_APP_STAGE="prelaunch";
+    // Production domain remains closed; exercise the same production business
+    // rules on the explicitly isolated deployment and dedicated fixture DB.
     for(const [id,email] of [["prod-maker","maker@lokd.example"],["prod-checker","checker@lokd.example"]]) {
       db.prepare(`INSERT INTO operator_accounts
         (id,email,display_name,status,mfa_status,mfa_verified_at,approval_limit_cents,environment,integrity_state,version,created_at,updated_at)

@@ -1,3 +1,4 @@
+import {requireTestSurfacePage} from '../../lib/test-surface-page';
 import Link from 'next/link';
 import {requirePilotPageRole,principalHasRole} from '../../lib/pilot-page-access';
 import PilotAccessDenied from '../../components/pilot-access-denied';
@@ -7,4 +8,6 @@ export const metadata={title:'Applicant identity evidence',robots:{index:false,f
 async function IdentityPage({searchParams}:{searchParams:Promise<{caseId?:string}>}){const {caseId}=await searchParams;const {user,principal}=await requirePilotPageRole('operations','/ops/identity'+(caseId?'?caseId='+encodeURIComponent(caseId):''));if(!principalHasRole(principal,'operations'))return <PilotAccessDenied email={user.email} role="operations"/>;return !caseId?<main><h1>Identity checks</h1><p>Choose a linked officer application from your intake review to open its sandbox checks. No identity check has been started.</p><Link href="/ops">Return to intake review</Link></main>:<IdentityPanel caseId={caseId} operations/>;}
 
 // Keep query-dependent auth in the rendered tree; the framework route probe omits search selectors.
-export default function Page(props:Parameters<typeof IdentityPage>[0]){return <IdentityPage {...props}/>;}
+export default async function Page(props:Parameters<typeof IdentityPage>[0]){
+ await requireTestSurfacePage();
+return <IdentityPage {...props}/>;}

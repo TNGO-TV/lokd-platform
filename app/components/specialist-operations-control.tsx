@@ -1,4 +1,5 @@
 "use client";
+import {workspaceAutoContract} from '../lib/workspace-response-contracts';
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { calendarPriceBook, requiredSpecialistChecks, specialistRateCard, specialistTerms } from "../lib/specialist-operations-core";
@@ -19,7 +20,7 @@ export function SpecialistOperationsControl({initialTab="packs",sandbox=false}:{
   const [state,setState]=useState<SpecialistOperationsState|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[tab,setTab]=useState<Tab>(initialTab),[selected,setSelected]=useState("");
   const request=useCallback(async(action?:SpecialistAction,signal?:AbortSignal)=>{
     const response=await fetch(sandbox?'/api/sandbox/application':'/api/specialist?scope=operations',sandbox?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({service:'specialist',input:action??{action:'read'}}),signal}:{cache:'no-store',signal,...(action?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(action)}:{})});
-    const payload=await readWorkspaceResponse<{state?:SpecialistOperationsState;data?:SpecialistOperationsState;mode?:string;policyVersion?:string;productionWorkEligible?:boolean}>(response);
+    const payload=await readWorkspaceResponse<{state?:SpecialistOperationsState;data?:SpecialistOperationsState;mode?:string;policyVersion?:string;productionWorkEligible?:boolean}>(response,workspaceAutoContract("specialist-operations-control.tsx/94bf4c570a51"));
     if(sandbox&&(payload.mode!=='sandbox'||payload.policyVersion!=='lokd-sandbox-completion-v1'||payload.productionWorkEligible!==false))throw Error('The isolated specialist policy could not be verified.');
     const data=sandbox?payload.data:payload.state;
     if(!data)throw Error('Specialist records unavailable.');

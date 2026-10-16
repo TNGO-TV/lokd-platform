@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { PilotState } from "../lib/pilot-types";
 import type { OperationsCommandState } from "../lib/operations-types";
 import { usePilot } from "../lib/use-pilot";
@@ -29,6 +30,7 @@ function Top({ name, onAction, busy }: { name: string; onAction: () => void; bus
 }
 
 export default function WorkspaceView({ name }: { name: string }) {
+  const router = useRouter();
   const pilot = usePilot("operations");
   const operations = useOperations();
   const [message, setMessage] = useState("");
@@ -49,7 +51,7 @@ export default function WorkspaceView({ name }: { name: string }) {
     } else if (name === "Bookings") {
       window.location.href = CLIENT_PORTAL_URL;
     } else if (name === "Officers") {
-      window.location.href = "/join";
+      router.push("/join");
     } else if (name === "Clients") {
       window.location.href = CLIENT_PORTAL_URL;
     } else if (name === "Offers") {

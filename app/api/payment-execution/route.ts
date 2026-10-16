@@ -1,3 +1,4 @@
+import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {readFinanceText} from '../../lib/finance-body';
 import {env} from 'cloudflare:workers';
 import {SignupError} from '../../lib/signup-server';
@@ -19,7 +20,7 @@ export async function POST(request:Request){
   const raw=await readFinanceText(request,6000);
   let input;try{input=JSON.parse(raw);}catch{throw new SignupError('Invalid request.');}
   if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a recovery action.');
-  return reply(await operatePaymentExecution(env.DB,{userId,email,operations:true,owner:principal.owner},input,request.headers,env as PaymentExecutionRuntime));
+  return reply({...await operatePaymentExecution(env.DB,{userId,email,operations:true,owner:principal.owner},input,request.headers,env as PaymentExecutionRuntime),commandReceipt:await workspaceCommandReceipt('payment-execution',input)});
  }catch(e){return e instanceof SignupError||e instanceof PilotAccessError?reply({error:e.message},e.status):reply({error:'Payment evidence or authority changed. Keep the original reference held and refresh.'},409);}
 }
 

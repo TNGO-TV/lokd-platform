@@ -1,0 +1,9 @@
+{
+  "upstreamPackage": "drizzle-kit",
+  "upstreamVersion": "0.31.11",
+  "archiveSha256": "27689d72b4fa8a77311c759a2764b883fdac812d1b358c7c8e443e4756f3ec63",
+  "changes": [
+    "Remove unused @esbuild-kit/esm-loader manifest dependency; all runtime files unchanged."
+  ],
+  "status": "local candidate; compatibility tests and independent acceptance required"
+}

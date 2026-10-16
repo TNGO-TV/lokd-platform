@@ -1,3 +1,4 @@
+import { pageTestSurfacesEnabled } from '../lib/test-surface-page';
 import SignupPortal from "../components/signup-portal";
 import OperationsApp from "../components/operations-app";
 import PilotAccessDenied from "../components/pilot-access-denied";
@@ -8,6 +9,6 @@ export const dynamic = "force-dynamic";
 export default async function OperationsPage() {
   const { user, principal } = await requirePilotPageRole("operations", "/ops");
   if (!principalHasRole(principal, "operations")) return <PilotAccessDenied email={user.email} role="operations" />;
-  if (pilotStage() !== "demo") return <SignupPortal kind="officer" operations/>;
+  if (pilotStage() !== "demo" || !await pageTestSurfacesEnabled()) return <SignupPortal kind="officer" operations/>;
   return <OperationsApp stage={pilotStage()} actorEmail={principal.email} owner={principal.owner} />;
 }
