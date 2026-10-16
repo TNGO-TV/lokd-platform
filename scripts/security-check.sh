@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.."
 
 # Uses isolated fixtures only. Never runs test:accounts or deploys a release.
 # npm audit sends the locked dependency metadata to the configured npm registry.
-npm audit --audit-level=moderate
+node scripts/check-dependency-audit.mjs
 npm run lint
 ./node_modules/.bin/tsc --noEmit
 node scripts/generate-readiness-schema.mjs --check
