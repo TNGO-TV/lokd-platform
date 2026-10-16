@@ -29,9 +29,32 @@ test("renders the canonical public LOKD launch identity with real signup entry p
   const html = await response.text();
   assert.match(html, /<title>LOKD Security \| Guarding, Armed Security and VIP Protection<\/title>/i);
   assert.match(html, /<link rel="canonical" href="https:\/\/lokd\.co\.za\/"\/>/i);
-  assert.match(html, /No credit terms/i);
-  assert.match(html, /Track your|track your submission/i);
-  assert.match(html, /Request security/i);
+  assert.match(html, /Sign in with your application email to track your progress/i);
+  assert.match(html, /An application does not guarantee work\./i);
+  assert.match(html, /Service starts only after terms are agreed and Operations confirms readiness\./i);
+
+  // Check actual rendered anchors, not labels that could survive with broken
+  // destinations or occur only in the serialized React payload.
+  const links = [...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)].map(([, attributes, content]) => ({
+    href: attributes.match(/\bhref="([^"]*)"/i)?.[1],
+    text: content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(),
+  }));
+  for (const [href, label] of [
+    ["/contact", "Request security"],
+    ["/join", "Apply as an officer"],
+    ["/contact", "Start a security enquiry"],
+    ["/join", "Start an application"],
+    ["/join?path=training", "Explore training pathways"],
+    ["https://portal.lokd.co.za", "Client sign in"],
+    ["https://officers.lokd.co.za", "Officer sign in"],
+    ["/security-services", "Security services"],
+    ["/armed-security", "Armed security"],
+    ["/vip-protection", "VIP protection"],
+    ["/privacy", "Privacy notice"],
+    ["/terms-and-conditions", "Terms and conditions"],
+  ]) {
+    assert.ok(links.some((link) => link.href === href && link.text.startsWith(label)), `${label} must link to ${href}`);
+  }
   assert.doesNotMatch(html, /<dd>R800<\/dd>|Prototype offer|Passport preview ready/i);
   assert.doesNotMatch(html, /Starter Project/i);
 });
