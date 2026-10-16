@@ -1,5 +1,6 @@
+import {blockedTestSurface,rehearsalEnv as env} from '../../lib/test-surface-runtime';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
-import { env } from "cloudflare:workers";
+
 import { OperationsError, applyOperationsAction, ensureOperationsDemoData, readOperationsState } from "../../lib/operations-server";
 import type { OperationsAction } from "../../lib/operations-types";
 import { PilotAccessError, pilotStage, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
@@ -35,6 +36,8 @@ function failure(cause: unknown) {
 }
 
 export async function GET(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     requirePilotApiRole(request, "operations");
     requireSyntheticDemo();
@@ -47,6 +50,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     requireSameOriginJson(request);
     const actor = requirePilotApiRole(request, "operations");

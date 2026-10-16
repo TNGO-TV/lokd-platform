@@ -1,4 +1,5 @@
-import { env } from "cloudflare:workers";
+import {blockedTestSurface,rehearsalEnv as env} from '../../lib/test-surface-runtime';
+
 import { PilotAccessError, pilotStage, requirePilotApiRole, requireSameOriginJson, type PilotPrincipal } from "../../lib/pilot-runtime";
 
 import { readRequestText, RequestBodyError } from "../../lib/request-body";
@@ -79,6 +80,8 @@ async function hash(bytes: Uint8Array<ArrayBuffer>) {
 }
 
 export async function POST(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   let storageKey: string | null = null;
   try {
     requireSameOriginJson(request);
@@ -110,7 +113,7 @@ export async function POST(request: Request) {
     const now = new Date().toISOString();
     const dataEnvironment = stage === "production" ? "production" : "prelaunch";
     const integrityState = "user_submitted";
-    storageKey = `${dataEnvironment}/${kind}/${now.slice(0, 7)}/${crypto.randomUUID()}`;
+    storageKey = `rehearsal/v1/${dataEnvironment}/${kind}/${now.slice(0, 7)}/${crypto.randomUUID()}`;
     await bucket.put(storageKey, bytes, {
       httpMetadata: { contentType: mimeType },
       customMetadata: { artifactId, contentHash, accessClass, retentionClass },
@@ -142,6 +145,8 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     const actor = requirePilotApiRole(request, "operations");
     const stage = requirePrivateRuntime();
@@ -159,7 +164,7 @@ export async function GET(request: Request) {
         sizeBytes: number; retentionClass: string; accessClass: string; status: string;
         createdAt: string; verifiedAt: string | null;
       }>();
-    if (!artifact || !artifact.storageReference.startsWith("BUCKET:")) throw new EvidenceError("That evidence artifact was not found.", 404);
+    if (!artifact || !artifact.storageReference.startsWith("BUCKET:rehearsal/v1/")) throw new EvidenceError("That evidence artifact was not found.", 404);
     requireArtifactAccess(actor, artifact.accessClass);
     if (url.searchParams.get("download") !== "1") return response({ artifact: { ...artifact, storageReference: undefined } });
     const object = await bucket.get(artifact.storageReference.slice("BUCKET:".length));
@@ -181,6 +186,8 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     requireSameOriginJson(request);
     const actor = requirePilotApiRole(request, "operations");
@@ -209,7 +216,7 @@ export async function PATCH(request: Request) {
         id: string; storageReference: string; contentHash: string; sizeBytes: number;
         status: string; storedBy: string | null; accessClass: string;
       }>();
-    if (!artifact || !artifact.storageReference.startsWith("BUCKET:")) throw new EvidenceError("That evidence artifact was not found.", 404);
+    if (!artifact || !artifact.storageReference.startsWith("BUCKET:rehearsal/v1/")) throw new EvidenceError("That evidence artifact was not found.", 404);
     requireArtifactAccess(actor, artifact.accessClass);
     if (artifact.status !== "stored_unverified") throw new EvidenceError("That evidence artifact has already left the verification queue.", 409);
     if (artifact.contentHash !== expectedHash) throw new EvidenceError("The expected evidence hash does not match the stored record.", 409);

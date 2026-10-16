@@ -2,6 +2,8 @@ import { secureRequest, secureResponse } from "../app/lib/security-headers";
 import { ownerBackup, type BackupEnv } from "./owner-backup";
 import { receivePaystackTest } from '../app/lib/paystack-test';
 import { liveSurfaceResponse } from "../app/lib/live-surface";
+import { isolatedRehearsalStorage } from '../app/lib/test-surface-storage';
+import { testSurfaceResponse } from "../app/lib/test-surface-policy";
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
@@ -15,8 +17,11 @@ interface Env extends ClerkEnv, BackupEnv, OperationalRuntime {
   PAYSTACK_TEST_SECRET_KEY?: string;
   ASSETS: Fetcher;
   DB: D1Database;
+  TEST_DB?: D1Database;
+  TEST_BUCKET?: R2Bucket;
   BUCKET: R2Bucket;
   LOKD_APP_STAGE?: string;
+  LOKD_TEST_SURFACES_ENABLED?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -48,6 +53,8 @@ const worker = {
     const backup = await ownerBackup(request, env);
     if (backup) return backup;
     const url = new URL(request.url);
+    const blockedTest = testSurfaceResponse(request, env);
+    if (blockedTest) return blockedTest;
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
@@ -64,7 +71,10 @@ const worker = {
     if (url.pathname === '/api/health/live' || url.pathname === '/api/health/ready') return await handler.fetch(request, env, ctx);
     // Provider authentication is HMAC, independent of browser sessions.
     if (url.pathname === '/api/finance-workflows/webhook' || url.pathname === '/api/paystack/booking/webhook' || url.pathname === '/api/paystack/transfers/live/webhook') return await handler.fetch(request, env, ctx);
-    if (url.pathname === '/api/paystack/test/webhook') return await receivePaystackTest(request, env);
+    if (url.pathname === '/api/paystack/test/webhook') {
+      if (!await isolatedRehearsalStorage(env) || !env.TEST_DB) return new Response('Not found', {status:404});
+      return await receivePaystackTest(request, {...env, DB:env.TEST_DB});
+    }
     let auth;
     try {
       auth = await authenticateClerkRequest(request, env);

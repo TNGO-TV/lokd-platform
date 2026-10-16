@@ -1,5 +1,6 @@
+import {blockedTestSurface,rehearsalEnv as env} from '../../lib/test-surface-runtime';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
-import { env } from "cloudflare:workers";
+
 import { PilotAccessError, pilotStage, principalForEmail, principalHasRole, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 import { applySpecialistAction, readSpecialistState, specialistDocument, SpecialistWorkflowError } from "../../lib/specialist-operations-server";
 import { specialistTerms } from "../../lib/specialist-operations-core";
@@ -27,6 +28,8 @@ function context(request:Request) {
 }
 
 export async function GET(request:Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     const {url,scope,principal,environment,db}=context(request);
     const state=await readSpecialistState(db,environment,principal.email);
@@ -53,6 +56,8 @@ export async function GET(request:Request) {
 }
 
 export async function POST(request:Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     requireSameOriginJson(request);
     const {scope,principal,environment,db}=context(request);

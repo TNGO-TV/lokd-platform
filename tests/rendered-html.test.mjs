@@ -57,6 +57,20 @@ test("renders the canonical public LOKD launch identity with real signup entry p
   }
   assert.doesNotMatch(html, /<dd>R800<\/dd>|Prototype offer|Passport preview ready/i);
   assert.doesNotMatch(html, /Starter Project/i);
+  assert.doesNotMatch(html, /Verified officers/);
+  assert.match(html, /Security services · Officer applications/);
+});
+
+test('built Worker rejects rehearsal paths and router aliases on production despite forged test host headers',async()=>{
+ const {default:worker}=await import(new URL('../dist/server/index.js',import.meta.url).href);
+ let touched=0;
+ const environment={LOKD_APP_STAGE:'demo',LOKD_TEST_SURFACES_ENABLED:'true',DB:{prepare(){touched++;throw Error('Primary database must not be touched');}},ASSETS:{fetch:async()=>new Response('not found',{status:404})}};
+ const context={waitUntil(){},passThroughOnException(){}};
+ for(const path of ['/api/pilot','/api/pilot/','/api/%70ilot','/api/platform/export','/api/platform/export/file','/api/sandbox/identity','/api/agreements/test','/api/test-cycle','/api/finance-workflows','/api/finance-workflows/webhook','/api/paystack/test/webhook']){
+  const response=await worker.fetch(new Request('https://operations.lokd.co.za'+path,{headers:{host:'demo.lokd.co.za','x-forwarded-host':'demo.lokd.co.za','x-lokd-verified-email':'owner@example.test'}}),environment,context);
+  assert.equal(response.status,404,path);
+ }
+ assert.equal(touched,0);
 });
 
 test("built Worker HTML nonces every executable bootstrap script and replaces attacker CSP", async () => {

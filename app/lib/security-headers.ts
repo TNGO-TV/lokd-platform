@@ -27,6 +27,10 @@ export function secureRequest(request: Request) {
   const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24))));
   const policy = contentSecurityPolicy(nonce, process.env.NODE_ENV === 'development');
   const headers = new Headers(request.headers);
+  // SSR routing must use the Worker URL, never a caller's forwarded host.
+  headers.set('host', new URL(request.url).host);
+  headers.delete('x-forwarded-host');
+  headers.delete('forwarded');
   headers.set('content-security-policy', policy);
   headers.delete('content-security-policy-report-only');
   headers.set('x-lokd-script-nonce', nonce);

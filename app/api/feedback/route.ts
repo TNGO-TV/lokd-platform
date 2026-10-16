@@ -1,5 +1,6 @@
+import {blockedTestSurface,rehearsalEnv as env} from '../../lib/test-surface-runtime';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
-import { env } from "cloudflare:workers";
+
 import { PilotAccessError, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,8 @@ function getDb() {
 }
 
 export async function GET(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     requirePilotApiRole(request, "operations");
     const result = await getDb().prepare(`SELECT id, reviewer_email AS reviewerEmail, route, role,
@@ -27,6 +30,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     requireSameOriginJson(request);
     const principal = requirePilotApiRole(request, ["operations", "client", "officer", "reviewer"]);

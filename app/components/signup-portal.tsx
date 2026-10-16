@@ -1,4 +1,5 @@
 'use client';
+import {useTestSurface} from './test-surface-context';
 import {useCallback,useEffect,useState,useRef,type FormEvent} from 'react';
 import Link from 'next/link';
 import {useSearchParams} from 'next/navigation';
@@ -45,14 +46,31 @@ export default function SignupPortal({kind:initialKind,operations=false}:{kind:S
   {error&&<div className={styles.error} role="alert">{error} <a href={`/sign-in?return_to=${encodeURIComponent(operations?'/ops/intake?kind='+kind:'/'+kind)}`}>Sign in again</a> <button disabled={busy||loading} onClick={()=>void refresh()}>Refresh</button></div>}
   {notice&&<p role="status">{notice}</p>}
   {loading&&<p role="status">Loading submissions…</p>}
-  {!loading&&!error&&records.length===0?<section className={styles.card}><h2>{operations?'No submissions on this page':'No submission linked to this email yet'}</h2><p>{operations?'New applications will appear here.':'Sign in with the same verified email used on your application. A reference alone cannot open someone else’s submission.'}</p>{!operations&&<a className={styles.primary} href={`https://lokd.co.za/${kind==='officer'?'join':'contact'}`}>{kind==='officer'?'Start an application':'Submit a site enquiry'}</a>}<button disabled={busy} onClick={()=>void refresh()}>Check again</button></section>:records.map(record=><RecordCard key={`${record.kind}:${record.id}:${record.version}`} record={record} operations={operations} busy={busy||loading} run={run}/>)}
+  {!loading&&!error&&records.length===0?<section className={styles.card}><h2>{operations?'No submissions on this page':'No submission linked to this email yet'}</h2><p>{operations?'New applications will appear here.':'Sign in with the same verified email used on your application. A reference alone cannot open someone else’s submission.'}</p>{!operations&&<a className={styles.primary} href={`https://lokd.co.za/${kind==='officer'?'join':'contact'}`}>{kind==='officer'?'Start an application':'Submit a site enquiry'}</a>}<button disabled={busy} onClick={()=>void refresh()}>Check again</button></section>:records.map(record=><RecordCard key={`${record.kind}:${record.id}:${record.version}`} record={record} operations={operations} busy={busy||loading} run={run} refresh={refresh}/>)}
   {!operations&&kind==='officer'&&<OfficerPresencePanel/>}
   <nav className={styles.pagination} aria-label="Submission pages"><button disabled={offset===0||loading||busy} onClick={()=>setOffset(Math.max(0,offset-50))}>Previous</button><span>Page {offset/50+1}</span><button disabled={!hasMore||loading||busy} onClick={()=>setOffset(offset+50)}>Next</button></nav>
  </main>;
 }
-function RecordCard({record,operations,busy,run}:{record:SignupRecord;operations:boolean;busy:boolean;run:(body:Record<string,unknown>)=>Promise<boolean>}) {
+function RecordCard({record,operations,busy,run,refresh}:{record:SignupRecord;operations:boolean;busy:boolean;run:(body:Record<string,unknown>)=>Promise<boolean>;refresh:()=>Promise<boolean>}) {
+ const testTools=useTestSurface();
  const [productionReference,setProductionReference]=useState('');
- async function prepareProduction(){try{const response=await fetch('/api/agreements/production?scope=operations&kind='+record.kind,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'prepare_entity',kind:record.kind,caseId:record.id,caseVersion:record.version})});const body=await response.json() as {error?:string;result?:{entityId:string}};if(!response.ok)throw Error(body.error);setProductionReference('Prepared '+body.result?.entityId+'. Verification and approvals remain pending.');}catch(e){setProductionReference(e instanceof Error?e.message:'Preparation failed.');}}
+ const prepareLock=useRef(false);
+ const [preparing,setPreparing]=useState(false);
+ async function prepareProduction(){
+  if(prepareLock.current||busy)return;
+  prepareLock.current=true;setPreparing(true);setProductionReference('');
+  try{
+   const response=await fetch('/api/agreements/production?scope=operations&kind='+record.kind,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'prepare_entity',kind:record.kind,caseId:record.id,caseVersion:record.version})});
+   const body=await response.json() as {error?:string;result?:{entityId?:unknown;grantsAccess?:unknown;workEligible?:unknown};entities?:{kind:string;case_id:string;case_version:number;entity_id:string}[]};
+   if(!response.ok)throw Error(intakeError(response.status,body?.error));
+   const id=body?.result?.entityId;
+   if(typeof id!=='string'||!id.trim()||id.length>100||body.result?.grantsAccess!==false||body.result?.workEligible!==false||!Array.isArray(body.entities)||!body.entities.some(link=>link.kind===record.kind&&link.case_id===record.id&&link.case_version===record.version&&link.entity_id===id))throw Error('Preparation was not confirmed by a matching saved record. Refresh and review the original submission before retrying.');
+   let refreshed=false;try{refreshed=await refresh();}catch{/* The verified saved receipt remains valid when intake refresh fails. */}
+   setProductionReference('Prepared '+id+'. Verification and approvals remain pending.'+(refreshed?'':' The latest intake status could not be refreshed. Check it before another action.'));
+  }catch(e){setProductionReference((e instanceof Error?e.message:'Preparation could not be confirmed.')+' A failed confirmation does not prove that nothing was saved. Review the original record before retrying.');}
+  finally{prepareLock.current=false;setPreparing(false);}
+ }
+
  const [editing,setEditing]=useState(false),[confirmWithdraw,setConfirmWithdraw]=useState(false),[values,setValues]=useState(record.details);
  const send=(body:Record<string,unknown>)=>run({id:record.id,expectedVersion:record.version,...body});
  const fields=record.kind==='officer'?['fullName','mobile','city','province','pathway','psiraStatus','psiraNumber','psiraGrade']:['organisationName','contactName','mobile','siteArea','message'];
@@ -61,13 +79,13 @@ function RecordCard({record,operations,busy,run}:{record:SignupRecord;operations
  async function review(event:FormEvent<HTMLFormElement>){event.preventDefault();const form=new FormData(event.currentTarget);await send({action:'review',status:form.get('status'),note:form.get('note')});}
  return <article className={styles.card}>
   <header><div><small>{record.id} · Updated {date(record.updatedAt)}</small><h2>{record.details.fullName??record.details.organisationName}</h2><p>{record.email}</p></div><strong className={styles.status}>{signupStatusLabels[record.status]}</strong></header>
-  {operations&&record.accountLinked&&record.status==='reviewed'&&<button disabled={busy} onClick={()=>void prepareProduction()}>Prepare operational record</button>}{productionReference&&<p role="status">{productionReference}</p>}
+  {operations&&record.accountLinked&&record.status==='reviewed'&&<button disabled={busy||preparing} onClick={()=>void prepareProduction()}>{preparing?'Preparing operational record…':'Prepare operational record'}</button>}{productionReference&&<p role="status">{productionReference}</p>}
   <p>{signupNextStep(record)}</p>{record.note&&<blockquote><strong>Latest update</strong><p>{record.note}</p></blockquote>}
   {record.kind==='officer'&&<div className={styles.requirements}><strong>{registered?(record.verification?.verified?'Registration review current':'Registration and identity checks pending'):'Training / registration guidance'}</strong><p>{registered?'Your PSiRA number must be checked against the official register, and the result must separately be matched to you. The registration result and identity match are reviewed separately.':'This intake does not need a PSiRA lookup. It does not approve paid security work; you can correct your registration position when it changes.'}</p>{registered&&<p>Registration: {valueLabel(record.verification?.registrationStatus??'pending_review')} · Identity match: {valueLabel(record.verification?.identityMatch??'unchecked')}{record.verification?.checkedAt&&<> · Recorded {date(record.verification.checkedAt)}</>}{record.verification?.recheckAt&&<> · Recheck by {date(record.verification.recheckAt)}</>}</p>}{registered&&record.accountLinked&&!operations&&record.status!=='withdrawn'&&<Link href="/officer/psira">Open my PSiRA verification →</Link>}</div>}
   {record.kind==='officer'&&record.accountLinked&&<Link href={`${operations?'/ops':'/officer'}/readiness?applicantId=${encodeURIComponent(record.id)}`}>Identity, readiness & hold history →</Link>}
-  <details><summary>Testing tools</summary><p>Sandbox only — not identity verification, service confirmation or live payment.</p>{!operations&&record.kind==='officer'&&record.accountLinked&&record.status!=='withdrawn'&&<Link href={`/officer/identity?caseId=${encodeURIComponent(record.id)}`}>Sandbox identity & enrolment →</Link>}
+  {testTools&&<details><summary>Testing tools</summary><p>Sandbox only — not identity verification, service confirmation or live payment.</p>{!operations&&record.kind==='officer'&&record.accountLinked&&record.status!=='withdrawn'&&<Link href={`/officer/identity?caseId=${encodeURIComponent(record.id)}`}>Sandbox identity & enrolment →</Link>}
   {operations&&record.kind==='officer'&&record.accountLinked&&record.status!=='withdrawn'&&<Link href={`/ops/identity?caseId=${encodeURIComponent(record.id)}`}>Review sandbox identity evidence →</Link>}
-  {record.accountLinked&&<TestAgreementPanel kind={record.kind} caseId={record.id} operations={operations}/>}</details>
+  {record.accountLinked&&<TestAgreementPanel kind={record.kind} caseId={record.id} operations={operations}/>}</details>}
   <details><summary>View submitted details</summary><dl className={styles.details}>{Object.entries(record.details).map(([key,value])=><div key={key}><dt>{fieldLabels[key]??key}</dt><dd>{value||'Not provided'}</dd></div>)}</dl></details>
   {!operations&&!record.accountLinked&&record.status!=='withdrawn'&&<button className={styles.primary} disabled={busy} onClick={()=>void send({action:'link'})}>Link to my account</button>}
   {!operations&&record.accountLinked&&record.status!=='withdrawn'&&<div className={styles.actions}><button disabled={busy} onClick={()=>setEditing(!editing)}>{editing?'Cancel editing':'Correct my details'}</button><button disabled={busy} onClick={()=>setConfirmWithdraw(!confirmWithdraw)}>Withdraw submission</button></div>}

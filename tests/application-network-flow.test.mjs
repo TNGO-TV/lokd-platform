@@ -1,3 +1,4 @@
+import {installRehearsal} from './fixtures/isolated-rehearsal.mjs';
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -100,7 +101,7 @@ test('intake and its audit record roll back together on a failed write',async()=
 
 test("evidenced demo onboarding creates a restricted Network profile without employment", async () => {
   const database = migratedDatabase();
-  env.DB = new D1Adapter(database);
+  installRehearsal(new D1Adapter(database));
   env.LOKD_APP_STAGE = "demo";
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
   const applications = await import("../app/api/applications/route.ts");
@@ -148,16 +149,19 @@ test("public interest stays prelaunch, consent-pending and outside the synthetic
     consentVersion: record.consentVersion, consentedAt: record.consentedAt },
   { environment: "prelaunch", integrityState: "user_submitted", identityStatus: "consent_pending", consentVersion: null, consentedAt: null });
 
+  const rehearsalDb=migratedDatabase();
+  installRehearsal(new D1Adapter(rehearsalDb));
   const queueResponse = await applications.GET(ownerRequest("GET"));
   const queue = await queueResponse.json();
   assert.equal(queue.applications.some((item) => item.id === record.id), false);
+  rehearsalDb.close();
   database.close();
 });
 
 
 test("Operations identity failure and review actions never bypass assessment eligibility", async () => {
   const database = migratedDatabase();
-  env.DB = new D1Adapter(database);
+  installRehearsal(new D1Adapter(database));
   env.LOKD_APP_STAGE = "demo";
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
   const applications = await import("../app/api/applications/route.ts");
@@ -174,6 +178,6 @@ test("Operations identity failure and review actions never bypass assessment eli
   assert.equal((await act("complete_demo_identity")).status, 200);
   assert.equal(database.prepare("SELECT status FROM officer_applications WHERE id='APP-DEMO-001'").get().status, "credentials_review");
   env.LOKD_APP_STAGE = "production";
-  assert.equal((await act("demo_identity_manual_review")).status, 423);
+  assert.equal((await act("demo_identity_manual_review")).status, 404);
   database.close();
 });

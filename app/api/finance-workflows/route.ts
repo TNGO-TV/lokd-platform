@@ -1,3 +1,4 @@
+import {blockedTestSurface} from '../../lib/test-surface-runtime';
 import {readFinanceWorkspaces,readFinanceCapabilities,readFinanceReviewQueue,readFinanceOperationEvidence} from '../../lib/finance-workflow-discovery';
 import {readFinanceBody,financeSandboxDatabase} from '../../lib/finance-workflow-request';
 import {env} from 'cloudflare:workers';
@@ -9,7 +10,7 @@ import {createFinanceWorkspace,applyFinanceCommand,readFinanceCommand,object,str
 import {dispatchFinanceOperation,attestFinanceBank,DeterministicFinanceProvider,type Evidence} from '../../lib/finance-workflow-provider';
 export const dynamic='force-dynamic';
 const headers={'cache-control':'private, no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff'};
-export async function POST(request:Request){try{
+export async function POST(request:Request){const blocked=await blockedTestSurface(request);if(blocked)return blocked;try{
  if(request.method!=='GET')requireSameOriginJson(request);const userId=request.headers.get('x-lokd-verified-user-id'),email=request.headers.get('x-lokd-verified-email');if(!userId||!email)throw new SignupError('Sign in to your account.',401);
  const p=principalForEmail(email),operations=principalHasRole(p,'operations'),host=workspaceRoleForHost(new URL(request.url).hostname);if(operations){if(host&&host!=='operations')throw new SignupError('Use the Operations workspace.',403);requirePilotApiRole(request,'operations');}
  const db=await financeSandboxDatabase(env);const runtime=env as unknown as FinanceRuntime,a={userId,email,operations,owner:p.owner},url=new URL(request.url),workspace=url.searchParams.get('workspace')??'';sandbox(runtime);

@@ -163,6 +163,8 @@ test('security enquiry enforces fields and consent, shows server rejection and l
   await form.getByRole('button', {name: /^Submit site enquiry/}).click();
   await expect(page.getByRole('heading', {name: 'We have your operating brief.'})).toBeFocused();
   await expect(page.locator('dd')).toHaveText(enquiryReference);
+  await expect(page.getByText('Live agreement signing is not open yet', {exact:false})).toHaveCount(0);
+  await expect(page.getByText('Operations must prepare approved terms and a service order', {exact:false})).toBeVisible();
   await expect(page.getByRole('link', {name: /^Track my enquiry/})).toHaveAttribute('href', 'https://portal.lokd.co.za');
   await expect(page.getByText('Do not pay against this enquiry reference.', {exact: false})).toBeVisible();
   expect(offline.enquiries).toHaveLength(2);

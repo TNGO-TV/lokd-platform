@@ -1,3 +1,4 @@
+import {installRehearsal} from './fixtures/isolated-rehearsal.mjs';
 import {observeReads} from './read-observer.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -53,9 +54,10 @@ test('owned case dispatch is claimed once; sandbox entry unlocks correct path wi
 test('unknown dispatch stays unverified and does not retry; anonymous and wrong-host access fail',async()=>{
  const {db,caseId,runtime}=await setup();let calls=0;const transport=async()=>{calls++;throw Error('timeout');};const input={caseId,caseVersion:1,scenario:'id-found'};
  let state=await runApplicantIdentity(runtime,'user_identity',input,transport);assert.equal(state.checks[0].state,'delivery_unknown');assert.equal(state.nextStep,'entry_id');await runApplicantIdentity(runtime,'user_identity',input,transport);assert.equal(calls,1);
- assert.equal((await GET(new Request('https://officers.lokd.co.za/api/identity?caseId='+caseId))).status,401);
- assert.equal((await GET(new Request('https://portal.lokd.co.za/api/identity?caseId='+caseId,{headers:{'x-lokd-verified-user-id':'user_identity','x-lokd-verified-email':'identity@example.test'}}))).status,403);
- assert.equal((await POST(new Request('https://officers.lokd.co.za/api/identity',{method:'POST',headers:{origin:'https://attacker.test','content-type':'application/json'},body:'{}'}))).status,403);db.sql.close();
+ const isolated=installRehearsal(db,{stage:'prelaunch'});
+ assert.equal((await GET(new Request('https://demo.lokd.co.za/api/identity?caseId='+caseId))).status,401);
+ assert.equal((await GET(new Request('https://portal.lokd.co.za/api/identity?caseId='+caseId,{headers:{'x-lokd-verified-user-id':'user_identity','x-lokd-verified-email':'identity@example.test'}}))).status,404);
+ assert.equal((await POST(new Request('https://demo.lokd.co.za/api/identity',{method:'POST',headers:{origin:'https://attacker.test','content-type':'application/json'},body:'{}'}))).status,403);isolated.close();db.sql.close();
 });
 
 test('Operations recovery enforces cooldown, exclusive dispatch, evidence history and review of unknown delivery',async()=>{

@@ -1,3 +1,4 @@
+import {installRehearsal} from './fixtures/isolated-rehearsal.mjs';
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -80,7 +81,7 @@ function request(host, path, method = "GET", body, email = "owner@lokd.example")
 
 test("the controlled onboarding API rehearses all three workspaces and preserves hard locks", async () => {
   const database = migratedDatabase();
-  env.DB = new D1Adapter(database);
+  installRehearsal(new D1Adapter(database));
   env.LOKD_APP_STAGE = "demo";
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({
     owners: ["owner@lokd.example"],
@@ -95,12 +96,12 @@ test("the controlled onboarding API rehearses all three workspaces and preserves
 
   try {
     const pilotSeed = await pilot.GET(
-      request("operations.lokd.co.za", "/api/pilot?scope=operations"),
+      request("demo.lokd.co.za", "/api/pilot?scope=operations"),
     );
     assert.equal(pilotSeed.status, 200, await pilotSeed.clone().text());
 
     const operationsState = await onboarding.GET(
-      request("operations.lokd.co.za", "/api/onboarding?scope=operations"),
+      request("demo.lokd.co.za", "/api/onboarding?scope=operations"),
     );
     assert.equal(operationsState.status, 200, await operationsState.clone().text());
     const initial = (await operationsState.json()).state;
@@ -113,7 +114,7 @@ test("the controlled onboarding API rehearses all three workspaces and preserves
 
     const rehearsed = await onboarding.POST(
       request(
-        "operations.lokd.co.za",
+        "demo.lokd.co.za",
         "/api/onboarding?scope=operations",
         "POST",
         { action: "run_controlled_pilot_rehearsal" },
@@ -159,7 +160,7 @@ test("the controlled onboarding API rehearses all three workspaces and preserves
 
     const client = await onboarding.GET(
       request(
-        "portal.lokd.co.za",
+        "demo.lokd.co.za",
         "/api/onboarding?scope=client",
         "GET",
         undefined,
@@ -174,7 +175,7 @@ test("the controlled onboarding API rehearses all three workspaces and preserves
 
     const officer = await onboarding.GET(
       request(
-        "officers.lokd.co.za",
+        "demo.lokd.co.za",
         "/api/onboarding?scope=officer",
         "GET",
         undefined,
@@ -189,7 +190,7 @@ test("the controlled onboarding API rehearses all three workspaces and preserves
 
     const otherClient = await onboarding.GET(
       request(
-        "portal.lokd.co.za",
+        "demo.lokd.co.za",
         "/api/onboarding?scope=client",
         "GET",
         undefined,
@@ -202,10 +203,10 @@ test("the controlled onboarding API rehearses all three workspaces and preserves
     const wrongHost = await onboarding.GET(
       request("portal.lokd.co.za", "/api/onboarding?scope=operations"),
     );
-    assert.equal(wrongHost.status, 403);
+    assert.equal(wrongHost.status, 404);
     const clientWrite = await onboarding.POST(
       request(
-        "portal.lokd.co.za",
+        "demo.lokd.co.za",
         "/api/onboarding?scope=client",
         "POST",
         { action: "run_controlled_pilot_rehearsal" },

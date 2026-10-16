@@ -1,3 +1,4 @@
+import {requireTestSurfacePage} from '../../lib/test-surface-page';
 import { requireLokdUser } from '../../lokd-auth';
 import SandboxCompletionWorkspace from '../../components/sandbox-completion-workspace';
 import { principalForEmail, principalHasRole } from '../../lib/pilot-runtime';
@@ -16,4 +17,6 @@ async function SandboxPage({ searchParams }: {
     selected.set('workspace', query.workspace); if (query.financeSection)
     selected.set('financeSection', query.financeSection); const user = await requireLokdUser('/ops/sandbox' + (selected.size ? '?' + selected : '')); const principal = principalForEmail(user.email); if (!principalHasRole(principal, 'operations'))
     return <PilotAccessDenied email={user.email} role="operations"/>; return <SandboxCompletionWorkspace operations owner={principal.owner} applicantId={query.applicantId ?? ''} applicantVersion={Number(query.applicantVersion) || 1}/>; }
-export default function Page(props: Parameters<typeof SandboxPage>[0]) { return <SandboxPage {...props}/>; }
+export default async function Page(props: Parameters<typeof SandboxPage>[0]) {
+ await requireTestSurfacePage();
+ return <SandboxPage {...props}/>; }

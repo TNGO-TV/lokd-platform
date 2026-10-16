@@ -1,9 +1,11 @@
 'use client';
+import {useTestSurface} from './test-surface-context';
 import {useState,useEffect,useRef,useSyncExternalStore} from 'react';
 const subscribeToHydration=()=>()=>{};
 const clientReady=()=>true;
 const serverReady=()=>false;
 export default function OfficerPresencePanel(){
+ const testTools=useTestSurface();
  const ready=useSyncExternalStore(subscribeToHydration,clientReady,serverReady);
  const [sharing,setSharing]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[consent,setConsent]=useState(false);const inFlight=useRef(false);
  async function request(body:Record<string,unknown>){const r=await fetch('/api/presence',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}),d=await r.json() as {error?:string};if(!r.ok)throw Error(d.error);}
@@ -12,5 +14,5 @@ export default function OfficerPresencePanel(){
  }catch(e){setMessage(e instanceof Error?e.message:'Sharing failed.');setSharing(false);}finally{inFlight.current=false;setBusy(false);}}
  async function stop(){if(inFlight.current)return;setBusy(true);try{await request({action:'stop',mode:'live'});setSharing(false);setConsent(false);setMessage('Public sharing stopped.');}catch{setMessage('Stop could not be confirmed. The last signal expires within three minutes.');setSharing(false);}finally{setBusy(false);}}
  useEffect(()=>{if(!sharing)return;const timer=setInterval(()=>{if(document.visibilityState==='visible')void update();},60000);return()=>clearInterval(timer);});
- return <section><h2>Officer presence sharing</h2><p>Live sharing publishes only an approximate area, about 11 km across, without your name. It requires an assigned officer account and a current checked-in assignment. While this page is open and visible, sharing refreshes each minute; signals expire after three minutes.</p><label><input type="checkbox" checked={consent} disabled={!ready||sharing||busy} onChange={e=>setConsent(e.target.checked)}/> I consent to publishing my approximate area on the LOKD homepage while sharing is enabled.</label><p><button disabled={!ready||busy||!consent} onClick={()=>void update()}>Share or refresh live presence</button> <button disabled={!ready||busy} onClick={()=>void stop()}>Stop public sharing</button></p><details><summary>Presence testing</summary><p>Private synthetic signals never appear on the public map.</p><button disabled={!ready||busy} onClick={()=>void update(true)}>Send a private synthetic test signal</button></details>{message&&<p role="status">{message}</p>}</section>;
+ return <section><h2>Officer presence sharing</h2><p>Live sharing publishes only an approximate area, about 11 km across, without your name. It requires an assigned officer account and a current checked-in assignment. While this page is open and visible, sharing refreshes each minute; signals expire after three minutes.</p><label><input type="checkbox" checked={consent} disabled={!ready||sharing||busy} onChange={e=>setConsent(e.target.checked)}/> I consent to publishing my approximate area on the LOKD homepage while sharing is enabled.</label><p><button disabled={!ready||busy||!consent} onClick={()=>void update()}>Share or refresh live presence</button> <button disabled={!ready||busy} onClick={()=>void stop()}>Stop public sharing</button></p>{testTools&&<details><summary>Presence testing</summary><p>Private synthetic signals never appear on the public map.</p><button disabled={!ready||busy} onClick={()=>void update(true)}>Send a private synthetic test signal</button></details>}{message&&<p role="status">{message}</p>}</section>;
 }

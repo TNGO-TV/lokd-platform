@@ -1,3 +1,4 @@
+import {installRehearsal} from './fixtures/isolated-rehearsal.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -73,17 +74,18 @@ test('stale revisions and other owners cannot reconcile or make provider calls',
  await assert.rejects(()=>reconcileProviderTest(f.runtime,{...owner,userId:'other'},{reference:r.reference,expectedRevision:r.revision},transport),/not found/);assert.equal(called,false);
 });
 test('API enforces verified owner, workspace, same origin, bounded body and existing MFA policy',async t=>{
- const f=setup(t);Object.assign(env,f.runtime,{LOKD_OWNER_ACCESS_JSON:JSON.stringify([owner.email]),LOKD_OPERATIONS_ACCESS_JSON:'["ops@example.test"]',LOKD_APP_STAGE:'production',LOKD_OPERATIONS_MFA_REQUIRED:'true'});
- const req=(method='GET',headers={},body,host='operations.lokd.co.za')=>new Request('https://'+host+'/api/provider-test',{method,headers:{'x-lokd-verified-user-id':owner.userId,'x-lokd-verified-email':owner.email,...headers},...(body?{body}: {})});
- assert.equal((await GET(new Request('https://operations.lokd.co.za/api/provider-test'))).status,401);
+ const f=setup(t);Object.assign(env,f.runtime,{LOKD_OWNER_ACCESS_JSON:JSON.stringify([owner.email]),LOKD_OPERATIONS_ACCESS_JSON:'["ops@example.test"]',LOKD_APP_STAGE:'prelaunch',LOKD_OPERATIONS_MFA_REQUIRED:'true'});
+ installRehearsal(f.db,{stage:'prelaunch'});
+ const req=(method='GET',headers={},body,host='demo.lokd.co.za')=>new Request('https://'+host+'/api/provider-test',{method,headers:{'x-lokd-verified-user-id':owner.userId,'x-lokd-verified-email':owner.email,...headers},...(body?{body}: {})});
+ assert.equal((await GET(new Request('https://demo.lokd.co.za/api/provider-test'))).status,401);
  assert.equal((await GET(req('GET',{'x-lokd-verified-email':'ops@example.test'}))).status,403);
- assert.equal((await GET(req('GET',{},null,'portal.lokd.co.za'))).status,403);
+ assert.equal((await GET(req('GET',{},null,'portal.lokd.co.za'))).status,404);
  assert.equal((await GET(req())).status,200);
  assert.equal((await POST(req('POST',{origin:'https://evil.example','content-type':'application/json'},'{}'))).status,403);
- assert.equal((await POST(req('POST',{origin:'https://operations.lokd.co.za','content-type':'application/json'},'{}'))).status,403);
+ assert.equal((await POST(req('POST',{origin:'https://demo.lokd.co.za','content-type':'application/json'},'{}'))).status,403);
  env.LOKD_OPERATIONS_MFA_REQUIRED='false';
- assert.equal((await POST(req('POST',{origin:'https://operations.lokd.co.za','content-type':'application/json'},'a'.repeat(1501)))).status,413);
- assert.equal((await POST(req('POST',{origin:'https://operations.lokd.co.za','content-type':'application/json'},'{bad'))).status,400);
+ assert.equal((await POST(req('POST',{origin:'https://demo.lokd.co.za','content-type':'application/json'},'a'.repeat(1501)))).status,413);
+ assert.equal((await POST(req('POST',{origin:'https://demo.lokd.co.za','content-type':'application/json'},'{bad'))).status,400);
  env.LOKD_APP_STAGE='demo';assert.equal((await GET(new Request('https://app.local/api/provider-test'))).status,401);
  for(const k of Object.keys(env))delete env[k];
 });

@@ -1,3 +1,4 @@
+import {installRehearsal} from './fixtures/isolated-rehearsal.mjs';
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -59,7 +60,7 @@ function actionRequest(scope, action) {
 test("controlled booking-to-service-to-payroll cycle preserves settlement locks", async (t) => {
   t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-08-28T08:00:00Z") });
   const database = migratedDatabase();
-  env.DB = new D1Adapter(database);
+  installRehearsal(new D1Adapter(database));
   env.LOKD_APP_STAGE = "demo";
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
   const pilotRoute = await import("../app/api/pilot/route.ts");
@@ -156,19 +157,19 @@ test("controlled booking-to-service-to-payroll cycle preserves settlement locks"
   const timesheet = row(database, "SELECT * FROM shift_timesheets WHERE shift_id=?", assignment.shiftId);
   assert.ok(timesheet, "completed service must create its linked timesheet");
   assert.equal(timesheet.client_evidence_status, "confirmed");
-  await applyPlatformAction(env.DB, { action: "approve_timesheet", timesheetId: timesheet.id, version: timesheet.version }, "owner@lokd.example");
+  await applyPlatformAction(env.TEST_DB, { action: "approve_timesheet", timesheetId: timesheet.id, version: timesheet.version }, "owner@lokd.example");
   const run = row(database, "SELECT run.* FROM payroll_runs run JOIN payroll_items item ON item.payroll_run_id=run.id JOIN pay_item_sources source ON source.payroll_item_id=item.id WHERE source.timesheet_id=?", timesheet.id);
   assert.ok(run, "approved service must create its linked payroll run");
-  await applyPlatformAction(env.DB, { action: "calculate_payroll_run", payrollRunId: run.id }, "owner@lokd.example");
-  await applyPlatformAction(env.DB, { action: "calculate_payroll_run", payrollRunId: run.id }, "owner@lokd.example");
+  await applyPlatformAction(env.TEST_DB, { action: "calculate_payroll_run", payrollRunId: run.id }, "owner@lokd.example");
+  await applyPlatformAction(env.TEST_DB, { action: "calculate_payroll_run", payrollRunId: run.id }, "owner@lokd.example");
   const calculated = row(database, "SELECT * FROM payroll_runs WHERE id=?", run.id);
   assert.equal(calculated.status, "calculated_for_review");
   assert.ok(calculated.net_pay_cents > 0);
-  await assert.rejects(() => applyPlatformAction(env.DB, { action: "approve_payroll_run", payrollRunId: run.id, version: calculated.version }, "owner@lokd.example"), /maker|role|account/i);
+  await assert.rejects(() => applyPlatformAction(env.TEST_DB, { action: "approve_payroll_run", payrollRunId: run.id, version: calculated.version }, "owner@lokd.example"), /maker|role|account/i);
   database.prepare("UPDATE operator_accounts SET mfa_verified_at=? WHERE id='payroll-reviewer@demo.lokd.invalid'").run(new Date().toISOString());
-  await applyPlatformAction(env.DB, { action: "approve_payroll_run", payrollRunId: run.id, version: calculated.version }, "payroll-reviewer@demo.lokd.invalid");
+  await applyPlatformAction(env.TEST_DB, { action: "approve_payroll_run", payrollRunId: run.id, version: calculated.version }, "payroll-reviewer@demo.lokd.invalid");
   database.prepare("UPDATE operator_accounts SET mfa_status='verified',mfa_verified_at=? WHERE id='finance-approver@demo.lokd.invalid'").run(new Date().toISOString());
-  await applyPlatformAction(env.DB, { action: "second_approve_payroll_run", payrollRunId: run.id, version: calculated.version + 1 }, "finance-approver@demo.lokd.invalid");
+  await applyPlatformAction(env.TEST_DB, { action: "second_approve_payroll_run", payrollRunId: run.id, version: calculated.version + 1 }, "finance-approver@demo.lokd.invalid");
   assert.equal(row(database, "SELECT status FROM payroll_runs WHERE id=?", run.id).status, "approved_for_export");
   assert.equal(row(database, "SELECT settlement_reference FROM payroll_runs WHERE id=?", run.id).settlement_reference, null);
   assert.throws(() => database.prepare("UPDATE payroll_runs SET status='released_for_settlement',settlement_reference='not-real' WHERE id=?").run(run.id), /settlement_locked/);

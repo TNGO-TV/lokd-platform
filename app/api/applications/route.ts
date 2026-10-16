@@ -1,3 +1,4 @@
+import {blockedTestSurface,rehearsalEnv} from '../../lib/test-surface-runtime';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { applicationPsiraDeclaration, psiraIntakeStatus } from '../../lib/psira-pathway';
 import { psiraNumber as validatePsiraNumber } from '../../lib/psira-verification';
@@ -125,9 +126,12 @@ async function ensureDemoApplications(db: D1Database) {
 }
 
 export async function GET(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     requirePilotApiRole(request, "operations");
-    const db = getDb();
+    const db = rehearsalEnv.DB;
+    if (!db) throw new ApplicationError("The test application service is unavailable.", 503);
     if (pilotStage() === "demo") await ensureDemoApplications(db);
     const result = await db.prepare(`SELECT id, pathway, full_name AS fullName, mobile_normalized AS mobile,
       email_normalized AS email, city, province, psira_status AS psiraStatus, psira_number AS psiraNumber,
@@ -154,6 +158,8 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+ const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
   try {
     requireSameOriginJson(request);
     const actor = requirePilotApiRole(request, "operations");
@@ -164,7 +170,8 @@ export async function PATCH(request: Request) {
     catch { throw new ApplicationError("The request body is not valid JSON."); }
     const id = cleanText(input.id, "Application reference", 8, 80);
     const action = cleanText(input.action, "Review action", 4, 40);
-    const db = getDb();
+    const db = rehearsalEnv.DB;
+    if (!db) throw new ApplicationError("The test application service is unavailable.", 503);
     if (action === "start_demo_identity") {
       await startDemoIdentityVerification(db, id, actor.email);
       return response({ ok: true });

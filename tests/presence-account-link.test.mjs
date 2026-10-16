@@ -1,3 +1,4 @@
+import {installRehearsal} from './fixtures/isolated-rehearsal.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {DatabaseSync} from 'node:sqlite';
@@ -21,11 +22,11 @@ function fixture(){
  INSERT INTO roster_assignments VALUES('roster','confirmed','shift');
  INSERT INTO assignment_activation_commands VALUES('command','activated');`);
  const now=Date.now();sql.prepare('INSERT INTO assignment_activation_snapshots VALUES(?,?,?,?,?,?,?,?,?,?,?)').run('snapshot','OFF-CURRENT','shift','roster','command','production','production_verified',1,new Date(now-60000).toISOString(),new Date(now+3600000).toISOString(),new Date(now+3600000).toISOString());
- const db={prepare(query){return {bind(...values){return {async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){if(query.startsWith('INSERT INTO public_officer_presence'))db.beforeWrite?.();const r=sql.prepare(query).run(...values);return {meta:{changes:Number(r.changes)}};}};}};}};
+ const db={sql,prepare(query){return {first:async()=>sql.prepare(query).get()??null,bind(...values){return {async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){if(query.startsWith('INSERT INTO public_officer_presence'))db.beforeWrite?.();const r=sql.prepare(query).run(...values);return {meta:{changes:Number(r.changes)}};}};}};}};
  return {sql,db};
 }
 const share={action:'share',mode:'live',consent:true,latitude:-26.176,longitude:28.045};
-const request=body=>new Request('https://officers.lokd.co.za/api/presence',{method:'POST',headers:{origin:'https://officers.lokd.co.za','content-type':'application/json','x-lokd-verified-user-id':'user','x-lokd-verified-email':'officer@example.test'},body:JSON.stringify(body)});
+const request=(body,host='officers.lokd.co.za')=>new Request('https://'+host+'/api/presence',{method:'POST',headers:{origin:'https://'+host,'content-type':'application/json','x-lokd-verified-user-id':'user','x-lokd-verified-email':'officer@example.test'},body:JSON.stringify(body)});
 
 test('presence resolves reviewed production identity without configured pilot mapping and ignores supplied IDs',async()=>{
  const {db,sql}=fixture(),oldDb=env.DB,oldAccess=env.LOKD_PILOT_ACCESS_JSON;env.DB=db;env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({officers:{'officer@example.test':'OFF-OTHER'}});
@@ -42,8 +43,8 @@ test('atomic live write rechecks account linkage after the eligibility read',asy
 });
 
 test('test sharing remains private and stopping remains owner-scoped after withdrawal',async()=>{
- const {db,sql}=fixture(),oldDb=env.DB;env.DB=db;
- try{assert.equal((await POST(request({...share,mode:'test'}))).status,200);assert.deepEqual((await publicPresence(db)).areas,[]);await writePresence(db,'other',null,{...share,mode:'test'});sql.exec("UPDATE signup_cases SET status='withdrawn'");assert.equal((await POST(request({action:'stop',mode:'test'}))).status,200);assert.equal(sql.prepare('SELECT user_id FROM public_officer_presence').get().user_id,'other');assert.equal((await POST(request({...share,mode:'test'}))).status,403);}finally{if(oldDb===undefined)delete env.DB;else env.DB=oldDb;sql.close();}
+ const {db,sql}=fixture();const isolated=installRehearsal(db,{stage:'prelaunch'});
+ try{assert.equal((await POST(request({...share,mode:'test'}))).status,404);assert.equal((await POST(request({...share,mode:'test'},'demo.lokd.co.za'))).status,200);assert.deepEqual((await publicPresence(db)).areas,[]);await writePresence(db,'other',null,{...share,mode:'test'});sql.exec("UPDATE signup_cases SET status='withdrawn'");assert.equal((await POST(request({action:'stop',mode:'test'},'demo.lokd.co.za'))).status,200);assert.equal(sql.prepare('SELECT user_id FROM public_officer_presence').get().user_id,'other');assert.equal((await POST(request({...share,mode:'test'},'demo.lokd.co.za'))).status,403);}finally{isolated.close();sql.close();}
 });
 
 test('expired presence and off-post assignments cannot appear publicly',async()=>{

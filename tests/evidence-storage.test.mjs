@@ -1,3 +1,4 @@
+import {installRehearsal} from './fixtures/isolated-rehearsal.mjs';
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -55,6 +56,8 @@ function request(path, init = {}) {
 }
 
 test("public demo visitors cannot upload evidence objects", async () => {
+  const database=migratedDatabase();
+  installRehearsal(new D1Adapter(database));
   env.LOKD_APP_STAGE = "demo";
   env.LOKD_PILOT_ACCESS_JSON = "";
   const response = await POST(request("/api/evidence", {
@@ -64,11 +67,14 @@ test("public demo visitors cannot upload evidence objects", async () => {
   }));
   assert.equal(response.status, 423);
   assert.match((await response.json()).error, /disabled in the public demo/i);
+  database.close();
 });
 
 test("authorised prelaunch evidence is privately stored, hashed and downloaded through the protected route", async () => {
   const database = migratedDatabase();
-  const objects = new Map();
+  const protectedKey="prelaunch/private/2026-10/production-object";
+  const protectedObject={bytes:Buffer.from("protected primary bytes"),options:{}};
+  const objects = new Map([[protectedKey,protectedObject]]);
   env.DB = new D1Adapter(database);
   env.BUCKET = {
     async put(key, value, options) { objects.set(key, { bytes: new Uint8Array(value), options }); },
@@ -82,7 +88,7 @@ test("authorised prelaunch evidence is privately stored, hashed and downloaded t
     },
     async delete(key) { objects.delete(key); },
   };
-  env.LOKD_APP_STAGE = "pilot";
+  installRehearsal(env.DB,{bucket:env.BUCKET,stage:"prelaunch"});
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ operations: ["ops@lokd.example", "reviewer@lokd.example"] });
 
   try {
@@ -106,7 +112,9 @@ test("authorised prelaunch evidence is privately stored, hashed and downloaded t
     assert.equal(upload.status, 201);
     assert.equal(uploaded.artifact.sizeBytes, source.byteLength);
     assert.match(uploaded.artifact.contentHash, /^[0-9a-f]{64}$/);
-    assert.equal(objects.size, 1);
+    assert.equal(objects.size, 2);
+    assert.equal(objects.get(protectedKey),protectedObject);
+    assert.ok([...objects.keys()].filter(key=>key!==protectedKey).every(key=>key.startsWith("rehearsal/v1/")));
     assert.equal(database.prepare("SELECT COUNT(*) AS total FROM document_artifacts").get().total, 1);
     assert.equal(database.prepare("SELECT COUNT(*) AS total FROM audit_events WHERE event_type='evidence_stored'").get().total, 1);
 
@@ -140,6 +148,12 @@ test("authorised prelaunch evidence is privately stored, hashed and downloaded t
     assert.equal(download.status, 200);
     assert.equal(download.headers.get("cache-control"), "no-store, private");
     assert.equal(await download.text(), "controlled evidence");
+    // Even an aliased physical bucket cannot expose a primary object through
+    // a corrupted or copied test artifact reference outside the test namespace.
+    database.prepare("UPDATE document_artifacts SET storage_reference=? WHERE id=?").run("BUCKET:"+protectedKey,uploaded.artifact.id);
+    assert.equal((await GET(request(`/api/evidence?id=${uploaded.artifact.id}&download=1`))).status,404);
+    assert.equal((await PATCH(request('/api/evidence',{method:'PATCH',headers:{'content-type':'application/json',origin:'https://demo.lokd.co.za','x-lokd-verified-email':'reviewer@lokd.example'},body:JSON.stringify({artifactId:uploaded.artifact.id,expectedHash:uploaded.artifact.contentHash})}))).status,404);
+    assert.equal(objects.get(protectedKey),protectedObject);
   } finally {
     delete env.DB;
     delete env.BUCKET;
@@ -159,7 +173,7 @@ test("evidence classifications guard upload, metadata, bytes and verification be
     async head(key) { reads++; const value=objects.get(key); return {size:value.bytes.byteLength,customMetadata:value.options.customMetadata}; },
     async delete(key) { objects.delete(key); },
   };
-  env.LOKD_APP_STAGE = "pilot";
+  installRehearsal(env.DB,{bucket:env.BUCKET,stage:"prelaunch"});
   env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({owners:["owner@lokd.example","owner2@lokd.example"],operations:["ops@lokd.example","reviewer@lokd.example"]});
   const as = (email, path, method="GET", body) => request(path,{method,headers:{"x-lokd-verified-email":email,...(body?{"content-type":"application/json",origin:"https://demo.lokd.co.za"}:{})},...(body?{body:JSON.stringify(body)}:{})});
   const upload = (email, accessClass) => POST(as(email,"/api/evidence","POST",{kind:"private_record",mimeType:"text/plain",retentionClass:"temporary_90d",accessClass,contentBase64:Buffer.from("synthetic classified bytes").toString("base64")}));
