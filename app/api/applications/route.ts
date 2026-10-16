@@ -316,14 +316,12 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
     const nowIso = now.toISOString();
     const retentionReview = new Date(now);
     retentionReview.setUTCFullYear(retentionReview.getUTCFullYear() + 1);
-    const existing = await db.prepare(`SELECT id, status FROM officer_applications WHERE mobile_normalized = ?
-      AND environment = 'prelaunch' AND integrity_state = 'user_submitted'`)
-      .bind(mobile).first<{ id: string; status: string }>();
-    const id = existing?.id ?? `APP-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    // An anonymous phone/email is contact data, not proof of ownership. Preserve
+    // each submission independently; account linking uses verified email and then
+    // owner_user_id in signup-server. Never reveal or reserve another person's case.
+    const id = `APP-${crypto.randomUUID().toUpperCase()}`;
 
-    if (existing) return response({ reference: "LOKD-RECEIVED" }, 202);
-
-    await db.prepare(`INSERT INTO officer_applications
+    const application = db.prepare(`INSERT INTO officer_applications
       (id, pathway, full_name, mobile_normalized, email_normalized, city, province, psira_status,
        psira_number, psira_grade, service_interests, purpose_interests, training_interests, over_18_confirmed,
        eligibility_acknowledged, privacy_notice_version, privacy_acknowledged_at,
@@ -333,12 +331,14 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
        'prelaunch', 'user_submitted', ?, 'homepage', ?, ?, ?)`)
       .bind(id, pathway, fullName, mobile, email, city, province, psiraStatus, psiraNumber, psiraGrade,
         JSON.stringify(services), JSON.stringify(purposes), JSON.stringify(training), privacyNoticeVersion, nowIso,
-        psiraIntakeStatus(declaration), retentionReview.toISOString(), nowIso, nowIso).run();
+        psiraIntakeStatus(declaration), retentionReview.toISOString(), nowIso, nowIso);
 
-    await db.prepare(`INSERT INTO audit_events
+    const audit = db.prepare(`INSERT INTO audit_events
       (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
       VALUES (?, 'applicant', ?, 'officer_interest_submitted', 'officer_application', ?, ?, ?)`)
-      .bind(`AUD-${crypto.randomUUID()}`, id, id, "Homepage work, purpose and training interests received; identity and credentials remain unverified.", nowIso).run();
+      .bind(`AUD-${crypto.randomUUID()}`, id, id, "Homepage work, purpose and training interests received; identity and credentials remain unverified.", nowIso);
+    // D1 batches are atomic: never acknowledge an unaudited or partially saved intake.
+    await db.batch([application, audit]);
 
     return response({ reference: id, psiraVerificationRequired: psiraRequired, pathwayStatus: psiraIntakeStatus(declaration) }, 202);
   } catch (cause) {

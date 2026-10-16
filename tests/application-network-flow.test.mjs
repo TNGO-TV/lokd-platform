@@ -56,6 +56,48 @@ function ownerRequest(method, body) {
   });
 }
 
+const intake = (email, fullName='Public Applicant') => new Request('https://lokd.co.za/api/applications', {
+  method:'POST',headers:{'content-type':'application/json',origin:'https://lokd.co.za'},
+  body:JSON.stringify({pathway:'qualified',fullName,mobile:'082 555 0199',email,city:'Johannesburg',province:'Gauteng',
+    psiraStatus:'active',psiraNumber:'1234567',psiraGrade:'Grade C',services:['Unarmed'],purposes:['Commercial access'],training:[],
+    over18Confirmed:true,eligibilityAcknowledged:true,contactConsent:true}),
+});
+
+test('concurrent anonymous submissions with shared/recycled phones preserve separate cases and verified account ownership', async () => {
+  const database=migratedDatabase(),db=new D1Adapter(database);
+  const {submitOfficerApplication}=await import('../app/api/applications/route.ts');
+  const {readSignupRecords,writeSignup}=await import('../app/lib/signup-server.ts');
+  try {
+    const results=await Promise.all(Array.from({length:8},(_,i)=>submitOfficerApplication(intake(`person${i}@example.test`,`Applicant ${i}`),db)));
+    const receipts=await Promise.all(results.map(async r=>{assert.equal(r.status,202);return r.json();}));
+    assert.equal(new Set(receipts.map(r=>r.reference)).size,8);
+    for(const receipt of receipts)assert.deepEqual(Object.keys(receipt).sort(),['pathwayStatus','psiraVerificationRequired','reference']);
+    assert.equal(database.prepare("SELECT count(*) AS n FROM officer_applications WHERE mobile_normalized='+27825550199'").get().n,8);
+    assert.equal(database.prepare("SELECT count(*) AS n FROM audit_events WHERE event_type='officer_interest_submitted'").get().n,8);
+    const actor={userId:'first-account',email:'person0@example.test',operations:false};
+    assert.deepEqual((await readSignupRecords(db,actor,'officer')).records.map(r=>r.id),[receipts[0].reference]);
+    await assert.rejects(writeSignup(db,actor,{action:'link',kind:'officer',id:receipts[1].reference,expectedVersion:0}),e=>e.status===404);
+    await writeSignup(db,actor,{action:'link',kind:'officer',id:receipts[0].reference,expectedVersion:0});
+    // Even the same verified email on a different account cannot take an owned case.
+    await assert.rejects(writeSignup(db,{...actor,userId:'second-account'},{action:'link',kind:'officer',id:receipts[0].reference,expectedVersion:1}),e=>e.status===404);
+    // Unverified repeat submissions neither overwrite the owned case nor suppress new data.
+    const repeat=await submitOfficerApplication(intake(actor.email,'Corrected Applicant'),db);
+    assert.equal(repeat.status,202);assert.notEqual((await repeat.json()).reference,receipts[0].reference);
+    assert.equal(database.prepare('SELECT full_name FROM officer_applications WHERE id=?').get(receipts[0].reference).full_name,'Applicant 0');
+    assert.equal(database.prepare('SELECT owner_user_id FROM signup_cases WHERE source_id=?').get(receipts[0].reference).owner_user_id,actor.userId);
+  } finally {database.close();}
+});
+
+test('intake and its audit record roll back together on a failed write',async()=>{
+  const database=migratedDatabase(),db=new D1Adapter(database);
+  const {submitOfficerApplication}=await import('../app/api/applications/route.ts');
+  try {
+    database.exec("CREATE TRIGGER fail_intake_audit BEFORE INSERT ON audit_events WHEN NEW.event_type='officer_interest_submitted' BEGIN SELECT RAISE(ABORT,'fixture audit unavailable'); END;");
+    assert.equal((await submitOfficerApplication(intake('rollback@example.test'),db)).status,500);
+    assert.equal(database.prepare("SELECT count(*) AS n FROM officer_applications WHERE email_normalized='rollback@example.test'").get().n,0);
+  } finally {database.close();}
+});
+
 test("evidenced demo onboarding creates a restricted Network profile without employment", async () => {
   const database = migratedDatabase();
   env.DB = new D1Adapter(database);

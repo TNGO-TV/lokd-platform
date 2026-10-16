@@ -112,7 +112,7 @@ export const officerApplications = sqliteTable(
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
-    uniqueIndex("officer_applications_mobile_idx").on(table.mobileNormalized),
+    index("officer_applications_mobile_idx").on(table.mobileNormalized),
     index("officer_applications_status_idx").on(table.status),
     index("officer_applications_pathway_idx").on(table.pathway),
     index("officer_applications_created_idx").on(table.createdAt),
