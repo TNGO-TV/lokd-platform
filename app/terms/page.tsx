@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LegalDocument, LEGAL_NOTICES_EMAIL, LEGAL_OPERATOR } from "../components/legal-document";
+import { LegalDocument, LEGAL_NOTICES_ADDRESS, LEGAL_OPERATOR } from "../components/legal-document";
 
 export const metadata: Metadata = {
   title: "Terms of Use",
-  description: "Terms for using the LOKD Security website, quote forms, and online portals operated by The Tactical Nation, Inc. Security services have their own terms and conditions.",
+  description: "Terms for using the LOKD Security website, quote forms, and online portals operated by Lokd Security (Pty) Ltd. Security services have their own terms and conditions.",
   alternates: { canonical: "/terms" },
 };
 
@@ -35,7 +35,7 @@ export default function TermsPage() {
         {
           title: "Eligibility and accounts",
           body: (
-            <p>You must be authorised to request quotes or access portals for your organisation. Portal accounts, including client, operations, or officer tools if offered, are for authorised users only. Provide accurate account information, protect credentials, and notify <a href={`mailto:${LEGAL_NOTICES_EMAIL}`}>{LEGAL_NOTICES_EMAIL}</a> of unauthorised access. We may suspend accounts for abuse or security risk.</p>
+            <p>You must be authorised to request quotes or access portals for your organisation. Portal accounts, including client, operations, or officer tools if offered, are for authorised users only. Provide accurate account information, protect credentials, and notify {LEGAL_OPERATOR} at <span>{LEGAL_NOTICES_ADDRESS}</span> of unauthorised access. We may suspend accounts for abuse or security risk.</p>
           ),
         },
         {
@@ -129,7 +129,7 @@ export default function TermsPage() {
           title: "Notices and contact",
           body: (
             <>
-              <p>Notices under these terms may be sent to <a href={`mailto:${LEGAL_NOTICES_EMAIL}`}>{LEGAL_NOTICES_EMAIL}</a>.</p>
+              <p>Notices under these terms may be addressed to {LEGAL_OPERATOR} at <span>{LEGAL_NOTICES_ADDRESS}</span>.</p>
               <p>{LEGAL_OPERATOR} — LOKD Security.</p>
             </>
           ),
@@ -143,7 +143,7 @@ export default function TermsPage() {
         {
           title: "Sister brands",
           body: (
-            <p>The Platform is operated by {LEGAL_OPERATOR}. Custom Nation, Tervory AI, and Shot Bonus are separate offerings operated by {LEGAL_OPERATOR} and are not merged into LOKD Security.</p>
+            <p>The Platform is operated by {LEGAL_OPERATOR}, at <span>{LEGAL_NOTICES_ADDRESS}</span>.</p>
           ),
         },
       ]}

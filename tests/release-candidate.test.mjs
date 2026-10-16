@@ -9,7 +9,7 @@ const zeroFindings = { total: 0, info: 0, low: 0, moderate: 0, high: 0, critical
 const passingAudit = () => ({ npmExit: 0, report: { auditReportVersion: 2, metadata: { vulnerabilities: { ...zeroFindings } }, vulnerabilities: {} },
   assessment: { ok: true, blocked: [], dispositions: [], raw: { ...zeroFindings } } });
 const passingBoundary = () => ({ checkedPackages: ['braces', 'micromatch', 'fast-glob'], moduleCount: 1, moduleGraphSha256: 'a'.repeat(64) });
-const passingBrowser = () => ({stats:{expected:8,unexpected:0,flaky:0,skipped:0},errors:[]});
+const passingBrowser = () => ({stats:{expected:14,unexpected:0,flaky:0,skipped:0},errors:[]});
 
 function fixture(t) {
   const root = mkdtempSync(path.join(os.tmpdir(), 'lokd-release-'));
@@ -49,7 +49,7 @@ test('candidate records exact source, lock, native assets and validation evidenc
   const receipt = JSON.parse(readFileSync(path.join(f.root, '.sites-runtime/release/candidate.json')));
   assert.match(receipt.source.commit, /^[a-f0-9]{40}$/); assert.match(receipt.source.tree, /^[a-f0-9]{40}$/);
   assert.equal(receipt.artifacts.length, 3); assert.equal(receipt.validations.length, 4);
-  assert.equal(f.run('verify').status, 0); assert.match(receipt.migrationRequirement, /0082 before deploying/);
+  assert.equal(f.run('verify').status, 0); assert.match(receipt.migrationRequirement, /through 0083 before deploying/);
 });
 
 test('CI summary exposes only validated boundary fields, source commit, config key names and artifact count', (t) => {

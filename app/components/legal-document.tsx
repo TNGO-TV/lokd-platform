@@ -2,8 +2,10 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { PublicFooter, PublicHeader, PublicLaunchBar } from "./public-site-shell";
 
-export const LEGAL_OPERATOR = "The Tactical Nation, Inc";
-export const LEGAL_NOTICES_EMAIL = "alerts@thetacticalnation.com";
+import { COMPANY_NAME, HEAD_OFFICE_ADDRESS } from "../lib/public-site";
+
+export const LEGAL_OPERATOR = COMPANY_NAME;
+export const LEGAL_NOTICES_ADDRESS = HEAD_OFFICE_ADDRESS;
 export const LEGAL_EFFECTIVE_LABEL = "27 September 2026";
 
 export function LegalDefs({ caption, rows }: { caption: string; rows: Array<[string, string]> }) {
@@ -61,7 +63,7 @@ export function LegalDocument({
         <aside>
           <strong>{LEGAL_OPERATOR}</strong>
           <p>LOKD Security</p>
-          <a href={`mailto:${LEGAL_NOTICES_EMAIL}`}>{LEGAL_NOTICES_EMAIL}</a>
+          <address>{LEGAL_NOTICES_ADDRESS}</address>
           <p>{asideNote}</p>
           <nav aria-label="Related legal documents">
             {links.map((link) => (

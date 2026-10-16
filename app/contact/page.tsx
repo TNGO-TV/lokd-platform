@@ -3,7 +3,7 @@ import ClientEnquiryForm from "../components/client-enquiry-form";
 import { PublicFooter, PublicHeader, PublicLaunchBar } from "../components/public-site-shell";
 import { COMPANY_NAME, HEAD_OFFICE_ADDRESS, TRAINING_CENTRES, BOOKINGS_EMAIL, QUOTES_EMAIL, INVOICE_EMAIL } from "../lib/public-site";
 
-export const metadata: Metadata = { title: "Contact LOKD Security", description: "Contact LOKD Security (Pty) Ltd for unarmed guarding, armed security and VIP protection enquiries across South Africa.", alternates: { canonical: "/contact" } };
+export const metadata: Metadata = { title: "Contact LOKD Security", description: "Contact Lokd Security (Pty) Ltd for unarmed guarding, armed security and VIP protection enquiries across South Africa.", alternates: { canonical: "/contact" } };
 
 export default function ContactPage() {
   return <main className="public-home marketing-page"><PublicLaunchBar /><PublicHeader active="contact" />

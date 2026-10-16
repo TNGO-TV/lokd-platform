@@ -21,7 +21,8 @@ test('coherent synthetic operations incident contains workforce then independent
  assert.equal((await revalidateAssignment(x.activationDb,activated.shiftId,'check_in',applicant.userId,true)).ready,true);
  const team=[];for(const person of x.additional){const version=x.database.prepare('SELECT version FROM roster_slots WHERE id=?').get(person.slotId).version;const a=await activateAssignment(x.activationDb,{...request('team:'+person.officerId,person.officerId),rosterSlotId:person.slotId,expectedSlotVersion:version},'ops-fixture');assert.equal(a.state,'activated',JSON.stringify(a));await passDueScheduledCheckpoints(x.activationDb);assert.equal((await revalidateAssignment(x.activationDb,a.shiftId,'check_in',person.actor.userId,true)).ready,true);team.push({...person,shiftId:a.shiftId});}
  clock.set(Date.parse(x.times.starts)+1000);
- const shared=await writePresence(x.db,applicant.userId,null,{action:'share',mode:'live',consent:true,latitude:-26.10,longitude:28.10});assert.equal(shared.sharing,true);
+ const presenceSession=await writePresence(x.db,applicant.userId,null,{action:'start',mode:'live',consent:true,expectedRevision:0});
+ const shared=await writePresence(x.db,applicant.userId,null,{...presenceSession,action:'share',mode:'live',consent:true,latitude:-26.10,longitude:28.10});assert.equal(shared.sharing,true);
  const presence=await publicPresence(x.db);assert.ok(Array.isArray(presence.areas));await writePresence(x.db,applicant.userId,null,{action:'stop',mode:'live'});assert.equal((await publicPresence(x.db)).areas.length,0);
  clock.set(Date.parse(x.times.ends)+1000);
  await recordProductionService(x.db,applicant,{action:'complete_service',shiftId:activated.shiftId,note:'Synthetic service completed after assigned end'});

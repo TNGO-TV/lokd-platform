@@ -2519,8 +2519,12 @@ export const testOperatingEvents=sqliteTable('test_operating_events',{
  id:text('id').primaryKey(),cycleId:text('cycle_id').notNull(),snapshot:text('snapshot').notNull(),recordedAt:text('recorded_at').notNull(),
 });
 export const publicOfficerPresence=sqliteTable('public_officer_presence',{
- id:text('id').primaryKey(),userId:text('user_id').notNull(),officerId:text('officer_id'),mode:text('mode').notNull(),latitude:real('latitude').notNull(),longitude:real('longitude').notNull(),consentedAt:text('consented_at').notNull(),updatedAt:text('updated_at').notNull(),expiresAt:text('expires_at').notNull(),
+ id:text('id').primaryKey(),userId:text('user_id').notNull(),officerId:text('officer_id'),mode:text('mode').notNull(),latitude:real('latitude').notNull(),longitude:real('longitude').notNull(),consentedAt:text('consented_at').notNull(),updatedAt:text('updated_at').notNull(),expiresAt:text('expires_at').notNull(),consentRevision:integer('consent_revision').notNull().default(0),
 },t=>[uniqueIndex('public_presence_user_mode_idx').on(t.userId,t.mode)]);
+
+export const officerPresenceConsents=sqliteTable('officer_presence_consents',{
+ userId:text('user_id').notNull(),mode:text('mode').notNull(),revision:integer('revision').notNull(),sessionId:text('session_id'),active:integer('active').notNull(),updatedAt:text('updated_at').notNull(),
+},t=>[primaryKey({columns:[t.userId,t.mode]})]);
 
 export const productionEntityLinks=sqliteTable('production_entity_links',{
  kind:text('kind').notNull(),caseId:text('case_id').notNull(),caseVersion:integer('case_version').notNull(),ownerUserId:text('owner_user_id').notNull(),entityId:text('entity_id').notNull(),preparedBy:text('prepared_by').notNull(),preparedAt:text('prepared_at').notNull(),

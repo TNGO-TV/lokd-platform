@@ -175,7 +175,8 @@ test('three-party test operating cycle requires exact signatures and handles dis
 
 test('presence requires consent, rejects unassigned live sharing and never exposes private test locations',async()=>{
  const {publicPresence,writePresence}=await import('../app/lib/officer-presence.ts');const {db}=await setup();
- const input={action:'share',mode:'test',consent:true,latitude:-26.20412,longitude:28.04733};
+ const presenceSession=await writePresence(db,'user_identity',null,{action:'start',mode:'test',consent:true,expectedRevision:0});
+ const input={...presenceSession,action:'share',mode:'test',consent:true,latitude:-26.20412,longitude:28.04733};
  await assert.rejects(()=>writePresence(db,'user_identity',null,{...input,consent:false}),/consent/);
  await assert.rejects(()=>writePresence(db,'user_identity',null,{...input,mode:'live'}),/assigned/);
  await assert.rejects(()=>writePresence(db,'user_identity','OFF-SYNTHETIC',{...input,mode:'live'}),/production assignment/);

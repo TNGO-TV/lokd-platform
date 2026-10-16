@@ -94,7 +94,7 @@ const worker = {
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const secured = secureRequest(request);
-    try { return secureResponse(await worker.handle(secured.request, env, ctx), secured.policy); }
+    try { return secureResponse(await worker.handle(secured.request, env, ctx), secured.policy, secured.request); }
     catch { return secureResponse(new Response("Service temporarily unavailable.", {status: 503, headers: {"content-type": "text/plain; charset=utf-8", "cache-control": "no-store"}}), secured.policy); }
   },
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {

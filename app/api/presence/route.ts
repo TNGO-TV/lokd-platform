@@ -13,5 +13,5 @@ export async function POST(request:Request){try{requireSameOriginJson(request);c
  const raw = await readRequestText(request, 1500);let body;try{body=JSON.parse(raw);}catch{throw new SignupError('Invalid request.');}if(!body||typeof body!=='object'||Array.isArray(body))throw new SignupError('Invalid request.');
  if(body.mode==='test'){const blocked=await blockedTestSurface(request);if(blocked)return blocked;}
  const db=body.mode==='test'?rehearsalEnv.DB:env.DB;if(!db)throw new SignupError('Storage unavailable.',503);
- const own=await db.prepare("SELECT source_id FROM signup_cases WHERE kind='officer' AND owner_user_id=? AND status!='withdrawn' LIMIT 1").bind(user).first();if(!own&&body.action!=='stop')throw new SignupError('Link your officer application before sharing presence.',403);
+ const own=await db.prepare("SELECT source_id FROM signup_cases WHERE kind='officer' AND owner_user_id=? AND status!='withdrawn' LIMIT 1").bind(user).first();if(!own&&body.action!=='stop'&&body.action!=='state')throw new SignupError('Link your officer application before sharing presence.',403);
  return reply(await writePresence(db,user,null,body));}catch(e){return fail(e);}}

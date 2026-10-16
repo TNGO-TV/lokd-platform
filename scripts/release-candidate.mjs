@@ -125,10 +125,10 @@ function validations() {
   const extras = readdirSync('test-results').filter((name) => /^dependency-boundary-.+\.json$/.test(name)).map((name) => `test-results/${name}`);
   const files = [...new Set([...validationFiles, ...extras])].sort().map(regularFile);
   const browser = json('test-results/offline-browser/results.json');
-  requireCondition(browser.stats?.expected === 8 && browser.stats.unexpected === 0
+  requireCondition(browser.stats?.expected === 14 && browser.stats.unexpected === 0
     && browser.stats.flaky === 0 && browser.stats.skipped === 0
     && Array.isArray(browser.errors) && browser.errors.length === 0,
-  'All eight isolated desktop/mobile browser checks must pass.');
+  'All fourteen isolated desktop/mobile browser checks must pass.');
   const audit = json('test-results/dependency-audit.json');
   requireCondition([0, 1].includes(audit.npmExit), 'Audit evidence needs a completed npm process.');
   requireCondition(audit.assessment?.ok === true && Array.isArray(audit.assessment.blocked) && audit.assessment.blocked.length === 0, 'Audit assessment must pass with no blocked advisories.');
@@ -164,7 +164,7 @@ try {
     const receipt = { version: 1, kind: 'validated-native-candidate', source: started.source,
       startedAt: started.startedAt, validatedAt: new Date().toISOString(), command: 'LOKD_NATIVE_CF=1 npm run check:security',
       node: process.version, config, validations: validations(), artifacts: artifacts(),
-      migrationRequirement: 'Apply migration 0082 before deploying the updated intake handler; do not roll back to the phone-deduplicating handler. Migration execution is a separate authorized operation.' };
+      migrationRequirement: 'Apply migrations through 0083 before deploying the updated intake and presence handlers; do not roll back to handlers without receipt protection and consent revocation. Migration execution is a separate authorized operation.' };
     writeFileSync(candidate, JSON.stringify(receipt, null, 2) + '\n');
     rmSync(pending, { force: true });
     // Reviewable CI summary: selected evidence fields only, never config/vars

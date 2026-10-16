@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LegalDefs, LegalDocument, LegalList, LEGAL_NOTICES_EMAIL, LEGAL_OPERATOR } from "../components/legal-document";
+import { LegalDefs, LegalDocument, LegalList, LEGAL_NOTICES_ADDRESS, LEGAL_OPERATOR } from "../components/legal-document";
 
 export const metadata: Metadata = {
   title: "Privacy Notice",
-  description: "How The Tactical Nation, Inc processes personal information for LOKD Security under POPIA, and how to contact us about your information.",
+  description: "How Lokd Security (Pty) Ltd processes personal information for LOKD Security under POPIA, and how to contact us about your information.",
   alternates: { canonical: "/privacy" },
 };
 
@@ -24,7 +24,7 @@ export default function PrivacyPage() {
           title: "Responsible party and contact",
           body: (
             <>
-              <p>{LEGAL_OPERATOR} — LOKD Security. The information officer and privacy contact is <a href={`mailto:${LEGAL_NOTICES_EMAIL}?subject=Privacy%20request`}>{LEGAL_NOTICES_EMAIL}</a>. Use “Privacy request” in the subject so the message can be routed.</p>
+              <p>{LEGAL_OPERATOR} — LOKD Security. For privacy matters, write to <span>{LEGAL_NOTICES_ADDRESS}</span>, marked “Privacy request”.</p>
               <p>When we process visitor or employee personal information on a Client Site solely on the Client’s documented instructions, for example certain CCTV or visitor-log arrangements, the Client may be the responsible party and we an operator. Those roles are clarified in the service schedule or in data-processing clauses where needed.</p>
             </>
           ),
@@ -32,7 +32,7 @@ export default function PrivacyPage() {
         {
           title: "Scope",
           body: (
-            <p>This notice covers website visitors, quote requesters, Clients, Client contacts, and, where applicable, Personnel administration related to LOKD engagements. Sister brands operated by {LEGAL_OPERATOR} have separate notices.</p>
+            <p>This notice covers website visitors, quote requesters, Clients, Client contacts, and, where applicable, Personnel administration related to LOKD engagements.</p>
           ),
         },
         {
@@ -89,7 +89,7 @@ export default function PrivacyPage() {
         {
           title: "International transfers",
           body: (
-            <p>Primary operations focus is South Africa. Some providers may process information in other countries, including the United States or other cloud regions. We use appropriate transfer mechanisms where POPIA requires them. This notice does not include a country-by-country transfer map. Contact <a href={`mailto:${LEGAL_NOTICES_EMAIL}`}>{LEGAL_NOTICES_EMAIL}</a> if you need the safeguards relevant to your information.</p>
+            <p>Primary operations focus is South Africa. Some providers may process information in other countries, including the United States or other cloud regions. We use appropriate transfer mechanisms where POPIA requires them. This notice does not include a country-by-country transfer map. Write to {LEGAL_OPERATOR} at <span>{LEGAL_NOTICES_ADDRESS}</span> if you need the safeguards relevant to your information.</p>
           ),
         },
         {
@@ -101,7 +101,7 @@ export default function PrivacyPage() {
         {
           title: "Security",
           body: (
-            <p>We use reasonable organisational and technical measures appropriate to security-industry data, including access control, need-to-know limits, and secure transmission where applicable. Report a security incident to <a href={`mailto:${LEGAL_NOTICES_EMAIL}`}>{LEGAL_NOTICES_EMAIL}</a>.</p>
+            <p>We use reasonable organisational and technical measures appropriate to security-industry data, including access control, need-to-know limits, and secure transmission where applicable. Report a security incident to {LEGAL_OPERATOR} at <span>{LEGAL_NOTICES_ADDRESS}</span>.</p>
           ),
         },
         {
@@ -109,7 +109,7 @@ export default function PrivacyPage() {
           body: (
             <>
               <p>Under POPIA you may request access, correction, or deletion, object to processing, ask for restriction, and withdraw consent where processing is based on consent. You may also complain to the <a href="https://inforegulator.org.za/contact-us/">Information Regulator</a>.</p>
-              <p>Email <a href={`mailto:${LEGAL_NOTICES_EMAIL}?subject=Privacy%20request`}>{LEGAL_NOTICES_EMAIL}</a> with enough detail for us to verify your identity. If your information was collected only as a Site visitor under a Client’s responsible-party role, we may direct you to the Client and assist as operator.</p>
+              <p>Write to {LEGAL_OPERATOR} at <span>{LEGAL_NOTICES_ADDRESS}</span> with enough detail for us to verify your identity. If your information was collected only as a Site visitor under a Client’s responsible-party role, we may direct you to the Client and assist as operator.</p>
             </>
           ),
         },
@@ -122,7 +122,7 @@ export default function PrivacyPage() {
         {
           title: "Direct marketing",
           body: (
-            <p>Business-contact marketing may occur under POPIA rules for electronic communications. You can opt out in the message or by emailing <a href={`mailto:${LEGAL_NOTICES_EMAIL}`}>{LEGAL_NOTICES_EMAIL}</a>.</p>
+            <p>Business-contact marketing may occur under POPIA rules for electronic communications. You can opt out in the message or by writing to {LEGAL_OPERATOR} at <span>{LEGAL_NOTICES_ADDRESS}</span>.</p>
           ),
         },
         {
@@ -130,7 +130,7 @@ export default function PrivacyPage() {
           body: (
             <>
               <p>We may update this notice by posting a new version with a new effective date. The date at the top of this page identifies the current notice.</p>
-              <p>Contact <a href={`mailto:${LEGAL_NOTICES_EMAIL}`}>{LEGAL_NOTICES_EMAIL}</a>. Related documents: <Link href="/terms">Terms of Use</Link> and <Link href="/terms-and-conditions">Terms and Conditions</Link>.</p>
+              <p>Write to {LEGAL_OPERATOR} at <span>{LEGAL_NOTICES_ADDRESS}</span>. Related documents: <Link href="/terms">Terms of Use</Link> and <Link href="/terms-and-conditions">Terms and Conditions</Link>.</p>
             </>
           ),
         },
