@@ -1,3 +1,4 @@
+import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {blockedTestSurface} from '../../lib/test-surface-runtime';
 import {readFinanceWorkspaces,readFinanceCapabilities,readFinanceReviewQueue,readFinanceOperationEvidence} from '../../lib/finance-workflow-discovery';
 import {readFinanceBody,financeSandboxDatabase} from '../../lib/finance-workflow-request';
@@ -21,6 +22,6 @@ export async function POST(request:Request){const blocked=await blockedTestSurfa
  else if(input.action==='dispatch'||input.action==='recover'){if(!runtime.FINANCE_SIMULATOR_KEY)throw new SignupError('Provider simulator is disabled.',423);const provider=new DeterministicFinanceProvider();if(input.scenario!==undefined){if(!['success','failed','reversed','pending','needs_attention','timeout'].includes(String(input.scenario)))throw new SignupError('Unknown simulator scenario.');provider.timeout=input.scenario==='timeout';provider.status=provider.timeout?'success':input.scenario as Evidence['status'];}result=await dispatchFinanceOperation(db,a,runtime,workspace,str(input,'operationId'),provider,input.action==='recover');}
  else if(input.action==='bank_evidence')result=await attestFinanceBank(db,a,runtime,workspace,str(input,'operationId'),str(input,'eventId'),input.evidence as unknown as Evidence);
  else result=await prepareFinanceCommand(db,a,runtime,workspace,object(input.command),str(input,'requestKey'),typeof input.policyVersion==='string'?input.policyVersion:undefined);
- return Response.json(result,{headers});
+ return Response.json({...result,commandReceipt:await workspaceCommandReceipt('finance-workflows',{workspace,...input})},{headers});
  }catch(e){return Response.json({error:e instanceof SignupError||e instanceof PilotAccessError?e.message:'Finance state changed or input is invalid. Refresh and review.'},{status:e instanceof SignupError||e instanceof PilotAccessError?e.status:409,headers});}}
 export const GET=POST;

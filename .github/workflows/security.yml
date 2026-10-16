@@ -25,7 +25,7 @@ jobs:
           node-version: '22.22.1'
           package-manager-cache: false
       - name: Match accepted npm toolchain
-        run: npm install --global npm@9.2.0
+        run: npm install --global npm@11.17.0
       - name: Install locked dependencies
         run: npm run install:ci
       - name: Install isolated browser runtime

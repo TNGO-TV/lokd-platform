@@ -1,3 +1,4 @@
+import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import {env} from 'cloudflare:workers';
 import {SignupError,writeSignup} from '../../lib/signup-server';
@@ -83,6 +84,6 @@ export async function POST(request:Request){
    case 'suspend_workforce': result=await rereview.suspendOfficerWorkforce(env.DB,a,body);break;
    default:throw new SignupError('Choose a supported action.');
   }
-  return reply(result);
+  return reply({...result,commandReceipt:await workspaceCommandReceipt('production-identity',body)});
  }catch(error){return fail(error);}
 }

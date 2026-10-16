@@ -164,7 +164,7 @@ try {
     const receipt = { version: 1, kind: 'validated-native-candidate', source: started.source,
       startedAt: started.startedAt, validatedAt: new Date().toISOString(), command: 'LOKD_NATIVE_CF=1 npm run check:security',
       node: process.version, config, validations: validations(), artifacts: artifacts(),
-      migrationRequirement: 'Apply migrations through 0083 before deploying the updated intake and presence handlers; do not roll back to handlers without receipt protection and consent revocation. Migration execution is a separate authorized operation.' };
+      migrationRequirement: 'Apply migrations through 0086 before deploying the updated intake and presence handlers; do not roll back to handlers without receipt protection and consent revocation. Migration execution is a separate authorized operation.' };
     writeFileSync(candidate, JSON.stringify(receipt, null, 2) + '\n');
     rmSync(pending, { force: true });
     // Reviewable CI summary: selected evidence fields only, never config/vars

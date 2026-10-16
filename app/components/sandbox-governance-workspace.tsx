@@ -1,4 +1,5 @@
 'use client';
+import {workspaceAutoContract} from '../lib/workspace-response-contracts';
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { Fields, parse } from './sandbox-finance-workspace';
 import type { SandboxField } from './sandbox-finance-actions';
@@ -62,7 +63,7 @@ function GovernanceForm({ definition, onDenied }: {
                 policyVersion: string;
                 productionWorkEligible: boolean;
                 data: Record<string, unknown>|null;
-            }>(await fetch('/api/sandbox/application', { method: 'POST', headers: { 'content-type': 'application/json' }, body: original.current! }));
+            }>(await fetch('/api/sandbox/application', { method: 'POST', headers: { 'content-type': 'application/json' }, body: original.current! }),workspaceAutoContract("sandbox-governance-workspace.tsx/3624c2079d4d"));
             if (result.mode !== 'sandbox' || result.policyVersion !== 'lokd-sandbox-completion-v1' || result.productionWorkEligible !== false)
                 throw Error('The guarded sandbox policy could not be verified.');
             if(!result.data){setFrozen(true);setError('The original command is pending. Recover its original receipt.');return;}

@@ -15,9 +15,9 @@ async function role(db:D1Database,actor:SigningActor){
  if(!actor.operations)return false;
  return !!await db.prepare("SELECT a.id FROM operator_accounts a JOIN operator_role_assignments g ON g.operator_id=a.id WHERE lower(a.email)=? AND a.environment='production' AND a.integrity_state='production_verified' AND a.status='active' AND g.environment='production' AND g.integrity_state='production_verified' AND g.status='active' AND g.role IN ('payroll_preparer','payroll_reviewer') LIMIT 1").bind(actor.email.toLowerCase()).first();
 }
-export async function readPaymentDestinations(db:D1Database,actor:SigningActor){
+export async function readPaymentDestinations(db:D1Database,actor:SigningActor,liveOnly=false){
  const allowed=await role(db,actor);if(!allowed)return {destinationAccess:false,destinationReviews:[],destinationCandidates:[]};
- return {destinationAccess:true,destinationReviews:(await db.prepare('SELECT * FROM payment_destination_current ORDER BY prepared_at DESC LIMIT 100').all()).results,destinationCandidates:(await db.prepare('SELECT profile_id,officer_id,source_json FROM payment_destination_sources ORDER BY officer_id LIMIT 500').all()).results};
+ return {destinationAccess:true,destinationReviews:(await db.prepare(`SELECT * FROM payment_destination_current ${liveOnly?"WHERE mode='live'":''} ORDER BY prepared_at DESC LIMIT 100`).all()).results,destinationCandidates:(await db.prepare('SELECT profile_id,officer_id,source_json FROM payment_destination_sources ORDER BY officer_id LIMIT 500').all()).results};
 }
 export async function operatePaymentDestination(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,runtime:DestinationRuntime={},transport:typeof fetch=fetch){
  const preparing=input.action==='prepare_destination',reviewing=['approve_destination','reject_destination','recheck_destination'].includes(String(input.action));

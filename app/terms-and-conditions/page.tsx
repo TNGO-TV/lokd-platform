@@ -214,7 +214,7 @@ export default function TermsAndConditionsPage() {
           ),
         },
         {
-          title: "Sister brands",
+          title: "Company identification",
           body: (
             <p>LOKD Security is operated by {LEGAL_OPERATOR}, at <span>{LEGAL_NOTICES_ADDRESS}</span>. Website use is also subject to the <Link href="/terms">Terms of Use</Link> and the <Link href="/privacy">Privacy Notice</Link>.</p>
           ),

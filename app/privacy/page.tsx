@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       kicker="Your information"
       title="Privacy notice."
       lede={`This Privacy Notice explains how ${LEGAL_OPERATOR} processes personal information for LOKD Security, in accordance with the Protection of Personal Information Act 4 of 2013 (POPIA) and other applicable law. It covers lokd.co.za and the related online services described below.`}
-      asideNote="Privacy requests can be sent to the email above. This notice is not legal advice."
+      asideNote="Privacy requests can be sent to the postal address above. This notice is not legal advice."
       links={[
         { href: "/terms", label: "Website terms of use" },
         { href: "/terms-and-conditions", label: "Service terms and conditions" },

@@ -72,7 +72,7 @@ test('concurrent anonymous submissions with shared/recycled phones preserve sepa
     const results=await Promise.all(Array.from({length:8},(_,i)=>submitOfficerApplication(intake(`person${i}@example.test`,`Applicant ${i}`),db)));
     const receipts=await Promise.all(results.map(async r=>{assert.equal(r.status,202);return r.json();}));
     assert.equal(new Set(receipts.map(r=>r.reference)).size,8);
-    for(const receipt of receipts)assert.deepEqual(Object.keys(receipt).sort(),['pathwayStatus','psiraVerificationRequired','reference']);
+    for(const receipt of receipts)assert.deepEqual(Object.keys(receipt).sort(),['pathwayStatus','psiraVerificationRequired','reference','saved']);
     assert.equal(database.prepare("SELECT count(*) AS n FROM officer_applications WHERE mobile_normalized='+27825550199'").get().n,8);
     assert.equal(database.prepare("SELECT count(*) AS n FROM audit_events WHERE event_type='officer_interest_submitted'").get().n,8);
     const actor={userId:'first-account',email:'person0@example.test',operations:false};
@@ -180,4 +180,33 @@ test("Operations identity failure and review actions never bypass assessment eli
   env.LOKD_APP_STAGE = "production";
   assert.equal((await act("demo_identity_manual_review")).status, 404);
   database.close();
+});
+
+test('keyed Officer retries recover one atomic receipt while separate submissions remain independent',async()=>{
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitOfficerApplication}=await import('../app/api/applications/route.ts');
+ const input=await intake('keyed@example.test').json(),requestKey=crypto.randomUUID();
+ const request=(body)=>new Request('https://lokd.co.za/api/applications',{method:'POST',headers:{origin:'https://lokd.co.za','content-type':'application/json'},body:JSON.stringify(body)});
+ try{
+  const receipts=await Promise.all(Array.from({length:5},async()=>{const response=await submitOfficerApplication(request({...input,requestKey}),db);assert.equal(response.status,202);return response.json();}));
+  assert.equal(new Set(receipts.map(r=>r.reference)).size,1);assert.ok(receipts.every(r=>r.saved===true));
+  assert.equal(database.prepare('SELECT count(*) n FROM officer_application_receipts').get().n,1);
+  assert.equal(database.prepare("SELECT count(*) n FROM audit_events WHERE event_type='officer_interest_submitted'").get().n,1);
+  const changed=await submitOfficerApplication(request({...input,requestKey,city:'Cape Town'}),db);assert.equal(changed.status,409);assert.equal('reference' in await changed.json(),false);
+  const separate=await submitOfficerApplication(request({...input,requestKey:crypto.randomUUID()}),db);assert.notEqual((await separate.json()).reference,receipts[0].reference);
+  const originalBatch=db.batch.bind(db);db.batch=async statements=>{await originalBatch(statements);throw Error('Synthetic acknowledgement lost after committed batch');};
+  const recovered=await submitOfficerApplication(request({...input,requestKey:crypto.randomUUID()}),db);assert.equal(recovered.status,202);assert.equal((await recovered.json()).saved,true);
+  for(const table of ['officer_application_receipts']){assert.throws(()=>database.exec('DELETE FROM '+table),/history_required/);assert.throws(()=>database.exec('UPDATE '+table+' SET payload_hash=payload_hash'),/immutable/);}
+ }finally{database.close();}
+});
+
+test('Officer receipt migration preserves existing applications, consent and immutable audit history',async()=>{
+ const database=new DatabaseSync(':memory:');
+ for(const file of fs.readdirSync(new URL('../drizzle',import.meta.url)).filter(name=>name.endsWith('.sql')&&!name.startsWith('0086_')).sort())database.exec(fs.readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8').replaceAll('--> statement-breakpoint',''));
+ const db=new D1Adapter(database),{submitOfficerApplication}=await import('../app/api/applications/route.ts');
+ try{
+  assert.equal((await submitOfficerApplication(intake('existing@example.test'),db)).status,202);
+  const snapshot=()=>JSON.stringify(['officer_applications','audit_events','signup_cases'].map(table=>database.prepare('SELECT * FROM '+table).all()));const before=snapshot();
+  database.exec(fs.readFileSync(new URL('../drizzle/0086_officer_application_receipts.sql',import.meta.url),'utf8').replaceAll('--> statement-breakpoint',''));
+  assert.equal(snapshot(),before);assert.equal(database.prepare('SELECT count(*) n FROM officer_application_receipts').get().n,0);
+ }finally{database.close();}
 });

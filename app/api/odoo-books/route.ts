@@ -1,3 +1,4 @@
+import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {env} from 'cloudflare:workers';
 import {SignupError} from '../../lib/signup-server';
 import {PilotAccessError,requirePilotApiRole,requireSameOriginJson} from '../../lib/pilot-runtime';
@@ -13,7 +14,7 @@ export async function GET(request:Request){try{owner(request);if(new URL(request
 export async function POST(request:Request){try{
  requireSameOriginJson(request);const actor=owner(request);if(!env.DB)throw new SignupError('Storage unavailable.',503);
  const input=JSON.parse(await readRequestText(request,2000));
- if(input?.action==='link_quote')return reply({result:await linkQuoteBooks(env.DB,env,actor,input),links:await readQuoteBooksLinks(env.DB)});
+ if(input?.action==='link_quote')return reply({result:await linkQuoteBooks(env.DB,env,actor,input),links:await readQuoteBooksLinks(env.DB),commandReceipt:await workspaceCommandReceipt('odoo-books',input)});
  if(!input||!['estimate','invoice'].includes(input.kind)||typeof input.orderId!=='string'||input.orderId.length>100||typeof input.documentId!=='string'||typeof input.customerId!=='string')throw new SignupError('Provide the order and existing Odoo document references.');
  const order=await env.DB.prepare("SELECT b.client_price_cents,b.vat_cents FROM production_order_setups p JOIN bookings b ON b.id=p.id WHERE p.id=? AND b.environment='production' AND b.integrity_state='production_verified'").bind(input.orderId).first<{client_price_cents:number;vat_cents:number}>();
  if(!order)throw new SignupError('Production service order not found.',404);

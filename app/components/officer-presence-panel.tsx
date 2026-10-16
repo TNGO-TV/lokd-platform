@@ -52,7 +52,7 @@ export default function OfficerPresencePanel(){
   consentRef.current=false;sharingRef.current=false;session.current=null;
   setConsent(false);setSharing(false);setBusy(true);setStopping(true);
   try{await presenceRequest({action:'stop',mode:'live'});setMessage('Public sharing stopped.');}
-  catch{setMessage('Stop could not be confirmed. Automatic refresh is off. Retry Stop; the last signal expires within three minutes.');}
+  catch{setMessage('Stop could not be confirmed. This page has stopped refreshing. Sharing may continue from another open page or session. Retry Stop to confirm public sharing has stopped.');}
   finally{stopLock.current=false;setBusy(false);setStopping(false);}
  }
  useEffect(()=>{if(!sharing)return;const timer=setInterval(()=>{if(document.visibilityState==='visible'&&sharingRef.current&&consentRef.current&&!stopLock.current)void update();},60000);return()=>clearInterval(timer);});

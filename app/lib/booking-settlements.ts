@@ -19,9 +19,9 @@ async function list(secret:string,path:string,transport:typeof fetch){
  }
  throw new SignupError('Settlement exceeds the review limit.',409);
 }
-export async function readBookingSettlements(db:D1Database,actor:SigningActor){
- const rows=await db.prepare(`SELECT s.id,s.reference,s.mode,s.settlement_id,s.payload_hash,s.prepared_at,s.expires_at,d.decision,d.note ${actor.operations?',s.payload_json,s.prepared_by':''} FROM booking_settlement_reviews s LEFT JOIN booking_settlement_decisions d ON d.review_id=s.id JOIN booking_collection_requests r ON r.reference=s.reference ${actor.operations?'':'WHERE r.applicant_id=?'} ORDER BY s.prepared_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId])).all();
- const recoveries=await db.prepare(`SELECT h.reference,h.source,h.event,h.created_at ${actor.operations?',h.detail':''} FROM booking_collection_recoveries h JOIN booking_collection_requests r ON r.reference=h.reference ${actor.operations?'':'WHERE r.applicant_id=?'} ORDER BY h.created_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId])).all();return {settlementReviews:rows.results,collectionRecoveries:recoveries.results};
+export async function readBookingSettlements(db:D1Database,actor:SigningActor,liveOnly=false){
+ const rows=await db.prepare(`SELECT s.id,s.reference,s.mode,s.settlement_id,s.payload_hash,s.prepared_at,s.expires_at,d.decision,d.note ${actor.operations?',s.payload_json,s.prepared_by':''} FROM booking_settlement_reviews s LEFT JOIN booking_settlement_decisions d ON d.review_id=s.id JOIN booking_collection_requests r ON r.reference=s.reference WHERE ${liveOnly?"r.mode='live'":"1=1"} ${actor.operations?'':'AND r.applicant_id=?'} ORDER BY s.prepared_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId])).all();
+ const recoveries=await db.prepare(`SELECT h.reference,h.source,h.event,h.created_at ${actor.operations?',h.detail':''} FROM booking_collection_recoveries h JOIN booking_collection_requests r ON r.reference=h.reference WHERE ${liveOnly?"r.mode='live'":"1=1"} ${actor.operations?'':'AND r.applicant_id=?'} ORDER BY h.created_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId])).all();return {settlementReviews:rows.results,collectionRecoveries:recoveries.results};
 }
 export async function operateBookingSettlement(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,runtime:CollectionRuntime={},transport:typeof fetch=fetch){
  if(!actor.operations)throw new SignupError('Operations access required.',403);

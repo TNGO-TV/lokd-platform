@@ -1,3 +1,4 @@
+import {workspaceCommandReceipt} from '../../app/lib/workspace-command-receipt';
 // Test-only preview data. This module is reachable only from the separate frontend fixture entry.
 const later=new Date(Date.now()+7*86400000).toISOString(),earlier=new Date(Date.now()-86400000).toISOString();
 export const readinessFixtures={
@@ -19,11 +20,11 @@ export function installPreviewData(){
   if(scenario==='unavailable')return Response.json({error:'Synthetic unavailable service; no request was sent.'},{status:503});
   if(post&&scenario==='conflict')return Response.json({error:'Synthetic version conflict. Draft retained.'},{status:409});
   if(url.pathname==='/api/production-identity'){
-   if(post){const body=JSON.parse(String(options?.body??'{}'));if(body.action==='prepare_passport')return Response.json({error:'Private delivery is not available.'},{status:423});if(body.action==='set_opt_in'){const opt=readinessFixtures.readiness.optins.find(o=>o.serviceType===body.serviceType);if(opt){opt.optedIn=body.optedIn?1:0;opt.revision++;}else readinessFixtures.readiness.optins.push({serviceType:body.serviceType,optedIn:body.optedIn?1:0,revision:1});}return Response.json({id:'SYNTHETIC-RECEIPT',workEligible:false,restoresApproval:false});}
+   if(post){const body=JSON.parse(String(options?.body??'{}'));if(body.action==='prepare_passport')return Response.json({error:'Private delivery is not available.'},{status:423});if(body.action==='set_opt_in'){const opt=readinessFixtures.readiness.optins.find(o=>o.serviceType===body.serviceType);if(opt){opt.optedIn=body.optedIn?1:0;opt.revision++;}else readinessFixtures.readiness.optins.push({serviceType:body.serviceType,optedIn:body.optedIn?1:0,revision:1});}return Response.json({id:'SYNTHETIC-RECEIPT',workEligible:false,restoresApproval:false,commandReceipt:await workspaceCommandReceipt('production-identity',body)});}
    return Response.json(readinessFixtures[url.searchParams.get('kind') as keyof typeof readinessFixtures]??{});
   }
-  if(url.pathname==='/api/signup'){const kind=url.searchParams.get('kind')??url.searchParams.get('scope')??'officer';const rec=records[kind]??records.officer;if(post){const body=JSON.parse(String(options?.body??'{}'));if(body.changes){rec.details={...rec.details,...body.changes};rec.status='submitted';rec.version++;}}return Response.json({records:[rec],email:'synthetic@example.test',hasMore:false});}
-  if(url.pathname==='/api/production-operations')return Response.json({...Object.fromEntries(serviceKeys.map(k=>[k,[]])),owner:false});
+  if(url.pathname==='/api/signup'){const kind=url.searchParams.get('kind')??url.searchParams.get('scope')??'officer';const rec=records[kind]??records.officer;if(post){const body=JSON.parse(String(options?.body??'{}'));if(body.changes){rec.details={...rec.details,...body.changes};rec.status='awaiting_review';rec.version++;}return Response.json({ok:true,commandReceipt:await workspaceCommandReceipt('signup',body)});}return Response.json({records:[rec],email:'synthetic@example.test',hasMore:false});}
+  if(url.pathname==='/api/production-operations')return Response.json({...Object.fromEntries(serviceKeys.map(k=>[k,[]])),owner:false,partnerPaymentAccess:false,partnerDestinationAccess:false,partnerPayableAccess:false,employeePaymentAccess:false,destinationAccess:false});
   if(url.pathname==='/api/agreements/production')return Response.json({documents:[],envelopes:[],entities:[],owner:false});
   if(url.pathname==='/api/payment-execution')return Response.json({liveDispatchEnabled:false,reserves:[],releases:[],reconciliations:[]});
   if(url.pathname==='/api/psira')return Response.json({cases:[]});

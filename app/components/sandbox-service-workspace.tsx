@@ -1,4 +1,6 @@
 'use client';
+import {matchesWorkspaceCommand} from '../lib/workspace-command-receipt';
+import {sandboxServiceResponse} from '../lib/workspace-response-contracts';
 import { useCallback, useRef, useState } from 'react';
 import ProductionScheduleControls, { type ScheduleState } from './production-schedule-controls';
 import ProductionServiceControls, { type ServiceState } from './production-service-controls';
@@ -8,6 +10,9 @@ import ProductionEvidenceControls, { type EvidenceState } from './production-evi
 import ClientReviewControls, { type ClientReviewState } from './client-review-controls';
 import RecordDetails from './record-details';
 import styles from './signup-portal.module.css';
+export type SandboxSchedule=ScheduleState;
+export type SandboxService=ServiceState;
+export type SandboxOrders=OrderState;
 type OperationalState = EvidenceState & ClientReviewState & {
     rosters: {
         id: string;
@@ -58,7 +63,8 @@ export default function SandboxServiceWorkspace({ kind, operations = false }: {
     const clear = useCallback(() => { generation.current++; setData({}); setEpoch(n => n + 1); setUncertain(false); setNotice(''); }, []);
     const call = useCallback(async <T,>(service: string, input: Record<string, unknown>): Promise<T> => {
         try {
-            const result = await readWorkspaceResponse<Envelope<T>>(await fetch('/api/sandbox/application', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ service, input }) }));
+            const result = await readWorkspaceResponse<Envelope<T>>(await fetch('/api/sandbox/application', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ service, input }) }),value=>sandboxServiceResponse(value,service));
+            if(!service.endsWith('_read')&&!await matchesWorkspaceCommand(result,'sandbox-application',{service,input}))throw Error('The isolated command is unconfirmed. Refresh its original record before retrying.');
             if (result.mode !== 'sandbox' || result.policyVersion !== 'lokd-sandbox-completion-v1' || result.productionWorkEligible !== false)
                 throw Error('The isolated sandbox boundary could not be verified.');
             return result.data;
@@ -91,7 +97,7 @@ export default function SandboxServiceWorkspace({ kind, operations = false }: {
         }
     }
     async function execute(service: string, input: Record<string, unknown>) {
-        if (lock.current || uncertain)
+        if (lock.current || uncertain || loading || !!error || !data.service)
             return false;
         lock.current = true;
         setBusy(true);

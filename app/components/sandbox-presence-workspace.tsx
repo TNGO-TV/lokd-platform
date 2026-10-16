@@ -1,4 +1,5 @@
 'use client';
+import {workspaceAutoContract} from '../lib/workspace-response-contracts';
 import { useEffect, useRef, useState } from 'react';
 import { readWorkspaceResponse, workspaceAccessDenied, workspaceFailure } from './workspace-request';
 import OfficerPresenceMap from './officer-presence-map';
@@ -27,7 +28,7 @@ export default function SandboxPresenceWorkspace() {
                 policyVersion: string;
                 productionWorkEligible: boolean;
                 data: Presence;
-            }>(await fetch('/api/sandbox/application', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ service: 'presence', input }) }));
+            }>(await fetch('/api/sandbox/application', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ service: 'presence', input }) }),workspaceAutoContract("sandbox-presence-workspace.tsx/35c77872fa55"));
             if (response.mode !== 'sandbox' || response.policyVersion !== 'lokd-sandbox-completion-v1' || response.productionWorkEligible !== false || response.data.mode !== mode)
                 throw Error('The isolated presence boundary could not be verified.');
             setResult(response.data);setMapRevision(n=>n+1);

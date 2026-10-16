@@ -3,10 +3,9 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {resolve} from 'node:path';
 
-const bracesAdvisory='https://github.com/advisories/GHSA-vfj7-8cjw-p6xm';
 const actionable=new Set(['moderate','high','critical']);
 const severities=['info','low','moderate','high','critical'];
-export function assessAudit(report,lock,now=Date.now()) {
+export function assessAudit(report) {
  if(report?.auditReportVersion!==2||report.error||!report.metadata?.vulnerabilities||!report.vulnerabilities||typeof report.vulnerabilities!=='object')throw Error('Missing or invalid npm audit evidence');
  const findings=Object.values(report.vulnerabilities),blocked=[],dispositions=[];
  const reported=report.metadata.vulnerabilities;
@@ -41,15 +40,7 @@ export function assessAudit(report,lock,now=Date.now()) {
    if(!via?.url||!severities.includes(via.severity))throw Error('Invalid advisory record');
    roots.add(via.url);
    if(!actionable.has(via.severity))continue;
-   // This single unpatched development-only pattern parser is not shipped.
-   // Exact package/version/path and review expiry prevent a blanket suppression.
-   const notApplicable=via.url===bracesAdvisory&&finding.name==='braces'&&via.name==='braces'
-    &&finding.nodes.length===1&&finding.nodes[0]==='node_modules/braces'
-    &&lock.packages?.['node_modules/braces']?.version==='3.0.3'
-    &&lock.packages['node_modules/braces'].dev===true
-    &&now<Date.parse('2026-11-16T00:00:00Z');
-   if(notApplicable)dispositions.push({advisory:via.url,package:'braces@3.0.3',disposition:'not-applicable-to-deployed-runtime',evidence:'docs/dependency-security.md; build/dependency-boundary.ts',reviewBy:'2026-11-16'});
-   else blocked.push({package:finding.name,advisory:via.url,severity:via.severity});
+   blocked.push({package:finding.name,advisory:via.url,severity:via.severity});
   }
  }
  if(findings.length&&!roots.size)throw Error('Missing advisory roots');
@@ -61,8 +52,8 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   if(!process.env.npm_execpath)throw Error('Run through npm run check:security so the accepted npm executable is explicit');
   const result=spawnSync(process.execPath,[process.env.npm_execpath,'audit','--json','--audit=true','--package-lock-only','--audit-level=moderate'],{encoding:'utf8',timeout:120000,maxBuffer:10_000_000});
   if(result.error||![0,1].includes(result.status))throw Error('npm audit did not produce a valid completed result');
-  const report=JSON.parse(result.stdout),lock=JSON.parse(fs.readFileSync('package-lock.json','utf8'));
-  const assessed=assessAudit(report,lock);
+  const report=JSON.parse(result.stdout);
+  const assessed=assessAudit(report);
   fs.mkdirSync('test-results',{recursive:true});
   fs.writeFileSync('test-results/dependency-audit.json',JSON.stringify({npmExit:result.status,report,assessment:assessed},null,2)+'\n');
   console.log(JSON.stringify(assessed));

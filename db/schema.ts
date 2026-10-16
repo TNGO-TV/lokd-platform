@@ -3225,3 +3225,11 @@ export const providerAcceptanceTests=sqliteTable('provider_acceptance_tests',{
  state:text('state').notNull(),checkoutUrl:text('checkout_url'),providerId:text('provider_id'),providerStatus:text('provider_status'),webhookHash:text('webhook_hash'),
  revision:integer('revision').notNull().default(1),note:text('note').notNull(),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
 },t=>[uniqueIndex('provider_acceptance_owner_scenario_idx').on(t.ownerUserId,t.version,t.scenario),check('provider_acceptance_test_amount',sql`${t.amountMinor}=100 AND ${t.currency}='ZAR'`),check('provider_acceptance_scenario',sql`${t.scenario} IN ('success','decline','cancel')`)]);
+
+
+export const clientEnquiryReceipts = sqliteTable("client_enquiry_receipts", {
+  requestKeyHash: text("request_key_hash").primaryKey(),
+  payloadHash: text("payload_hash").notNull(),
+  enquiryId: text("enquiry_id").notNull().unique().references(() => clientEnquiries.id),
+  createdAt: text("created_at").notNull(),
+});

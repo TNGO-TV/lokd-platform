@@ -14,7 +14,7 @@ export default function TermsPage() {
       kicker="Using our website"
       title="Terms of use."
       lede={`These Terms of Use govern access to the LOKD Security website, quote-request forms, client and operations informational pages, and related online portals operated by ${LEGAL_OPERATOR} (“Company,” “we,” “us,” or “our”). Guarding, inspections, and other security services are governed by the Terms and Conditions. If there is a conflict about performed services, the Terms and Conditions control.`}
-      asideNote="Questions about website use can be sent to the email above. These terms are not legal advice."
+      asideNote="Questions about website use can be sent to the postal address above. These terms are not legal advice."
       links={[
         { href: "/terms-and-conditions", label: "Service terms and conditions" },
         { href: "/privacy", label: "Privacy notice" },
@@ -141,7 +141,7 @@ export default function TermsPage() {
           ),
         },
         {
-          title: "Sister brands",
+          title: "Company identification",
           body: (
             <p>The Platform is operated by {LEGAL_OPERATOR}, at <span>{LEGAL_NOTICES_ADDRESS}</span>.</p>
           ),

@@ -9,10 +9,12 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import * as signup from '../app/lib/signup-types.ts';
 import * as psira from '../app/lib/psira-pathway.ts';
 import {testSurfacesEnabled} from '../app/lib/test-surface-policy.ts';
+import * as contracts from '../app/lib/workspace-response-contracts.ts';
+import * as receipts from '../app/lib/workspace-command-receipt.ts';
 import * as publicSite from '../app/lib/public-site.ts';
 
-const link=({children,prefetch: _prefetch,...props})=>React.createElement('a',props,children);
-const image=({unoptimized: _unoptimized,...props})=>React.createElement('img',props);
+const link=({children,...props})=>{delete props.prefetch;return React.createElement('a',props,children);};
+const image=props=>{const attributes={...props};delete attributes.unoptimized;return React.createElement('img',attributes);};
 function load(name,modules,extra='') {
  const source=fs.readFileSync(new URL('../app/components/'+name,import.meta.url),'utf8')+extra;
  const code=ts.transpileModule(source,{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
@@ -24,11 +26,35 @@ function load(name,modules,extra='') {
  return exports;
 }
 const modules={react:React,'react/jsx-runtime':jsx,'next/link':{default:link},'next/image':{default:image},'next/navigation':{usePathname:()=>'/officer',useSearchParams:()=>new URLSearchParams()},'../lib/signup-types':signup,'../lib/psira-pathway':psira};
+modules['../lib/workspace-response-contracts']=contracts;modules['../lib/workspace-command-receipt']=receipts;modules['./workspace-request']=load('workspace-request.tsx',modules);
 modules['./test-surface-context']=load('test-surface-context.tsx',modules);
 modules['./test-agreement-panel']={default:()=>React.createElement('div',{'data-rehearsal-agreement':'true'},'Test agreement fixture')};
 modules['./officer-presence-panel']=load('officer-presence-panel.tsx',modules);
 const Shell=load('workspace-shell.tsx',modules).default;
 const Card=load('signup-portal.tsx',modules,'\nexport {RecordCard};').RecordCard;
+
+test('production finance screens retain live controls while hiding mixed test records before parsing their payloads',()=>{
+ const financeModules={...modules,'./payment-recovery-controls':{default:()=>null},'./action-confirmation':{default:({label})=>React.createElement('button',null,label)}};
+ const snapshot={officerId:'live-officer',employerId:'live-employer',employerName:'Live company',recipient:{last4:'1234',bankName:'Fixture bank'}};
+ const payment={reference:'live-payment',mode:'live',source_json:JSON.stringify(snapshot),amount_cents:100,status:'prepared',providerState:'not_sent',current:true};
+ const collection={reference:'live-collection',order_id:'live-order',mode:'live',amount_minor:100,currency:'ZAR',state:'prepared',current:true};
+ const review={id:'live-destination',officer_id:'live-officer',employer_id:'live-employer',mode:'live',status:'pending',payload_json:JSON.stringify({sourceJson:JSON.stringify(snapshot),provider:snapshot.recipient})};
+ const testRow={id:'hidden-test',reference:'hidden-test',officer_id:'hidden-test',employer_id:'hidden-test',order_id:'hidden-test',mode:'test',payload_json:'invalid JSON',source_json:'invalid JSON'};
+ const cases=[
+  ['employee-payment-controls.tsx',{employeePaymentAccess:true,employeePaymentCandidates:[testRow,{...payment,payroll_item_id:'live-item',destination_id:'live-destination'}],employeePayments:[testRow,payment]},/Approve payment instruction/],
+  ['partner-payment-controls.tsx',{partnerPaymentAccess:true,partnerPaymentCandidates:[testRow,{...payment,payable_id:'live-payable',destination_id:'live-destination'}],partnerPayments:[testRow,payment]},/Approve payment instruction/],
+  ['payment-destination-controls.tsx',{destinationAccess:true,destinationCandidates:[],destinationReviews:[testRow,review]},/Verify live destination/],
+  ['partner-destination-controls.tsx',{partnerDestinationAccess:true,partnerDestinationCandidates:[],partnerDestinationReviews:[testRow,review]},/Verify live destination/],
+  ['booking-collection-controls.tsx',{collections:[testRow,collection]},/Independently approve collection/],
+  ['booking-settlement-controls.tsx',{collections:[testRow,collection],collectionRecoveries:[],settlementReviews:[testRow,{id:'live-settlement',reference:'live-collection',mode:'live',settlement_id:'live-settlement',decision:null,payload_json:'{}'}]},/Confirm cleared settlement/],
+ ];
+ for(const [file,data,action] of cases){
+  const Component=load(file,financeModules).default;
+  const html=renderToStaticMarkup(React.createElement(Component,{data,operations:true,busy:false,send:async()=>true}));
+  assert.doesNotMatch(html,/hidden-test|dispatch_employee_test|dispatch_partner_test|verify_employee_test|verify_partner_test|value="test"/);
+  assert.match(html,action,file);
+ }
+});
 
 test('rendered production workspaces and populated intake cards expose real actions without rehearsal controls',()=>{
  for(const role of ['client','officer','operations'])for(const kind of role==='operations'?['client','officer']:[role]){
@@ -57,7 +83,7 @@ test('public legal, contact, footer and organisation metadata use the approved c
   const loaded=load('../'+page+'/page.tsx',legalModules);
   const html=renderToStaticMarkup(React.createElement(loaded.default));
   assert.match(html,/Lokd Security \(Pty\) Ltd/);assert.match(html,/71 Louis Trichardt Street, Pretoria, 0002/);
-  assert.doesNotMatch(html+JSON.stringify(loaded.metadata),/Tactical Nation|tacticalnation|Custom Nation|Tervory|Shot Bonus|Parktown Estates/);
+  assert.doesNotMatch(html+JSON.stringify(loaded.metadata),/Tactical Nation|tacticalnation|Custom Nation|Tervory|Shot Bonus|Sister brands|Parktown Estates/);
   assert.doesNotMatch(html,/mailto:71 Louis/);
  }
  const jsonLd=load('seo-json-ld.tsx',legalModules);

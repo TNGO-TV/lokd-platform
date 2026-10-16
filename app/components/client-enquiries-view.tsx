@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {readWorkspaceResponse,workspaceAccessDenied,workspaceFailure} from './workspace-request';
+import {clientEnquiriesResponse} from '../lib/workspace-response-contracts';
+import {matchesWorkspaceCommand} from '../lib/workspace-command-receipt';
 
-type ClientEnquiry = {
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+export type ClientEnquiry = {
   id: string;
   organisationName: string;
   contactName: string;
@@ -20,6 +24,8 @@ type ClientEnquiry = {
   updatedAt: string;
   version: number;
 };
+
+export type EnquiriesResponse={enquiries:ClientEnquiry[]};
 
 const siteTypeLabels: Record<string, string> = {
   commercial_property: "Commercial property",
@@ -69,34 +75,23 @@ export default function ClientEnquiriesView({ flash }: { flash: (message: string
   const [closingId, setClosingId] = useState<string | null>(null);
   const [resolution, setResolution] = useState("");
 
+  const generation=useRef(0),locked=useRef(false);
   const load = useCallback(async () => {
+    const current=++generation.current;
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/enquiries", { cache: "no-store" });
-      const payload = await response.json() as { enquiries?: ClientEnquiry[]; error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "The enquiry queue could not be loaded.");
-      setEnquiries(payload.enquiries ?? []);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The enquiry queue could not be loaded.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void fetch("/api/enquiries", { cache: "no-store" })
-      .then(async (response) => {
-        const payload = await response.json() as { enquiries?: ClientEnquiry[]; error?: string };
-        if (!response.ok) throw new Error(payload.error ?? "The enquiry queue could not be loaded.");
-        return payload.enquiries ?? [];
-      })
-      .then((items) => { if (active) setEnquiries(items); })
-      .catch((cause: unknown) => { if (active) setError(cause instanceof Error ? cause.message : "The enquiry queue could not be loaded."); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, []);
+      const response=await fetch("/api/enquiries",{cache:"no-store"});
+      const payload=await readWorkspaceResponse<EnquiriesResponse>(response,clientEnquiriesResponse);
+      if(current===generation.current)setEnquiries(payload.enquiries);
+    } catch(cause) {
+      if(current===generation.current){
+        if(workspaceAccessDenied(cause)){setEnquiries([]);setClosingId(null);setResolution("");}
+        setError(workspaceFailure(cause,"The enquiry queue could not be loaded."));
+      }
+    } finally {if(current===generation.current)setLoading(false);}
+  },[]);
+  useEffect(()=>{const requests=generation;const timer=setTimeout(()=>void load(),0);return()=>{clearTimeout(timer);requests.current++;};},[load]);
 
   const visible = useMemo(() => enquiries.filter((item) => {
     if (filter === "open") return item.status !== "closed";
@@ -110,23 +105,27 @@ export default function ClientEnquiriesView({ flash }: { flash: (message: string
   }), [enquiries]);
 
   async function update(item: ClientEnquiry, action: "triage" | "close") {
+    if(locked.current||loading||error)return;
+    locked.current=true;
     setBusyId(item.id);
     setError("");
     try {
+      const command={id:item.id,action,version:item.version,...(action==="close"?{resolution}:{})};
       const response = await fetch("/api/enquiries", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: item.id, action, version: item.version, resolution: action === "close" ? resolution : undefined }),
+        body: JSON.stringify(command),
       });
-      const payload = await response.json() as { ok?: boolean; error?: string };
-      if (!response.ok || !payload.ok) throw new Error(payload.error ?? "The enquiry could not be updated.");
+      await readWorkspaceResponse(response,async value=>value!==null&&typeof value==='object'&&'ok' in value&&value.ok===true&&await matchesWorkspaceCommand(value,'client-enquiries',command));
       setClosingId(null);
       setResolution("");
       await load();
       flash(action === "triage" ? `${item.id} is owned by this Operations account.` : `${item.id} was closed with an audit record.`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The enquiry could not be updated.");
+      if(workspaceAccessDenied(cause)){setEnquiries([]);setClosingId(null);setResolution("");}
+      setError(workspaceFailure(cause,"The enquiry could not be updated."));
     } finally {
+      locked.current=false;
       setBusyId(null);
     }
   }
@@ -134,7 +133,7 @@ export default function ClientEnquiriesView({ flash }: { flash: (message: string
   return <>
     <section className="command-heading enquiry-queue-heading">
       <div><p className="eyebrow">Authenticated Operations intake</p><h1>Client enquiries</h1><p>Public site briefs only. No enquiry creates a quotation, booking, credit facility, officer offer or deployment.</p></div>
-      <button className="secondary-button" disabled={loading} onClick={() => void load()}>↻ Refresh queue</button>
+      <button className="secondary-button" disabled={loading||busyId!==null} onClick={() => void load()}>↻ Refresh queue</button>
     </section>
 
     <section className="enquiry-queue-summary" aria-label="Client enquiry summary">
@@ -156,10 +155,10 @@ export default function ClientEnquiriesView({ flash }: { flash: (message: string
             {item.ownerId && <p className="enquiry-owner">Owner: <strong>{item.ownerId}</strong></p>}
             {item.resolution && <p className="enquiry-resolution"><strong>Resolution</strong>{item.resolution}</p>}
             {item.status !== "closed" && <footer>
-              {item.status === "new" && <button disabled={busyId === item.id} onClick={() => void update(item, "triage")}>Take ownership</button>}
-              <button className="secondary" disabled={busyId === item.id} onClick={() => { setClosingId(closingId === item.id ? null : item.id); setResolution(""); }}>Close with outcome</button>
+              {item.status === "new" && <button disabled={loading||Boolean(error)||busyId!==null} onClick={() => void update(item, "triage")}>Take ownership</button>}
+              <button className="secondary" disabled={loading||Boolean(error)||busyId!==null} onClick={() => { setClosingId(closingId === item.id ? null : item.id); setResolution(""); }}>Close with outcome</button>
             </footer>}
-            {closingId === item.id && <div className="enquiry-close-panel"><label><span>Resolution note</span><textarea value={resolution} minLength={3} maxLength={600} onChange={(event) => setResolution(event.target.value)} placeholder="Record the outcome, next route, or reason the request is out of scope." /></label><div><button onClick={() => { setClosingId(null); setResolution(""); }}>Cancel</button><button disabled={resolution.trim().length < 3 || busyId === item.id} onClick={() => void update(item, "close")}>{busyId === item.id ? "Saving…" : "Record and close"}</button></div></div>}
+            {closingId === item.id && <div className="enquiry-close-panel"><label><span>Resolution note</span><textarea value={resolution} disabled={loading||Boolean(error)||busyId!==null} minLength={3} maxLength={600} onChange={(event) => setResolution(event.target.value)} placeholder="Record the outcome, next route, or reason the request is out of scope." /></label><div><button onClick={() => { setClosingId(null); setResolution(""); }}>Cancel</button><button disabled={resolution.trim().length < 3||loading||Boolean(error)||busyId!==null} onClick={() => void update(item, "close")}>{busyId === item.id ? "Saving…" : "Record and close"}</button></div></div>}
           </article>)}</div>}
     </section>
   </>;

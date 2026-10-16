@@ -49,7 +49,7 @@ test('candidate records exact source, lock, native assets and validation evidenc
   const receipt = JSON.parse(readFileSync(path.join(f.root, '.sites-runtime/release/candidate.json')));
   assert.match(receipt.source.commit, /^[a-f0-9]{40}$/); assert.match(receipt.source.tree, /^[a-f0-9]{40}$/);
   assert.equal(receipt.artifacts.length, 3); assert.equal(receipt.validations.length, 4);
-  assert.equal(f.run('verify').status, 0); assert.match(receipt.migrationRequirement, /through 0083 before deploying/);
+  assert.equal(f.run('verify').status, 0); assert.match(receipt.migrationRequirement, /through 0086 before deploying/);
 });
 
 test('CI summary exposes only validated boundary fields, source commit, config key names and artifact count', (t) => {

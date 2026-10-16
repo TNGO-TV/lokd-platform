@@ -1,3 +1,4 @@
+import {workspaceCommandReceipt} from '../../../lib/workspace-command-receipt';
 import {blockedTestSurface} from '../../../lib/test-surface-runtime';
 import {executeSandboxCommand} from '../../../lib/sandbox-command';
 import {readSandboxPassport} from '../../../lib/sandbox-discovery';
@@ -28,5 +29,5 @@ try{
  }else if(body.service==='training'&&body.input.action==='import_finance'){const command=await executeSandboxCommand(runtime,actor,'import_finance',body.requestKey,body.input,r=>executeSandboxApplication(r,actor,body.service,body.input,request.headers));if(command.status==='failed')throw new SignupError('Original request was rejected before any source write. Review corrected details using a new request.',command.failure.status);if(!command.recorded)return reply({mode:'sandbox',policyVersion:policy.version,policyHash,productionWorkEligible:false,productionIdentityVerified:false,requestKey:body.requestKey,commandStatus:command.status,data:null},202);data=command.result;}
  else if(body.service==='passport_read')data=await readSandboxPassport(runtime,actor,body.input);
  else data=await executeSandboxApplication(runtime,actor,body.service,body.input,request.headers);
- return reply({requestKey:body.requestKey,commandStatus:body.requestKey?'completed':undefined,mode:'sandbox',policyVersion:policy.version,policyHash,productionWorkEligible:false,data});
+ return reply({commandReceipt:await workspaceCommandReceipt('sandbox-application',body),requestKey:body.requestKey,commandStatus:body.requestKey?'completed':undefined,mode:'sandbox',policyVersion:policy.version,policyHash,productionWorkEligible:false,data});
  }catch(e){return e instanceof SignupError||e instanceof PilotAccessError?reply({error:e.message},e.status):reply({error:'Sandbox sources or authority changed. Refresh.'},409);}}

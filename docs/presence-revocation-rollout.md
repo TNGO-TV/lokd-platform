@@ -8,4 +8,4 @@ Do not roll back to a handler that writes presence without consent revisions. Th
 
 The Officer document permits same-origin geolocation. Other documents, API responses and attachments retain the deny policy. Browser permission is still required. The isolated browser suite uses the real component and handler with an in-memory database, a synthetic account and Playwright-provided coordinates; it neither authenticates a real account nor obtains the user's location.
 
-When Stop cannot be confirmed, the UI disables automatic refresh and asks the officer to retry. A previously saved signal can remain until its existing three-minute expiry. Only a verified stop receipt displays confirmation.
+When Stop cannot be confirmed, the UI disables refresh on this page and asks the officer to retry. Another open page or session may continue refreshing an unrevoked session, so no disappearance deadline is promised. Only a verified stop receipt displays confirmation.

@@ -1,4 +1,5 @@
 import vinext from "vinext";
+import {rscSourceMaps} from "./build/rsc-source-maps.ts";
 import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json" with { type: "json" };
 import { sites } from "./build/sites-vite-plugin.ts";
@@ -70,6 +71,7 @@ export default defineConfig(async ({command}) => {
     },
     plugins: [
       vinext(),
+      rscSourceMaps(),
       sites(),
       dependencyBoundary(),
       cloudflare({

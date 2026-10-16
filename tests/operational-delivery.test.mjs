@@ -51,7 +51,7 @@ function publicRequest(body) {
   });
 }
 
-const input={organisationName:'Fictional Delivery Client',contactName:'Synthetic Signer',email:'signer@example.test',siteArea:'Sandton',siteType:'commercial_property',requiredStart:'planning',message:'Synthetic isolated delivery test with no provider connection.',advanceFundingAcknowledged:true,privacyConsent:true};
+const input={requestKey:'9e2f2d2d-45c5-4ac8-bfa1-791156cbaf6e',organisationName:'Fictional Delivery Client',contactName:'Synthetic Signer',email:'signer@example.test',siteArea:'Sandton',siteType:'commercial_property',requiredStart:'planning',message:'Synthetic isolated delivery test with no provider connection.',advanceFundingAcknowledged:true,privacyConsent:true};
 async function fixture(){const database=migratedDatabase(),db=new D1Adapter(database);const {submitClientEnquiry}=await import('../app/api/enquiries/route.ts');const response=await submitClientEnquiry(publicRequest(input),db);assert.equal(response.status,202);return {database,db,id:(await response.json()).reference};}
 const reply=value=>Response.json(value);
 const RELAY='https://mail-relay.example.test/smtp';

@@ -51,7 +51,7 @@ test('Stop disables an existing refresh timer immediately and synchronously reje
 test('failed and malformed Stop receipts never claim revocation and never restart automatic refresh',async()=>{
  for(const body of [{},{sharing:true,mode:'live'},{sharing:false,mode:'test'}]){
   const ui=setup({stopResponse:async()=>Response.json(body)});ui.consent();share(ui);await flush();ui.startTimer();stop(ui);await flush();
-  assert.match(ui.message(),/Stop could not be confirmed/);assert.match(ui.message(),/Retry Stop/);ui.tick();assert.equal(ui.calls.filter(call=>call.action==='share').length,1);assert.equal(ui.checkbox().checked,false);
+  assert.match(ui.message(),/Stop could not be confirmed/);assert.match(ui.message(),/Retry Stop/);assert.match(ui.message(),/another open page or session/);assert.doesNotMatch(ui.message(),/within three minutes|Automatic refresh is off/);ui.tick();assert.equal(ui.calls.filter(call=>call.action==='share').length,1);assert.equal(ui.checkbox().checked,false);
  }
  const ui=setup({stopResponse:async()=>{throw Error('network interrupted');}});stop(ui);await flush();assert.match(ui.message(),/Stop could not be confirmed/);
 });

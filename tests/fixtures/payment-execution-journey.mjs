@@ -3,7 +3,7 @@ import {operatePaymentExecution as execute,receiveLiveTransferWebhook} from '../
 import {operatePaymentRecovery as recover} from '../../app/lib/payment-recovery.ts';
 import {operateEmployeePayment} from '../../app/lib/employee-payments.ts';
 import {operatePartnerPayment} from '../../app/lib/partner-payments.ts';
-export async function paymentExecutionJourney({kind,database,db,maker,owner,finance,officer,headers,runtime,reference,recipient,input}){
+export async function paymentExecutionJourney({kind,database,db,maker,owner,finance,officer,headers,runtime,reference,recipient,input,addTestDestination}){
  const operate=kind==='employee'?operateEmployeePayment:operatePartnerPayment;
  const current=()=>database.prepare(`SELECT * FROM ${kind}_payment_instructions WHERE reference=?`).get(reference),original={...current()};
  let posts=0,status='success',timeout=false;
@@ -70,8 +70,14 @@ export async function paymentExecutionJourney({kind,database,db,maker,owner,fina
   assert.equal(financial().financial_state,'paid');assert.equal(financial().paid_receipts,1);
   const {operateProduction}=await import('../../app/lib/production-operations.ts');
   await operateProduction(db,owner,{action:'grant_operator',email:maker.email,role:'payroll_preparer',limitCents:25000000},headers);
+  const {readProductionOperations}=await import('../../app/lib/production-operations.ts');
+  const {productionOperationsResponse,matchesWorkspaceContract}=await import('../../app/lib/workspace-response-contracts.ts');
+  const {workspaceContracts}=await import('../../app/lib/workspace-contracts-generated.ts');
+  const workspace=await readProductionOperations(db,finance);
+  const mismatches=Object.entries(workspaceContracts.operations.fields).filter(([key,field])=>!(field.optional&&workspace[key]===undefined)&&!matchesWorkspaceContract(workspace[key],field.schema)).map(([key])=>key);
+  assert.equal(productionOperationsResponse(workspace),true,'populated finance workspace contract; structural mismatches: '+mismatches.join(','));
   const {financeDocumentJourney}=await import('./finance-document-journey.mjs');
-  const document=await financeDocumentJourney({db,database,maker,finance,recipient:kind==='employee'?officer:{userId:'partner-representative-user',email:'partner@example.test',operations:false},kind:documentKind,sourceId:documentSource,headers});
+  const document=await financeDocumentJourney({db,database,maker,finance,recipient:kind==='employee'?officer:{userId:'partner-representative-user',email:'partner@example.test',operations:false},kind:documentKind,sourceId:documentSource,headers,addTestDestination});
   assert.equal((await document.read()).documents[0].asIssuedState,'paid');
   await call('verify_live_payment');assert.equal(financial().financial_state,'paid','fresh identical evidence preserves historical receipt');
   const {prepareFinanceDocument,decideFinanceDocument}=await import('../../app/lib/finance-documents.ts');

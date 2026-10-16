@@ -1,3 +1,5 @@
+import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
+import {requireLiveRefundReference} from '../../lib/production-finance-boundary';
 import {readFinanceText} from '../../lib/finance-body';
 import {env} from 'cloudflare:workers';
 import {SignupError} from '../../lib/signup-server';
@@ -25,12 +27,13 @@ export async function POST(request:Request){
    if(query.has('caseId'))page.caseId=query.get('caseId')!;
    if(query.has('cursor'))page.cursor=query.get('cursor')!;
    page.cursors={};for(const name of refundPageDatasets)if(query.has(name+'Cursor'))page.cursors[name]=query.get(name+'Cursor')!;
-   return reply(await readBookingRefunds(env.DB,{userId,email,operations:true,owner:principal.owner},request.headers,env as RefundRuntime,page));
+   return reply(await readBookingRefunds(env.DB,{userId,email,operations:true,owner:principal.owner},request.headers,env as RefundRuntime,page,true));
   }
   const raw=await readFinanceText(request,6000);
   let input;try{input=JSON.parse(raw);}catch{throw new SignupError('Invalid request.');}
   if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a recovery action.');
-  return reply(await operateBookingRefund(env.DB,{userId,email,operations:true,owner:principal.owner},input,request.headers,env as RefundRuntime));
+  await requireLiveRefundReference(env.DB,input.reference);
+  return reply({...await operateBookingRefund(env.DB,{userId,email,operations:true,owner:principal.owner},input,request.headers,env as RefundRuntime),commandReceipt:await workspaceCommandReceipt('booking-refunds',input)});
  }catch(e){return e instanceof SignupError||e instanceof PilotAccessError?reply({error:e.message},e.status):reply({error:'Refund evidence or authority changed. Keep the original reference held and refresh.'},409);}
 }
 

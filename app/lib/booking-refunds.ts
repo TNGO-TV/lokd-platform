@@ -24,14 +24,14 @@ export const refundPageDatasets=['sources','cases','receipts','observations','st
 type RefundDataset=typeof refundPageDatasets[number];
 export type RefundPageOptions={pageSize?:number;dataset?:RefundDataset;cursor?:string;reference?:string;caseId?:string; cursors?:Partial<Record<RefundDataset,string>>};
 const pageCursor=(value:unknown)=>btoa(encodeURIComponent(JSON.stringify(value))).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
-export async function readBookingRefunds(db:D1Database,a:SigningActor,h:Headers,runtime:RefundRuntime={},options:RefundPageOptions={}){
+export async function readBookingRefunds(db:D1Database,a:SigningActor,h:Headers,runtime:RefundRuntime={},options:RefundPageOptions={},liveOnly=false){
  const account=await productionOperatorControl(db,a,h,'funding.verify',0),size=options.pageSize??50;
  if(!Number.isSafeInteger(size)||size<1||size>100||options.dataset!==undefined&&!refundPageDatasets.includes(options.dataset)||options.cursor!==undefined&&!options.dataset)throw new SignupError('Choose a valid refund page.',400);
  if(options.reference!==undefined&&(typeof options.reference!=='string'||!options.reference||options.reference.length>200))throw new SignupError('Choose a valid collection reference.',400);
  if(options.caseId!==undefined&&(typeof options.caseId!=='string'||!options.caseId||options.caseId.length>200))throw new SignupError('Choose a valid refund case.',400);
  if(options.dataset&&Object.keys(options.cursors??{}).some(key=>key!==options.dataset)||options.cursor!==undefined&&options.dataset&&options.cursors?.[options.dataset]!==undefined)throw new SignupError('Choose one cursor for this refund list.',400);
  const policy=OPERATOR_ACTION_POLICIES.find(p=>p.actionCode==='funding.verify')!;
- const actorHash=await agreementHash(JSON.stringify([a.userId,a.email.toLowerCase(),options.reference??null,options.caseId??null]));
+ const actorHash=await agreementHash(JSON.stringify([a.userId,a.email.toLowerCase(),options.reference??null,options.caseId??null,...(liveOnly?['live']:[])]));
  const after=(dataset:RefundDataset)=>{
   const token=options.dataset===dataset?options.cursor??options.cursors?.[dataset]:options.cursors?.[dataset];
   if(token===undefined)return null;
@@ -60,6 +60,7 @@ export async function readBookingRefunds(db:D1Database,a:SigningActor,h:Headers,
  for(const dataset of options.dataset?[options.dataset]:refundPageDatasets){
   const spec=definitions[dataset],key=after(dataset),values:(string|number)[]=[a.userId,policy.maxAmountCents??Number.MAX_SAFE_INTEGER,account.id,policy.requiredRole];
   let sql=`SELECT ${spec.select},${spec.key} AS __page_key FROM ${spec.from} WHERE ${allowed}`;
+  if(liveOnly)sql+=" AND s.mode='live'";
   if(options.reference!==undefined){sql+=' AND s.reference=?';values.push(options.reference);}
   if(options.caseId!==undefined){sql+=dataset==='sources'||dataset==='states'?' AND EXISTS(SELECT 1 FROM booking_refund_cases lookup WHERE lookup.id=? AND lookup.reference=s.reference)':' AND c.id=?';values.push(options.caseId);}
   if(key!==null){sql+=` AND ${spec.key}${spec.asc?'>':'<'}?`;values.push(key);}

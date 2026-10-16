@@ -1,3 +1,4 @@
+import {workspaceCommandReceipt} from '../../../lib/workspace-command-receipt';
 import {blockedTestSurface} from '../../../lib/test-surface-runtime';
 import {executeSandboxCommand} from '../../../lib/sandbox-command';
 import {readFinanceBody} from '../../../lib/finance-workflow-request';
@@ -36,5 +37,5 @@ try{
  case 'download':{const r=await readPrivateIdentityEvidence(db,actor,i.id,await sandboxEvidenceReader(runtime));r.headers.set('x-lokd-evidence-mode','simulator');return r;}
  default:throw new SignupError('Unsupported sandbox identity action.');
  }
- return reply({requestKey:body.requestKey,commandStatus:body.requestKey?'completed':undefined,mode:'simulator',policyVersion:policy.version,policyHash,productionIdentityVerified:false,productionWorkEligible:false,data});
+ return reply({commandReceipt:await workspaceCommandReceipt('sandbox-identity',body),requestKey:body.requestKey,commandStatus:body.requestKey?'completed':undefined,mode:'simulator',policyVersion:policy.version,policyHash,productionIdentityVerified:false,productionWorkEligible:false,data});
  }catch(e){return e instanceof SignupError||e instanceof PilotAccessError?reply({error:e.message},e.status):reply({error:'Sandbox evidence or authority changed. Refresh before retrying.'},409);}}

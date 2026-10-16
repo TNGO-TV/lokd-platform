@@ -30,6 +30,8 @@ const trainingChoices = [
   "VIP / close-protection training",
 ] as const;
 
+const record=(value:unknown):value is Record<string,unknown>=>Boolean(value)&&typeof value==='object'&&!Array.isArray(value);
+const savedApplication=(value:unknown):value is {saved:true;reference:string}=>record(value)&&value.saved===true&&typeof value.reference==='string'&&/^APP-[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/.test(value.reference);
 const subscribeToHydration = () => () => {};
 
 export default function JoinPage() { return <OfficerApplicationJourney/>; }
@@ -39,6 +41,7 @@ export function OfficerApplicationJourney({sandbox=false,onSubmitted,onAccessLos
   const Heading = sandbox ? 'h3' : 'h1';
   const [uncertain,setUncertain] = useState(false);
   const originalSandboxBody = useRef<string|null>(null);
+  const originalPublicBody=useRef<string|null>(null),publicInput=useRef<string|null>(null),inFlight=useRef(false);
   const ready = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const search = useSearchParams();
   const requestedPath = search.get("path");
@@ -85,35 +88,36 @@ export function OfficerApplicationJourney({sandbox=false,onSubmitted,onAccessLos
     setStep(step + 1);
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (step < 3) { continueForm(); return; }
-    if (busy || uncertain) return;
-    setError("");
-    if (!services.length) return setError("Choose at least one type of work you would like to hear about.");
-    if (!purposes.length) return setError("Choose at least one work environment you would like to prepare for.");
-    if (pathway === "training" && !training.length) return setError("Choose at least one training area.");
-    setBusy(true);
-    try {
-      const form = new FormData(event.currentTarget);
-      const input = {pathway,...details,services,purposes,training,over18Confirmed:form.get("over18Confirmed")==="on",eligibilityAcknowledged:form.get("eligibilityAcknowledged")==="on",contactConsent:form.get("contactConsent")==="on",company:form.get("company")};
-      const body=JSON.stringify(sandbox?{service:'officer_application',input,requestKey:crypto.randomUUID()}:input);
-      if(sandbox)originalSandboxBody.current=body;
-      const response = await fetch(sandbox?"/api/sandbox/application":"/api/applications", {method:"POST",headers:{"content-type":"application/json"},body});
+  async function sendBody(body:string){
+    if(inFlight.current)return;inFlight.current=true;setBusy(true);setError('');
+    try{
+      const response=await fetch(sandbox?'/api/sandbox/application':'/api/applications',{method:'POST',headers:{'content-type':'application/json'},body});
       if(sandbox&&[401,403].includes(response.status))onAccessLost?.();
-      if(sandbox&&(response.status>=500||response.status===202))setUncertain(true);
-      const result=await response.json() as {mode?:string;policyVersion?:string;productionWorkEligible?:boolean;data?:unknown;reference?:string;error?:string};
-      if(sandbox&&response.ok&&(result.mode!=='sandbox'||result.policyVersion!=='lokd-sandbox-completion-v1'||result.productionWorkEligible!==false)){setUncertain(true);throw Error('The isolated intake boundary could not be verified.');}
-      const payload=(sandbox&&response.ok?result.data:result) as {reference?:string;error?:string};
-      if(!response.ok||!payload?.reference)throw new Error(payload?.error??(response.status===202?"Your original sandbox application is pending. Recover its receipt before another submission.":"We could not save your application."));
-      setReference(payload.reference);
-      onSubmitted?.(payload.reference);
-    } catch (cause) {
-      if(sandbox&&(cause instanceof TypeError||cause instanceof SyntaxError))setUncertain(true);
-      setError(cause instanceof Error ? cause.message : "We could not save your application.");
-    } finally {
-      setBusy(false);
-    }
+      if(response.status>=500||sandbox&&response.status===202)setUncertain(true);
+      const raw:unknown=await response.json(),result=record(raw)?raw:null;
+      if(!response.ok){if(response.status<500)setUncertain(false);throw Error(typeof result?.error==='string'?result.error:'The application could not be confirmed. Keep this tab and retry the original request.');}
+      if(sandbox&&(result?.mode!=='sandbox'||result?.policyVersion!=='lokd-sandbox-completion-v1'||result?.productionWorkEligible!==false)){setUncertain(true);throw Error('The isolated intake boundary could not be verified.');}
+      const payload=sandbox?result?.data:result;
+      if(!savedApplication(payload)){setUncertain(true);throw Error('A saved application could not be confirmed. Keep this tab and recover the original receipt before submitting again.');}
+      setUncertain(false);setReference(payload.reference);onSubmitted?.(payload.reference);
+    }catch(cause){
+      if(cause instanceof TypeError||cause instanceof SyntaxError)setUncertain(true);
+      setError(cause instanceof Error?cause.message:'The application could not be confirmed. Keep this tab and retry the original request.');
+    }finally{inFlight.current=false;setBusy(false);}
+  }
+  async function submit(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();if(inFlight.current||uncertain)return;
+    if(step<3){continueForm();return;}
+    setError('');
+    if(!services.length)return setError('Choose at least one type of work you would like to hear about.');
+    if(!purposes.length)return setError('Choose at least one work environment you would like to prepare for.');
+    if(pathway==='training'&&!training.length)return setError('Choose at least one training area.');
+    const form=new FormData(event.currentTarget);
+    const input={pathway,...details,services,purposes,training,over18Confirmed:form.get('over18Confirmed')==='on',eligibilityAcknowledged:form.get('eligibilityAcknowledged')==='on',contactConsent:form.get('contactConsent')==='on',company:form.get('company')};
+    const canonical=JSON.stringify(input);
+    const body=!sandbox&&publicInput.current===canonical&&originalPublicBody.current?originalPublicBody.current:JSON.stringify(sandbox?{service:'officer_application',input,requestKey:crypto.randomUUID()}:{...input,requestKey:crypto.randomUUID()});
+    if(sandbox)originalSandboxBody.current=body;else{originalPublicBody.current=body;publicInput.current=canonical;}
+    await sendBody(body);
   }
 
   if (sandbox&&reference) return <section className="join-success"><h3 ref={headingRef} tabIndex={-1}>Fictional officer application saved</h3><p>Reference: {reference}</p><p>No real onboarding contact or approval was issued. Link this source to the signed-in synthetic account below.</p></section>;
@@ -134,6 +138,7 @@ export function OfficerApplicationJourney({sandbox=false,onSubmitted,onAccessLos
         </aside>
 
         <form ref={formRef} className="join-form-card" onSubmit={submit}>
+          <fieldset disabled={busy||uncertain} style={{border:0,padding:0,margin:0,display:'contents'}}>
           {step === 1 && <fieldset disabled={!ready} className="join-path-picker"><legend>Which describes you best?</legend><button type="button" className={pathway === "qualified" ? "selected" : ""} onClick={() => { setPathway("qualified"); if (details.psiraStatus === "not_registered") updateDetail("psiraStatus", "active"); }}><span>01</span><div><strong>I&apos;m already qualified</strong><p>I am PSiRA registered, trained or already working in security.</p></div><i>{pathway === "qualified" ? "✓" : "→"}</i></button><button type="button" className={pathway === "training" ? "selected" : ""} onClick={() => { setPathway("training"); if (details.psiraStatus === "active") updateDetail("psiraStatus", "not_registered"); }}><span>02</span><div><strong>I need training</strong><p>I am starting out, upgrading or need specialist training.</p></div><i>{pathway === "training" ? "✓" : "→"}</i></button><div className="join-form-note"><strong>{pathway === "qualified" ? "Officer application" : "Training-pathway interest"}</strong><p>{pathway === "qualified" ? "LOKD will later verify your registration and qualifications before activating work categories." : "LOKD will provide intake information only where the course and provider status are confirmed."}</p></div></fieldset>}
 
           {step === 2 && <div className="join-fields join-contact-step">
@@ -177,9 +182,10 @@ export function OfficerApplicationJourney({sandbox=false,onSubmitted,onAccessLos
           {step === 3 && <div className="join-fields"><div className="join-form-title"><span>YOUR DIRECTION</span><h2>What would you like to work toward?</h2></div><fieldset className="join-check-grid"><legend>Work categories you are interested in</legend>{serviceChoices.map((item) => <label key={item}><input type="checkbox" checked={services.includes(item)} onChange={() => toggle(item, services, setServices)} /><span><strong>{item}</strong><small>{item === "Unarmed" ? "Guarding, access and event work" : item === "Armed" ? "Separate firearm and assignment checks apply" : "Separate close-protection credentials apply"}</small></span><i>✓</i></label>)}</fieldset><fieldset className="join-check-grid join-training-grid"><legend>Work environments you want to prepare for</legend>{purposeChoices.map((item) => <label key={item}><input type="checkbox" checked={purposes.includes(item)} onChange={() => toggle(item, purposes, setPurposes)} /><span><strong>{item}</strong></span><i>✓</i></label>)}<div className="join-form-note" style={{ gridColumn: "1 / -1" }}><strong>Interest is not an endorsement.</strong><p>LOKD training, assessment and approval are required before a purpose is added to your live LOKD Passport or used to match offers.</p></div></fieldset>{pathway === "training" && <fieldset className="join-check-grid join-training-grid"><legend>Training information you need</legend>{trainingChoices.map((item) => <label key={item}><input type="checkbox" checked={training.includes(item)} onChange={() => toggle(item, training, setTraining)} /><span><strong>{item}</strong></span><i>✓</i></label>)}</fieldset>}<div className="join-consent-stack"><label className="join-consent"><input name="over18Confirmed" type="checkbox" required /><span>I confirm that I am at least 18 years old.</span></label><label className="join-consent"><input name="eligibilityAcknowledged" type="checkbox" required /><span>I understand that PSiRA registration and work eligibility remain subject to the applicable statutory, training and fit-and-proper requirements.</span></label><label className="join-consent"><input name="contactConsent" type="checkbox" required /><span>I agree that LOKD may store these details and contact me about officer onboarding or relevant training intake information. I understand that this is not an offer of employment or a guarantee of work.</span></label></div><label className="join-honeypot" aria-hidden="true">Company<input name="company" tabIndex={-1} autoComplete="off" /></label>{error && <p className="join-error" role="alert">{error}</p>}</div>}
 
           <div className="join-form-actions">{step > 1 && <button type="button" disabled={busy||uncertain} onClick={() => { setError(""); setStep(step - 1); }}>← Back</button>}<span />{step < 3 ? <button className="public-button public-button--dark" type="submit" disabled={!ready}>Continue →</button> : <button className="public-button public-button--lime" type="submit" disabled={busy||uncertain}>{busy ? "Saving…" : pathway === "training" ? "Find my training pathway →" : "Submit officer application →"}</button>}</div>
-        </form>
+        </fieldset></form>
       </section>
-      {uncertain&&sandbox&&<SandboxCommandRecovery scope='officer_application' endpoint='/api/sandbox/application' getBody={()=>originalSandboxBody.current} onRejected={()=>{originalSandboxBody.current=null;setUncertain(false);setError('The original request was rejected before any source write. Review and correct your details before submitting a new request.');}} onDenied={()=>{originalSandboxBody.current=null;onAccessLost?.();}} onRecovered={result=>{if(typeof result.reference==='string'){setReference(result.reference);setUncertain(false);setError('');onSubmitted?.(result.reference);}}}/>}{uncertain&&<p role="alert" className="join-error">The original sandbox application outcome is unconfirmed. Its exact request is retained in this tab. Do not submit another application until the original source is recovered.</p>}
+      {uncertain&&!sandbox&&<button type="button" className="public-button public-button--dark" disabled={busy} onClick={()=>{if(originalPublicBody.current)void sendBody(originalPublicBody.current);}}>Retry original application</button>}
+      {uncertain&&sandbox&&<SandboxCommandRecovery scope='officer_application' endpoint='/api/sandbox/application' getBody={()=>originalSandboxBody.current} onRejected={()=>{originalSandboxBody.current=null;setUncertain(false);setError('The original request was rejected before any source write. Review and correct your details before submitting a new request.');}} onDenied={()=>{originalSandboxBody.current=null;onAccessLost?.();}} onRecovered={result=>{if(savedApplication(result)){setReference(result.reference);setUncertain(false);setError('');onSubmitted?.(result.reference);}}}/>}{uncertain&&<p role="alert" className="join-error">The original application outcome is unconfirmed. Its exact request is retained in this tab. Do not submit another application until the original source is recovered.</p>}
       <div className="join-footer">Qualification, registration, licensing and app approval are separate processes. LOKD verifies the requirements applicable to each work category.</div>{!sandbox && <PublicFooter />}
     </Root>
   );

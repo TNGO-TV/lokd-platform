@@ -6,16 +6,13 @@ const url='https://github.com/advisories/GHSA-vfj7-8cjw-p6xm';
 const report=()=>({auditReportVersion:2,metadata:{vulnerabilities:{total:1,info:0,low:0,moderate:0,high:1,critical:0}},vulnerabilities:{braces:{name:'braces',severity:'high',nodes:['node_modules/braces'],via:[{name:'braces',url,severity:'high'}]}}});
 const lock=()=>({packages:{'node_modules/braces':{version:'3.0.3',dev:true}}});
 const now=Date.parse('2026-10-16T00:00:00Z');
-test('only the exact development-only advisory can receive the documented non-applicability disposition',()=>{
- assert.equal(assessAudit(report(),lock(),now).ok,true);
- for(const alter of [r=>r.vulnerabilities.braces.via[0].url+='new',r=>r.vulnerabilities.braces.nodes.push('node_modules/new/braces')]){
-  const r=report();alter(r);assert.equal(assessAudit(r,lock(),now).ok,false);
- }
- for(const alter of [l=>l.packages['node_modules/braces'].dev=false,l=>l.packages['node_modules/braces'].version='3.0.4']){
-  const l=lock();alter(l);assert.equal(assessAudit(report(),l,now).ok,false);
- }
- assert.equal(assessAudit(report(),lock(),Date.parse('2026-11-16T00:00:00Z')).ok,false);
+test('development-only findings receive no advisory exception',()=>{
+ const result=assessAudit(report(),lock(),now);assert.equal(result.ok,false);assert.deepEqual(result.dispositions,[]);
+ assert.equal(result.blocked[0].advisory,url);
+ const clean=report();clean.vulnerabilities={};clean.metadata.vulnerabilities={total:0,info:0,low:0,moderate:0,high:0,critical:0};
+ assert.equal(assessAudit(clean).ok,true);
 });
+
 test('audit enforcement fails malformed results, missing graph evidence and new findings independently of npm exit code',()=>{
  for(const r of [{},{...report(),error:{}},{...report(),metadata:{vulnerabilities:{total:0}}}])assert.throws(()=>assessAudit(r,lock(),now));
  const r=report();r.vulnerabilities.braces.via.push({name:'braces',url:'https://example.test/new',severity:'moderate'});
@@ -43,7 +40,7 @@ test('finding severity must agree with direct and transitive advisory roots',()=
  }
  const r=report();r.vulnerabilities.parent={name:'parent',severity:'high',nodes:['node_modules/parent'],via:['braces']};
  r.metadata.vulnerabilities.total=2;r.metadata.vulnerabilities.high=2;
- assert.equal(assessAudit(r,lock(),now).ok,true);
+ assert.equal(assessAudit(r,lock(),now).ok,false);
  r.vulnerabilities.parent.severity='critical';r.metadata.vulnerabilities.high=1;r.metadata.vulnerabilities.critical=1;
  assert.throws(()=>assessAudit(r,lock(),now),/root advisory severity/);
 });

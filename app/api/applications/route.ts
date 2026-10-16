@@ -1,3 +1,4 @@
+import {agreementHash} from '../../lib/agreement-acceptance';
 import {blockedTestSurface,rehearsalEnv} from '../../lib/test-surface-runtime';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { applicationPsiraDeclaration, psiraIntakeStatus } from '../../lib/psira-pathway';
@@ -28,6 +29,7 @@ class ApplicationError extends Error {
 }
 
 type ApplicationInput = {
+  requestKey?: unknown;
   pathway?: unknown;
   fullName?: unknown;
   mobile?: unknown;
@@ -290,7 +292,8 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
     let input: ApplicationInput;
     try { input = JSON.parse(raw) as ApplicationInput; }
     catch { throw new ApplicationError("The application body is not valid JSON."); }
-    if (typeof input.company === "string" && input.company.trim()) return response({ reference: "LOKD-RECEIVED" }, 202);
+    if(!input||typeof input!=='object'||Array.isArray(input))throw new ApplicationError("The application body must be an object.");
+    if (typeof input.company === "string" && input.company.trim()) return response({ received:true },202);
 
     const pathway = cleanText(input.pathway, "Pathway", 4, 20);
     if (!pathways.has(pathway)) throw new ApplicationError("Choose an application pathway.");
@@ -319,6 +322,19 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
     if (input.contactConsent !== true) throw new ApplicationError("Consent is required to save and respond to this application.");
 
     const db = database??getDb();
+    const requestKey=input.requestKey;
+    if(requestKey!==undefined&&(typeof requestKey!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestKey)))throw new ApplicationError('Use a valid application submission key.');
+    const keyHash=typeof requestKey==='string'?await agreementHash('officer-application:'+requestKey.toLowerCase()):null;
+    const payloadHash=await agreementHash(JSON.stringify({pathway,fullName,mobile,email,city,province,psiraStatus,psiraNumber,psiraGrade,services,purposes,training,over18Confirmed:true,eligibilityAcknowledged:true,contactConsent:true,privacyNoticeVersion}));
+    const savedReceipt=(reference:string)=>response({saved:true,reference,psiraVerificationRequired:psiraRequired,pathwayStatus:psiraIntakeStatus(declaration)},202);
+    const recover=async()=>{
+      if(!keyHash)return null;
+      const receipt=await db.prepare('SELECT payload_hash,application_id FROM officer_application_receipts WHERE request_key_hash=?').bind(keyHash).first<{payload_hash:string;application_id:string}>();
+      if(!receipt)return null;
+      if(receipt.payload_hash!==payloadHash)throw new ApplicationError('This submission key already binds different application details. Keep the original request; changed details require a new key.',409);
+      return savedReceipt(receipt.application_id);
+    };
+    const recovered=await recover();if(recovered)return recovered;
     const now = new Date();
     const nowIso = now.toISOString();
     const retentionReview = new Date(now);
@@ -345,9 +361,10 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
       VALUES (?, 'applicant', ?, 'officer_interest_submitted', 'officer_application', ?, ?, ?)`)
       .bind(`AUD-${crypto.randomUUID()}`, id, id, "Homepage work, purpose and training interests received; identity and credentials remain unverified.", nowIso);
     // D1 batches are atomic: never acknowledge an unaudited or partially saved intake.
-    await db.batch([application, audit]);
-
-    return response({ reference: id, psiraVerificationRequired: psiraRequired, pathwayStatus: psiraIntakeStatus(declaration) }, 202);
+    const writes=[application,audit];
+    if(keyHash)writes.push(db.prepare('INSERT INTO officer_application_receipts(request_key_hash,payload_hash,application_id,created_at) VALUES(?,?,?,?)').bind(keyHash,payloadHash,id,nowIso));
+    try{await db.batch(writes);}catch(cause){const concurrent=await recover();if(concurrent)return concurrent;throw cause;}
+    return savedReceipt(id);
   } catch (cause) {
     return responseError(cause);
   }

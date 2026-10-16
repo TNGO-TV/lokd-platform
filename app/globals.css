@@ -2748,3 +2748,5 @@ button { color: inherit; }
   .public-home .marketing-cta { padding-top: 64px; padding-bottom: 64px; }
   .public-home .public-path-section { padding-top: 64px; padding-bottom: 64px; }
 }
+
+.enquiry-inputs { border: 0; padding: 0; margin: 0; min-width: 0; }

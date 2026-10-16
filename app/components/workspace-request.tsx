@@ -11,13 +11,14 @@ const guidance:Record<number,string>={
 };
 export class WorkspaceResponseError extends Error {constructor(message:string,public status:number){super(message);this.name='WorkspaceResponseError';}}
 export const workspaceAccessDenied=(cause:unknown)=>cause instanceof WorkspaceResponseError&&[401,403].includes(cause.status);
-export async function readWorkspaceResponse<T>(response:Response):Promise<T>{
+export async function readWorkspaceResponse<T>(response:Response,validate:(value:unknown)=>boolean|Promise<boolean>):Promise<T>{
   let body:unknown;
   try{body=await response.json();}catch{throw new WorkspaceResponseError(guidance[response.status]??'The server returned an unreadable response. The outcome may be unknown. Refresh the saved status before repeating an action; keep the original request reference.',response.status);}
   if(!response.ok){
     const detail=body&&typeof body==='object'&&'error' in body&&typeof body.error==='string'?body.error:'';
     throw new WorkspaceResponseError([detail,guidance[response.status]??'Refresh the saved status and review it before acting again.'].filter(Boolean).join(' '),response.status);
   }
+  if(!validate||!await validate(body))throw new WorkspaceResponseError('The response does not match these records. The outcome is unconfirmed. Refresh the original record before acting again.',response.status);
   return body as T;
 }
 export function workspaceFailure(cause:unknown,fallback:string){return cause instanceof TypeError?'The connection failed. The outcome may be unknown. Refresh the saved status before repeating an action; keep the original request reference.':cause instanceof Error?cause.message:fallback;}

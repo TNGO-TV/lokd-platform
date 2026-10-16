@@ -1,0 +1,509 @@
+[
+  {
+    "name": "react/display-name",
+    "file": "app/lint-fixture.tsx",
+    "code": "import React from \"react\"; export default React.memo(() => <div />);",
+    "diagnostics": [
+      {
+        "rule": "react/display-name",
+        "severity": 2,
+        "line": 1,
+        "column": 43
+      }
+    ]
+  },
+  {
+    "name": "react/jsx-key",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const rows=[1,2].map(n=><div>{n}</div>);",
+    "diagnostics": [
+      {
+        "rule": "react/jsx-key",
+        "severity": 2,
+        "line": 1,
+        "column": 32
+      }
+    ]
+  },
+  {
+    "name": "react/jsx-no-comment-textnodes",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<div>// comment\n</div>;",
+    "diagnostics": [
+      {
+        "rule": "react/jsx-no-comment-textnodes",
+        "severity": 2,
+        "line": 1,
+        "column": 24
+      }
+    ]
+  },
+  {
+    "name": "react/jsx-no-duplicate-props",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<div id=\"a\" id=\"b\"/>;",
+    "diagnostics": [
+      {
+        "rule": "react/jsx-no-duplicate-props",
+        "severity": 2,
+        "line": 1,
+        "column": 31
+      }
+    ]
+  },
+  {
+    "name": "react/jsx-no-undef",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<Missing />;",
+    "diagnostics": [
+      {
+        "rule": "react/jsx-no-undef",
+        "severity": 2,
+        "line": 1,
+        "column": 20
+      }
+    ]
+  },
+  {
+    "name": "react/no-children-prop",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<div children=\"text\"/>;",
+    "diagnostics": [
+      {
+        "rule": "react/no-children-prop",
+        "severity": 2,
+        "line": 1,
+        "column": 24
+      }
+    ]
+  },
+  {
+    "name": "react/no-danger-with-children",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<div dangerouslySetInnerHTML={{__html:\"text\"}}>child</div>;",
+    "diagnostics": [
+      {
+        "rule": "react/no-danger-with-children",
+        "severity": 2,
+        "line": 1,
+        "column": 19
+      }
+    ]
+  },
+  {
+    "name": "react/no-deprecated",
+    "file": "app/lint-fixture.tsx",
+    "code": "import React from \"react\"; export const View=React.createClass({render(){return <div/>;}});",
+    "diagnostics": [
+      {
+        "rule": "react/no-deprecated",
+        "severity": 2,
+        "line": 1,
+        "column": 46
+      }
+    ]
+  },
+  {
+    "name": "react/no-direct-mutation-state",
+    "file": "app/lint-fixture.tsx",
+    "code": "import React from \"react\"; export class View extends React.Component {update(){this.state.count=1;} render(){return <div/>;}}",
+    "diagnostics": [
+      {
+        "rule": "react/no-direct-mutation-state",
+        "severity": 2,
+        "line": 1,
+        "column": 80
+      }
+    ]
+  },
+  {
+    "name": "react/no-find-dom-node",
+    "file": "app/lint-fixture.tsx",
+    "code": "import ReactDOM from \"react-dom\"; export const node=ReactDOM.findDOMNode(document.body);",
+    "diagnostics": [
+      {
+        "rule": "react/no-find-dom-node",
+        "severity": 2,
+        "line": 1,
+        "column": 53
+      }
+    ]
+  },
+  {
+    "name": "react/no-is-mounted",
+    "file": "app/lint-fixture.tsx",
+    "code": "import React from \"react\"; export class View extends React.Component {render(){this.isMounted();return <div/>;}}",
+    "diagnostics": [
+      {
+        "rule": "react/no-is-mounted",
+        "severity": 2,
+        "line": 1,
+        "column": 80
+      }
+    ]
+  },
+  {
+    "name": "react/no-render-return-value",
+    "file": "app/lint-fixture.tsx",
+    "code": "import ReactDOM from \"react-dom\"; export const node=ReactDOM.render(<div/>,document.body);",
+    "diagnostics": [
+      {
+        "rule": "react/no-deprecated",
+        "severity": 2,
+        "line": 1,
+        "column": 53
+      },
+      {
+        "rule": "react/no-render-return-value",
+        "severity": 2,
+        "line": 1,
+        "column": 53
+      }
+    ]
+  },
+  {
+    "name": "react/no-string-refs",
+    "file": "app/lint-fixture.tsx",
+    "code": "import React from \"react\"; export class View extends React.Component {render(){return <div ref=\"node\"/>;}}",
+    "diagnostics": [
+      {
+        "rule": "react/no-string-refs",
+        "severity": 2,
+        "line": 1,
+        "column": 92
+      }
+    ]
+  },
+  {
+    "name": "react/no-unescaped-entities",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<div>Don't use \"raw\" quotes.</div>;",
+    "diagnostics": [
+      {
+        "rule": "react/no-unescaped-entities",
+        "severity": 2,
+        "line": 1,
+        "column": 27
+      },
+      {
+        "rule": "react/no-unescaped-entities",
+        "severity": 2,
+        "line": 1,
+        "column": 34
+      },
+      {
+        "rule": "react/no-unescaped-entities",
+        "severity": 2,
+        "line": 1,
+        "column": 38
+      }
+    ]
+  },
+  {
+    "name": "react/require-render-return",
+    "file": "app/lint-fixture.tsx",
+    "code": "import React from \"react\"; export class View extends React.Component {render(){const value=1;console.log(value);}}",
+    "diagnostics": [
+      {
+        "rule": "react/require-render-return",
+        "severity": 2,
+        "line": 1,
+        "column": 71
+      }
+    ]
+  },
+  {
+    "name": "jsx-a11y/alt-text",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<img src=\"/fixture.png\"/>;",
+    "diagnostics": [
+      {
+        "rule": "@next/next/no-img-element",
+        "severity": 1,
+        "line": 1,
+        "column": 19
+      },
+      {
+        "rule": "jsx-a11y/alt-text",
+        "severity": 1,
+        "line": 1,
+        "column": 19
+      }
+    ]
+  },
+  {
+    "name": "jsx-a11y/aria-props",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<div aria-madeup=\"text\"/>;",
+    "diagnostics": [
+      {
+        "rule": "jsx-a11y/aria-props",
+        "severity": 1,
+        "line": 1,
+        "column": 24
+      }
+    ]
+  },
+  {
+    "name": "jsx-a11y/aria-proptypes",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<div aria-hidden=\"sometimes\"/>;",
+    "diagnostics": [
+      {
+        "rule": "jsx-a11y/aria-proptypes",
+        "severity": 1,
+        "line": 1,
+        "column": 24
+      }
+    ]
+  },
+  {
+    "name": "jsx-a11y/aria-unsupported-elements",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<meta aria-label=\"title\"/>;",
+    "diagnostics": [
+      {
+        "rule": "jsx-a11y/aria-unsupported-elements",
+        "severity": 1,
+        "line": 1,
+        "column": 19
+      }
+    ]
+  },
+  {
+    "name": "jsx-a11y/role-has-required-aria-props",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<div role=\"checkbox\"/>;",
+    "diagnostics": [
+      {
+        "rule": "jsx-a11y/role-has-required-aria-props",
+        "severity": 1,
+        "line": 1,
+        "column": 24
+      }
+    ]
+  },
+  {
+    "name": "jsx-a11y/role-supports-aria-props",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<div role=\"heading\" aria-checked=\"true\"/>;",
+    "diagnostics": [
+      {
+        "rule": "jsx-a11y/role-has-required-aria-props",
+        "severity": 1,
+        "line": 1,
+        "column": 24
+      },
+      {
+        "rule": "jsx-a11y/role-supports-aria-props",
+        "severity": 1,
+        "line": 1,
+        "column": 19
+      }
+    ]
+  },
+  {
+    "name": "import/no-anonymous-default-export",
+    "file": "app/lint-fixture.tsx",
+    "code": "export default {name:\"anonymous\"};",
+    "diagnostics": [
+      {
+        "rule": "import/no-anonymous-default-export",
+        "severity": 1,
+        "line": 1,
+        "column": 1
+      }
+    ]
+  },
+  {
+    "name": "react-hooks/rules-of-hooks",
+    "file": "app/lint-fixture.tsx",
+    "code": "import {useState} from \"react\"; export function View({enabled}){if(enabled)useState(0);return <div/>;}",
+    "diagnostics": [
+      {
+        "rule": "react-hooks/rules-of-hooks",
+        "severity": 2,
+        "line": 1,
+        "column": 76
+      }
+    ]
+  },
+  {
+    "name": "react-hooks/exhaustive-deps",
+    "file": "app/lint-fixture.tsx",
+    "code": "import {useEffect} from \"react\"; export function View({value}){useEffect(()=>console.log(value),[]);return <div/>;}",
+    "diagnostics": [
+      {
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "line": 1,
+        "column": 97
+      }
+    ]
+  },
+  {
+    "name": "@typescript-eslint/no-explicit-any",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const identity=(value:any)=>value;",
+    "diagnostics": [
+      {
+        "rule": "@typescript-eslint/no-explicit-any",
+        "severity": 2,
+        "line": 1,
+        "column": 30
+      }
+    ]
+  },
+  {
+    "name": "@typescript-eslint/no-unused-vars",
+    "file": "app/lint-fixture.tsx",
+    "code": "const unused=1; export const used=2;",
+    "diagnostics": [
+      {
+        "rule": "@typescript-eslint/no-unused-vars",
+        "severity": 1,
+        "line": 1,
+        "column": 7
+      }
+    ]
+  },
+  {
+    "name": "@typescript-eslint/no-unused-expressions",
+    "file": "app/lint-fixture.tsx",
+    "code": "export function check(value:boolean){value;}",
+    "diagnostics": [
+      {
+        "rule": "@typescript-eslint/no-unused-expressions",
+        "severity": 1,
+        "line": 1,
+        "column": 38
+      }
+    ]
+  },
+  {
+    "name": "@typescript-eslint/no-empty-object-type",
+    "file": "app/lint-fixture.tsx",
+    "code": "export type Empty={};",
+    "diagnostics": [
+      {
+        "rule": "@typescript-eslint/no-empty-object-type",
+        "severity": 2,
+        "line": 1,
+        "column": 19
+      }
+    ]
+  },
+  {
+    "name": "prefer-const",
+    "file": "app/lint-fixture.tsx",
+    "code": "export function value(){let result=1;return result;}",
+    "diagnostics": [
+      {
+        "rule": "prefer-const",
+        "severity": 2,
+        "line": 1,
+        "column": 29
+      }
+    ]
+  },
+  {
+    "name": "no-var",
+    "file": "app/lint-fixture.tsx",
+    "code": "export function value(){var result=1;return result;}",
+    "diagnostics": [
+      {
+        "rule": "no-var",
+        "severity": 2,
+        "line": 1,
+        "column": 25
+      }
+    ]
+  },
+  {
+    "name": "@next/next/no-img-element",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<img src=\"/fixture.png\" alt=\"Fixture\"/>;",
+    "diagnostics": [
+      {
+        "rule": "@next/next/no-img-element",
+        "severity": 1,
+        "line": 1,
+        "column": 19
+      }
+    ]
+  },
+  {
+    "name": "@next/next/no-sync-scripts",
+    "file": "app/lint-fixture.tsx",
+    "code": "export const view=<script src=\"/fixture.js\"/>;",
+    "diagnostics": [
+      {
+        "rule": "@next/next/no-sync-scripts",
+        "severity": 2,
+        "line": 1,
+        "column": 19
+      }
+    ]
+  },
+  {
+    "name": "@next/next/no-head-element",
+    "file": "pages/lint-fixture.tsx",
+    "code": "export const view=<head><title>Fixture</title></head>;",
+    "diagnostics": [
+      {
+        "rule": "@next/next/no-head-element",
+        "severity": 1,
+        "line": 1,
+        "column": 19
+      }
+    ]
+  },
+  {
+    "name": "valid js",
+    "file": "app/valid-fixture.js",
+    "code": "import React from \"react\"; const Child=()=> <span>Valid</span>; export const view=<Child/>;",
+    "diagnostics": []
+  },
+  {
+    "name": "valid mjs",
+    "file": "app/valid-fixture.mjs",
+    "code": "import React from \"react\"; const Child=()=> <span>Valid</span>; export const view=<Child/>;",
+    "diagnostics": []
+  },
+  {
+    "name": "valid cjs",
+    "file": "app/valid-fixture.cjs",
+    "code": "exports.value=1;",
+    "diagnostics": []
+  },
+  {
+    "name": "valid ts",
+    "file": "app/valid-fixture.ts",
+    "code": "export const value:number=1;",
+    "diagnostics": []
+  },
+  {
+    "name": "valid jsx",
+    "file": "app/valid-fixture.jsx",
+    "code": "import React from \"react\"; const Child=()=> <span>Valid</span>; export const view=<Child/>;",
+    "diagnostics": []
+  },
+  {
+    "name": "valid tsx",
+    "file": "app/valid-fixture.tsx",
+    "code": "import React from \"react\"; const Child=()=> <span>Valid</span>; export const view=<Child/>;",
+    "diagnostics": []
+  },
+  {
+    "name": "valid mts",
+    "file": "app/valid-fixture.mts",
+    "code": "export const value:number=1;",
+    "diagnostics": []
+  },
+  {
+    "name": "valid cts",
+    "file": "app/valid-fixture.cts",
+    "code": "export const value:number=1;",
+    "diagnostics": []
+  }
+]

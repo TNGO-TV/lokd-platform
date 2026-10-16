@@ -1,3 +1,4 @@
+import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {readFinanceText} from '../../lib/finance-body';
 import {env} from 'cloudflare:workers';
 import {SignupError} from '../../lib/signup-server';
@@ -20,4 +21,4 @@ export async function GET(request:Request){try{const a=actor(request);if(!env.DB
  if(url.searchParams.get('download')==='report')return new Response(financeDocumentReport(data),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename=lokd-finance-report.csv'}});
  return Response.json(data,{headers});}catch(e){return fail(e);}}
 export async function POST(request:Request){try{requireSameOriginJson(request);const a=actor(request);if(!a.operations)throw new SignupError('Operations access required.',403);if(!env.DB)throw new SignupError('Storage unavailable.',503);const raw=await readFinanceText(request,8000);let input;try{input=JSON.parse(raw);}catch{throw new SignupError('Invalid JSON.');}if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a document action.');
- const result=input.action==='prepare_document'?await prepareFinanceDocument(env.DB,a,input,request.headers):input.action==='decide_document'?await decideFinanceDocument(env.DB,a,input,request.headers):input.action==='prepare_invoice_source'?await prepareDocumentInvoice(env.DB,a,input,request.headers):null;if(!result)throw new SignupError('Choose a supported document action.');return Response.json(result,{headers});}catch(e){return fail(e);}}
+ const result=input.action==='prepare_document'?await prepareFinanceDocument(env.DB,a,input,request.headers):input.action==='decide_document'?await decideFinanceDocument(env.DB,a,input,request.headers):input.action==='prepare_invoice_source'?await prepareDocumentInvoice(env.DB,a,input,request.headers):null;if(!result)throw new SignupError('Choose a supported document action.');return Response.json({...result,commandReceipt:await workspaceCommandReceipt('finance-documents',input)},{headers});}catch(e){return fail(e);}}

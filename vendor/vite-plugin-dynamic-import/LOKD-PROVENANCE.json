@@ -1,0 +1,9 @@
+{
+  "upstreamPackage": "vite-plugin-dynamic-import",
+  "upstreamVersion": "1.6.0",
+  "archiveSha256": "9d3f067172d7a46630479b9f5a16bcda02e8a02a5be9fe44d623e6b2dfea4ca0",
+  "changes": [
+    "Replace fast-glob with pinned tinyglobby at its actual import and call sites; other runtime behavior unchanged."
+  ],
+  "status": "local candidate; compatibility tests and independent acceptance required"
+}

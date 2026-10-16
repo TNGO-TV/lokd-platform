@@ -6,8 +6,8 @@ const enquiryReference = 'ENQ-12345678-1234-4123-8123-123456789ABC';
 const test = base.extend({
   intakeNetwork: [async ({context, page}, use, testInfo) => {
     const state = {applications: [], enquiries: [], blockedExternal: [], unexpectedApi: [], pageErrors: []};
-    state.applicationResponse = {status: 202, json: {reference: applicationReference}};
-    state.enquiryResponse = {status: 202, json: {reference: enquiryReference}};
+    state.applicationResponse = {status: 202, json: {saved:true,reference: applicationReference}};
+    state.enquiryResponse = {status: 202, json: {saved:true,reference: enquiryReference}};
     page.on('pageerror', error => state.pageErrors.push(error.message));
     await context.routeWebSocket('**/*', socket => socket.close());
     await context.route('**/*', async route => {
@@ -45,7 +45,8 @@ async function fitsViewport(page) {
 test('homepage offers real intake paths, responsive service navigation and privacy', async ({page}) => {
   await page.goto('/');
   await expect(page).toHaveTitle('LOKD Security | Guarding, Armed Security and VIP Protection');
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://lokd.co.za/');
+  // Vinext may serialize an origin-only canonical without its implicit slash.
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /^https:\/\/lokd\.co\.za\/?$/);
   await expect(page.getByRole('link', {name: /^Request security/})).toHaveAttribute('href', '/contact');
   await expect(page.getByRole('link', {name: /^Apply as an officer/})).toHaveAttribute('href', '/join');
   await expect(page.getByRole('link', {name: 'Client sign in', exact: true})).toHaveAttribute('href', 'https://portal.lokd.co.za');
@@ -104,14 +105,22 @@ test('officer application validates locally, preserves rejection and displays fu
     pathway: 'qualified', email: 'offline.applicant@example.test', mobile: '082 123 4567',
     over18Confirmed: true, eligibilityAcknowledged: true, contactConsent: true, psiraNumber: '1234567',
   });
-  offline.applicationResponse = {status: 202, json: {reference: applicationReference}};
-  await page.getByRole('button', {name: /^Submit officer application/}).click();
+  offline.applicationResponse={status:202,json:{received:true}};
+  await page.getByRole('button',{name:/^Submit officer application/}).click();
+  await expect(page.getByRole('heading',{name:'Your LOKD journey has started.'})).toHaveCount(0);
+  await expect(page.locator('input[name="contactConsent"]')).toBeDisabled();
+  await expect(page.getByRole('alert').first()).toContainText('A saved application could not be confirmed');
+  offline.applicationResponse={status:200,json:{}};
+  await page.getByRole('button',{name:'Retry original application'}).click();
+  await expect(page.getByRole('alert').first()).toContainText('A saved application could not be confirmed');
+  offline.applicationResponse={status:202,json:{saved:true,reference:applicationReference}};
+  await page.getByRole('button',{name:'Retry original application'}).click();
   await expect(page.getByRole('heading', {name: 'Your LOKD journey has started.'})).toBeFocused();
   await expect(page.locator('dd')).toHaveText(applicationReference);
   await expect(page.getByRole('link', {name: 'Track my application'})).toHaveAttribute('href', 'https://officers.lokd.co.za');
   await expect(page.getByText('Account linking does not grant work approval.', {exact: false})).toBeVisible();
-  expect(offline.applications).toHaveLength(2);
-  expect(offline.applications[1]).toEqual(offline.applications[0]);
+  expect(offline.applications).toHaveLength(4);
+  for(const request of offline.applications.slice(1))expect(request).toEqual(offline.applications[0]);
   await fitsViewport(page);
 });
 
@@ -159,15 +168,23 @@ test('security enquiry enforces fields and consent, shows server rejection and l
   await expect(form.getByLabel('Organisation', {exact: true})).toHaveValue('Offline Example Organisation');
   expect(offline.enquiries).toHaveLength(1);
   expect(offline.enquiries[0]).toMatchObject({privacyConsent: true, advanceFundingAcknowledged: true, serviceType: 'scheduled_unarmed_fixed_site', email: 'offline.contact@example.test'});
-  offline.enquiryResponse = {status: 202, json: {reference: enquiryReference}};
+  offline.enquiryResponse = {status:202,json:{reference:'LOKD-RECEIVED'}};
   await form.getByRole('button', {name: /^Submit site enquiry/}).click();
+  await expect(page.getByRole('alert')).toContainText('A saved enquiry could not be confirmed');
+  await expect(page.getByRole('heading',{name:'We have your operating brief.'})).toHaveCount(0);
+  await expect(form.getByLabel('Organisation',{exact:true})).toBeDisabled();
+  offline.enquiryResponse={status:200,json:{}};
+  await form.getByRole('button',{name:'Retry original enquiry'}).click();
+  await expect(page.getByRole('alert')).toContainText('A saved enquiry could not be confirmed');
+  offline.enquiryResponse = {status: 202, json: {saved:true,reference: enquiryReference}};
+  await form.getByRole('button',{name:'Retry original enquiry'}).click();
   await expect(page.getByRole('heading', {name: 'We have your operating brief.'})).toBeFocused();
   await expect(page.locator('dd')).toHaveText(enquiryReference);
   await expect(page.getByText('Live agreement signing is not open yet', {exact:false})).toHaveCount(0);
   await expect(page.getByText('Operations must prepare approved terms and a service order', {exact:false})).toBeVisible();
   await expect(page.getByRole('link', {name: /^Track my enquiry/})).toHaveAttribute('href', 'https://portal.lokd.co.za');
   await expect(page.getByText('Do not pay against this enquiry reference.', {exact: false})).toBeVisible();
-  expect(offline.enquiries).toHaveLength(2);
-  expect(offline.enquiries[1]).toEqual(offline.enquiries[0]);
+  expect(offline.enquiries).toHaveLength(4);
+  for(const enquiry of offline.enquiries.slice(1))expect(enquiry).toEqual(offline.enquiries[0]);
   await fitsViewport(page);
 });

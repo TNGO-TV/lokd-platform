@@ -28,7 +28,7 @@ test("renders the canonical public LOKD launch identity with real signup entry p
   );
   const html = await response.text();
   assert.match(html, /<title>LOKD Security \| Guarding, Armed Security and VIP Protection<\/title>/i);
-  assert.match(html, /<link rel="canonical" href="https:\/\/lokd\.co\.za\/"\/>/i);
+  assert.match(html, /<link rel="canonical" href="https:\/\/lokd\.co\.za\/?"\/>/i);
   assert.match(html, /Sign in with your application email to track your progress/i);
   assert.match(html, /An application does not guarantee work\./i);
   assert.match(html, /Service starts only after terms are agreed and Operations confirms readiness\./i);
@@ -87,5 +87,6 @@ test("built Worker HTML nonces every executable bootstrap script and replaces at
   const html=await first.text(),scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
   assert.ok(scripts.length>2,'actual SSR includes bootstrap and RSC scripts');
   for(const [,attributes] of scripts){assert.ok(attributes.includes(`nonce="${nonce}"`),`script lacks response nonce: ${attributes}`);}
-  assert.match(html,/self\.__VINEXT_RSC/);
+  assert.match(html,/Symbol\.for\("vinext\.navigationRuntime"\)/);
+  assert.match(html,/\.bootstrap\.rsc/);
 });

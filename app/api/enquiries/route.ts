@@ -1,5 +1,7 @@
+import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from "cloudflare:workers";
+import { agreementHash } from "../../lib/agreement-acceptance";
 import { PilotAccessError, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
 
 export const dynamic = "force-dynamic";
@@ -68,7 +70,8 @@ export async function submitClientEnquiry(request: Request,database?:D1Database)
     let input: Record<string, unknown>;
     try { input = JSON.parse(raw) as Record<string, unknown>; }
     catch { throw new EnquiryError("The enquiry body is not valid JSON."); }
-    if (typeof input.company === "string" && input.company.trim()) return reply({ reference: "LOKD-RECEIVED" }, 202);
+    if (!input || typeof input !== "object" || Array.isArray(input)) throw new EnquiryError("The enquiry body must be an object.");
+    if (typeof input.company === "string" && input.company.trim()) return reply({ received: true }, 202);
 
     const organisationName = clean(input.organisationName, "Organisation name", 2, 120);
     const contactName = clean(input.contactName, "Contact name", 3, 100);
@@ -88,19 +91,28 @@ export async function submitClientEnquiry(request: Request,database?:D1Database)
     if (input.privacyConsent !== true) throw new EnquiryError("Consent is required to save and respond to this enquiry.");
 
     const db = database??getDb();
-    const existing = await db.prepare(`SELECT id FROM client_enquiries
-      WHERE email_normalized = ? AND organisation_name = ?
-        AND environment = 'prelaunch' AND integrity_state = 'user_submitted'
-        AND datetime(created_at, '+24 hours') >= datetime('now') LIMIT 1`)
-      .bind(emailNormalized, organisationName).first<{ id: string }>();
-    if (existing) return reply({ reference: "LOKD-RECEIVED" }, 202);
+    // Contact details are not an ownership credential or an idempotency key.
+    // Only possession of the random submission key can recover this exact receipt.
+    const requestKey = input.requestKey;
+    if (requestKey !== undefined && (typeof requestKey !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestKey))) throw new EnquiryError('Use a valid enquiry submission key.');
+    const keyHash = typeof requestKey === 'string' ? await agreementHash('client-enquiry:' + requestKey.toLowerCase()) : null;
+    const payloadHash = await agreementHash(JSON.stringify({organisationName,contactName,emailNormalized,mobileNormalized,siteArea,siteType,requiredStart,serviceType,message,privacyNoticeVersion,advanceFundingAcknowledged:true,privacyConsent:true}));
+    const recover = async () => {
+      if (!keyHash) return null;
+      const receipt = await db.prepare('SELECT payload_hash,enquiry_id FROM client_enquiry_receipts WHERE request_key_hash=?').bind(keyHash).first<{payload_hash:string;enquiry_id:string}>();
+      if (!receipt) return null;
+      if (receipt.payload_hash !== payloadHash) throw new EnquiryError('This submission key was used with different enquiry details. Keep the original request and submit changed details with a new key.',409);
+      return reply({saved:true,reference:receipt.enquiry_id},202);
+    };
+    const recovered = await recover();
+    if (recovered) return recovered;
 
     const now = new Date();
     const nowIso = now.toISOString();
     const retention = new Date(now);
     retention.setUTCFullYear(retention.getUTCFullYear() + 1);
-    const id = `ENQ-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-    await db.batch([
+    const id = `ENQ-${crypto.randomUUID().toUpperCase()}`;
+    const writes = [
       db.prepare(`INSERT INTO client_enquiries
         (id, organisation_name, contact_name, email_normalized, mobile_normalized, site_area,
          site_type, required_start, message, service_type, funding_model, credit_terms_days,
@@ -115,8 +127,17 @@ export async function submitClientEnquiry(request: Request,database?:D1Database)
         VALUES (?, 'client_enquiry', ?, 'public_client_enquiry_submitted', 'client_enquiry', ?,
          'A public service enquiry was received. No quotation, booking, credit or deployment was created.', ?)`)
         .bind(`AUD-${crypto.randomUUID()}`, id, id, nowIso),
-    ]);
-    return reply({ reference: id }, 202);
+    ];
+    if (keyHash) writes.push(db.prepare('INSERT INTO client_enquiry_receipts(request_key_hash,payload_hash,enquiry_id,created_at) VALUES(?,?,?,?)').bind(keyHash,payloadHash,id,nowIso));
+    try { await db.batch(writes); }
+    catch (cause) {
+      // D1 batch is atomic: a concurrent key winner rolls back this whole copy,
+      // including its audit event. Return only an exact matching stored receipt.
+      const concurrent = await recover();
+      if (concurrent) return concurrent;
+      throw cause;
+    }
+    return reply({ saved:true,reference:id },202);
   } catch (cause) { return failure(cause); }
 }
 
@@ -174,6 +195,6 @@ export async function PATCH(request: Request) {
       (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
       VALUES (?, 'operations', ?, 'client_enquiry_reviewed', 'client_enquiry', ?, ?, ?)`)
       .bind(`AUD-${crypto.randomUUID()}`, actor.email, id, `Enquiry ${action} recorded by Operations.`, now).run();
-    return reply({ ok: true });
+    return reply({ok:true,commandReceipt:await workspaceCommandReceipt('client-enquiries',input)});
   } catch (cause) { return failure(cause); }
 }

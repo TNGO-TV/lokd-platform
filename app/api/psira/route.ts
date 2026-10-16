@@ -1,3 +1,4 @@
+import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { hasLinkedOfficerSignup } from '../../lib/signup-server';
 import { principalForEmail, principalHasRole } from '../../lib/pilot-runtime';
@@ -37,6 +38,6 @@ export async function POST(request: Request) {
     let body; try{body=JSON.parse(text);}catch{throw new PsiraError('Submit a valid verification form.');}
     if (!body || typeof body!=='object' || Array.isArray(body)) throw new PsiraError('Submit a valid verification form.');
     if (!env.DB) throw new PsiraError('Verification storage is unavailable.',503);
-    await writePsiraCase(env.DB,principal,body);return response({cases:await readPsiraCases(env.DB,principal)});
+    await writePsiraCase(env.DB,principal,body);return response({cases:await readPsiraCases(env.DB,principal),commandReceipt:await workspaceCommandReceipt('psira',body)});
   }catch(error){return failure(error);}
 }
