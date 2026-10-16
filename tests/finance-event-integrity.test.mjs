@@ -77,7 +77,7 @@ if(process.env.LOKD_FINANCE_EVENT_LOADER!=='1'){
  test('canonical finance event consumption and immutable conflict matrix',()=>{
   const root=fileURLToPath(new URL('../',import.meta.url));
   const childEnv={...process.env,LOKD_FINANCE_EVENT_LOADER:'1'};delete childEnv.NODE_TEST_CONTEXT;
-  const output=execFileSync(process.execPath,['--experimental-strip-types','--experimental-loader=./tests/cloudflare-loader.mjs','--experimental-loader='+fileURLToPath(import.meta.url),'--test-name-pattern=production intake prepares pending records','tests/assignment-activation-db.test.mjs'],{cwd:root,env:childEnv,encoding:'utf8',timeout:30000,stdio:['ignore','pipe','pipe']});
+  const output=execFileSync(process.execPath,['--experimental-strip-types','--import','./tests/register-finance-event.mjs','--test-reporter=tap','--test-name-pattern=production intake prepares pending records','tests/assignment-activation-db.test.mjs'],{cwd:root,env:childEnv,encoding:'utf8',timeout:30000,stdio:['ignore','pipe','pipe']});
   for(const mode of ['test','live'])assert.match(output,new RegExp('QA_FINANCE_FIXED: '+mode+' single-event reuse denied'));
   assert.match(output,/# fail 0/);assert.match(output,/# skipped 0/);
  });
