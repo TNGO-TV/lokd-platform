@@ -13,7 +13,7 @@ concurrency:
 jobs:
   security:
     name: security
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -35,7 +35,7 @@ jobs:
       - name: Ensure validation did not change tracked source
         run: git diff --exit-code HEAD
       - name: Retain validated native candidate and evidence
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
         with:
           name: native-candidate-${{ github.event.pull_request.head.sha || github.sha }}
           retention-days: 14
@@ -50,7 +50,7 @@ jobs:
             test-results/offline-browser/
       - name: Retain failed validation diagnostics
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
         with:
           name: failed-validation-${{ github.event.pull_request.head.sha || github.sha }}
           retention-days: 14

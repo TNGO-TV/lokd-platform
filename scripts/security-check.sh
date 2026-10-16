@@ -10,5 +10,5 @@ npm run lint
 node scripts/generate-readiness-schema.mjs --check
 python3 tests/restore-order.test.py
 npm run build
-node --experimental-loader=./tests/cloudflare-loader.mjs --test --test-concurrency=2 tests/*.test.mjs
+node --import ./tests/register-cloudflare.mjs --test --test-concurrency=2 tests/*.test.mjs
 node node_modules/@playwright/test/cli.js test --config tests/offline-browser/playwright.config.mjs

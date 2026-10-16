@@ -21,7 +21,7 @@ export default defineConfig({
   },
   webServer: {
     cwd: root,
-    command: 'node --experimental-loader ./tests/cloudflare-loader.mjs tests/offline-browser/server.mjs',
+    command: 'node --import ./tests/register-cloudflare.mjs tests/offline-browser/server.mjs',
     url: 'http://127.0.0.1:4173/__offline_ready',
     reuseExistingServer: false,
     timeout: 30000,
