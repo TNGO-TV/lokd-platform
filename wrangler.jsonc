@@ -6,6 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "keep_vars": true,
+  "upload_source_maps": true,
   "main": "./worker/index.ts",
   "assets": {
     "directory": "./dist/client",

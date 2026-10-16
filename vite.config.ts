@@ -19,7 +19,6 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = nativeCf
   ? {
       main: "./worker/index.ts",
-      compatibility_flags: ["nodejs_compat"],
     }
   : {
       main: "./worker/index.ts",

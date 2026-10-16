@@ -144,8 +144,8 @@ test('security enquiry enforces fields and consent, shows server rejection and l
   await form.getByLabel('Contact name', {exact: true}).fill('Offline Contact');
   await form.getByLabel('Email', {exact: true}).fill('offline.contact@example.test');
   await form.getByLabel('Site area', {exact: true}).fill('Pretoria');
-  await form.getByLabel('Site type', {exact: true}).selectOption('commercial_property');
-  await form.getByLabel('Planning window', {exact: true}).selectOption('planning');
+  await form.getByRole('combobox', {name: 'Site type', exact: true}).selectOption('commercial_property');
+  await form.getByRole('combobox', {name: 'Planning window', exact: true}).selectOption('planning');
   await form.getByLabel('What must the post achieve?', {exact: true}).fill('Synthetic browser test for weekday entry and reception security.');
   await form.locator('input[name="advanceFundingAcknowledged"]').check();
   await expect(form.getByRole('link', {name: 'privacy notice', exact: true})).toHaveAttribute('href', '/privacy');

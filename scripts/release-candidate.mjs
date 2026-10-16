@@ -54,7 +54,7 @@ function generatedDefault(key, value, original) {
   // ESModule rules. Every value below is exact; unknown keys fail closed.
   const emptyArrays = ['workflows', 'migrations', 'kv_namespaces', 'send_email', 'connect', 'vectorize',
     'ai_search_namespaces', 'ai_search', 'agent_memory', 'hyperdrive', 'services', 'analytics_engine_datasets',
-    'dispatch_namespaces', 'mtls_certificates', 'pipelines', 'secrets_store_secrets', 'artifacts',
+    'dispatch_namespaces', 'mtls_certificates', 'pipelines', 'k2', 'secrets_store_secrets', 'artifacts',
     'unsafe_hello_world', 'flagship', 'worker_loaders', 'ratelimits', 'vpc_services', 'vpc_networks'];
   if (emptyArrays.includes(key)) return settingsMatch(value, []);
   const defaults = { define: {}, exports: {}, cloudchamber: {}, unsafe: {},

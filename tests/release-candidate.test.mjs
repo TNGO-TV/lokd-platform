@@ -19,7 +19,7 @@ function fixture(t) {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); copyFileSync(file, path.join(root, file));
   }
   const original = { name: 'lokd-security', account_id: 'd7000a5708fdeb67be6e21ee40e9105e',
-    compatibility_date: '2026-09-14', compatibility_flags: ['nodejs_compat'], workers_dev: true, keep_vars: true,
+    compatibility_date: '2026-09-14', compatibility_flags: ['nodejs_compat'], workers_dev: true, keep_vars: true, upload_source_maps: true,
     assets: { directory: './dist/client', binding: 'ASSETS', not_found_handling: 'none' }, images: { binding: 'IMAGES' },
     triggers: { crons: ['* * * * *'] }, vars: { LOKD_PUBLIC_ORIGIN: 'https://lokd.co.za', LOKD_APP_STAGE: 'prelaunch' }, observability: { enabled: true },
     d1_databases: [{ binding: 'DB', database_name: 'lokd-security', database_id: 'real-database' }],
@@ -98,7 +98,7 @@ test('native policy settings cannot silently disappear or change and values are 
     { images: undefined }, { images: { binding: 'OTHER' } }, { vars: undefined }, { vars: { ...f.original.vars, LOKD_APP_STAGE: 'secret-changed-value' } },
     { vars: { ...f.original.vars, EXTRA_FLAG: 'secret-added-value' } }, { triggers: undefined }, { triggers: { crons: [] } }, { triggers: { crons: ['0 * * * *'] } },
     { compatibility_date: undefined }, { compatibility_flags: [] }, { keep_vars: undefined }, { workers_dev: false }, { observability: { enabled: false } },
-    { assets: { directory: '../client', binding: 'ASSETS' } },
+    { assets: { directory: '../client', binding: 'ASSETS' } }, { upload_source_maps: false }, { upload_source_maps: undefined },
   ]) {
     assert.equal(f.run('begin').status, 0); f.outputs();
     f.put('dist/server/wrangler.json', JSON.stringify({ ...f.original, main: 'index.js', assets: { ...f.original.assets, directory: '../client' }, ...change }));
@@ -130,7 +130,7 @@ test('undeclared deployment policy and nested binding properties fail sealing an
     { d1_databases: [{ ...f.original.d1_databases[0], remote: true }] },
     { r2_buckets: [{ ...f.original.r2_buckets[0], jurisdiction: 'eu' }] },
     { build: { watch_dir: './src', cwd: '/unreviewed' } }, { rules: [{ type: 'Data', globs: ['**/*'] }] },
-    { configPath: '/unreviewed/wrangler.jsonc' },
+    { configPath: '/unreviewed/wrangler.jsonc' }, { k2: [{binding:'EXTRA'}] },
   ];
   const config = (extra) => JSON.stringify({ ...f.original, main: 'index.js', assets: { ...f.original.assets, directory: '../client' }, ...extra });
   assert.equal(f.run('begin').status, 0); f.outputs();
@@ -152,7 +152,7 @@ test('only exact documented generated defaults and relocated migration paths are
   const f = fixture(t); assert.equal(f.run('begin').status, 0); f.outputs();
   const emptyFamilies = Object.fromEntries(['workflows', 'migrations', 'kv_namespaces', 'send_email', 'connect', 'vectorize',
     'ai_search_namespaces', 'ai_search', 'agent_memory', 'hyperdrive', 'services', 'analytics_engine_datasets',
-    'dispatch_namespaces', 'mtls_certificates', 'pipelines', 'secrets_store_secrets', 'artifacts', 'unsafe_hello_world',
+    'dispatch_namespaces', 'mtls_certificates', 'pipelines', 'k2', 'secrets_store_secrets', 'artifacts', 'unsafe_hello_world',
     'flagship', 'worker_loaders', 'ratelimits', 'vpc_services', 'vpc_networks'].map((key) => [key, []]));
   const config = { ...f.original, ...emptyFamilies, main: 'index.js', assets: { ...f.original.assets, directory: '../client' },
     d1_databases: [{ ...f.original.d1_databases[0], migrations_dir: '../../migrations' }],
