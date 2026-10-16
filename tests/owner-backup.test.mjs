@@ -23,7 +23,7 @@ function restore(snapshot){
   const stmt=db.prepare(`INSERT INTO ${q(t.name)} (${indices.map(i=>q(cols[i].name)).join(',')}) VALUES (${indices.map(()=>'?').join(',')})`);
   for(const row of t.rows)stmt.run(...indices.map(i=>{const [kind,value]=row[i];return kind==='integer'?BigInt(value):kind==='real'?Number(value):kind==='blob'?Buffer.from(value,'hex'):value}));
  }
- for(const s of snapshot.schema.filter(s=>s.type!=='table'&&s.sql))db.exec(s.sql);
+ for(const kind of ['view','index','trigger'])for(const s of snapshot.schema.filter(s=>s.type===kind&&s.sql))db.exec(s.sql);
  return db;
 }
 test('authorization fails closed without touching bindings',async()=>{
@@ -43,6 +43,8 @@ test('real SQLite snapshot and restored schema/cells match exactly',async()=>{
  CREATE TABLE hidden(t TEXT); INSERT INTO hidden(rowid,t) VALUES(555,'x');
  CREATE TABLE keyed(k TEXT PRIMARY KEY,v REAL) WITHOUT ROWID; INSERT INTO keyed VALUES('x',1.7976931348623157e308);
  CREATE INDEX idx ON data(txt); CREATE VIEW data_view AS SELECT big FROM data;
+ CREATE VIEW writable_data AS SELECT id,txt FROM data;
+ CREATE TRIGGER writable_data_insert INSTEAD OF INSERT ON writable_data BEGIN INSERT INTO data(id,txt) VALUES(new.id,new.txt); END;
  CREATE TRIGGER tr AFTER INSERT ON hidden BEGIN UPDATE hidden SET t='triggered' WHERE rowid=new.rowid; END;`);
  const snap=await (await ownerBackup(req({action:'database'}),{...config(),DB:adapter(db)})).json();
  assert.equal(snap.format,'sqlite-typed-cells-v2');
@@ -51,6 +53,8 @@ test('real SQLite snapshot and restored schema/cells match exactly',async()=>{
  delete snap.captured_at;delete next.captured_at;assert.deepEqual(next,snap);
  assert.equal(restored.prepare('PRAGMA integrity_check').get().integrity_check,'ok');
  assert.deepEqual(restored.prepare('PRAGMA foreign_key_check').all(),[]);
+ restored.prepare('INSERT INTO writable_data(id,txt) VALUES(?,?)').run(101,'restored trigger');
+ assert.equal(restored.prepare('SELECT txt FROM data WHERE id=101').get().txt,'restored trigger');
  db.close();restored.close();
 });
 test('unsupported schemas and oversized snapshots fail without partial success',async()=>{

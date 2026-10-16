@@ -14,6 +14,8 @@ test('synthetic full-schema encrypted recovery uses a separated key, detects dam
  const token=randomBytes(32).toString('hex'),env={DB:db,LOKD_BACKUP_ENABLED:'true',LOKD_BACKUP_EXPIRES_AT:String(Date.now()+60000),LOKD_BACKUP_TOKEN_SHA256:digest(token)};
  const response=await ownerBackup(new Request('https://synthetic.invalid'+BACKUP_PATH,{method:'POST',headers:{'x-owner-backup-token':token},body:JSON.stringify({action:'database'})}),env);
  assert.equal(response.status,200,response.status===200?'':await response.clone().text());const snapshot=await response.json();assert.equal(snapshot.format,'sqlite-typed-cells-v2');assert(snapshot.tables.some(t=>t.name==='sandbox_command_claims'));
+ assert(snapshot.schema.some(s=>s.type==='view'&&s.name==='client_quote_offer_issues'));
+ assert(snapshot.schema.some(s=>s.type==='trigger'&&/INSTEAD OF INSERT ON client_quote_offer_issues/i.test(s.sql)));
  for(const dir of ['capture','destination','separate-key-custodian','recoverer','gpg'])mkdirSync(join(root,dir),{mode:0o700});
  const source=join(root,'capture/database.json'),key=join(root,'separate-key-custodian/key'),archive=join(root,'capture/database.gpg'),copy=join(root,'destination/database.gpg'),restored=join(root,'recoverer/database.json');
  writeFileSync(source,JSON.stringify(snapshot),{mode:0o600});writeFileSync(key,randomBytes(48).toString('hex'),{mode:0o600});
