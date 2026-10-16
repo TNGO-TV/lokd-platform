@@ -47,3 +47,17 @@ jobs:
             test-results/dependency-audit.json
             test-results/dependency-boundary-*.json
             test-results/offline-browser/
+      - name: Retain failed validation diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: failed-validation-${{ github.sha }}
+          retention-days: 14
+          if-no-files-found: warn
+          include-hidden-files: true
+          path: |
+            dist/server/wrangler.json
+            .sites-runtime/release/validation.log
+            test-results/dependency-audit.json
+            test-results/dependency-boundary-*.json
+            test-results/offline-browser/

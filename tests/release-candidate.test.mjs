@@ -52,6 +52,17 @@ test('candidate records exact source, lock, native assets and validation evidenc
   assert.equal(f.run('verify').status, 0); assert.match(receipt.migrationRequirement, /0082 before deploying/);
 });
 
+test('CI summary exposes only validated boundary fields, source commit, config key names and artifact count', (t) => {
+  const f = fixture(t); assert.equal(f.run('begin').status, 0); f.outputs();
+  const result = f.run('seal'); assert.equal(result.status, 0, result.stderr);
+  const summary = JSON.parse(result.stdout.split('\n').find((line) => line.startsWith('{')));
+  assert.deepEqual(Object.keys(summary).sort(), ['artifactFileCount', 'dependencyBoundaries', 'nativeConfigMatchedKeys', 'sourceCommit']);
+  assert.equal(summary.artifactFileCount, 3); assert.match(summary.sourceCommit, /^[a-f0-9]{40}$/);
+  assert.ok(summary.nativeConfigMatchedKeys.includes('vars')); assert.ok(summary.nativeConfigMatchedKeys.includes('images'));
+  assert.deepEqual(summary.dependencyBoundaries, [{ path: 'test-results/dependency-boundary-rsc.json', ...passingBoundary() }]);
+  assert.doesNotMatch(result.stdout, /https:\/\/lokd|prelaunch|real-database/);
+});
+
 test('artifact, validation, lock and untracked source drift independently block deployment verification', (t) => {
   for (const [name, edit] of [
     ['artifact', (f) => f.put('dist/client/index.html', 'changed')],
@@ -101,6 +112,59 @@ test('source change during validation and missing native mode cannot produce a c
   assert.notEqual(f.run('seal').status, 0);
   const noNative = spawnSync(process.execPath, ['scripts/release-candidate.mjs', 'begin'], { cwd: f.root, env: { ...f.env, LOKD_NATIVE_CF: '' }, encoding: 'utf8' });
   assert.notEqual(noNative.status, 0);
+});
+
+test('undeclared deployment policy and nested binding properties fail sealing and verification', (t) => {
+  const f = fixture(t);
+  const additions = [
+    { routes: [{ pattern: 'unreviewed.invalid/*' }] }, { route: 'unreviewed.invalid/*' },
+    { services: [{ binding: 'EXTRA', service: 'other-worker' }] }, { kv_namespaces: [{ binding: 'EXTRA', id: '0'.repeat(32) }] },
+    { durable_objects: { bindings: [{ name: 'EXTRA', class_name: 'Extra' }] } }, { queues: { producers: [{ binding: 'EXTRA', queue: 'extra' }], consumers: [] } },
+    { send_email: [{ name: 'EXTRA' }] }, { secrets_store_secrets: [{ binding: 'EXTRA' }] }, { browser: { binding: 'EXTRA' } },
+    { tail_consumers: [{ service: 'other-worker' }] }, { unsafe: { bindings: [{ name: 'EXTRA', type: 'plain_text', text: 'hidden-value' }] } },
+    { placement: { mode: 'smart' } }, { preview_urls: true }, { unknown_future_binding: [] }, { targetEnvironment: 'other' },
+    { assets: { ...f.original.assets, directory: '../client', run_worker_first: true } },
+    { observability: { enabled: true, head_sampling_rate: 0 } },
+    { images: { binding: 'IMAGES', remote: true } },
+    { d1_databases: [{ ...f.original.d1_databases[0], preview_database_id: 'other' }] },
+    { d1_databases: [{ ...f.original.d1_databases[0], remote: true }] },
+    { r2_buckets: [{ ...f.original.r2_buckets[0], jurisdiction: 'eu' }] },
+    { build: { watch_dir: './src', cwd: '/unreviewed' } }, { rules: [{ type: 'Data', globs: ['**/*'] }] },
+    { configPath: '/unreviewed/wrangler.jsonc' },
+  ];
+  const config = (extra) => JSON.stringify({ ...f.original, main: 'index.js', assets: { ...f.original.assets, directory: '../client' }, ...extra });
+  assert.equal(f.run('begin').status, 0); f.outputs();
+  for (const extra of additions) {
+    f.put('dist/server/wrangler.json', config(extra)); const result = f.run('seal');
+    assert.notEqual(result.status, 0, Object.keys(extra)[0]);
+    assert.match(result.stderr, /Undeclared native configuration|Native .* (?:configuration|bindings) mismatch/);
+    assert.doesNotMatch(result.stderr, /hidden-value/);
+  }
+  f.prepare();
+  for (const extra of additions) {
+    f.put('dist/server/wrangler.json', config(extra)); const result = f.run('verify');
+    assert.notEqual(result.status, 0, Object.keys(extra)[0]);
+    assert.match(result.stderr, /Undeclared native configuration|Native .* (?:configuration|bindings) mismatch/);
+  }
+});
+
+test('only exact documented generated defaults and relocated migration paths are accepted', (t) => {
+  const f = fixture(t); assert.equal(f.run('begin').status, 0); f.outputs();
+  const emptyFamilies = Object.fromEntries(['workflows', 'migrations', 'kv_namespaces', 'send_email', 'connect', 'vectorize',
+    'ai_search_namespaces', 'ai_search', 'agent_memory', 'hyperdrive', 'services', 'analytics_engine_datasets',
+    'dispatch_namespaces', 'mtls_certificates', 'pipelines', 'secrets_store_secrets', 'artifacts', 'unsafe_hello_world',
+    'flagship', 'worker_loaders', 'ratelimits', 'vpc_services', 'vpc_networks'].map((key) => [key, []]));
+  const config = { ...f.original, ...emptyFamilies, main: 'index.js', assets: { ...f.original.assets, directory: '../client' },
+    d1_databases: [{ ...f.original.d1_databases[0], migrations_dir: '../../migrations' }],
+    configPath: path.join(f.root, 'wrangler.jsonc'), userConfigPath: 'wrangler.jsonc', topLevelName: f.original.name, definedEnvironments: [],
+    define: {}, exports: {}, cloudchamber: {}, unsafe: {}, durable_objects: { bindings: [] }, queues: { producers: [], consumers: [] },
+    logfwdr: { bindings: [] }, jsx_factory: 'React.createElement', jsx_fragment: 'React.Fragment', build: { watch_dir: './src' },
+    python_modules: { exclude: ['**/*.pyc'] }, no_bundle: true, rules: [{ type: 'ESModule', globs: ['**/*.js', '**/*.mjs'] }],
+    dev: { ip: 'localhost', local_protocol: 'http', upstream_protocol: 'http', enable_containers: true, generate_types: false } };
+  f.put('dist/server/wrangler.json', JSON.stringify(config)); let result = f.run('seal'); assert.equal(result.status, 0, result.stderr);
+  result = f.run('verify'); assert.equal(result.status, 0, result.stderr);
+  config.d1_databases[0].migrations_dir = '../../unreviewed';
+  f.put('dist/server/wrangler.json', JSON.stringify(config)); result = f.run('verify'); assert.notEqual(result.status, 0); assert.match(result.stderr, /migration path mismatch/);
 });
 
 test('failed, inconsistent or malformed dependency evidence cannot be sealed', (t) => {

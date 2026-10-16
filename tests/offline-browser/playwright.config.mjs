@@ -1,10 +1,14 @@
 import {defineConfig} from '@playwright/test';
+import {fileURLToPath} from 'node:url';
+
+const root = fileURLToPath(new URL('../../', import.meta.url));
+const results = fileURLToPath(new URL('../../test-results/offline-browser/', import.meta.url));
 
 export default defineConfig({
   testDir: '.',
   testMatch: '*.spec.mjs',
-  outputDir: '../../test-results/offline-browser/run',
-  reporter: [['list'], ['json', {outputFile: 'test-results/offline-browser/results.json'}]],
+  outputDir: results + 'run',
+  reporter: [['list'], ['json', {outputFile: results + 'results.json'}]],
   workers: 1,
   retries: 0,
   timeout: 45000,
@@ -16,6 +20,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
+    cwd: root,
     command: 'node --experimental-loader ./tests/cloudflare-loader.mjs tests/offline-browser/server.mjs',
     url: 'http://127.0.0.1:4173/__offline_ready',
     reuseExistingServer: false,

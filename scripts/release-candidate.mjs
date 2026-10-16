@@ -44,8 +44,33 @@ function settingsMatch(actual, expected) {
   if (Array.isArray(expected)) return Array.isArray(actual) && actual.length === expected.length
     && [...expected].sort().every((value, index) => settingsMatch([...actual].sort()[index], value));
   if (expected !== null && typeof expected === 'object') return actual !== null && typeof actual === 'object'
+    && !Array.isArray(actual) && Object.keys(actual).length === Object.keys(expected).length
     && Object.entries(expected).every(([key, value]) => Object.hasOwn(actual, key) && settingsMatch(actual[key], value));
   return actual === expected;
+}
+function generatedDefault(key, value, original) {
+  // Reviewed Wrangler normalization emits empty collections, not permission to
+  // introduce bindings. Vite getOutputConfig adds only no_bundle and these
+  // ESModule rules. Every value below is exact; unknown keys fail closed.
+  const emptyArrays = ['workflows', 'migrations', 'kv_namespaces', 'send_email', 'connect', 'vectorize',
+    'ai_search_namespaces', 'ai_search', 'agent_memory', 'hyperdrive', 'services', 'analytics_engine_datasets',
+    'dispatch_namespaces', 'mtls_certificates', 'pipelines', 'secrets_store_secrets', 'artifacts',
+    'unsafe_hello_world', 'flagship', 'worker_loaders', 'ratelimits', 'vpc_services', 'vpc_networks'];
+  if (emptyArrays.includes(key)) return settingsMatch(value, []);
+  const defaults = { define: {}, exports: {}, cloudchamber: {}, unsafe: {},
+    durable_objects: { bindings: [] }, queues: { producers: [], consumers: [] }, logfwdr: { bindings: [] },
+    jsx_factory: 'React.createElement', jsx_fragment: 'React.Fragment', build: { watch_dir: './src' },
+    python_modules: { exclude: ['**/*.pyc'] }, no_bundle: true,
+    rules: [{ type: 'ESModule', globs: ['**/*.js', '**/*.mjs'] }],
+    topLevelName: original.name, definedEnvironments: [] };
+  if (Object.hasOwn(defaults, key)) return settingsMatch(value, defaults[key]);
+  // These fields identify the source config; they cannot point elsewhere or
+  // select a second environment. Dev defaults are local-only, exact values.
+  if (['configPath', 'userConfigPath'].includes(key)) return typeof value === 'string'
+    && path.resolve(root, value) === path.resolve(root, 'wrangler.jsonc');
+  if (key === 'dev') return ['localhost', '127.0.0.1'].some((ip) => settingsMatch(value,
+    { ip, local_protocol: 'http', upstream_protocol: 'http', enable_containers: true, generate_types: false }));
+  return false;
 }
 function nativeConfig() {
   const configPath = 'dist/server/wrangler.json';
@@ -62,8 +87,14 @@ function nativeConfig() {
       // Vite relocates migration paths; deployment never applies migrations.
       // Every other explicitly configured binding property must survive.
       const settings = Object.fromEntries(Object.entries(binding).filter(([key]) => key !== 'migrations_dir'));
+      const selected = actual.find((entry) => entry.binding === binding.binding);
+      const selectedSettings = selected && Object.fromEntries(Object.entries(selected).filter(([key]) => key !== 'migrations_dir'));
       requireCondition(actual.filter((entry) => entry.binding === binding.binding).length === 1
-        && settingsMatch(actual.find((entry) => entry.binding === binding.binding), settings), `Native ${kind} bindings mismatch.`);
+        && settingsMatch(selectedSettings, settings), `Native ${kind} bindings mismatch.`);
+      if (kind === 'd1_databases' && Object.hasOwn(selected, 'migrations_dir')) requireCondition(typeof selected.migrations_dir === 'string'
+        && path.resolve(path.dirname(configPath), selected.migrations_dir) === path.resolve(root, binding.migrations_dir ?? 'migrations'),
+      'Native D1 migration path mismatch.');
+      if (kind !== 'd1_databases') requireCondition(!Object.hasOwn(selected, 'migrations_dir'), `Native ${kind} bindings mismatch.`);
     }
   }
   for (const [key, value] of Object.entries(original)) {
@@ -72,8 +103,13 @@ function nativeConfig() {
     // policy setting; no absent-value defaults can hide removed bindings,
     // schedules, vars, asset behavior or compatibility/observability settings.
     const expected = key === 'assets' ? Object.fromEntries(Object.entries(value).filter(([field]) => field !== 'directory')) : value;
-    requireCondition(Object.hasOwn(config, key) && settingsMatch(config[key], expected), `Native ${key} configuration mismatch.`);
+    const actual = key === 'assets' && config.assets ? Object.fromEntries(Object.entries(config.assets).filter(([field]) => field !== 'directory')) : config[key];
+    requireCondition(Object.hasOwn(config, key) && settingsMatch(actual, expected), `Native ${key} configuration mismatch.`);
     if (key === 'vars') requireCondition(Object.keys(config.vars).length === Object.keys(value).length, 'Native vars configuration mismatch.');
+  }
+  for (const [key, value] of Object.entries(config)) {
+    if (Object.hasOwn(original, key) || key === 'main') continue;
+    requireCondition(generatedDefault(key, value, original), `Undeclared native configuration: ${key}.`);
   }
   requireCondition(!config.build?.command, 'Generated config must not invoke a second build.');
   for (const target of [config.main, config.assets?.directory]) {
@@ -131,6 +167,15 @@ try {
       migrationRequirement: 'Apply migration 0082 before deploying the updated intake handler; do not roll back to the phone-deduplicating handler. Migration execution is a separate authorized operation.' };
     writeFileSync(candidate, JSON.stringify(receipt, null, 2) + '\n');
     rmSync(pending, { force: true });
+    // Reviewable CI summary: selected evidence fields only, never config/vars
+    // values, file contents, or unvalidated fields supplied by a receipt.
+    const dependencyBoundaries = receipt.validations.filter((file) => /^test-results\/dependency-boundary-.+\.json$/.test(file.path)).map((file) => {
+      const evidence = json(file.path);
+      return { path: file.path, checkedPackages: evidence.checkedPackages, moduleCount: evidence.moduleCount, moduleGraphSha256: evidence.moduleGraphSha256 };
+    });
+    console.log(JSON.stringify({ sourceCommit: receipt.source.commit,
+      nativeConfigMatchedKeys: Object.keys(json('wrangler.jsonc')).filter((key) => key !== '$schema').sort(),
+      artifactFileCount: receipt.artifacts.length, dependencyBoundaries }));
     console.log(`Prepared ${candidate} for ${receipt.source.commit}; receipt sha256 ${hash(readFileSync(candidate))}; no deployment performed.`);
   } else if (action === 'verify') {
     const receipt = json(candidate);
