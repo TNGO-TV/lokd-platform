@@ -7,7 +7,7 @@ import path from 'node:path';
 
 const zeroFindings = { total: 0, info: 0, low: 0, moderate: 0, high: 0, critical: 0 };
 const passingAudit = () => ({ npmExit: 0, report: { auditReportVersion: 2, metadata: { vulnerabilities: { ...zeroFindings } }, vulnerabilities: {} },
-  assessment: { ok: true, blocked: [], dispositions: [], raw: { ...zeroFindings } } });
+  assessment: { ok: true, blocked: [], dispositions: [], raw: { ...zeroFindings }, severityDifferences: [] } });
 const passingBoundary = () => ({ checkedPackages: ['braces', 'micromatch', 'fast-glob'], moduleCount: 1, moduleGraphSha256: 'a'.repeat(64) });
 const passingBrowser = () => ({stats:{expected:14,unexpected:0,flaky:0,skipped:0},errors:[]});
 
