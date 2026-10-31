@@ -1,6 +1,7 @@
 // Local-only scenario preparation. Original identity and training/payment approvals
 // are produced by real services; no raw approved applicant/payroll rows are seeded.
 import {mock} from 'node:test';
+import {fixtureScope} from '../fixtures/fixture-scope.mjs';
 import {sandboxReady} from '../fixtures/sandbox-completion.mjs';
 import {sandboxConnected} from '../fixtures/sandbox-connected.mjs';
 import {sandboxClient} from '../fixtures/sandbox-client.mjs';
@@ -11,12 +12,14 @@ import {signFixtureAgreements,activateAssignment,request,passDueScheduledCheckpo
 import {installFixtureClock} from '../fixtures/fixture-clock.mjs';
 import {operateProduction} from '../../app/lib/production-operations.ts';
 import {freshHeaders} from '../fixtures/connected-payroll-consumption.mjs';
-export async function prepareConnectedScenario(kind){
- if(kind==='period'){const cleanup=[];const {prepareBrowserPeriod}=await import('./connected-period-source.mjs');const p=await prepareBrowserPeriod({mock,after:fn=>cleanup.push(fn)});return {database:p.x.database,primaryDatabase:p.x.runtime.DB.sql,runtime:p.x.runtime,roles:{officer:applicant,maker,checker,assessor,independent,client:p.client,other:{userId:'unrelated-browser',email:'other@example.test',operations:false}},meta:{kind,caseId:p.x.caseId,officerId:p.x.officerId,workspace,orderId:'period-order',sources:[p.first,p.second],period:p.period},close(){for(const fn of cleanup)fn();p.x.close();}};}
+export async function prepareConnectedScenario(kind,{now,configureDatabase}={}){
+ const scope=fixtureScope();
+ try{
+ if(kind==='period'){const {prepareBrowserPeriod,periodFixtureStart}=await import('./connected-period-source.mjs');const p=await prepareBrowserPeriod({mock,after:fn=>scope.after(fn)},{now:periodFixtureStart(now??Date.now()),configureDatabase});return {database:p.x.database,primaryDatabase:p.x.runtime.DB.sql,runtime:p.x.runtime,roles:{officer:applicant,maker,checker,assessor,independent,client:p.client,other:{userId:'unrelated-browser',email:'other@example.test',operations:false}},meta:{kind,caseId:p.x.caseId,officerId:p.x.officerId,workspace,orderId:'period-order',sources:[p.first,p.second],period:p.period},close:()=>scope.close()};}
 
  if(!['training','service','partner','specialist','presence'].includes(kind))throw Error('Unknown bounded connected scenario.');
- const x=kind==='training'?await sandboxReady():await sandboxConnected({model:kind==='partner'?'partner':'direct_flex',serviceType:kind==='specialist'?'Armed':'Unarmed',durationMinutes:60});
- const db=x.db.sql,cleanup=[];let clock;
+ const x=kind==='training'?await sandboxReady({configureDatabase}):await sandboxConnected({configureDatabase,model:kind==='partner'?'partner':'direct_flex',serviceType:kind==='specialist'?'Armed':'Unarmed',durationMinutes:60});
+ scope.after(()=>x.close());const db=x.db.sql;let clock;
  const roles={officer:applicant,maker,checker,assessor,independent,company:{userId:'sandbox-company-rep',email:'partner@example.test',operations:false},other:{userId:'unrelated-browser',email:'other@example.test',operations:false}};
  const meta={kind,caseId:x.caseId,officerId:x.officerId,bridgeId:x.bridgeId,policyVersion:'lokd-sandbox-completion-v1',setupBoundary:'Real identity/capture/readiness services. Connected workforce fixture supplies explicit fictional surrounding site/roster/funding/account data; target browser transitions are not preapproved.'};
  if(kind==='training'){
@@ -39,7 +42,7 @@ export async function prepareConnectedScenario(kind){
   await signFixtureAgreements(db);
   if(kind==='specialist'){const {sandboxSpecialist}=await import('../../app/lib/sandbox-specialist.ts');const run=(actor,input)=>sandboxSpecialist(x.runtime,actor,input,freshHeaders(actor));let saved=await run(maker,{action:'read'});let pack=saved.packs.find(p=>p.bookingId==='BK-1');saved=await run(maker,{action:'save_pack',bookingId:'BK-1',version:pack.version,content:pack.content});pack=saved.packs.find(p=>p.bookingId==='BK-1');saved=await run(maker,{action:'submit_pack',id:pack.id,version:pack.version});pack=saved.packs.find(p=>p.bookingId==='BK-1');await run(checker,{action:'approve_pack',id:pack.id,version:pack.version});}
 
-  clock=installFixtureClock({mock,after:fn=>cleanup.push(fn)},db);
+  clock=installFixtureClock({mock,after:fn=>scope.after(fn)},db);
   await operateProduction(x.db,checker,{action:'grant_operator',email:checker.email,role:'payroll_reviewer',limitCents:1000000},freshHeaders(checker));
   for(const [actor,role] of [[maker,'operations_controller'],[checker,'operations_owner']])await operateProduction(x.db,checker,{action:'grant_operator',email:actor.email,role,limitCents:100000000},freshHeaders(checker));
   Object.assign(meta,{clientId:client.clientId,engagementId:x.fields.engagementId,employerId:x.fields.employerId,engagementVersion:db.prepare('SELECT version FROM workforce_engagements WHERE id=?').get(x.fields.engagementId).version,slotId:'SLOT-1',slotVersion:db.prepare("SELECT version FROM roster_slots WHERE id='SLOT-1'").get().version,startsAt:x.times.starts,endsAt:x.times.ends});
@@ -50,5 +53,6 @@ export async function prepareConnectedScenario(kind){
    clock.set(Date.parse(kind==='presence'?x.times.starts:x.times.ends)+1000);meta.shiftId=a.shiftId;
   }
  }
- return {database:db,primaryDatabase:x.runtime.DB.sql,runtime:x.runtime,roles,meta,advance(ms){if(!clock)throw Error('No scenario clock');clock.advance(ms);},close(){for(const fn of cleanup)fn();x.close();}};
+ return {database:db,primaryDatabase:x.runtime.DB.sql,runtime:x.runtime,roles,meta,advance(ms){if(!clock)throw Error('No scenario clock');clock.advance(ms);},close:()=>scope.close()};
+ }catch(error){scope.fail(error);}
 }

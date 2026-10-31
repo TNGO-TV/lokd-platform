@@ -9,7 +9,7 @@ const zeroFindings = { total: 0, info: 0, low: 0, moderate: 0, high: 0, critical
 const passingAudit = () => ({ npmExit: 0, report: { auditReportVersion: 2, metadata: { vulnerabilities: { ...zeroFindings } }, vulnerabilities: {} },
   assessment: { ok: true, blocked: [], dispositions: [], raw: { ...zeroFindings }, severityDifferences: [] } });
 const passingBoundary = () => ({ checkedPackages: ['braces', 'micromatch', 'fast-glob'], moduleCount: 1, moduleGraphSha256: 'a'.repeat(64) });
-const passingBrowser = () => ({stats:{expected:14,unexpected:0,flaky:0,skipped:0},errors:[]});
+const passingBrowser = (expected=14) => ({stats:{expected,unexpected:0,flaky:0,skipped:0},errors:[]});
 
 function fixture(t) {
   const root = mkdtempSync(path.join(os.tmpdir(), 'lokd-release-'));
@@ -39,6 +39,7 @@ function fixture(t) {
     put('test-results/dependency-audit.json', JSON.stringify(passingAudit()));
     put('test-results/dependency-boundary-rsc.json', JSON.stringify(passingBoundary()));
     put('test-results/offline-browser/results.json', JSON.stringify(passingBrowser()));
+    put('test-results/integrated-browser/browser.json', JSON.stringify(passingBrowser(78)));
   };
   const prepare = () => { assert.equal(run('begin').status, 0); outputs(); const sealed = run('seal'); assert.equal(sealed.status, 0, sealed.stderr); };
   return { root, put, original, env, run, outputs, prepare };
@@ -48,7 +49,8 @@ test('candidate records exact source, lock, native assets and validation evidenc
   const f = fixture(t); f.prepare();
   const receipt = JSON.parse(readFileSync(path.join(f.root, '.sites-runtime/release/candidate.json')));
   assert.match(receipt.source.commit, /^[a-f0-9]{40}$/); assert.match(receipt.source.tree, /^[a-f0-9]{40}$/);
-  assert.equal(receipt.artifacts.length, 3); assert.equal(receipt.validations.length, 4);
+  assert.equal(receipt.artifacts.length, 3); assert.equal(receipt.validations.length, 5);
+  assert.ok(receipt.validations.some(file=>file.path==='test-results/integrated-browser/browser.json'));
   assert.equal(f.run('verify').status, 0); assert.match(receipt.migrationRequirement, /through 0086 before deploying/);
 });
 
@@ -68,6 +70,7 @@ test('artifact, validation, lock and untracked source drift independently block 
     ['artifact', (f) => f.put('dist/client/index.html', 'changed')],
     ['validation', (f) => f.put('test-results/dependency-audit.json', 'changed')],
     ['browser evidence', (f) => f.put('test-results/offline-browser/results.json', 'changed')],
+    ['integrated evidence', (f) => f.put('test-results/integrated-browser/browser.json', JSON.stringify({...passingBrowser(78),duration:1}))],
     ['lock', (f) => f.put('package-lock.json', '{"changed":true}')],
     ['untracked source', (f) => f.put('unexpected.js', 'changed')],
   ]) {
@@ -79,6 +82,7 @@ test('artifact, validation, lock and untracked source drift independently block 
 test('failed or incomplete preparation invalidates previous receipts and cannot seal', (t) => {
   const f = fixture(t); f.prepare(); assert.equal(f.run('begin').status, 0);
   assert.equal(existsSync(path.join(f.root, '.sites-runtime/release/candidate.json')), false);
+  assert.equal(existsSync(path.join(f.root, 'test-results/integrated-browser/browser.json')), false);
   assert.notEqual(f.run('seal').status, 0); assert.notEqual(f.run('verify').status, 0);
 });
 
@@ -216,12 +220,13 @@ printf '%s\\n' "$HOME" > .sites-runtime/deploy-home
 echo deployed >> .sites-runtime/deploy-calls
 `);
   f.put('.sites-runtime/stub-build.cjs', `const fs=require('node:fs');
-for(const dir of ['dist/server','dist/client','test-results/offline-browser'])fs.mkdirSync(dir,{recursive:true});
+for(const dir of ['dist/server','dist/client','test-results/offline-browser','test-results/integrated-browser'])fs.mkdirSync(dir,{recursive:true});
 const original=JSON.parse(fs.readFileSync('wrangler.jsonc'));
 fs.writeFileSync('dist/server/wrangler.json',JSON.stringify({...original,main:'index.js',assets:{...original.assets,directory:'../client'}}));
 fs.writeFileSync('dist/server/index.js','export default {};');fs.writeFileSync('dist/client/index.html','candidate');
 fs.writeFileSync('test-results/dependency-audit.json',${JSON.stringify(JSON.stringify(passingAudit()))});fs.writeFileSync('test-results/dependency-boundary-rsc.json',${JSON.stringify(JSON.stringify(passingBoundary()))});
 fs.writeFileSync('test-results/offline-browser/results.json',${JSON.stringify(JSON.stringify(passingBrowser()))});
+fs.writeFileSync('test-results/integrated-browser/browser.json',${JSON.stringify(JSON.stringify(passingBrowser(78)))});
 `);
   execFileSync('chmod', ['+x', 'node_modules/.bin/npm', 'node_modules/.bin/wrangler'], { cwd: f.root });
   const runShell = (mode) => spawnSync('bash', ['scripts/deploy-native-cf.sh', mode], {
@@ -249,4 +254,26 @@ test('failing gate stops deployment and removes stale candidate; modified build 
   rmSync(path.join(f.root, '.sites-runtime/fail-gate')); assert.equal(f.runShell('--prepare').status, 0);
   f.put('dist/server/index.js', 'changed after validation'); assert.notEqual(f.runShell('--deploy-candidate').status, 0);
   assert.equal(existsSync(path.join(f.root, '.sites-runtime/deploy-calls')), false);
+});
+
+
+test('integrated browser evidence is mandatory and failing, incomplete or malformed reports cannot seal',t=>{
+ for(const replacement of [null,'not JSON','null',JSON.stringify({}),
+  ...[{expected:77},{unexpected:1},{flaky:1},{skipped:1}].map(stats=>JSON.stringify({...passingBrowser(78),stats:{...passingBrowser(78).stats,...stats}})),
+  JSON.stringify({...passingBrowser(78),errors:[{message:'worker failed'}]}),JSON.stringify({...passingBrowser(78),errors:null})]){
+  const f=fixture(t);assert.equal(f.run('begin').status,0);f.outputs();
+  if(replacement===null)rmSync(path.join(f.root,'test-results/integrated-browser/browser.json'));
+  else f.put('test-results/integrated-browser/browser.json',replacement);
+  const result=f.run('seal');assert.notEqual(result.status,0,String(replacement));
+  assert.equal(existsSync(path.join(f.root,'.sites-runtime/release/candidate.json')),false);
+ }
+});
+
+test('verification rejects missing, failing, changed and malformed integrated browser evidence',t=>{
+ for(const replacement of [null,'not JSON','null',JSON.stringify({...passingBrowser(78),stats:{...passingBrowser(78).stats,unexpected:1}}),JSON.stringify({...passingBrowser(78),duration:1})]){
+  const f=fixture(t);f.prepare();
+  if(replacement===null)rmSync(path.join(f.root,'test-results/integrated-browser/browser.json'));
+  else f.put('test-results/integrated-browser/browser.json',replacement);
+  assert.notEqual(f.run('verify').status,0,String(replacement));
+ }
 });

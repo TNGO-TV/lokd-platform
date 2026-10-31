@@ -8,7 +8,9 @@ import {operateSandboxWorkforce} from '../../app/lib/sandbox-workforce.ts';
 import {manageProductionDocument,issueProductionEnvelope,signProductionEnvelope} from '../../app/lib/production-signing.ts';
 import {declareProductionSchedule} from '../../app/lib/production-schedule.ts';
 export async function sandboxConnected({model='direct_flex',serviceType='Unarmed',serviceCode=serviceType==='Armed'?'armed_static':'vip_unarmed',durationMinutes=720,configureDatabase}={}){
- const x=await sandboxReady({serviceType,configureDatabase}),database=x.db.sql;await seedEnvironment(database);
+ const x=await sandboxReady({serviceType,configureDatabase}),database=x.db.sql;
+ try{
+ await seedEnvironment(database);
  if(model==='partner')database.exec("UPDATE workforce_employers SET employer_type='partner_company' WHERE id='EMP-1'");
  const fields={engagementId:'SANDBOX-CONNECTED-ENGAGEMENT',officerId:x.officerId,employerId:'EMP-1',model,termsVersion:'TERMS-v1',engagementReference:'sandbox:versioned-engagement',weeklyHourCap:model==='direct_flex'?'24':'48',payrollReference:'sandbox:payroll',benefitsReference:'sandbox:benefits'};
  const review=async(kind,fields)=>{const p=await manageProductionEvidence(x.db,maker,{action:'prepare_evidence',kind,fields,sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString()});await manageProductionEvidence(x.db,checker,{action:'decide_evidence',reviewId:p.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Sandbox policy source inspection'});return p;};
@@ -54,4 +56,5 @@ export async function sandboxConnected({model='direct_flex',serviceType='Unarmed
  await signProductionEnvelope(x.db,person.actor,{action:'sign',envelopeId:envelope.id,affirmative:true,contentHash:envelope.content_hash,contextHash:envelope.context_hash});
  }
  return {...x,additional,database,activationDb:new D1Adapter(database),engagement,fields,passport:p,times};
+ }catch(error){x.close();throw error;}
 }
