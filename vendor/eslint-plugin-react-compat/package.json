@@ -1,6 +1,6 @@
 {
   "name": "@lokd/eslint-plugin-react-compat",
-  "version": "7.37.5-lokd.1",
+  "version": "7.37.5-lokd.2",
   "author": "Yannick Croissant <yannick.croissant+npm@gmail.com>",
   "description": "React specific linting rules for ESLint",
   "main": "compat.cjs",
@@ -45,7 +45,7 @@
     "estraverse": "^5.3.0",
     "hasown": "^2.0.2",
     "jsx-ast-utils": "^2.4.1 || ^3.0.0",
-    "minimatch": "^3.1.2",
+    "minimatch": "11.0.3",
     "object.entries": "^1.1.9",
     "object.fromentries": "^2.0.8",
     "object.values": "^1.2.1",

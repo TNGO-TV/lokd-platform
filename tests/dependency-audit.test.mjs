@@ -11,6 +11,7 @@ test('development-only findings receive no advisory exception',()=>{
  assert.equal(result.blocked[0].advisory,url);
  const clean=report();clean.vulnerabilities={};clean.metadata.vulnerabilities={total:0,info:0,low:0,moderate:0,high:0,critical:0};
  assert.equal(assessAudit(clean).ok,true);
+ assert.throws(()=>assessAudit({...clean,vulnerabilities:[]}));
 });
 
 test('audit enforcement fails malformed results, missing graph evidence and new findings independently of npm exit code',()=>{
@@ -20,7 +21,7 @@ test('audit enforcement fails malformed results, missing graph evidence and new 
  const missing=report();missing.vulnerabilities.braces.via=['missing'];assert.throws(()=>assessAudit(missing,lock(),now));
  for(const alter of [r=>{r.vulnerabilities={};r.metadata.vulnerabilities={total:0,info:0,low:0,moderate:0,high:0,critical:1};},
   r=>r.metadata.vulnerabilities.high=-1,r=>r.metadata.vulnerabilities.high=0.5,
-  r=>r.vulnerabilities.braces.severity='unknown',r=>r.vulnerabilities.braces.severity='critical']){
+  r=>r.vulnerabilities.braces.severity='unknown']){
   const malformed=report();alter(malformed);assert.throws(()=>assessAudit(malformed,lock(),now));
  }
 });
@@ -33,14 +34,38 @@ test('deployed bundle boundary rejects both bundled and external glob parsers',(
  }
 });
 
-test('finding severity must agree with direct and transitive advisory roots',()=>{
+test('different package and root severities never suppress actionable advisories',()=>{
  for(const severity of ['info','low','moderate','critical']){
   const r=report();r.vulnerabilities.braces.via[0].severity=severity;
-  assert.throws(()=>assessAudit(r,lock(),now),/root advisory severity/);
+  const result=assessAudit(r);
+  assert.equal(result.ok,false);
+  assert.equal(result.blocked[0].severity,severity==='critical'?'critical':'high');
+  assert.deepEqual(result.severityDifferences,[{package:'braces',reported:'high',root:severity}]);
  }
+ const r=report();r.vulnerabilities.parent={name:'parent',severity:'moderate',nodes:['node_modules/parent'],via:['braces']};
+ r.metadata.vulnerabilities.total=2;r.metadata.vulnerabilities.moderate=1;
+ const result=assessAudit(r);
+ assert.equal(result.ok,false);
+ assert.deepEqual(result.blocked.find(v=>v.package==='parent'),{package:'parent',advisory:url,severity:'high'});
+ assert.deepEqual(result.severityDifferences,[{package:'parent',reported:'moderate',root:'high'}]);
+});
+
+test('npm dependency cycles are accepted only when every component reaches an advisory',()=>{
  const r=report();r.vulnerabilities.parent={name:'parent',severity:'high',nodes:['node_modules/parent'],via:['braces']};
- r.metadata.vulnerabilities.total=2;r.metadata.vulnerabilities.high=2;
- assert.equal(assessAudit(r,lock(),now).ok,false);
- r.vulnerabilities.parent.severity='critical';r.metadata.vulnerabilities.high=1;r.metadata.vulnerabilities.critical=1;
- assert.throws(()=>assessAudit(r,lock(),now),/root advisory severity/);
+ r.vulnerabilities.braces.via.push('parent');r.metadata.vulnerabilities.total=2;r.metadata.vulnerabilities.high=2;
+ const result=assessAudit(r);
+ assert.equal(result.ok,false);assert.equal(result.blocked.length,2);
+ r.vulnerabilities.braces.via=['parent'];
+ assert.throws(()=>assessAudit(r),/Missing advisory roots/);
+});
+
+test('cyclic lower-severity dependencies cannot launder a critical root',()=>{
+ const r=report();r.vulnerabilities.braces.severity='critical';r.vulnerabilities.braces.via[0].severity='critical';
+ r.vulnerabilities.parent={name:'parent',severity:'low',nodes:['node_modules/parent'],via:['braces','parent']};
+ r.metadata.vulnerabilities={total:2,info:0,low:1,moderate:0,high:0,critical:1};
+ const result=assessAudit(r);assert.equal(result.ok,false);
+ assert.equal(result.blocked.find(v=>v.package==='parent').severity,'critical');
+ for(const mutate of [r=>r.vulnerabilities.parent.via.push('absent'),r=>r.vulnerabilities.parent.nodes=[],r=>r.vulnerabilities.parent.name='other']){
+  const malformed=structuredClone(r);mutate(malformed);assert.throws(()=>assessAudit(malformed),/graph/);
+ }
 });
