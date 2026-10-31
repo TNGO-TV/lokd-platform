@@ -1,5 +1,15 @@
 # Local actual-handler browser rehearsal
 
+Run all 78 merged desktop/mobile browser checks with
+`node node_modules/@playwright/test/cli.js test --config tests/integrated-browser/merged.config.mjs`.
+This runner owns both loopback servers on ports 4405/4406, refuses existing
+servers, and stops them after the suite. It is included in `npm run check:security`.
+This includes actual-handler journeys and the explicitly labelled supplemental
+response-mocked UI contract tests. The in-process handler requests use the supported isolated `demo.lokd.co.za`
+origin with explicit test-surface opt-in; no request is sent to that hostname.
+Production-host guards remain unchanged. The primary and sandbox stores stay
+separate, and external provider fetch remains disabled.
+
 Never imported by the application or deploy build. Loopback-only, explicit opt-in, opaque fictional sessions, external provider network denied. No Clerk acceptance is implied. Keep two distinct databases in combined mode: unmarked primary DB and marked versioned SANDBOX_DB. Never alias the bindings. The actual candidate files are read from explicit absolute roots and hashed into `test-results/integrated-browser/*-candidate-manifest.json`.
 
 From this checkout:

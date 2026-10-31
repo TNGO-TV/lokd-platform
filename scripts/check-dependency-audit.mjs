@@ -6,7 +6,7 @@ import {resolve} from 'node:path';
 const actionable=new Set(['moderate','high','critical']);
 const severities=['info','low','moderate','high','critical'];
 export function assessAudit(report) {
- if(report?.auditReportVersion!==2||report.error||!report.metadata?.vulnerabilities||!report.vulnerabilities||typeof report.vulnerabilities!=='object')throw Error('Missing or invalid npm audit evidence');
+ if(report?.auditReportVersion!==2||report.error||!report.metadata?.vulnerabilities||!report.vulnerabilities||typeof report.vulnerabilities!=='object'||Array.isArray(report.vulnerabilities))throw Error('Missing or invalid npm audit evidence');
  const findings=Object.values(report.vulnerabilities),blocked=[],dispositions=[];
  const reported=report.metadata.vulnerabilities;
  if(!Number.isSafeInteger(reported.total)||reported.total<0||severities.some(s=>!Number.isSafeInteger(reported[s])||reported[s]<0)
@@ -17,34 +17,40 @@ export function assessAudit(report) {
   counted[finding.severity]++;
  }
  if(severities.some(s=>counted[s]!==reported[s]))throw Error('Inconsistent advisory severity counts');
- const roots=new Set();
- const visit=(name,parents=new Set())=>{
-  if(parents.has(name))throw Error('Cyclic advisory graph');
-  const finding=report.vulnerabilities[name];
-  if(!finding||finding.name!==name||!Array.isArray(finding.via)||!finding.via.length)throw Error('Incomplete advisory graph');
-  const chain=new Set([...parents,name]);
-  const rootLevels=finding.via.map(via=>{
-   if(typeof via==='string')return visit(via,chain);
-   if(!via?.url||!severities.includes(via.severity))throw Error('Invalid advisory record');
-   return severities.indexOf(via.severity);
-  });
-  const highest=Math.max(...rootLevels);
-  if(severities.indexOf(finding.severity)!==highest)throw Error('Inconsistent finding and root advisory severity');
-  return highest;
- };
- for(const name of Object.keys(report.vulnerabilities))visit(name);
- for(const finding of findings){
-  if(!Array.isArray(finding.via)||!Array.isArray(finding.nodes)||!finding.nodes.length||!finding.via.length)throw Error('Incomplete advisory graph');
+ // npm reports package-level metavulnerabilities, whose severity can differ
+ // from an underlying advisory. Its dependency graph can also contain cycles.
+ // Validate every node first, then collect reachable roots without recursion.
+ for(const [name,finding] of Object.entries(report.vulnerabilities)){
+  if(finding.name!==name||!Array.isArray(finding.nodes)||!finding.nodes.length
+   ||finding.nodes.some(node=>typeof node!=='string'||!node)
+   ||!Array.isArray(finding.via)||!finding.via.length)throw Error('Incomplete advisory graph');
   for(const via of finding.via){
-   if(typeof via==='string'){if(!report.vulnerabilities[via])throw Error('Incomplete transitive advisory graph');continue;}
-   if(!via?.url||!severities.includes(via.severity))throw Error('Invalid advisory record');
-   roots.add(via.url);
-   if(!actionable.has(via.severity))continue;
-   blocked.push({package:finding.name,advisory:via.url,severity:via.severity});
+   if(typeof via==='string'){
+    if(!Object.hasOwn(report.vulnerabilities,via))throw Error('Incomplete transitive advisory graph');
+   }else if(!via||typeof via.url!=='string'||!via.url||!severities.includes(via.severity))throw Error('Invalid advisory record');
   }
  }
- if(findings.length&&!roots.size)throw Error('Missing advisory roots');
- return {ok:blocked.length===0,blocked,dispositions,raw:reported};
+ const severityDifferences=[];
+ for(const finding of findings){
+  const pending=[finding.name],seen=new Set(),roots=new Map();
+  while(pending.length){
+   const name=pending.pop();if(seen.has(name))continue;seen.add(name);
+   for(const via of report.vulnerabilities[name].via){
+    if(typeof via==='string')pending.push(via);
+    else roots.set(via.url+'\0'+via.severity,via);
+   }
+  }
+  if(!roots.size)throw Error('Missing advisory roots');
+  const rootSeverity=severities[Math.max(...[...roots.values()].map(via=>severities.indexOf(via.severity)))];
+  if(finding.severity!==rootSeverity)severityDifferences.push({package:finding.name,reported:finding.severity,root:rootSeverity});
+  for(const via of roots.values()){
+   // Neither a lower package severity nor a lower root severity can hide an
+   // actionable finding. No development-only or advisory exceptions apply.
+   const severity=severities[Math.max(severities.indexOf(finding.severity),severities.indexOf(via.severity))];
+   if(actionable.has(severity))blocked.push({package:finding.name,advisory:via.url,severity});
+  }
+ }
+ return {ok:blocked.length===0,blocked,dispositions,raw:reported,severityDifferences};
 }
 
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
@@ -53,8 +59,12 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   const result=spawnSync(process.execPath,[process.env.npm_execpath,'audit','--json','--audit=true','--package-lock-only','--audit-level=moderate'],{encoding:'utf8',timeout:120000,maxBuffer:10_000_000});
   if(result.error||![0,1].includes(result.status))throw Error('npm audit did not produce a valid completed result');
   const report=JSON.parse(result.stdout);
-  const assessed=assessAudit(report);
   fs.mkdirSync('test-results',{recursive:true});
+  let assessed;
+  try {assessed=assessAudit(report);}catch(error){
+   fs.writeFileSync('test-results/dependency-audit.json',JSON.stringify({npmExit:result.status,report,assessment:null,assessmentError:error.message},null,2)+'\n');
+   throw error;
+  }
   fs.writeFileSync('test-results/dependency-audit.json',JSON.stringify({npmExit:result.status,report,assessment:assessed},null,2)+'\n');
   console.log(JSON.stringify(assessed));
   if(!assessed.ok)process.exitCode=1;

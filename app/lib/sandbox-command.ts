@@ -22,7 +22,9 @@ export async function executeSandboxCommand(runtime:SandboxRuntime,a:SignupActor
  const receipt=(m:Meta)=>{const v=m.args;let result:unknown;
  if(scope==='capture')result={captureReference:v[0],consentVersion:v[4],expiresAt:v[9],mode:'simulator',policyVersion:v[5]};
  else if(scope==='import_finance')result={entitlementId:v[0],course:v[4],courseVersion:v[5],qualified:false,workEligible:false,mode:'simulator'};
- else result=scope==='client_enquiry'?{reference:v[0]}:{reference:v[0],psiraVerificationRequired:['active','expired'].includes(String(input.psiraStatus)),pathwayStatus:v[15]};
+ // This receipt is committed in the same batch as the target source INSERT.
+ // Neutral/no-write responses use the execute result below and never gain saved.
+ else result=scope==='client_enquiry'?{saved:true,reference:v[0]}:{saved:true,reference:v[0],psiraVerificationRequired:['active','expired'].includes(String(input.psiraStatus)),pathwayStatus:v[15]};
  return db.prepare('INSERT INTO sandbox_command_receipts VALUES(?,?,?)').bind(id,JSON.stringify(result),new Date().toISOString());};
  const commit=async(statements:D1PreparedStatement[])=>{writeAttempted=true;const rows=statements.map(s=>metadata.get(s)??{real:s,sql:'',args:[]}),match=rows.find(m=>new RegExp('^\\s*INSERT\\s+INTO\\s+'+target+'\\b','i').test(m.sql));const result=await db.batch([...rows.map(m=>m.real),...(match?[receipt(match)]:[])]);if(match)recorded=true;return result.slice(0,rows.length);};
  const wrap=(sql:string,args:unknown[]=[]):D1PreparedStatement=>{const real=args.length?db.prepare(sql).bind(...args):db.prepare(sql);const statement:D1PreparedStatement=new Proxy(real,{get(t,k){if(k==='bind')return(...values:unknown[])=>wrap(sql,values);if(k==='run')return async()=> (await commit([statement]))[0];const value=Reflect.get(t,k);return typeof value==='function'?value.bind(t):value;}});metadata.set(statement,{real,sql,args});return statement;};

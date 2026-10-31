@@ -5,7 +5,8 @@
   "archiveIntegrity": "sha512-Qteup0SqU15kdocexFNAJMvCJEfa2xUKNV4CC1xsVMrIIqEy3SQ/rqyxCWNzfrd3/ldy6HMlD2e0JDVpDg2qIA==",
   "changes": [
     "Local package identity and ESLint10 peer contract.",
-    "compat.cjs applies official @eslint/compat2.1.1 fixupPluginRules runtime API adapter; original rules and utilities unchanged."
+    "compat.cjs applies official @eslint/compat2.1.1 fixupPluginRules runtime API adapter.",
+    "Use patched upstream minimatch11.0.3 and adapt five rule imports from the legacy callable export to the named minimatch export; rule conditions and options unchanged."
   ],
-  "status": "candidate; effective-rule and invalid-fixture parity required"
+  "status": "Effective-rule, invalid-fixture and minimatch consumer compatibility validated by repository checks."
 }

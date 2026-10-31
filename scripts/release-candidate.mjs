@@ -15,6 +15,7 @@ const validationFiles = [
   'test-results/dependency-audit.json',
   'test-results/dependency-boundary-rsc.json',
   'test-results/offline-browser/results.json',
+  'test-results/integrated-browser/browser.json',
 ];
 const hash = (data) => createHash('sha256').update(data).digest('hex');
 const json = (file) => JSON.parse(readFileSync(file, 'utf8'));
@@ -129,6 +130,11 @@ function validations() {
     && browser.stats.flaky === 0 && browser.stats.skipped === 0
     && Array.isArray(browser.errors) && browser.errors.length === 0,
   'All fourteen isolated desktop/mobile browser checks must pass.');
+  const integrated = json('test-results/integrated-browser/browser.json');
+  requireCondition(integrated?.stats?.expected === 78 && integrated.stats.unexpected === 0
+    && integrated.stats.flaky === 0 && integrated.stats.skipped === 0
+    && Array.isArray(integrated.errors) && integrated.errors.length === 0,
+  'All 78 integrated desktop/mobile browser checks must pass.');
   const audit = json('test-results/dependency-audit.json');
   requireCondition([0, 1].includes(audit.npmExit), 'Audit evidence needs a completed npm process.');
   requireCondition(audit.assessment?.ok === true && Array.isArray(audit.assessment.blocked) && audit.assessment.blocked.length === 0, 'Audit assessment must pass with no blocked advisories.');

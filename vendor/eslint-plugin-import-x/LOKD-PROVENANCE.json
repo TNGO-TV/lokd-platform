@@ -1,0 +1,14 @@
+{
+  "upstreamPackage": "eslint-plugin-import-x",
+  "upstreamVersion": "4.17.1",
+  "archiveIntegrity": "sha512-4cdstYkKCyjumM2Q9NSI03K8D2a9F4Ssz33K2lv2hQa4KmR9jPLwk3uWGtNvclfqBrPGfGuMBwsGMbe6dMRbfg==",
+  "archiveShasum": "6e9211acd8e98d2da11f96c12c9c00aa49e3e035",
+  "changes": [
+    "Declare patched upstream minimatch11.0.3.",
+    "Replace removed makeRe/.test with maintained Minimatch/.match in no-internal-modules only, for both ESM rule and upstream CJS bundle.",
+    "Remove source maps and references for changed ESM rules/utilities; retain other upstream files.",
+    "Replace exponential magic-comment regex and VM evaluation with shared Espree syntax-only validation in both ESM and CJS entries. Espree 11.2.0 was already locked via ESLint; declare it directly for this helper.",
+    "Replace quadratic isScopedMain regex with linear delimiter checks, preserving upstream matching behavior."
+  ],
+  "status": "Candidate: full lint policy and allow/forbid regression checks required."
+}

@@ -48,6 +48,7 @@ jobs:
             test-results/dependency-audit.json
             test-results/dependency-boundary-*.json
             test-results/offline-browser/
+            test-results/integrated-browser/
       - name: Retain failed validation diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, Node24
@@ -62,3 +63,4 @@ jobs:
             test-results/dependency-audit.json
             test-results/dependency-boundary-*.json
             test-results/offline-browser/
+            test-results/integrated-browser/

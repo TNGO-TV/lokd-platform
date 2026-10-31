@@ -20,5 +20,12 @@ test('CLI rejects actionable and malformed reports even when npm exits zero',()=
    const result=spawnSync(process.execPath,[gate],{cwd:root,env:{...process.env,npm_execpath:npm},encoding:'utf8',timeout:15000});
    assert.equal(result.status,expected,result.stderr);
   }
+  const malformed=structuredClone(high);malformed.vulnerabilities.unknown.via=['missing'];
+  fs.writeFileSync(npm,`process.stdout.write(${JSON.stringify(JSON.stringify(malformed))});`);
+  const failed=spawnSync(process.execPath,[gate],{cwd:root,env:{...process.env,npm_execpath:npm},encoding:'utf8',timeout:15000});
+  assert.equal(failed.status,1);
+  const evidence=JSON.parse(fs.readFileSync(path.join(root,'test-results/dependency-audit.json'),'utf8'));
+  assert.deepEqual(evidence.report,malformed);assert.equal(evidence.assessment,null);
+  assert.match(evidence.assessmentError,/Incomplete transitive advisory graph/);
  } finally {fs.rmSync(root,{recursive:true,force:true});}
 });

@@ -11,8 +11,10 @@ import ClientReviewControls, { type ClientReviewState } from './client-review-co
 import RecordDetails from './record-details';
 import styles from './signup-portal.module.css';
 export type SandboxSchedule=ScheduleState;
-export type SandboxService=ServiceState;
-export type SandboxOrders=OrderState;
+// These fields come from the separately validated Operations response below;
+// they are not part of the service/orders handler responses themselves.
+export type SandboxService=Omit<ServiceState,'owner'>;
+export type SandboxOrders=Omit<OrderState,'reviewClients'>;
 type OperationalState = EvidenceState & ClientReviewState & {
     rosters: {
         id: string;
@@ -83,7 +85,7 @@ export default function SandboxServiceWorkspace({ kind, operations = false }: {
         const token = ++generation.current;
         setError('');
         try {
-            const [schedule, service, orders, operational] = await Promise.all([kind === 'officer' || operations ? call<ScheduleState>('schedule_read', {}) : undefined, call<ServiceState>('service_read', {}), call<OrderState>('orders_read', {}), call<OperationalState>('operations_read', {})]);
+            const [schedule, service, orders, operational] = await Promise.all([kind === 'officer' || operations ? call<ScheduleState>('schedule_read', {}) : undefined, call<SandboxService>('service_read', {}), call<SandboxOrders>('orders_read', {}), call<OperationalState>('operations_read', {})]);
             if (token === generation.current)
                 setData(previous => ({ ...previous, schedule, service: {...service,owner:operational.owner}, orders: {...orders,reviewClients:operational.reviewClients}, operations: operational }));
         }

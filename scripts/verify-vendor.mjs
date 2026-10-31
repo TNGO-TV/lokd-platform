@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
-const packages={'drizzle-kit':'drizzle-kit','next-eslint-plugin-next':'@next/eslint-plugin-next','vite-plugin-dynamic-import':'vite-plugin-dynamic-import','eslint-plugin-react-compat':'@lokd/eslint-plugin-react-compat'};
+const packages={'drizzle-kit':'drizzle-kit','next-eslint-plugin-next':'@next/eslint-plugin-next','vite-plugin-dynamic-import':'vite-plugin-dynamic-import','eslint-plugin-react-compat':'@lokd/eslint-plugin-react-compat','eslint-plugin-import-x':'eslint-plugin-import-x'};
 function files(root,relative=''){return fs.readdirSync(path.join(root,relative),{withFileTypes:true}).flatMap(entry=>entry.name==='node_modules'?[]:entry.isDirectory()?files(root,path.join(relative,entry.name)):[path.join(relative,entry.name)]);}
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex'),results=[];
 for(const [folder,name] of Object.entries(packages)){
