@@ -32,7 +32,7 @@ const eslint = __toESM(require("eslint"));
 const stable_hash_x = __toESM(require("stable-hash-x"));
 const __typescript_eslint_types = __toESM(require("@typescript-eslint/types"));
 const node_url = __toESM(require("node:url"));
-const node_vm = __toESM(require("node:vm"));
+const isWebpackComment = require("./utils/webpack-comment.cjs");
 const minimatch = __toESM(require("minimatch"));
 const semver = __toESM(require("semver"));
 const is_glob = __toESM(require("is-glob"));
@@ -2251,7 +2251,6 @@ var dynamic_import_chunkname_default = createRule({
 	create(context) {
 		const { importFunctions = [], allowEmpty = false, webpackChunknameFormat = String.raw`([0-9a-zA-Z-_/.]|\[(request|index)\])+` } = context.options[0] || {};
 		const paddedCommentRegex = /^ (\S[\S\s]+\S) $/;
-		const commentStyleRegex = /^( (((webpackChunkName|webpackFetchPriority): .+)|((webpackPrefetch|webpackPreload): (true|false|-?\d+))|(webpackIgnore: (true|false))|((webpackInclude|webpackExclude): \/.+\/)|(webpackMode: ["'](lazy|lazy-once|eager|weak)["'])|(webpackExports: (["']\w+["']|\[(["']\w+["'], *)+(["']\w+["']*)]))),?)+ $/;
 		const chunkSubstrFormat = `webpackChunkName: ["']${webpackChunknameFormat}["'],?`;
 		const chunkSubstrRegex = new RegExp(chunkSubstrFormat);
 		const eagerModeFormat = `webpackMode: ["']eager["'],?`;
@@ -2283,16 +2282,7 @@ var dynamic_import_chunkname_default = createRule({
 					});
 					return;
 				}
-				try {
-					node_vm.default.runInNewContext(`(function() {return {${comment.value}}})()`);
-				} catch {
-					context.report({
-						node,
-						messageId: "webpackComment"
-					});
-					return;
-				}
-				if (!commentStyleRegex.test(comment.value)) {
+				if (!isWebpackComment(comment.value)) {
 					context.report({
 						node,
 						messageId: "webpackComment"

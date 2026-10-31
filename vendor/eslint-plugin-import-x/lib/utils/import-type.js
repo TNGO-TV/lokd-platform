@@ -47,9 +47,14 @@ const scopedRegExp = /^@[^/]+\/?[^/]+/;
 export function isScoped(name) {
     return !!name && scopedRegExp.test(name);
 }
-const scopedMainRegExp = /^@[^/]+\/?[^/]+$/;
 export function isScopedMain(name) {
-    return !!name && scopedMainRegExp.test(name);
+    if (!name) return false;
+    const text = String(name);
+    if (!text.startsWith('@')) return false;
+    const slash = text.indexOf('/');
+    // Preserve the upstream loose no-slash form (@ab) as well as @a/b.
+    if (slash === -1) return text.length >= 3;
+    return slash > 1 && slash < text.length - 1 && text.indexOf('/', slash + 1) === -1;
 }
 function isRelativeToParent(name) {
     return /^\.\.$|^\.\.[/\\]/.test(name);
@@ -125,4 +130,3 @@ function typeTest(name, context, path) {
 export function importType(name, context) {
     return typeTest(name, context, typeof name === 'string' ? resolve(name, context) : null);
 }
-//# sourceMappingURL=import-type.js.map

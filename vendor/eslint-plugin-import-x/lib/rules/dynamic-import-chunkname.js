@@ -1,4 +1,4 @@
-import vm from 'node:vm';
+import isWebpackComment from '../utils/webpack-comment.cjs';
 import { createRule } from '../utils/index.js';
 export default createRule({
     name: 'dynamic-import-chunkname',
@@ -44,7 +44,6 @@ export default createRule({
     create(context) {
         const { importFunctions = [], allowEmpty = false, webpackChunknameFormat = String.raw `([0-9a-zA-Z-_/.]|\[(request|index)\])+`, } = context.options[0] || {};
         const paddedCommentRegex = /^ (\S[\S\s]+\S) $/;
-        const commentStyleRegex = /^( (((webpackChunkName|webpackFetchPriority): .+)|((webpackPrefetch|webpackPreload): (true|false|-?\d+))|(webpackIgnore: (true|false))|((webpackInclude|webpackExclude): \/.+\/)|(webpackMode: ["'](lazy|lazy-once|eager|weak)["'])|(webpackExports: (["']\w+["']|\[(["']\w+["'], *)+(["']\w+["']*)]))),?)+ $/;
         const chunkSubstrFormat = `webpackChunkName: ["']${webpackChunknameFormat}["'],?`;
         const chunkSubstrRegex = new RegExp(chunkSubstrFormat);
         const eagerModeFormat = `webpackMode: ["']eager["'],?`;
@@ -76,17 +75,7 @@ export default createRule({
                     });
                     return;
                 }
-                try {
-                    vm.runInNewContext(`(function() {return {${comment.value}}})()`);
-                }
-                catch {
-                    context.report({
-                        node,
-                        messageId: 'webpackComment',
-                    });
-                    return;
-                }
-                if (!commentStyleRegex.test(comment.value)) {
+                if (!isWebpackComment(comment.value)) {
                     context.report({
                         node,
                         messageId: 'webpackComment',
@@ -181,4 +170,3 @@ export default createRule({
         };
     },
 });
-//# sourceMappingURL=dynamic-import-chunkname.js.map
