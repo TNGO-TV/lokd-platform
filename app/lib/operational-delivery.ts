@@ -7,7 +7,7 @@ import {agreementHash,canonicalAgreementContext} from './agreement-acceptance';
 import {activationAgreementContext,type ActivationAgreementRole} from './agreement-activation';
 import {evaluateAssignmentActivation} from './assignment-activation-server';
 import {allowlisted,DeliveryError,emailValid,configuredEmailProvider,emailReceipt,sendEmail,type OperationalRuntime} from './operational-provider';
-import {assertLokdCompany} from './odoo-lokd';
+import {requireCrmCompanion} from './crm-companion';
 
 type Job={id:string;kind:string;source_id:string;environment:string;state:string;attempts:number;request_json:string|null;recipient:string|null;provider_id:string|null;first_attempt_at:string|null;created_at:string};
 type Options={transport?:typeof fetch;verifiedEmail?:(userId:string)=>Promise<string|null>;now?:()=>number;receiptsOnly?:boolean};
@@ -34,16 +34,19 @@ export async function currentEnvelopeRecipient(db:D1Database,id:string,clock:num
 }
 
 async function requestFor(db:D1Database,job:Job,runtime:OperationalRuntime,resolveEmail:(id:string)=>Promise<string|null>,clock:number){
+ // Without a CRM companion the CRM job settles as cancelled with no network request.
+ // The enquiry itself stays in D1 and its enquiry_email job still notifies the team.
+ if(job.kind==='enquiry_crm')requireCrmCompanion(runtime);
  if(!allowlisted(runtime.LOKD_DELIVERY_SOURCE_ALLOWLIST,job.source_id))throw new DeliveryError('source_not_designated_for_test');
  if(job.kind==='enquiry_crm'){
   const enquiry=await db.prepare(`SELECT id FROM client_enquiries e
    WHERE id=? AND environment='prelaunch' AND integrity_state='user_submitted' AND status!='closed'
    AND NOT EXISTS(SELECT 1 FROM signup_cases c WHERE c.source_id=e.id AND c.kind='client' AND c.status='withdrawn')`).bind(job.source_id).first<{id:string}>();
   if(!enquiry)throw new DeliveryError('enquiry_closed_or_withdrawn','cancelled');
-  if(job.recipient&&job.recipient!=='4')throw new DeliveryError('odoo_company_lock_mismatch');
-  const body=job.request_json?JSON.parse(job.request_json):{_lokdProvider:'odoo-co4-inspect',enquiryId:enquiry.id};
-  if(body._lokdProvider!=='odoo-co4-inspect'||body.enquiryId!==enquiry.id)throw new DeliveryError('crm_inspect_invalid','failed');
-  return {recipient:'4',body};
+  const companion=requireCrmCompanion(runtime);
+  const body=job.request_json?JSON.parse(job.request_json):{_lokdProvider:companion.provider,enquiryId:enquiry.id};
+  if(body._lokdProvider!==companion.provider||body.enquiryId!==enquiry.id)throw new DeliveryError('crm_request_invalid','failed');
+  return {recipient:companion.provider,body};
  }
  const provider=configuredEmailProvider(runtime);
  const sender=job.kind==='contract_email'&&job.source_id.startsWith('QUOTE-')?(runtime.LOKD_QUOTE_EMAIL_FROM??runtime.LOKD_EMAIL_FROM):runtime.LOKD_EMAIL_FROM;
@@ -122,7 +125,7 @@ export async function runOperationalDelivery(db:D1Database,runtime:OperationalRu
    const prepared=await requestFor(db,job,runtime,resolveEmail,clock());
    await db.prepare(`UPDATE operational_delivery_jobs SET request_json=COALESCE(request_json,?),recipient=COALESCE(recipient,?),attempts=attempts+1,first_attempt_at=COALESCE(first_attempt_at,?),updated_at=? WHERE id=? AND lease_token=?`).bind(JSON.stringify(prepared.body),prepared.recipient,iso(clock()),iso(clock()),job.id,lease).run();
    job.attempts++;
-   const providerId=job.kind==='enquiry_crm'?await inspectCrmCompanion(runtime,prepared.body,transport):await sendEmail(runtime,job.id,prepared.body,transport);
+   const providerId=job.kind==='enquiry_crm'?await recordCrmEnquiry(runtime,prepared.body,transport):await sendEmail(runtime,job.id,prepared.body,transport);
    await db.prepare(`UPDATE operational_delivery_jobs SET state='sent',provider_id=?,last_error=NULL,lease_token=NULL,lease_expires_at=NULL,next_attempt_at=?,updated_at=? WHERE id=? AND lease_token=?`).bind(providerId,iso(clock()+60000),iso(clock()),job.id,lease).run();processed++;
   }catch(cause){
    const error=cause instanceof DeliveryError?cause:new DeliveryError('delivery_check_unavailable','retry_wait');
@@ -148,11 +151,11 @@ export async function runOperationalDelivery(db:D1Database,runtime:OperationalRu
  return {enabled:true,processed};
 }
 
-// Read-only company 4 check. Does not create a lead, partner, sale order or invoice.
-async function inspectCrmCompanion(runtime:OperationalRuntime,body:Record<string,unknown>,transport:typeof fetch){
- if(body._lokdProvider!=='odoo-co4-inspect'||typeof body.enquiryId!=='string'||!body.enquiryId)throw new DeliveryError('crm_inspect_invalid','failed');
- const org=await assertLokdCompany(runtime,transport);
- return `odoo-co4:${org.organizationId}`;
+// Hands one enquiry to the configured CRM companion (none until Trigger CRM is connected).
+async function recordCrmEnquiry(runtime:OperationalRuntime,body:Record<string,unknown>,transport:typeof fetch){
+ const companion=requireCrmCompanion(runtime);
+ if(body._lokdProvider!==companion.provider||typeof body.enquiryId!=='string'||!body.enquiryId)throw new DeliveryError('crm_request_invalid','failed');
+ return `${companion.provider}:${await companion.recordEnquiry({enquiryId:body.enquiryId},transport)}`;
 }
 
 export async function readOperationalDelivery(db:D1Database){

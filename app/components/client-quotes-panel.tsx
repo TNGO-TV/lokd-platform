@@ -6,7 +6,6 @@ import {useState,useEffect,useCallback,useRef} from 'react';
 import Link from 'next/link';
 import {QUOTES_EMAIL,INVOICE_EMAIL} from '../lib/public-site';
 import {lokdInvoicePublicNumber} from '../lib/lokd-numbering';
-import QuoteBooksLinkPanel from './quote-books-link-panel';
 import RecordDetails from './record-details';
 import styles from './signup-portal.module.css';
 import {readWorkspaceResponse,WorkspaceRequestError,workspaceFailure,workspaceAccessDenied,WorkspaceAccessLost} from './workspace-request';
@@ -43,7 +42,6 @@ function ClientQuotesPanelState({operations=false,focusId}:{operations?:boolean;
  {data?.quotes.map(q=>{const newer=data.quotes.some(n=>n.order_id===q.order_id&&n.sequence>q.sequence),expired=!q.receipt_json&&Date.parse(q.expires_at)<=now,inactive=q.cancelled||q.terms_withdrawn||newer;return <article key={q.id} id={q.id} className={styles.card}><h2>{q.public_number??`Quote · revision ${q.sequence}`}</h2>{q.public_number?<p>Revision {q.sequence}</p>:<p>{q.id}</p>}<p role="status">{inactive?'Withdrawn or superseded':q.receipt_json?'Accepted':expired?'Expired':'Awaiting acceptance'}</p><Scope json={q.source_json}/><details><summary>Full quote details</summary>{q.public_number&&<p>Invoice number {lokdInvoicePublicNumber(q.public_number)}</p>}<p>Internal reference {q.id}</p><p>Revision {q.sequence}</p><RecordDetails json={q.source_json}/></details><p>Valid until {new Date(q.expires_at).toLocaleString('en-ZA',{timeZone:'Africa/Johannesburg'})} SAST.</p><p><a href={file(q.terms_id)}>Read Terms and Conditions — {q.terms_title}, {q.terms_version} (PDF)</a></p>{operations&&<p>Email notification: {q.email_delivery_state??'not queued'}</p>}
  {!operations&&!inactive&&!expired&&!q.receipt_json&&<form onSubmit={e=>{e.preventDefault();void send({action:'accept',quoteId:q.id,offerHash:q.offer_hash,affirmative:checked[q.id]===true});}}><label><input type="checkbox" required checked={checked[q.id]??false} onChange={e=>setChecked({...checked,[q.id]:e.target.checked})}/>{data.acknowledgement}</label><button disabled={busy||stale||!checked[q.id]}>Accept quote</button></form>}
  {q.receipt_json&&<><p>Accepted on {new Date(JSON.parse(q.receipt_json).acceptedAt).toLocaleString('en-ZA',{timeZone:'Africa/Johannesburg'})} SAST. Acceptance does not itself confirm funding or service activation.</p><button onClick={()=>download(q)}>Download acceptance record</button></>}
- {operations&&data.owner&&q.receipt_json&&!inactive&&<QuoteBooksLinkPanel quoteId={q.id} publicNumber={q.public_number}/>}
  {operations&&!q.cancelled&&<ActionConfirmation key={epoch+':cancel:'+q.id+':'+q.offer_hash} label="Cancel quote" disabled={busy||stale} fields={[{name:"reason",label:"Reason for cancelling this quote"}]} acknowledgement="I understand that any replacement quote needs fresh client acceptance." onConfirm={values=>send({action:'cancel',quoteId:q.id,reason:values.reason})}/>}</article>;})}</section>;
 }
 

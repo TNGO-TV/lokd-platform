@@ -212,69 +212,6 @@ test('new booking and quote emails use Operations and client portals (provider t
  x.database.close();
 });
 
-
-// All Books transport below is simulated. No external financial records are written.
-const booksRuntime={LOKD_ODOO_API_KEY:'fixture-key',LOKD_ODOO_COMPANY_ID:'4',LOKD_ODOO_JSON2_ORIGIN:'https://tngo-tv.odoo.com'};
-function booksTransport(q,overrides={},beforeDocument){const scope=JSON.parse(q.source_json);return async(url,init)=>{
- assert.equal(init.method,'POST');
- const body=JSON.parse(init.body);assert.deepEqual(body.context.allowed_company_ids,[4]);
- if(url.endsWith('/res.company/search_read'))return Response.json([{id:4,name:'LOKD Security',currency_id:[38,'ZAR']}]);
- if(beforeDocument)await beforeDocument();
- const estimate=url.endsWith('/sale.order/read');
- assert.ok(estimate||url.endsWith('/account.move/read'));
- const base=estimate
-  ?{id:1234567,name:'FIXTURE-001',state:'draft',partner_id:[2345678,'Customer'],company_id:[4,'LOKD Security'],client_order_ref:q.id,amount_total:scope.totalCents/100,amount_tax:scope.vatCents/100,currency_id:[38,'ZAR'],write_date:'2026-09-22 10:00:00'}
-  :{id:1234567,name:'FIXTURE-001',state:'draft',move_type:'out_invoice',partner_id:[2345678,'Customer'],company_id:[4,'LOKD Security'],ref:q.id,amount_total:scope.totalCents/100,amount_tax:scope.vatCents/100,currency_id:[38,'ZAR'],write_date:'2026-09-22 10:00:00'};
- if('reference_number' in overrides)base[estimate?'client_order_ref':'ref']=overrides.reference_number;
- if('customer_id' in overrides)base.partner_id=[Number(overrides.customer_id),'Other'];
- if('currency_code' in overrides)base.currency_id=[1,overrides.currency_code];
- if('total' in overrides)base.amount_total=overrides.total;
- if('tax_total' in overrides)base.amount_tax=overrides.tax_total;
- if('last_modified_time' in overrides)base.write_date=overrides.last_modified_time;
- for(const [k,v] of Object.entries(overrides)){if(!['reference_number','customer_id','currency_code','total','tax_total','last_modified_time'].includes(k))base[k]=v;}
- return Response.json([base]);
-};}
-const booksInput=q=>({quoteId:q.id,kind:'estimate',documentId:'1234567',customerId:'2345678',customerConfirmed:true});
-test('Books links retain exact accepted revision, replay safely and become historical after cancellation',async()=>{
- const {linkQuoteBooks,readQuoteBooksLinks}=await import('../app/lib/quote-books-links.ts');const x=await setup(),{q}=await issueAndAccept(x);
- const input=booksInput(q),send=()=>linkQuoteBooks(x.db,booksRuntime,x.owner,input,booksTransport(q));
- const result=await send();assert.equal(result.funded,false);assert.equal(result.financialRecordsChanged,false);assert.equal((await send()).alreadyLinked,true);
- assert.equal(x.database.prepare('SELECT count(*) AS n FROM quote_books_links').get().n,1);
- const linked=(await readQuoteBooksLinks(x.db))[0];assert.equal(linked.currentAcceptance,true);assert.equal(linked.liveProviderRechecked,false);assert.equal(linked.comparison.referenceNumber,q.id);assert.match(q.id,/^QUOTE-/);assert.match(q.public_number,/^LOKD\d{6}$/);assert.notEqual(linked.comparison.referenceNumber,q.public_number);
- assert.throws(()=>x.database.prepare("UPDATE quote_books_links SET customer_id='9999999'").run(),/immutable/);
- assert.throws(()=>x.database.prepare('DELETE FROM quote_books_links').run(),/immutable/);
- await cancelQuote(x.db,x.reviewer,{quoteId:q.id,reason:'Fixture scope changed'});
- assert.equal((await readQuoteBooksLinks(x.db))[0].currentAcceptance,false);
- await assert.rejects(send(),/changed/);x.database.close();
-});
-test('Books links require owner, explicit customer confirmation and valid client acceptance before provider reads',async()=>{
- const {linkQuoteBooks}=await import('../app/lib/quote-books-links.ts');const x=await setup(),{quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),{q}=await currentQuote(x.db,quoteId);const input=booksInput(q);let calls=0;const transport=async()=>{calls++;throw Error('Must not call provider');};
- await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.reviewer,input,transport),/owner/);
- await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,{...input,customerConfirmed:false},transport),/confirm/);
- await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,input,transport),/accepted quote/);assert.equal(calls,0);x.database.close();
-});
-test('Books rejects wrong quote revision, customer, amount, currency and changed provider revision',async()=>{
- const {linkQuoteBooks}=await import('../app/lib/quote-books-links.ts');const x=await setup(),{q}=await issueAndAccept(x),input=booksInput(q);
- for(const mismatch of [{reference_number:x.orderId},{customer_id:'9999999'},{currency_code:'USD'},{total:0},{tax_total:9999}])await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,input,booksTransport(q,mismatch)),/binding_mismatch/);
- assert.equal(x.database.prepare('SELECT count(*) AS n FROM quote_books_links').get().n,0);
- await linkQuoteBooks(x.db,booksRuntime,x.owner,input,booksTransport(q));
- await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,input,booksTransport(q,{last_modified_time:'2026-09-23T12:00:00+02:00'})),/revision changed/);
- await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,{...input,kind:'invoice',customerId:'9999999'},booksTransport(q,{customer_id:'9999999'})),/same Odoo customer/);
- x.database.close();
-});
-test('Books network race and direct duplicate document claims cannot attach stale or conflicting links',async()=>{
- const {linkQuoteBooks}=await import('../app/lib/quote-books-links.ts');const x=await setup(),{q}=await issueAndAccept(x),input=booksInput(q);
- await assert.rejects(linkQuoteBooks(x.db,booksRuntime,x.owner,input,booksTransport(q,{},async()=>cancelQuote(x.db,x.reviewer,{quoteId:q.id,reason:'Changed during provider request'}))),/changed/);
- assert.equal(x.database.prepare('SELECT count(*) AS n FROM quote_books_links').get().n,0);x.database.close();
-});
-test('Books API denies anonymous, non-owner and cross-origin link writes',async()=>{
- const {GET,POST}=await import('../app/api/odoo-books/route.ts');
- assert.equal((await GET(new Request('https://operations.lokd.co.za/api/odoo-books?links=true'))).status,401);
- const headers={'x-lokd-verified-user-id':'ordinary-client','x-lokd-verified-email':'client@example.test'};
- assert.equal((await GET(new Request('https://operations.lokd.co.za/api/odoo-books?links=true',{headers}))).status,403);
- assert.equal((await POST(new Request('https://operations.lokd.co.za/api/odoo-books',{method:'POST',headers:{...headers,origin:'https://attacker.example','content-type':'application/json'},body:'{}'}))).status,403);
-});
-
 test('quote reads overlap only authorized queries and reject any storage failure',async()=>{
  const x=await setup(),{q}=await issueAndAccept(x);
  try {
@@ -293,7 +230,7 @@ test('quote reads overlap only authorized queries and reject any storage failure
 });
 
 // One continuous synthetic journey; external transports remain explicitly simulated.
-test('one dummy quote binds notification, downloaded terms, immutable acceptance and Books reconciliation',async()=>{
+test('one dummy quote binds notification, downloaded terms, immutable acceptance without accounting provider calls',async()=>{
  const x=await setup();
  try {
   const {quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),messages=[];
@@ -306,13 +243,8 @@ test('one dummy quote binds notification, downloaded terms, immutable acceptance
   await acceptQuote(x.db,x.bucket,x.applicant,{quoteId,offerHash:q.offer_hash,affirmative:true});
   const {receipt}=await currentQuote(x.db,quoteId,Date.now(),true);
   assert.equal(JSON.parse(receipt.receipt_json).terms.sha256,t.file_hash);
-  const {linkQuoteBooks,readQuoteBooksLinks}=await import('../app/lib/quote-books-links.ts');
-  const linked=await linkQuoteBooks(x.db,booksRuntime,x.owner,booksInput(q),booksTransport(q));
-  const accounting=(await readQuoteBooksLinks(x.db))[0];
-  assert.equal(accounting.quoteId,quoteId);assert.equal(accounting.currentAcceptance,true);
-  assert.equal(linked.financialRecordsChanged,false);assert.equal(linked.funded,false);
   assert.equal(x.database.prepare('SELECT funding_status FROM bookings WHERE id=?').get(x.orderId).funding_status,'unfunded');
-  const evidence={mode:'isolated-actual-handlers',externalEmail:'simulated-provider-acceptance',externalBooks:'simulated-provider-read',liveMoneyMoved:false,quoteId,orderId:x.orderId,termsSha256:t.file_hash,notification:messages[0],receipt:JSON.parse(receipt.receipt_json),receiptHash:receipt.receipt_hash,accounting};
+  const evidence={mode:'isolated-actual-handlers',externalEmail:'simulated-provider-acceptance',externalBooks:'none',liveMoneyMoved:false,quoteId,orderId:x.orderId,termsSha256:t.file_hash,notification:messages[0],receipt:JSON.parse(receipt.receipt_json),receiptHash:receipt.receipt_hash};
   if(process.env.LOKD_DUMMY_JOURNEY_EVIDENCE)fs.writeFileSync(process.env.LOKD_DUMMY_JOURNEY_EVIDENCE,JSON.stringify(evidence,null,2));
  } finally {x.database.close();}
 });

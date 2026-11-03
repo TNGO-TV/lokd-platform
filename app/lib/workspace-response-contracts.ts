@@ -65,7 +65,6 @@ export function productionOperationsResponse(value:unknown){
 export const productionSigningResponse=(value:unknown)=>matchesWorkspaceContract(value,workspaceContracts.signing)&&savedJson(value);
 export const psiraResponse=(value:unknown)=>matchesWorkspaceContract(value,workspaceContracts.psira)&&savedJson(value)&&record(value)&&rows(value,'cases').every(row=>(row.events as Record<string,unknown>[]).every(event=>{const evidence=jsonObject(event.evidence_json);return Boolean(evidence)&&['checkedAt','returnedName','grade','employmentStatus','certificateExpiry','excerpt','reason','identityEvidence','source'].every(key=>evidence![key]===undefined||typeof evidence![key]==='string');}));
 export const deliveryResponse=(value:unknown)=>matchesWorkspaceContract(value,workspaceContracts.delivery);
-export const booksLinksResponse=(value:unknown)=>matchesWorkspaceContract(value,workspaceContracts.booksLinks);
 export const creditNotesResponse=(value:unknown)=>matchesWorkspaceContract(value,workspaceContracts.creditNotes)&&savedJson(value);
 export const paymentFinanceResponse=(value:unknown)=>matchesWorkspaceContract(value,workspaceContracts.paymentFinance)&&savedJson(value);
 export function financeDocumentsResponse(value:unknown){
