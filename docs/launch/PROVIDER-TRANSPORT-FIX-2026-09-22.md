@@ -1,4 +1,4 @@
-> Dated transport record only. Email is SMTP or disabled. Accounting inspect is Odoo company 4. See `docs/launch/ODOO-CO4-INSPECT.md`.
+> Dated transport record only. Email is SMTP or disabled. No accounting or CRM provider is connected; see `docs/launch/CRM-COMPANION.md`.
 
 # Worker provider transport correction — 22 September 2026
 
