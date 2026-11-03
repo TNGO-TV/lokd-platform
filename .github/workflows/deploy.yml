@@ -1,0 +1,57 @@
+# Tests, migrates and deploys LOKD from main. Replaces the hand-run deploy from the ZA VPS.
+# Needs one repository secret: CLOUDFLARE_API_TOKEN (Workers Scripts: Edit, D1: Edit, Account Settings: Read).
+# The account id comes from wrangler.jsonc. Secrets set with `wrangler secret put` are untouched by a deploy.
+name: LOKD deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lokd-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    name: test, migrate, deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22.22.1'
+          package-manager-cache: false
+      - name: Match accepted npm toolchain
+        run: npm install --global npm@9.2.0
+      - name: Install locked dependencies
+        run: npm run install:ci
+      - name: Lint and type-check
+        run: |
+          npm run lint
+          ./node_modules/.bin/tsc --noEmit
+      - name: Readiness schema matches migrations
+        run: node scripts/generate-readiness-schema.mjs --check
+      - name: Build for native Cloudflare deploy
+        run: npm run build
+        env:
+          LOKD_NATIVE_CF: '1'
+      - name: Unit and database tests
+        run: node --experimental-loader=./tests/cloudflare-loader.mjs --test --test-concurrency=2 tests/*.test.mjs
+      - name: Apply D1 migrations
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: ./node_modules/.bin/wrangler d1 migrations apply lokd-security --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Deploy Worker
+        run: ./node_modules/.bin/wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Verify live readiness
+        run: |
+          sleep 10
+          body="$(curl -sS --max-time 30 https://lokd.co.za/api/health/ready)"
+          echo "$body"
+          echo "$body" | grep -q '"status":"ready"'
