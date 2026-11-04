@@ -1,5 +1,4 @@
 -- EFT receipts retain the bank evidence and an independent, immutable decision.
---> statement-breakpoint
 CREATE TABLE production_eft_receipts (
  id TEXT PRIMARY KEY, booking_id TEXT NOT NULL REFERENCES bookings(id),
  bank_reference TEXT NOT NULL UNIQUE, amount_cents INTEGER NOT NULL CHECK(amount_cents>0),

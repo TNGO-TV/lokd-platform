@@ -17,7 +17,7 @@ export async function operationsAccess(db: D1Database, headers: Headers, allowMf
     .bind(email).first<{id:string; approval_limit_cents:number}>();
   if (!account) throw new SignupError('An active named operator account is required. Contact your LOKD administrator.', 403);
   const assignments = await db.prepare(`SELECT role FROM operator_role_assignments WHERE operator_id=?
-    AND environment='production' AND integrity_state='production_verified' AND status='active'`)
+    AND environment='production' AND integrity_state='production_verified' AND status='active' AND revoked_at IS NULL`)
     .bind(account.id).all<{role:OperatorRole}>();
   const roles = assignments.results.map(row => row.role);
   if (!roles.length) throw new SignupError('Your operator account has no active role.', 403);

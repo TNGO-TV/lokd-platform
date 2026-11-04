@@ -31,7 +31,7 @@ const operationsObjects: SchemaObject[] = [
   {type: 'trigger', name: 'production_schedule_changes_retain'},
 ];
 const baseObjects: readonly SchemaObject[] = readinessSchema.objects;
-const objects = [...new Map([...baseObjects, ...operationsObjects].map(object => [object.type + ":" + object.name, object])).values()];
+const objects = [...new Map([...baseObjects, ...operationsObjects].map(object => [object.type + ":" + object.name, object])).values()].sort((a,b)=>(a.type+':'+a.name)<(b.type+':'+b.name)?-1:(a.type+':'+a.name)>(b.type+':'+b.name)?1:0);
 
 
 export const requiredSchemaCounts = {
@@ -62,4 +62,5 @@ export async function checkSchemaReadiness(db: D1Database) {
     schemaComplete: Object.entries(requiredSchemaCounts).every(([key, count]) => checks[key as keyof typeof checks] === count),
   };
 }
-export const schemaMigration = [readinessSchema.migration,'0142_operations_schedule'].sort().at(-1)!;
+export const schemaMigration = [readinessSchema.migration,'0142_operations_schedule.sql'].sort().at(-1)!;
+export const operationsSchema = {migration:schemaMigration,objects};

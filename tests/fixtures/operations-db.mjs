@@ -14,9 +14,9 @@ export function operationsDatabase(){
  const db={prepare:sql=>new Statement(sqlite,sql),batch:async statements=>{sqlite.exec('BEGIN IMMEDIATE');try{const results=statements.map(s=>s.runSync());sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
  return {sqlite,db};
 }
-export function addOperator(sqlite,id,roles,limit=1000000){
+export function addOperator(sqlite,id,roles,limit=1000000,email=id+'@example.test'){
  const now=new Date().toISOString();
- sqlite.prepare("INSERT INTO operator_accounts(id,email,display_name,status,approval_limit_cents,environment,integrity_state,created_at,updated_at) VALUES(?,?,?,'active',?,'production','production_verified',?,?)").run(id,id+'@example.test',id,limit,now,now);
+ sqlite.prepare("INSERT INTO operator_accounts(id,email,display_name,status,approval_limit_cents,environment,integrity_state,created_at,updated_at) VALUES(?,?,?,'active',?,'production','production_verified',?,?)").run(id,email,id,limit,now,now);
  for(const role of roles)sqlite.prepare("INSERT INTO operator_role_assignments(id,operator_id,role,status,environment,integrity_state,granted_by,granted_at) VALUES(?,?,?,'active','production','production_verified','fixture-admin',?)").run(id+role,id,role,now);
- return new Headers({'x-lokd-verified-user-id':id,'x-lokd-verified-email':id+'@example.test','x-lokd-verified-mfa-enrolled':'true','x-lokd-verified-second-factor-at':new Date(Date.now()-60000).toISOString()});
+ return new Headers({'x-lokd-verified-user-id':id,'x-lokd-verified-email':email,'x-lokd-verified-mfa-enrolled':'true','x-lokd-verified-second-factor-at':new Date(Date.now()-60000).toISOString()});
 }

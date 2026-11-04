@@ -57,10 +57,13 @@ test("advance funding accepts only exact, reconciled, evidence-backed payment wi
   assert.match(blocked.blockers.join(" "), /full booking amount has not cleared/i);
 });
 
-test('temporary MFA suspension preserves account, role, amount and independent approver controls',()=>{
+test('configuration cannot waive MFA and verified requests retain independent approval controls',()=>{
  const base={actionCode:'payroll.second_approve',actorId:'finance',roles:['finance_approver'],accountStatus:'active',mfaStatus:'not_verified',mfaVerifiedAt:null,mfaRequired:false,amountCents:2000000,makerId:'maker',firstApproverId:'reviewer',now};
- assert.equal(operatorControlDecision(base).allowed,true);
- for(const patch of [{accountStatus:'suspended'},{roles:[]},{amountCents:50000001},{makerId:'finance'},{firstApproverId:'finance'}]) assert.equal(operatorControlDecision({...base,...patch}).allowed,false);
+ assert.equal(operatorControlDecision(base).allowed,false);
+ assert.match(operatorControlDecision(base).blockers.join(' '),/MFA challenge/);
+ const verified={...base,mfaStatus:'verified',mfaVerifiedAt:'2026-09-01T11:59:00.000Z'};
+ assert.equal(operatorControlDecision(verified).allowed,true);
+ for(const patch of [{accountStatus:'suspended'},{roles:[]},{amountCents:50000001},{makerId:'finance'},{firstApproverId:'finance'}]) assert.equal(operatorControlDecision({...verified,...patch}).allowed,false);
  assert.equal(operatorControlDecision({...base,mfaRequired:true}).allowed,false);
  assert.equal(operatorControlDecision({...base,mfaRequired:undefined}).allowed,false);
 });

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { env } from "cloudflare:workers";
-import { readinessSchema } from "../app/lib/readiness-schema-generated.ts";
+import { operationsSchema as readinessSchema } from "../app/lib/schema-readiness.ts";
 import { GET as live } from "../app/api/health/live/route.ts";
 import { GET as ready } from "../app/api/health/ready/route.ts";
 
@@ -91,7 +91,7 @@ test("readiness fails closed when private evidence storage is not bound", async 
   } finally { cleanup(db); }
 });
 
-// This fails after any additive migration until Central regenerates the manifest.
+// Match the runtime inventory, including additive Operations objects.
 test("readiness inventory exactly matches the final canonical migrations", () => {
   const db = bindMigratedDatabase();
   try {

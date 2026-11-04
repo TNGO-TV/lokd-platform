@@ -49,3 +49,6 @@ test('server configuration and request inputs cannot waive Operations MFA',async
   for(const value of [undefined,'false','true','FALSE','0','']){
    env.LOKD_OPERATIONS_MFA_REQUIRED=value;headers.set('x-lokd-operations-mfa-required','false');
    assert.equal((await GET(new Request('https://operations.lokd.co.za/api/operations/security?verify=1',{headers}))).status,403);
+  }
+ }finally{delete env.LOKD_OPERATIONS_MFA_REQUIRED;env.DB=saved;sqlite.close();}
+});

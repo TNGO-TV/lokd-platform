@@ -1,3 +1,4 @@
+import {auditOperationsCommand} from '../../lib/operations-audit';
 import {env} from 'cloudflare:workers';
 import {operationsRequest,requireOperationsJson as requireSameOriginJson} from '../../lib/operations-access';
 import {SignupError} from '../../lib/signup-server';
@@ -67,7 +68,11 @@ export async function POST(request:Request) {
     const raw = await readRequestText(request, 100000);
     let action:SpecialistAction; try{action=JSON.parse(raw);}catch{throw new SpecialistWorkflowError("The request must contain valid JSON.");}
     if(!operator)throw new SignupError('Operations access required.',403);
-    await applySpecialistAction(db,environment,principal.email,action,{actor:operator,headers:request.headers});
+    await auditOperationsCommand(db,operator.userId,action,'requested');
+    try{
+      await applySpecialistAction(db,environment,principal.email,action,{actor:operator,headers:request.headers});
+      await auditOperationsCommand(db,operator.userId,action,'completed');
+    }catch(error){await auditOperationsCommand(db,operator.userId,action,'failed');throw error;}
     return reply({state:await readSpecialistState(db,environment,principal.email)});
   }catch(cause){return failure(cause);}
 }

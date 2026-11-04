@@ -88,7 +88,11 @@ async function performProduction(db:D1Database,actor:SigningActor,input:Record<s
  }
  if(input.action==='revoke_operator'){
   if(!actor.owner||!actor.operations)throw new SignupError('Operations owner access required.',403);
-  await db.batch([db.prepare("UPDATE operator_accounts SET status='suspended',version=version+1,updated_at=? WHERE id=? AND environment='production'").bind(now,text(input.operatorId)),db.prepare("INSERT INTO audit_events VALUES(?,'operations',?,'production_operator_suspended','operator',?,?,?)").bind(crypto.randomUUID(),actor.userId,text(input.operatorId),'Owner suspended production operator access.',now)]);return {suspended:true};
+  const operatorId=text(input.operatorId),target=await db.prepare("SELECT email,status FROM operator_accounts WHERE id=? AND environment='production'").bind(operatorId).first<{email:string;status:string}>();
+  if(!target)throw new SignupError('The operator account was not found.',404);
+  if(target.email.toLowerCase()===actor.email.toLowerCase())throw new SignupError('Another owner must suspend your access.',403);
+  if(target.status==='suspended')return {suspended:true};
+  await db.batch([db.prepare("UPDATE operator_accounts SET status='suspended',version=version+1,updated_at=? WHERE id=? AND environment='production'").bind(now,operatorId),db.prepare("INSERT INTO audit_events VALUES(?,'operations',?,'production_operator_suspended','operator',?,?,?)").bind(crypto.randomUUID(),actor.userId,operatorId,'Owner suspended production operator access.',now)]);return {suspended:true};
  }
  if(input.action==='check_in'){
   if(!liveCheckInEnabled)throw new SignupError('Production check-in awaits live operating acceptance.',423);

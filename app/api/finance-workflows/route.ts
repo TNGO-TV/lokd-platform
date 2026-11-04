@@ -3,7 +3,7 @@ import {operationsRequest,requireOperationsJson,requireOperationsRole} from '../
 import {readEft,operateEft} from '../../lib/production-eft';
 import {queueAccountingInvoice,dispatchAccounting,type AccountingRuntime} from '../../lib/production-accounting';
 import {runOperationsNotifications,reconcileOperationsNotification,type OperationsMailRuntime} from '../../lib/production-notifications';
-import {DeliveryError} from '../../lib/operational-provider';
+import {DeliveryError,emailValid} from '../../lib/operational-provider';
 import {SignupError} from '../../lib/signup-server';
 import {readRequestText,RequestBodyError} from '../../lib/request-body';
 export const dynamic='force-dynamic';
@@ -13,7 +13,11 @@ export async function GET(request:Request){try{
  if(!env.DB)throw new SignupError('Finance storage is unavailable.',503);
  const a=await operationsRequest(env.DB,request);requireOperationsRole(a,['finance_approver','funding_reconciler','payroll_preparer','payroll_reviewer']);
  const [receipts,accounting,notifications,invoices]=await Promise.all([readEft(env.DB),env.DB.prepare("SELECT id,entity_id,state,attempts,last_error_detail,provider_reference,created_at FROM integration_operations WHERE provider_key='odoo-company-4' AND environment='production' ORDER BY created_at DESC LIMIT 100").all(),env.DB.prepare('SELECT id,subject,state,attempts,last_error,created_at FROM production_notifications ORDER BY created_at DESC LIMIT 100').all(),env.DB.prepare("SELECT id,invoice_number,total_cents,status,booking_id FROM client_invoices WHERE environment='production' ORDER BY created_at DESC LIMIT 100").all()]);
- return reply({receipts,accounting:accounting.results,notifications:notifications.results,invoices:invoices.results});
+ const mail=env as OperationsMailRuntime,ledger=env as AccountingRuntime;
+ const configurationWarnings=[];
+ if(!mail.RESEND_API_KEY||!emailValid(mail.LOKD_EMAIL_FROM))configurationWarnings.push('Email delivery requires the RESEND_API_KEY secret and a verified LOKD_EMAIL_FROM sender. Notifications are retained until delivery can be confirmed.');
+ if(!ledger.ODOO_API_KEY||!ledger.LOKD_ODOO_JSON2_ORIGIN||!ledger.LOKD_ODOO_DATABASE||!ledger.LOKD_ODOO_SALES_JOURNAL_ID||!ledger.LOKD_ODOO_REVENUE_ACCOUNT_ID)configurationWarnings.push('Odoo posting requires ODOO_API_KEY, LOKD_ODOO_JSON2_ORIGIN, LOKD_ODOO_DATABASE, LOKD_ODOO_SALES_JOURNAL_ID and LOKD_ODOO_REVENUE_ACCOUNT_ID. Configure company 4 before posting.');
+ return reply({receipts,accounting:accounting.results,notifications:notifications.results,invoices:invoices.results,configurationWarnings});
 }catch(e){return failure(e);}}
 export async function POST(request:Request){try{
  requireOperationsJson(request);if(!env.DB)throw new SignupError('Finance storage is unavailable.',503);

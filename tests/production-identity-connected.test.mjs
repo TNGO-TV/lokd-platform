@@ -37,7 +37,7 @@ import {suspendProductionIdentity} from '../app/lib/production-identity.ts';
 import {suspendOfficerWorkforce} from '../app/lib/production-rereview.ts';
 import {writeSignup} from '../app/lib/signup-server.ts';
 import {recordProductionService,readProductionService} from '../app/lib/production-service.ts';
-import {operateProduction} from '../app/lib/production-operations.ts';
+import {operateWithProof as operateProduction} from './fixtures/operations-auth.mjs';
 import {installFixtureClock} from './fixtures/fixture-clock.mjs';
 import {consumeConnectedPayroll,freshHeaders} from './fixtures/connected-payroll-consumption.mjs';
 

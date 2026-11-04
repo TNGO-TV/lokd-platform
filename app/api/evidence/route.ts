@@ -121,7 +121,7 @@ export async function POST(request: Request) {
       db.prepare(`INSERT INTO audit_events
         (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
         VALUES (?, 'operations', ?, 'evidence_stored', 'document_artifact', ?, ?, ?)`)
-        .bind(`AUD-${crypto.randomUUID()}`, actor.email, artifactId,
+        .bind(`AUD-${crypto.randomUUID()}`, actor.userId, artifactId,
           `Stored ${kind} evidence (${bytes.byteLength} bytes, SHA-256 ${contentHash}).`, now),
     ]);
     return response({ artifact: { id: artifactId, kind, mimeType, sizeBytes: bytes.byteLength, contentHash, status: "stored_unverified" } }, 201);
@@ -218,25 +218,26 @@ export async function PATCH(request: Request) {
     requireArtifactAccess(actor, artifact.accessClass);
     if (artifact.status !== "stored_unverified") throw new EvidenceError("That evidence artifact has already left the verification queue.", 409);
     if (artifact.contentHash !== expectedHash) throw new EvidenceError("The expected evidence hash does not match the stored record.", 409);
-    if (artifact.storedBy === actor.email) throw new EvidenceError("A second authorised operator must verify this evidence.", 409);
+    if (artifact.storedBy === actor.userId) throw new EvidenceError("A second authorised operator must verify this evidence.", 409);
     const object = await bucket.head(artifact.storageReference.slice("BUCKET:".length));
     if (!object || object.size !== artifact.sizeBytes || object.customMetadata?.contentHash !== artifact.contentHash) {
       throw new EvidenceError("The private evidence object failed its integrity check.", 409);
     }
     const now = new Date().toISOString();
     const verifiedIntegrityState = "production_verified";
-    await db.batch([
+    const verification = await db.batch([
       db.prepare(`UPDATE document_artifacts SET status = 'verified', integrity_state = ?, verified_at = ?
         WHERE id = ? AND status = 'stored_unverified' AND content_hash = ? AND environment = ?`)
         .bind(verifiedIntegrityState, now, artifact.id, artifact.contentHash, dataEnvironment),
       db.prepare(`INSERT INTO audit_events
         (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
         SELECT ?, 'operations', ?, 'evidence_verified', 'document_artifact', id, ?, ?
-        FROM document_artifacts WHERE id = ? AND status = 'verified' AND verified_at = ?`)
-        .bind(`AUD-${crypto.randomUUID()}`, actor.email,
+        FROM document_artifacts WHERE id = ? AND status = 'verified' AND verified_at = ? AND changes() = 1`)
+        .bind(`AUD-${crypto.randomUUID()}`, actor.userId,
           `Verified the R2 object size and SHA-256 ${artifact.contentHash} under second-operator control.`,
           now, artifact.id, now),
     ]);
+    if (verification[0].meta.changes !== 1) throw new EvidenceError("The statement was already reviewed. Refresh its current status.", 409);
     return response({ artifact: { id: artifact.id, status: "verified", contentHash: artifact.contentHash, verifiedAt: now } });
   } catch (cause) {
     return errorResponse(cause);

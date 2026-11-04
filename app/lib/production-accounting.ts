@@ -55,7 +55,7 @@ export async function dispatchAccounting(db:D1Database,headers:Headers,runtime:A
  let uncertain=job.last_error_code==='odoo_write_uncertain',creating=false;
  try{
   const ref='LOKD:'+payload.invoiceId;
-  const matches=await call(runtime,'account.move','search_read',{domain:[['company_id','=',4],['ref','=',ref]],fields:['id','state','amount_total','currency_id','partner_id','move_type'],limit:2},transport);
+  const matches=await call(runtime,'account.move','search_read',{domain:[['company_id','=',4],['ref','=',ref]],fields:['id','state','amount_total','currency_id','partner_id','move_type','company_id'],limit:2},transport);
   if(!Array.isArray(matches)||matches.length>1)throw new SignupError('Accounting has conflicting invoice references. Resolve them in Odoo before retrying.',409);
   let move=matches[0];
   if(!move){
@@ -69,9 +69,9 @@ export async function dispatchAccounting(db:D1Database,headers:Headers,runtime:A
    const created=await call(runtime,'account.move','create',{vals_list:[{company_id:4,journal_id:cfg.journal,move_type:'out_invoice',partner_id:payload.partnerId,ref,invoice_date:payload.date,invoice_line_ids:[[0,0,{name:payload.description,account_id:cfg.account,quantity:1,price_unit:payload.subtotal/100,tax_ids:[[6,0,taxes]]}]]}]},transport);
    creating=false;
    const moveId=positive(Array.isArray(created)?created[0]:created,'the returned accounting record');
-   const rows=await call(runtime,'account.move','read',{ids:[moveId],fields:['id','state','amount_total','currency_id','partner_id','move_type']},transport);move=Array.isArray(rows)?rows[0]:null;
+   const rows=await call(runtime,'account.move','read',{ids:[moveId],fields:['id','state','amount_total','currency_id','partner_id','move_type','company_id']},transport);move=Array.isArray(rows)?rows[0]:null;
   }
-  if(!move||!Number.isSafeInteger(move.id)||Math.round(Number(move.amount_total)*100)!==payload.total||move.currency_id?.[1]!=='ZAR'||move.partner_id?.[0]!==payload.partnerId||move.move_type!=='out_invoice')throw new SignupError('The Odoo invoice totals, currency or customer differ from LOKD. Review the draft in Odoo.',409);
+  if(!move||move.company_id?.[0]!==4||!Number.isSafeInteger(move.id)||Math.round(Number(move.amount_total)*100)!==payload.total||move.currency_id?.[1]!=='ZAR'||move.partner_id?.[0]!==payload.partnerId||move.move_type!=='out_invoice')throw new SignupError('The Odoo invoice company, totals, currency or customer differ from LOKD. Review the draft in Odoo.',409);
   if(move.state==='draft')await call(runtime,'account.move','action_post',{ids:[move.id]},transport);
   else if(move.state!=='posted')throw new SignupError('The accounting invoice cannot be posted from its current state.',409);
   const posted=await call(runtime,'account.move','read',{ids:[move.id],fields:['state','amount_total','currency_id','partner_id','move_type','company_id']},transport);

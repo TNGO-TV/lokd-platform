@@ -71,9 +71,14 @@ CREATE TRIGGER operations_psira_email AFTER INSERT ON psira_verification_events 
  FROM psira_verification_cases c WHERE c.id=NEW.case_id AND EXISTS(SELECT 1 FROM signup_cases sc JOIN officer_applications a ON a.id=sc.source_id WHERE sc.kind='officer' AND sc.owner_user_id=c.owner_user_id AND a.integrity_state='user_submitted');
 END;
 --> statement-breakpoint
-CREATE TRIGGER operations_assignment_email AFTER INSERT ON roster_assignments WHEN NEW.environment='production' AND NEW.integrity_state='production_verified' AND NEW.status='confirmed' BEGIN
+CREATE TRIGGER operations_assignment_email AFTER UPDATE OF state ON assignment_activation_commands
+WHEN NEW.state='activated' AND OLD.state<>'activated' BEGIN
  INSERT INTO production_notifications(id,recipient,subject,body,next_attempt_at,created_at,updated_at)
- SELECT 'assignment-published:'||NEW.id,o.email,'LOKD Security — shift assignment confirmed',
- 'Your assignment at '||b.site_name||' is confirmed. Sign in to review the shift time, post instructions and check-in requirements.'||char(10)||char(10)||'https://officers.lokd.co.za/officer/service'||char(10)||char(10)||'LOKD Security',NEW.assigned_at,NEW.assigned_at,NEW.assigned_at
- FROM officers o JOIN roster_slots s ON s.id=NEW.roster_slot_id JOIN bookings b ON b.id=s.booking_id WHERE o.id=NEW.officer_id;
+ SELECT 'assignment-published:'||a.id,o.email,'LOKD Security — shift assignment confirmed',
+ 'Your assignment at '||b.site_name||' is confirmed. Sign in to review the shift time, post instructions and check-in requirements.'||char(10)||char(10)||'https://officers.lokd.co.za/officer/service'||char(10)||char(10)||'LOKD Security',NEW.completed_at,NEW.completed_at,NEW.completed_at
+ FROM assignment_activation_snapshots snap JOIN roster_assignments a ON a.id=snap.roster_assignment_id
+ JOIN officers o ON o.id=a.officer_id JOIN roster_slots slot ON slot.id=a.roster_slot_id
+ JOIN bookings b ON b.id=slot.booking_id JOIN shifts shift ON shift.id=a.shift_id
+ WHERE snap.command_id=NEW.id AND snap.final=1 AND snap.environment='production' AND snap.integrity_state='production_verified'
+ AND a.environment='production' AND a.integrity_state='production_verified' AND a.status='confirmed' AND a.active_key=slot.id AND shift.status='confirmed';
 END;

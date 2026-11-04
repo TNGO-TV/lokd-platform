@@ -56,10 +56,16 @@ test('built Worker rejects rehearsal paths and router aliases on production desp
  let touched=0;
  const environment={LOKD_APP_STAGE:'demo',LOKD_TEST_SURFACES_ENABLED:'true',DB:{prepare(){touched++;throw Error('Primary database must not be touched');}},ASSETS:{fetch:async()=>new Response('not found',{status:404})}};
  const context={waitUntil(){},passThroughOnException(){}};
- for(const path of ['/api/pilot','/api/pilot/','/api/%70ilot','/api/platform/export','/api/platform/export/file','/api/sandbox/identity','/api/agreements/test','/api/test-cycle','/api/finance-workflows','/api/finance-workflows/webhook','/api/paystack/test/webhook']){
+ for(const path of ['/api/pilot','/api/pilot/','/api/%70ilot','/api/platform/export/file','/api/sandbox/identity','/api/agreements/test','/api/test-cycle','/api/paystack/test/webhook']){
   const response=await worker.fetch(new Request('https://operations.lokd.co.za'+path,{headers:{host:'demo.lokd.co.za','x-forwarded-host':'demo.lokd.co.za','x-lokd-verified-email':'owner@example.test'}}),environment,context);
   assert.ok([404,405].includes(response.status),path+': '+response.status);
  }
+ for(const path of ['/api/operations','/api/platform/export?run=private','/api/finance-workflows','/api/specialist']){
+  const response=await worker.fetch(new Request('https://operations.lokd.co.za'+path,{headers:{'x-lokd-verified-user-id':'forged','x-lokd-verified-email':'owner@example.test'}}),environment,context);
+  assert.ok([401,503].includes(response.status),path+': '+response.status);
+ }
+ const webhook=await worker.fetch(new Request('https://operations.lokd.co.za/api/finance-workflows/webhook',{method:'POST',body:'{}'}),environment,context);
+ assert.equal(webhook.status,503,'Disconnected payment webhook must refuse events before any database or provider work.');
  assert.equal(touched,0);
 });
 

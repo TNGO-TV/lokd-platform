@@ -1,10 +1,9 @@
 import {operationsMfaStatus} from './operations-mfa';
 import {productionOperatorControl} from './production-operator-control';
 import type {SigningActor} from './production-signing';
-import { ensureDemoOperator } from "./integration-server";
 import { SPECIALIST_PRICING_VERSION, specialistProfiles, type SpecialistServiceCode } from "./specialist-pricing";
-import { SPECIALIST_TERMS_VERSION, evaluateSpecialistPack, quoteFingerprint, requiredSpecialistChecks, runSpecialistRehearsals, specialistProductionBlockers } from "./specialist-operations-core";
-import type { SpecialistAction, SpecialistBooking, SpecialistCommercialReview, SpecialistEnvironment, SpecialistOperationsState, SpecialistPack, SpecialistPackContent, SpecialistPartner, SpecialistScenarioResult } from "./specialist-operations-types";
+import { SPECIALIST_TERMS_VERSION, evaluateSpecialistPack, quoteFingerprint, requiredSpecialistChecks } from "./specialist-operations-core";
+import type { SpecialistAction, SpecialistBooking, SpecialistCommercialReview, SpecialistEnvironment, SpecialistOperationsState, SpecialistPack, SpecialistPackContent, SpecialistPartner } from "./specialist-operations-types";
 
 export class SpecialistWorkflowError extends Error {
   status: number;
@@ -14,7 +13,7 @@ type PackRow = Omit<SpecialistPack,"content"|"blockers"> & {content:string};
 type PartnerRow = Omit<SpecialistPartner,"serviceCodes"> & {serviceCodes:string};
 const stamp=()=>new Date().toISOString().replace(/\.\d{3}Z$/,".000Z");
 const id=(prefix:string)=>`${prefix}-${crypto.randomUUID()}`;
-const integrity=(environment:SpecialistEnvironment)=>environment==="demo"?"synthetic":"recorded";
+
 function text(value:unknown,label:string,max=1000) {
   if(typeof value!=="string" || !value.trim() || value.trim().length>max) throw new SpecialistWorkflowError(`${label} is required (maximum ${max} characters).`);
   return value.trim();
@@ -29,7 +28,7 @@ function date(value:unknown,label:string) {
 }
 function evidenceRef(value:unknown,environment:SpecialistEnvironment) {
   const result=text(value,"Evidence reference",500);
-  if(environment==="production" && /demo:|synthetic|\.invalid\b|\.example\b/i.test(result)) throw new SpecialistWorkflowError("Synthetic evidence cannot support a production record.");
+  if(environment==="production" && /demo:|synthetic|\.invalid\b|\.example\b/i.test(result)) throw new SpecialistWorkflowError("Use a verifiable source document for this record.");
   return result;
 }
 async function rows<T>(db:D1Database,sql:string,...values:unknown[]) { return (await db.prepare(sql).bind(...values).all<T>()).results ?? []; }
@@ -38,6 +37,7 @@ async function mutate(statement:D1PreparedStatement) {
 }
 
 export async function readSpecialistBookings(db:D1Database,environment:SpecialistEnvironment) {
+  if(environment!=="production")throw new SpecialistWorkflowError("Production specialist records are required.",400);
   return rows<SpecialistBooking>(db,`SELECT b.id,b.client_id AS clientId,b.site_name AS siteName,b.specialist_service_code AS serviceCode,
     b.specialist_configuration AS configuration,b.pricing_version AS pricingVersion,b.quote_subtotal_cents AS subtotalCents,
     b.vat_cents AS vatCents,b.client_price_cents AS totalCents,b.cost_floor_cents AS costFloorCents,b.margin_basis_points AS marginBasisPoints,
@@ -52,7 +52,7 @@ export async function readSpecialistBookings(db:D1Database,environment:Specialis
 }
 
 export async function readSpecialistState(db:D1Database,environment:SpecialistEnvironment,actorEmail:string):Promise<SpecialistOperationsState> {
-  const [bookings,packRows,partnerRows,reviewRows,rehearsals,officers]=await Promise.all([
+  const [bookings,packRows,partnerRows,reviewRows,officers]=await Promise.all([
     readSpecialistBookings(db,environment),
     rows<PackRow>(db,`SELECT id,booking_id AS bookingId,status,version,content,quote_snapshot AS quoteSnapshot,prepared_by AS preparedBy,
       approved_by AS approvedBy,approved_at AS approvedAt,updated_at AS updatedAt FROM specialist_deployment_packs WHERE environment=? ORDER BY updated_at DESC LIMIT 200`,environment),
@@ -60,7 +60,6 @@ export async function readSpecialistState(db:D1Database,environment:SpecialistEn
       status,version,prepared_by AS preparedBy,approved_by AS approvedBy FROM specialist_partners WHERE environment=? ORDER BY name LIMIT 200`,environment),
     rows<SpecialistCommercialReview>(db,`SELECT id,status,version,evidence_reference AS evidenceReference,expires_at AS expiresAt,prepared_by AS preparedBy,approved_by AS approvedBy
       FROM specialist_commercial_reviews WHERE environment=? AND pricing_version=? AND terms_version=?`,environment,SPECIALIST_PRICING_VERSION,SPECIALIST_TERMS_VERSION),
-    rows<{id:string;createdAt:string;runBy:string;scenarios:string}>(db,`SELECT id,created_at AS createdAt,run_by AS runBy,scenarios FROM specialist_rehearsal_runs WHERE environment=? ORDER BY created_at DESC LIMIT 5`,environment),
     rows<{id:string;name:string}>(db,`SELECT DISTINCT o.id,o.full_name AS name FROM officers o JOIN workforce_engagements w ON w.officer_id=o.id WHERE w.environment=? ORDER BY o.full_name LIMIT 300`,environment),
   ]);
   const partners=partnerRows.map(p=>({...p,serviceCodes:JSON.parse(p.serviceCodes) as SpecialistServiceCode[]}));
@@ -77,26 +76,7 @@ export async function readSpecialistState(db:D1Database,environment:SpecialistEn
   // The database is authoritative for snapshot versions and revoked approvals too.
   const validations=await rows<{id:string;valid:number}>(db,`SELECT id,valid FROM specialist_pack_validation_v34 WHERE environment=?`,environment);
   for(const pack of packs) if(!validations.some(v=>v.id===pack.id&&v.valid===1) && !pack.blockers.length) pack.blockers.push("An approval, supplier version, officer readiness or roster changed. Save and review this pack again.");
-  return {environment,actorEmail,bookings,packs,partners,officers,commercialReview,
-    rehearsals:rehearsals.map(r=>({...r,scenarios:JSON.parse(r.scenarios) as SpecialistScenarioResult[]})),productionBlockers:[...specialistProductionBlockers]};
-}
-
-async function requireActor(db:D1Database,actorEmail:string,environment:SpecialistEnvironment,review:boolean,amount=0) {
-  const email=actorEmail.trim().toLowerCase();
-  if(environment==="demo") await ensureDemoOperator(db,email);
-  const actor=await db.prepare(`SELECT id,mfa_verified_at AS mfaAt,approval_limit_cents AS limitCents FROM operator_accounts
-    WHERE lower(email)=? AND environment=? AND status='active' AND mfa_status='verified'`).bind(email,environment)
-    .first<{id:string;mfaAt:string;limitCents:number}>();
-  if(!actor) throw new SpecialistWorkflowError("An active named Operations account with verified MFA is required.",403);
-  const assigned=await rows<{role:string}>(db,`SELECT role FROM operator_role_assignments WHERE operator_id=? AND environment=? AND status='active' AND revoked_at IS NULL`,actor.id,environment);
-  const allowed=review?["operations_owner","compliance_reviewer"]:["operations_owner","operations_controller"];
-  if(!assigned.some(r=>allowed.includes(r.role))) throw new SpecialistWorkflowError("Your Operations role cannot perform this action.",403);
-  if(environment==="production") {
-    const age=Date.now()-Date.parse(actor.mfaAt);
-    if(!Number.isFinite(age)||age<0||age>15*60000) throw new SpecialistWorkflowError("Refresh Operations MFA within 15 minutes before this action.",403);
-    if(review && actor.limitCents<amount) throw new SpecialistWorkflowError("This quote exceeds your approval limit.",403);
-  }
-  return email;
+  return {environment,actorEmail,bookings,packs,partners,officers,commercialReview};
 }
 
 function normaliseContent(value:SpecialistPackContent,booking:SpecialistBooking,environment:SpecialistEnvironment):SpecialistPackContent {
@@ -113,21 +93,21 @@ function normaliseContent(value:SpecialistPackContent,booking:SpecialistBooking,
   return content;
 }
 
-export async function applySpecialistAction(db:D1Database,environment:SpecialistEnvironment,actorEmail:string,action:SpecialistAction,authorization?:{actor:SigningActor;headers:Headers}) {
+export async function applySpecialistAction(db:D1Database,environment:SpecialistEnvironment,actorEmail:string,action:SpecialistAction,authorization:{actor:SigningActor;headers:Headers}) {
   if(!action||typeof action!=="object"||typeof action.action!=="string") throw new SpecialistWorkflowError("Choose a specialist action.");
   const state=await readSpecialistState(db,environment,actorEmail);
   const review=action.action.startsWith("approve_") || action.action.startsWith("revoke_");
   const pack="id" in action?state.packs.find(p=>p.id===action.id):undefined;
   const booking=state.bookings.find(b=>b.id===("bookingId" in action?action.bookingId:pack?.bookingId));
+  if(!authorization)throw new SpecialistWorkflowError("Verify your Operations account before changing specialist records.",403);
   let actor:string;
-  if(authorization){
+  {
     if(environment!=='production'||authorization.actor.email.toLowerCase()!==actorEmail.toLowerCase())throw new SpecialistWorkflowError('Exact specialist actor binding required.',403);
     const account=await productionOperatorControl(db,authorization.actor,authorization.headers,review?'specialist.review':'specialist.prepare',booking?.totalCents??0);
     // Persist only fresh verified middleware proof for the existing SQL guard.
-    // A disabled global MFA requirement does not manufacture a second factor.
     if(operationsMfaStatus(authorization.headers).fresh)await db.prepare("UPDATE operator_accounts SET mfa_status='verified',mfa_verified_at=? WHERE id=?").bind(new Date(Math.floor(Date.parse(authorization.headers.get('x-lokd-verified-second-factor-at')!)/1000)*1000).toISOString(),account.id).run();
     actor=actorEmail.toLowerCase();
-  }else actor=await requireActor(db,actorEmail,environment,review,booking?.totalCents??0);
+  }
   const now=stamp();
   if(action.action==="save_pack") {
     if(!booking) throw new SpecialistWorkflowError("Select an existing specialist booking in this environment.",404);
@@ -143,7 +123,7 @@ export async function applySpecialistAction(db:D1Database,environment:Specialist
     } else {
       if(version(action.version)!==0) throw new SpecialistWorkflowError("Refresh this booking before creating its pack.",409);
       await db.prepare(`INSERT INTO specialist_deployment_packs (id,booking_id,environment,integrity_state,status,version,content,quote_snapshot,commercial_review_id,commercial_review_version,partner_id,partner_version,prepared_by,updated_at)
-        VALUES (?,?,?,?,'draft',1,?,?,?,?,?,?,?,?)`).bind(id("SP"),booking.id,environment,integrity(environment),JSON.stringify(content),quoteFingerprint(booking),state.commercialReview?.id??null,state.commercialReview?.version??0,partner?.id??null,partner?.version??0,actor,now).run();
+        VALUES (?,?,?,?,'draft',1,?,?,?,?,?,?,?,?)`).bind(id("SP"),booking.id,environment,"recorded",JSON.stringify(content),quoteFingerprint(booking),state.commercialReview?.id??null,state.commercialReview?.version??0,partner?.id??null,partner?.version??0,actor,now).run();
     }
   } else if(action.action==="submit_pack" || action.action==="approve_pack" || action.action==="revoke_pack") {
     if(!pack||!booking) throw new SpecialistWorkflowError("Deployment pack not found.",404);
@@ -162,7 +142,7 @@ export async function applySpecialistAction(db:D1Database,environment:Specialist
     else {
       if(version(action.version)!==0) throw new SpecialistWorkflowError("Refresh the commercial review.",409);
       await db.prepare(`INSERT INTO specialist_commercial_reviews (id,environment,integrity_state,pricing_version,terms_version,status,version,evidence_reference,expires_at,prepared_by,updated_at)
-        VALUES (?,?,?,?,?,'review',1,?,?,?,?)`).bind(id("SC"),environment,integrity(environment),SPECIALIST_PRICING_VERSION,SPECIALIST_TERMS_VERSION,reference,expiresAt,actor,now).run();
+        VALUES (?,?,?,?,?,'review',1,?,?,?,?)`).bind(id("SC"),environment,"recorded",SPECIALIST_PRICING_VERSION,SPECIALIST_TERMS_VERSION,reference,expiresAt,actor,now).run();
     }
   } else if(action.action==="approve_commercial" || action.action==="revoke_commercial") {
     const current=state.commercialReview; if(!current||current.id!==action.id) throw new SpecialistWorkflowError("Commercial review not found.",404);
@@ -176,7 +156,7 @@ export async function applySpecialistAction(db:D1Database,environment:Specialist
     const from=date(action.validFrom,"Partner evidence start"),until=date(action.expiresAt,"Partner evidence expiry");
     if(Date.parse(from)>Date.now()||Date.parse(until)<=Date.now()) throw new SpecialistWorkflowError("Partner evidence must be current.");
     await db.prepare(`INSERT INTO specialist_partners (id,name,service_codes,environment,integrity_state,evidence_reference,valid_from,expires_at,status,version,prepared_by,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,'review',1,?,?)`).bind(id("SUP"),text(action.name,"Partner name",200),JSON.stringify([...new Set(action.serviceCodes)]),environment,integrity(environment),evidenceRef(action.evidenceReference,environment),from,until,actor,now).run();
+      VALUES (?,?,?,?,?,?,?,?,'review',1,?,?)`).bind(id("SUP"),text(action.name,"Partner name",200),JSON.stringify([...new Set(action.serviceCodes)]),environment,"recorded",evidenceRef(action.evidenceReference,environment),from,until,actor,now).run();
   } else if(action.action==="approve_partner" || action.action==="revoke_partner") {
     const current=state.partners.find(p=>p.id===action.id); if(!current) throw new SpecialistWorkflowError("Partner not found.",404);
     const approving=action.action==="approve_partner";
@@ -184,11 +164,6 @@ export async function applySpecialistAction(db:D1Database,environment:Specialist
     if(approving && Date.parse(current.expiresAt)<=Date.now()) throw new SpecialistWorkflowError("Partner evidence has expired.",409);
     await mutate(db.prepare(`UPDATE specialist_partners SET status=?,version=version+1,approved_by=?,approved_at=?,updated_at=?
       WHERE id=? AND environment=? AND version=? AND status=?`).bind(approving?"approved":"revoked",approving?actor:null,approving?now:null,now,current.id,environment,version(action.version),approving?"review":current.status));
-  } else if(action.action==="run_rehearsals") {
-    if(environment!=="demo") throw new SpecialistWorkflowError("Run synthetic rehearsals only in the demo environment.",423);
-    const scenarios=runSpecialistRehearsals();
-    await db.prepare(`INSERT INTO specialist_rehearsal_runs (id,environment,integrity_state,scenarios,run_by,created_at) VALUES (?,'demo','synthetic',?,?,?)`)
-      .bind(id("SR"),JSON.stringify(scenarios),actor,now).run();
   } else throw new SpecialistWorkflowError("Choose a supported specialist action.");
   await db.prepare(`INSERT INTO audit_events (id,actor_type,actor_id,event_type,entity_type,entity_id,detail,created_at)
     VALUES (?,'operations',?,'specialist_workflow_action','specialist_workflow',?,?,?)`)
@@ -198,7 +173,7 @@ export async function applySpecialistAction(db:D1Database,environment:Specialist
 export function specialistDocument(state:SpecialistOperationsState,pack:SpecialistPack,scope:"operations"|"client"|"officer") {
   const b=state.bookings.find(x=>x.id===pack.bookingId); if(!b) throw new SpecialistWorkflowError("Booking unavailable.",404);
   const current=pack.status==="approved" && pack.blockers.length===0;
-  const banner=state.environment==="demo"?"SIMULATION ONLY — NOT A CONTRACT OR DEPLOYMENT AUTHORITY":current?"APPROVED PACK — SEPARATE ACTIVATION REQUIRED":"DRAFT — NOT AUTHORISED FOR DEPLOYMENT";
+  const banner=current?"APPROVED PACK — SEPARATE ACTIVATION REQUIRED":"DRAFT — NOT AUTHORISED FOR DEPLOYMENT";
   const common={banner,packId:pack.id,revision:pack.version,service:specialistProfiles[b.serviceCode].label,site:b.siteName,startsAt:b.startsAt,endsAt:b.endsAt,commandOwner:pack.content.commandOwner,status:current?"approved":"blocked",productionActivationGranted:false};
   if(scope==="officer") return {...common,instructions:pack.content.officerBrief};
   const client={...common,scope:pack.content.clientBrief,subtotalCents:b.subtotalCents,vatCents:b.vatCents,totalCents:b.totalCents,currency:"ZAR",termsVersion:SPECIALIST_TERMS_VERSION,creditTermsDays:0,fundingModel:"advance_only"};

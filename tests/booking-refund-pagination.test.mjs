@@ -12,8 +12,8 @@ function fixture(){
  // Deliberately minimal read models: pagination must not mutate or call providers.
  database.exec(`CREATE TABLE operator_accounts(id TEXT,email TEXT,status TEXT,environment TEXT,integrity_state TEXT,approval_limit_cents INTEGER);
  INSERT INTO operator_accounts VALUES('op','page@example.test','active','production','production_verified',1000);
- CREATE TABLE operator_role_assignments(operator_id TEXT,role TEXT,status TEXT,environment TEXT,integrity_state TEXT);
- INSERT INTO operator_role_assignments VALUES('op','funding_reconciler','active','production','production_verified');
+ CREATE TABLE operator_role_assignments(operator_id TEXT,role TEXT,status TEXT,environment TEXT,integrity_state TEXT,revoked_at TEXT);
+ INSERT INTO operator_role_assignments VALUES('op','funding_reconciler','active','production','production_verified',NULL);
  CREATE TABLE booking_refund_sources(reference TEXT PRIMARY KEY,provider_id TEXT,amount_minor INTEGER,applicant_id TEXT,source_json TEXT,mode TEXT);
  CREATE TABLE booking_refund_cases(id TEXT PRIMARY KEY,reference TEXT,payload_json TEXT);
  CREATE TABLE booking_refund_decisions(case_id TEXT,decision TEXT);
