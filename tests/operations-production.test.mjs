@@ -7,8 +7,6 @@ import {operationsMfaRequired} from '../app/lib/operations-mfa-policy.ts';
 import {operatorControlDecision} from '../app/lib/operator-controls.ts';
 import {runOperationsNotifications} from '../app/lib/production-notifications.ts';
 import {operateEft} from '../app/lib/production-eft.ts';
-import {dispatchAccounting} from '../app/lib/production-accounting.ts';
-import {agreementHash} from '../app/lib/agreement-acceptance.ts';
 
 test('production operator access requires a named account, live role and fresh MFA without a waiver',async()=>{
  const {sqlite,db}=operationsDatabase();try{
@@ -54,22 +52,6 @@ test('email delivery reports missing configuration and retries Resend with one s
  await runOperationsNotifications(db,{RESEND_API_KEY:'local-fixture',LOKD_EMAIL_FROM:'service@example.test'},transport);assert.equal(calls,1);assert.equal(sqlite.prepare('SELECT state FROM production_notifications').get().state,'sent');
  }finally{sqlite.close();}
 });
-test('accounting company 4 retry reconciles an uncertain create and never creates a duplicate invoice',async()=>{
- const {sqlite,db}=operationsDatabase();try{
- const headers=addOperator(sqlite,'finance',['finance_approver']);seedBooking(sqlite);
- const now=new Date().toISOString(),payload=JSON.stringify({invoiceId:'invoice',clientId:'client',partnerId:9,number:'INV-1',subtotal:10000,tax:0,total:10000,date:'2026-11-04',description:'Security services'});
- sqlite.prepare("INSERT INTO integration_provider_configs(key,capability,provider,environment,integrity_state) VALUES('odoo-company-4','accounting','odoo','production','production_verified')").run();
- sqlite.prepare("INSERT INTO integration_operations(id,provider_key,capability,operation_type,entity_type,entity_id,idempotency_key,request_hash,state,environment,integrity_state,created_at,updated_at,request_json) VALUES('job','odoo-company-4','accounting','invoice','booking','booking','invoice:invoice',?,'pending','production','production_verified',?,?,?)").run(await agreementHash(payload),now,now,payload);
- const runtime={ODOO_API_KEY:'local-fixture',LOKD_ODOO_JSON2_ORIGIN:'https://accounting.example.test',LOKD_ODOO_DATABASE:'fixture',LOKD_ODOO_SALES_JOURNAL_ID:'1',LOKD_ODOO_REVENUE_ACCOUNT_ID:'2'};
- let creates=0,found=false,posted=false;const transport=async(url,init)=>{const body=JSON.parse(init.body);assert.deepEqual(body.context.allowed_company_ids,[4]);if(url.endsWith('/account.move/search_read'))return Response.json(found?[{id:12,company_id:[4,'LOKD'],state:posted?'posted':'draft',amount_total:100,currency_id:[1,'ZAR'],partner_id:[9,'Fixture'],move_type:'out_invoice'}]:[]);if(url.endsWith('/res.partner/search_read'))return Response.json([{id:9}]);if(url.endsWith('/create')){creates++;found=true;throw Error('response lost after create');}if(url.endsWith('/action_post')){posted=true;return Response.json(true);}if(url.endsWith('/read'))return Response.json([{state:'posted',company_id:[4,'LOKD'],amount_total:100,currency_id:[1,'ZAR'],partner_id:[9,'Fixture'],move_type:'out_invoice'}]);throw Error('Unexpected provider request');};
- await assert.rejects(dispatchAccounting(db,headers,{},'job',transport),/ODOO_API_KEY/);assert.equal(creates,0);
- await assert.rejects(dispatchAccounting(db,headers,runtime,'job',async url=>{assert.ok(url.endsWith('/account.move/search_read'),'A foreign-company move must never be posted.');return Response.json([{id:99,company_id:[5,'Other'],state:'draft',amount_total:100,currency_id:[1,'ZAR'],partner_id:[9,'Fixture'],move_type:'out_invoice'}]);}),/invoice company/);
- await assert.rejects(dispatchAccounting(db,headers,runtime,'job',transport),/did not confirm/);assert.equal(creates,1);
- assert.equal((await dispatchAccounting(db,headers,runtime,'job',transport)).status,'succeeded');assert.equal(creates,1);assert.equal(posted,true);
- assert.equal((await dispatchAccounting(db,headers,runtime,'job',transport)).status,'succeeded');assert.equal(creates,1);
- }finally{sqlite.close();}
-});
-
 test('bank statements are stored privately, independently verified and downloadable only with finance access',async()=>{
  const {POST,GET,PATCH}=await import('../app/api/evidence/route.ts');
  const {sqlite,db}=operationsDatabase(),previousDb=env.DB,previousBucket=env.BUCKET;

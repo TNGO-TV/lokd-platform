@@ -1,7 +1,6 @@
 import {env} from 'cloudflare:workers';
 import {operationsRequest,requireOperationsJson,requireOperationsRole} from '../../lib/operations-access';
 import {readEft,operateEft} from '../../lib/production-eft';
-import {queueAccountingInvoice,dispatchAccounting,type AccountingRuntime} from '../../lib/production-accounting';
 import {runOperationsNotifications,reconcileOperationsNotification,type OperationsMailRuntime} from '../../lib/production-notifications';
 import {DeliveryError,emailValid} from '../../lib/operational-provider';
 import {SignupError} from '../../lib/signup-server';
@@ -12,12 +11,11 @@ const failure=(e:unknown)=>reply({error:e instanceof SignupError||e instanceof R
 export async function GET(request:Request){try{
  if(!env.DB)throw new SignupError('Finance storage is unavailable.',503);
  const a=await operationsRequest(env.DB,request);requireOperationsRole(a,['finance_approver','funding_reconciler','payroll_preparer','payroll_reviewer']);
- const [receipts,accounting,notifications,invoices]=await Promise.all([readEft(env.DB),env.DB.prepare("SELECT id,entity_id,state,attempts,last_error_detail,provider_reference,created_at FROM integration_operations WHERE provider_key='odoo-company-4' AND environment='production' ORDER BY created_at DESC LIMIT 100").all(),env.DB.prepare('SELECT id,subject,state,attempts,last_error,created_at FROM production_notifications ORDER BY created_at DESC LIMIT 100').all(),env.DB.prepare("SELECT id,invoice_number,total_cents,status,booking_id FROM client_invoices WHERE environment='production' ORDER BY created_at DESC LIMIT 100").all()]);
- const mail=env as OperationsMailRuntime,ledger=env as AccountingRuntime;
+ const [receipts,notifications,invoices]=await Promise.all([readEft(env.DB),env.DB.prepare('SELECT id,subject,state,attempts,last_error,created_at FROM production_notifications ORDER BY created_at DESC LIMIT 100').all(),env.DB.prepare("SELECT id,invoice_number,total_cents,status,booking_id FROM client_invoices WHERE environment='production' ORDER BY created_at DESC LIMIT 100").all()]);
+ const mail=env as OperationsMailRuntime;
  const configurationWarnings=[];
  if(!mail.RESEND_API_KEY||!emailValid(mail.LOKD_EMAIL_FROM))configurationWarnings.push('Email delivery requires the RESEND_API_KEY secret and a verified LOKD_EMAIL_FROM sender. Notifications are retained until delivery can be confirmed.');
- if(!ledger.ODOO_API_KEY||!ledger.LOKD_ODOO_JSON2_ORIGIN||!ledger.LOKD_ODOO_DATABASE||!ledger.LOKD_ODOO_SALES_JOURNAL_ID||!ledger.LOKD_ODOO_REVENUE_ACCOUNT_ID)configurationWarnings.push('Odoo posting requires ODOO_API_KEY, LOKD_ODOO_JSON2_ORIGIN, LOKD_ODOO_DATABASE, LOKD_ODOO_SALES_JOURNAL_ID and LOKD_ODOO_REVENUE_ACCOUNT_ID. Configure company 4 before posting.');
- return reply({receipts,accounting:accounting.results,notifications:notifications.results,invoices:invoices.results,configurationWarnings});
+ return reply({receipts,notifications:notifications.results,invoices:invoices.results,configurationWarnings});
 }catch(e){return failure(e);}}
 export async function POST(request:Request){try{
  requireOperationsJson(request);if(!env.DB)throw new SignupError('Finance storage is unavailable.',503);
@@ -25,11 +23,6 @@ export async function POST(request:Request){try{
  try{input=JSON.parse(await readRequestText(request,24000));}catch(e){if(e instanceof RequestBodyError)throw e;throw new SignupError('Send valid JSON.');}
  if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a finance action.');
  if(['prepare_eft','decide_eft','apply_eft_funding'].includes(input.action))return reply({result:await operateEft(env.DB,request.headers,input)});
- if(input.action==='queue_accounting')return reply({result:await queueAccountingInvoice(env.DB,request.headers,input)});
- if(input.action==='retry_accounting'){
-  if(typeof input.operationId!=='string'||input.operationId.length>200)throw new SignupError('Choose an accounting operation.');
-  return reply({result:await dispatchAccounting(env.DB,request.headers,env as AccountingRuntime,input.operationId)});
- }
  if(input.action==='reconcile_notification'){
   requireOperationsRole(a,['operations_owner','finance_approver']);
   if(typeof input.notificationId!=='string'||input.notificationId.length>200||typeof input.providerId!=='string')throw new SignupError('Choose a notification and its Resend email ID.');

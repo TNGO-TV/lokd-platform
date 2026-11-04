@@ -3,7 +3,7 @@ import {DeliveryError,type OperationalRuntime} from './operational-provider';
 /**
  * CRM companion seam for new client enquiries.
  *
- * Odoo was removed in November 2026. Until a CRM is connected, every enquiry
+ * Until a CRM is connected, every enquiry
  * stays in LOKD's own D1 storage (client_enquiries) and the team is told by the
  * existing `enquiry_email` staff notice. The paired `enquiry_crm` delivery job
  * is settled as `cancelled` with `crm_companion_not_configured`, without any

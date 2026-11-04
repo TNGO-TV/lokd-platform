@@ -46,11 +46,9 @@
   // Officer email config: LOKD_EMAIL_FROM (verified Resend sender).
   // Identity config: VERIFYNOW_IDENTITY_POLICY_REFERENCE,
   // VERIFYNOW_IDENTITY_VALIDITY_DAYS (1–365).
-  // Operations secrets: RESEND_API_KEY, ODOO_API_KEY (set with wrangler secret put).
-  // Accounting configuration: LOKD_ODOO_JSON2_ORIGIN, LOKD_ODOO_DATABASE,
-  // LOKD_ODOO_SALES_JOURNAL_ID, LOKD_ODOO_REVENUE_ACCOUNT_ID, LOKD_ODOO_SALES_TAX_ID.
+  // Operations secrets: RESEND_API_KEY (set with wrangler secret put).
   // Email configuration: LOKD_EMAIL_FROM must be a verified Resend sender.
-  // Company 4 is enforced in accounting code. Payment provider keys remain unset.
+  // Payment provider keys remain unset.
   "vars": {
     "LOKD_PUBLIC_ORIGIN": "https://lokd.co.za",
     "LOKD_APP_STAGE": "production"
