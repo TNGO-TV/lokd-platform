@@ -9,7 +9,7 @@ const flush=async()=>{for(let i=0;i<3;i++)await new Promise(setImmediate);};
 function fixture(respond){
  const slots=[],calls=[],submitted=[],exports={},jsx=(type,props)=>({type,props});let index=0,tree;
  const values={organisationName:'Fixture organisation',siteArea:'Pretoria',privacyConsent:'on',advanceFundingAcknowledged:'on'};
- const modules={'react/jsx-runtime':{jsx,jsxs:jsx},'next/link':{default:'a'},'./sandbox-command-recovery':{default:'sandbox-recovery'},react:{useEffect:()=>{},useState:initial=>{const key=index++;if(!(key in slots))slots[key]=initial;return [slots[key],value=>{slots[key]=value;}];},useRef:initial=>slots[index++]??=( {current:initial} )}};
+ const modules={'react/jsx-runtime':{jsx,jsxs:jsx},'next/link':{default:'a'},react:{useEffect:()=>{},useState:initial=>{const key=index++;if(!(key in slots))slots[key]=initial;return [slots[key],value=>{slots[key]=value;}];},useRef:initial=>slots[index++]??=( {current:initial} )}};
  vm.runInNewContext(code,{exports,require:key=>modules[key],crypto,Error,TypeError,SyntaxError,FormData:class{get(key){return values[key]??'';}},fetch:async(_url,options)=>{calls.push(options.body);return respond(options.body);}});
  function find(node,predicate){if(!node||typeof node!=='object')return null;if(predicate(node))return node;for(const child of [node.props?.children].flat(Infinity)){const match=find(child,predicate);if(match)return match;}return null;}
  const render=()=>{index=0;tree=exports.default({onSubmitted:id=>submitted.push(id)});};render();

@@ -88,48 +88,17 @@ export function identityReviewResponse(value:unknown,query:URLSearchParams){
  if(kind==='review_queue')return matchesWorkspaceContract(value,workspaceContracts.reviewQueue)&&(value.nextOffset===null||Number.isSafeInteger(value.nextOffset)&&Number(value.nextOffset)>Number(query.get('offset')??0));
  return kind==='review_detail'&&matchesWorkspaceContract(value,workspaceContracts.reviewDetail)&&record(value.record)&&value.record.id===query.get('id');
 }
-export function readinessRecordResponse(value:unknown,key:string,id:string,sandbox=false){
- if(sandbox){if(!sandboxEnvelope(value))return false;value=value.data;}
+export function readinessRecordResponse(value:unknown,key:string,id:string){
  if(!record(value))return false;
  const contracts:Record<string,Contract>={identity:workspaceContracts.readinessIdentity,officer:workspaceContracts.readinessOfficer,readiness:workspaceContracts.readinessRecord,holds:workspaceContracts.readinessHolds};
  const field=key==='identity'?'id':key==='holds'?'applicantId':'officerId';
  return Boolean(contracts[key])&&matchesWorkspaceContract(value,contracts[key])&&value[field]===id;
 }
 
-export function financePrivateResponse(value:unknown,query:URLSearchParams){
- if(!record(value)||value.environment!=='sandbox'||!savedJson(value))return false;
- if(query.has('commands'))return matchesWorkspaceContract(value,workspaceContracts.financeCommandQueue);
- if(query.has('commandId'))return matchesWorkspaceContract(value,workspaceContracts.financeCommandDetail)&&record(value.command)&&value.command.id===query.get('commandId');
- if(query.has('operationId'))return matchesWorkspaceContract(value,workspaceContracts.financeOperationEvidence)&&record(value.operation)&&value.operation.id===query.get('operationId');
- if(query.get('catalogue')==='training')return matchesWorkspaceContract(value,workspaceContracts.financeTraining);
- if(query.has('applicationId'))return matchesWorkspaceContract(value,workspaceContracts.financeEnrolment)&&value.applicationId===query.get('applicationId');
- return matchesWorkspaceContract(value,workspaceContracts.financeData)&&(!query.has('id')||rows(value,'records').every(row=>row.id===query.get('id')));
-}
-export function sandboxServiceResponse(value:unknown,service:string){
- if(!record(value)||value.mode!=='sandbox'||value.policyVersion!=='lokd-sandbox-completion-v1'||value.productionWorkEligible!==false)return false;
- const contracts:Record<string,Contract>={schedule_read:workspaceContracts.sandboxSchedule,service_read:workspaceContracts.sandboxService,orders_read:workspaceContracts.sandboxOrders,operations_read:workspaceContracts.sandboxOperations};
- return contracts[service]?matchesWorkspaceContract(value.data,contracts[service])&&savedJson(value.data):record(value.data);
-}
-
-function sandboxEnvelope(value:unknown,mode='simulator'):value is Record<string,unknown>{return record(value)&&value.mode===mode&&value.policyVersion==='lokd-sandbox-completion-v1'&&value.productionWorkEligible===false&&record(value.data);}
-export function passportDeliveryResponse(value:unknown,officerId:string,sandbox=false,write=false){
- if(sandbox){if(!sandboxEnvelope(value,write?'sandbox':'simulator'))return false;value=value.data;}
+export function passportDeliveryResponse(value:unknown,officerId:string,write=false){
  if(!record(value)||value.officerId!==officerId)return false;
  if(write)return matchesWorkspaceContract(value,workspaceContracts.deliveryReceipt);
- return matchesWorkspaceContract(value,workspaceContracts.deliveryRecords)&&(sandbox||value.workEligible===false)&&rows(value,'deliveries').every(row=>row.officerId===officerId);
-}
-export function sandboxReviewResponse(value:unknown,query:URLSearchParams){
- if(!sandboxEnvelope(value))return false;
- const q=new URLSearchParams(query);q.set('kind',q.get('kind')==='queue'?'review_queue':q.get('kind')==='detail'?'review_detail':'holds');
- return identityReviewResponse(value.data,q);
-}
-
-export function readinessChoicesResponse(value:unknown,query:URLSearchParams){
- if(!sandboxEnvelope(value)||!record(value.data))return false;
- const data=value.data;
- if(query.get('view')==='review')return sandboxReviewResponse(value,query);
- if(query.get('view')==='officer')return passportDeliveryResponse(value,query.get('officerId')??'',true);
- return query.get('view')==='record'&&query.get('kind')==='case'&&record(data.case)&&data.case.applicantId===query.get('id')&&Array.isArray(data.psira)&&data.psira.every(row=>record(row)&&(row.latestEventId===null||typeof row.latestEventId==='string'));
+ return matchesWorkspaceContract(value,workspaceContracts.deliveryRecords)&&value.workEligible===false&&rows(value,'deliveries').every(row=>row.officerId===officerId);
 }
 
 export function signupResponse(value:unknown,kind:string){return matchesWorkspaceContract(value,workspaceContracts.signup)&&record(value)&&rows(value,'records').every(row=>row.kind===kind&&Number.isSafeInteger(row.version)&&Number(row.version)>=0);}

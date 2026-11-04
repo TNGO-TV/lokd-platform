@@ -17,4 +17,3 @@ python3 tests/restore-order.test.py
 npm run build
 node --import ./tests/register-cloudflare.mjs --test --test-concurrency=2 tests/*.test.mjs
 node node_modules/@playwright/test/cli.js test --config tests/offline-browser/playwright.config.mjs
-node node_modules/@playwright/test/cli.js test --config tests/integrated-browser/merged.config.mjs

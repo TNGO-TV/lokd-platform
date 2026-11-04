@@ -8,7 +8,7 @@ import {D1} from './fixtures/production-identity-journey.mjs';
 import {installRehearsal} from './fixtures/isolated-rehearsal.mjs';
 
 test('production hosts and stage cannot expose rehearsal endpoints, including exports and descendants',()=>{
- const paths=['/api/pilot','/api/platform/export','/api/platform/export/file','/api/sandbox/discovery','/api/test-cycle','/api/agreements/test','/api/identity','/api/enrolment','/api/provider-test','/api/paystack/test/webhook'];
+ const paths=['/api/pilot','/api/platform/export','/api/platform/export/file','/api/test-cycle','/api/agreements/test','/api/identity','/api/enrolment','/api/provider-test','/api/paystack/test/webhook'];
  for(const host of ['lokd.co.za','www.lokd.co.za','portal.lokd.co.za','officers.lokd.co.za','operations.lokd.co.za','lokd-security.zenas-capetown.workers.dev','demo.lokd.co.za.attacker.test']){
   for(const stage of ['production','prelaunch','demo']){
    const runtime={LOKD_APP_STAGE:stage,LOKD_TEST_SURFACES_ENABLED:'true'};
@@ -54,7 +54,7 @@ test('rehearsal requires separately marked storage; seeding touches only TEST_DB
 test('direct rehearsal handlers reject production before database, auth fallback or provider dispatch',async()=>{
  const prior={...env};let touches=0;
  Object.assign(env,{LOKD_APP_STAGE:'demo',LOKD_TEST_SURFACES_ENABLED:'true',DB:{prepare(){touches++;throw Error('No production database access allowed');}}});
- const paths=['pilot','operations','platform','platform/export','onboarding','specialist','passport','evidence','service-record','feedback','sandbox/identity','sandbox/discovery','sandbox/application','test-cycle','identity','enrolment','agreements/test','provider-test','paystack/test/webhook','applications','finance-workflows','finance-workflows/webhook'];
+ const paths=['pilot','operations','platform','platform/export','onboarding','specialist','passport','evidence','service-record','feedback','test-cycle','identity','enrolment','agreements/test','provider-test','paystack/test/webhook','applications'];
  try{
   for(const path of paths){
    const route=await import('../app/api/'+path+'/route.ts');
