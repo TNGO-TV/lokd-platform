@@ -54,7 +54,7 @@ test('rehearsal requires separately marked storage; seeding touches only TEST_DB
 test('direct rehearsal handlers reject production before database, auth fallback or provider dispatch',async()=>{
  const prior={...env};let touches=0;
  Object.assign(env,{LOKD_APP_STAGE:'demo',LOKD_TEST_SURFACES_ENABLED:'true',DB:{prepare(){touches++;throw Error('No production database access allowed');}}});
- const paths=['pilot','operations','platform','platform/export','onboarding','specialist','passport','evidence','service-record','feedback','sandbox/identity','sandbox/discovery','sandbox/application','test-cycle','identity','enrolment','agreements/test','provider-test','paystack/test/webhook','applications','finance-workflows','finance-workflows/webhook'];
+ const paths=['pilot','operations','platform','platform/export','specialist','evidence','service-record','feedback','sandbox/identity','sandbox/discovery','sandbox/application','test-cycle','agreements/test','provider-test','paystack/test/webhook','finance-workflows','finance-workflows/webhook'];
  try{
   for(const path of paths){
    const route=await import('../app/api/'+path+'/route.ts');

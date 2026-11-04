@@ -1,107 +1,24 @@
-import {blockedTestSurface,rehearsalEnv as env} from '../../lib/test-surface-runtime';
+import {env} from 'cloudflare:workers';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
+import {PilotAccessError,requireSameOriginJson} from '../../lib/pilot-runtime';
+import {readPublicPassport} from '../../lib/passport-server';
 
-import { liveShiftScanEnabled, PilotAccessError, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
-import { evaluateBookingReadiness, readPublicPassport, tokenHash } from "../../lib/passport-server";
-
-export const dynamic = "force-dynamic";
-
-function db() {
-  if (!env.DB) throw new Error("Passport verification is temporarily unavailable.");
-  return env.DB;
+export const dynamic='force-dynamic';
+const response=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','x-robots-tag':'noindex, nofollow','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
+async function verify(token:unknown,bookingId:unknown,shiftId:unknown){
+ if(typeof token!=='string'||!/^lokd_live_[a-f0-9]{64}$/.test(token)||[bookingId,shiftId].some(value=>value!=null&&(typeof value!=='string'||!value.trim()||value.length>300)))return response({error:'Provide a valid LOKD Passport link.'},400);
+ if(Boolean(bookingId)!==Boolean(shiftId))return response({error:'Provide both the booking and shift references.'},400);
+ if(!env.DB)return response({error:'Passport verification is temporarily unavailable.'},503);
+ const passport=await readPublicPassport(env.DB,token,bookingId as string|null,shiftId as string|null);
+ if(!passport||passport.synthetic)return response({error:'This LOKD Passport could not be verified.'},404);
+ return response({passport});
 }
-
-function response(payload: unknown, status = 200) {
-  return Response.json(payload, { status, headers: {
-    "cache-control": "no-store, private",
-    "x-robots-tag": "noindex, nofollow",
-    "x-content-type-options": "nosniff",
-    "referrer-policy": "no-referrer",
-  } });
-}
-
-export async function GET(request: Request) {
- const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
-
-  try {
-    const url = new URL(request.url);
-    const token = url.searchParams.get("token") ?? "";
-    const bookingId = url.searchParams.get("booking");
-    const shiftId = url.searchParams.get("shift");
-    const passport = await readPublicPassport(db(), token, bookingId, shiftId);
-    if (!passport) return response({ error: "This LOKD Passport could not be verified." }, 404);
-    return response({ passport });
-  } catch {
-    return response({ error: "Passport verification is temporarily unavailable." }, 503);
-  }
-}
-
-export async function POST(request: Request) {
- const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
-
-  try {
-    if (!liveShiftScanEnabled()) return response({ error: "Shift arrival recording is locked until the controlled pilot is activated." }, 423);
-    requireSameOriginJson(request);
-    const principal = requirePilotApiRole(request, "client");
-    const raw = await readRequestText(request, 8_192);
-    const payload = JSON.parse(raw) as { token?: string; bookingId?: string; shiftId?: string };
-    const token = payload.token?.trim() ?? "";
-    const bookingId = payload.bookingId?.trim() ?? "";
-    const shiftId = payload.shiftId?.trim() ?? "";
-    if (!token || !bookingId || !shiftId) return response({ error: "A booking-specific Passport QR is required." }, 400);
-
-    const database = db();
-    const hash = await tokenHash(token);
-    const assignment = await database.prepare(`SELECT p.officer_id AS officerId, p.passport_number AS passportNumber,
-      b.client_id AS clientId,
-      s.scheduled_date AS scheduledDate, s.status, s.passport_verification_status AS verificationStatus
-      FROM officer_passports p JOIN shifts s ON s.officer_id = p.officer_id
-      JOIN bookings b ON b.id = s.booking_id
-      WHERE p.public_token_hash = ? AND s.id = ? AND s.booking_id = ?`)
-      .bind(hash, shiftId, bookingId).first<{
-        officerId: string; passportNumber: string; clientId: string; scheduledDate: string; status: string; verificationStatus: string;
-      }>();
-
-    if (!assignment) {
-      const passport = await readPublicPassport(database, token, bookingId, shiftId);
-      return response({ passport, error: "This officer is not assigned to the supplied LOKD shift." }, 409);
-    }
-    if (!principal.owner && principal.clientId !== assignment.clientId) {
-      return response({ error: "This account is not authorised to verify that assignment." }, 403);
-    }
-
-    const readiness = await evaluateBookingReadiness(database, assignment.officerId, bookingId, {
-      assignmentDate: assignment.scheduledDate,
-    });
-    if (assignment.verificationStatus === "green" && readiness.eligible) {
-      const passport = await readPublicPassport(database, token, bookingId, shiftId);
-      return response({ passport, alreadyVerified: true });
-    }
-    const now = new Date().toISOString();
-    const scanId = `PVS-${crypto.randomUUID()}`;
-    const result = readiness.eligible ? "green" : "red";
-    const reason = readiness.eligible ? "Current Passport and assignment-specific readiness confirmed." : readiness.blockers.join(" ");
-
-    const statements = [
-      database.prepare(`INSERT INTO passport_scans
-        (id, officer_id, passport_number, booking_id, shift_id, verification_mode, result, reason, created_at)
-        VALUES (?, ?, ?, ?, ?, 'shift_qr', ?, ?, ?)`)
-        .bind(scanId, assignment.officerId, assignment.passportNumber, bookingId, shiftId, result, reason, now),
-      database.prepare(`INSERT INTO audit_events
-        (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
-        VALUES (?, 'client', ?, 'passport_scanned', 'shift', ?, ?, ?)`)
-        .bind(`AUD-${crypto.randomUUID()}`, principal.email, shiftId, `${result.toUpperCase()} Passport verification: ${reason}`, now),
-    ];
-    statements.push(database.prepare(`UPDATE shifts SET passport_verification_status = ?,
-      passport_verified_at = ?, passport_scan_id = ?
-      WHERE id = ? AND booking_id = ? AND officer_id = ?`)
-      .bind(result, now, scanId, shiftId, bookingId, assignment.officerId));
-    await database.batch(statements);
-
-    const passport = await readPublicPassport(database, token, bookingId, shiftId);
-    return response({ passport, readiness });
-  } catch (cause) {
-    if (cause instanceof RequestBodyError || cause instanceof PilotAccessError) return response({ error: cause.message }, cause.status);
-    return response({ error: "Passport verification could not be recorded." }, 503);
-  }
-}
+export async function GET(request:Request){try{const url=new URL(request.url);return await verify(url.searchParams.get('token'),url.searchParams.get('booking'),url.searchParams.get('shift'));}catch{return response({error:'Passport verification is temporarily unavailable.'},503);}}
+// Verification is read-only. Attendance is recorded in the signed-in Officer workspace.
+export async function POST(request:Request){try{
+ requireSameOriginJson(request);
+ const raw=await readRequestText(request,2000);let body;
+ try{body=JSON.parse(raw);}catch{return response({error:'Submit a valid verification request.'},400);}
+ if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(key=>!['token','bookingId','shiftId'].includes(key)))return response({error:'Submit a valid verification request.'},400);
+ return await verify(body.token,body.bookingId,body.shiftId);
+}catch(error){return error instanceof RequestBodyError||error instanceof PilotAccessError?response({error:error.message},error.status):response({error:'Passport verification is temporarily unavailable.'},503);}}

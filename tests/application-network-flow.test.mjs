@@ -1,4 +1,3 @@
-import {installRehearsal} from './fixtures/isolated-rehearsal.mjs';
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -99,87 +98,34 @@ test('intake and its audit record roll back together on a failed write',async()=
   } finally {database.close();}
 });
 
-test("evidenced demo onboarding creates a restricted Network profile without employment", async () => {
-  const database = migratedDatabase();
-  installRehearsal(new D1Adapter(database));
-  env.LOKD_APP_STAGE = "demo";
-  env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
-  const applications = await import("../app/api/applications/route.ts");
-
-  const initial = await applications.GET(ownerRequest("GET"));
-  assert.equal(initial.status, 200, await initial.text());
-  for (const action of ["start_demo_identity", "complete_demo_identity", "approve_assessment", "issue_demo_network_profile"]) {
-    const response = await applications.PATCH(ownerRequest("PATCH", { id: "APP-DEMO-001", action }));
-    assert.equal(response.status, 200, `${action}: ${await response.text()}`);
-  }
-
-  const application = database.prepare(`SELECT officer_id AS officerId,status FROM officer_applications WHERE id='APP-DEMO-001'`).get();
-  assert.equal(application.status, "network_profile_created");
-  assert.ok(application.officerId);
-  assert.equal(database.prepare(`SELECT approval_status AS status FROM officers WHERE id=?`).get(application.officerId).status, "network_demo_only");
-  assert.equal(database.prepare(`SELECT status FROM officer_passports WHERE officer_id=?`).get(application.officerId).status, "restricted");
-  assert.equal(database.prepare(`SELECT officer_id AS officerId FROM identity_verification_cases WHERE application_id='APP-DEMO-001'`).get().officerId, application.officerId);
-  assert.equal(database.prepare(`SELECT COUNT(*) AS total FROM workforce_engagements WHERE officer_id=?`).get(application.officerId).total, 0);
-  database.close();
+test('production intake appears in the operations queue with confirmation delivery state and no seeded officers',async()=>{
+ const database=migratedDatabase();env.DB=new D1Adapter(database);
+ env.LOKD_OWNER_ACCESS_JSON=JSON.stringify(['owner@lokd.example']);
+ const applications=await import('../app/api/applications/route.ts');
+ const officersBefore=database.prepare('SELECT count(*) AS n FROM officers').get().n;
+ try{
+  const submitted=await applications.POST(intake('queue@example.test'));
+  assert.equal(submitted.status,202);const {reference}=await submitted.json();
+  const response=await applications.GET(ownerRequest('GET'));assert.equal(response.status,200);
+  const queue=await response.json();assert.equal(queue.applications.length,1);assert.equal(queue.applications[0].id,reference);
+  assert.equal(queue.applications[0].confirmationEmailStatus,'failed');assert.match(queue.applications[0].confirmationEmailError,/RESEND_API_KEY/);
+  assert.equal(database.prepare('SELECT count(*) AS n FROM officers').get().n,officersBefore);
+  assert.equal(database.prepare('SELECT count(*) AS n FROM officer_email_outbox').get().n,1);
+  const bad=await applications.PATCH(ownerRequest('PATCH',{id:reference,action:'start_demo_identity'}));assert.equal(bad.status,400);
+  assert.equal(database.prepare('SELECT identity_verification_status AS s FROM officer_applications WHERE id=?').get(reference).s,'consent_pending');
+ }finally{database.close();delete env.LOKD_OWNER_ACCESS_JSON;}
 });
-
-test("public interest stays prelaunch, consent-pending and outside the synthetic Operations queue", async () => {
-  const database = migratedDatabase();
-  env.DB = new D1Adapter(database);
-  env.LOKD_APP_STAGE = "demo";
-  env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
-  const applications = await import("../app/api/applications/route.ts");
-  const publicRequest = new Request("https://demo.lokd.co.za/api/applications", {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: "https://demo.lokd.co.za", "sec-fetch-site": "same-origin" },
-    body: JSON.stringify({
-      pathway: "qualified", fullName: "Public Applicant", mobile: "082 555 0199",
-      email: "public.applicant@example.test", city: "Johannesburg", province: "Gauteng",
-      psiraStatus: "active", psiraNumber: "1234567", psiraGrade: "Grade C",
-      services: ["Unarmed"], purposes: ["Commercial access"], training: [],
-      over18Confirmed: true, eligibilityAcknowledged: true, contactConsent: true,
-    }),
-  });
-  const submitted = await applications.POST(publicRequest);
-  assert.equal(submitted.status, 202, await submitted.text());
-  const record = database.prepare(`SELECT id,environment,integrity_state AS integrityState,
-    identity_verification_status AS identityStatus,identity_consent_version AS consentVersion,
-    identity_consented_at AS consentedAt FROM officer_applications WHERE mobile_normalized='+27825550199'`).get();
-  assert.deepEqual({ environment: record.environment, integrityState: record.integrityState, identityStatus: record.identityStatus,
-    consentVersion: record.consentVersion, consentedAt: record.consentedAt },
-  { environment: "prelaunch", integrityState: "user_submitted", identityStatus: "consent_pending", consentVersion: null, consentedAt: null });
-
-  const rehearsalDb=migratedDatabase();
-  installRehearsal(new D1Adapter(rehearsalDb));
-  const queueResponse = await applications.GET(ownerRequest("GET"));
-  const queue = await queueResponse.json();
-  assert.equal(queue.applications.some((item) => item.id === record.id), false);
-  rehearsalDb.close();
-  database.close();
-});
-
-
-test("Operations identity failure and review actions never bypass assessment eligibility", async () => {
-  const database = migratedDatabase();
-  installRehearsal(new D1Adapter(database));
-  env.LOKD_APP_STAGE = "demo";
-  env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
-  const applications = await import("../app/api/applications/route.ts");
-  await applications.GET(ownerRequest("GET"));
-  const act = (action) => applications.PATCH(ownerRequest("PATCH", { id: "APP-DEMO-001", action }));
-  assert.equal((await act("start_demo_identity")).status, 200);
-  assert.equal((await act("demo_identity_rejected")).status, 200);
-  assert.equal((await act("complete_demo_identity")).status, 409);
-  assert.equal((await act("approve_assessment")).status, 404);
-  assert.equal((await act("issue_demo_network_profile")).status, 409);
-  assert.equal((await act("demo_identity_manual_review")).status, 200);
-  assert.equal((await act("demo_identity_expired")).status, 200);
-  assert.equal((await act("start_demo_identity")).status, 200);
-  assert.equal((await act("complete_demo_identity")).status, 200);
-  assert.equal(database.prepare("SELECT status FROM officer_applications WHERE id='APP-DEMO-001'").get().status, "credentials_review");
-  env.LOKD_APP_STAGE = "production";
-  assert.equal((await act("demo_identity_manual_review")).status, 404);
-  database.close();
+test('application queue and review require an assigned operations account and current version',async()=>{
+ const database=migratedDatabase();env.DB=new D1Adapter(database);env.LOKD_OWNER_ACCESS_JSON=JSON.stringify(['owner@lokd.example']);
+ const applications=await import('../app/api/applications/route.ts');
+ try{
+  const submitted=await applications.POST(intake('review@example.test'));const {reference}=await submitted.json();
+  assert.equal((await applications.GET(new Request('https://operations.lokd.co.za/api/applications'))).status,401);
+  const request=ownerRequest('GET');request.headers.set('x-lokd-verified-email','unassigned@example.test');assert.equal((await applications.GET(request)).status,403);
+  const review=()=>applications.PATCH(ownerRequest('PATCH',{id:reference,action:'review',expectedVersion:0,status:'needs_information',note:'Please confirm your current PSiRA grade.'}));
+  assert.equal((await review()).status,200);assert.equal((await review()).status,409);
+  assert.equal(database.prepare('SELECT status FROM signup_cases WHERE source_id=?').get(reference).status,'needs_information');
+ }finally{database.close();delete env.LOKD_OWNER_ACCESS_JSON;}
 });
 
 test('keyed Officer retries recover one atomic receipt while separate submissions remain independent',async()=>{

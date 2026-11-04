@@ -1,4 +1,3 @@
-import {installRehearsal} from './fixtures/isolated-rehearsal.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {presenceFixture as fixture} from './fixtures/presence.mjs';
@@ -25,11 +24,19 @@ test('atomic live write rechecks account linkage after the eligibility read',asy
  const {db,sql}=fixture();try{db.beforeWrite=()=>sql.exec("UPDATE signup_cases SET status='withdrawn'");await assert.rejects(()=>writePresence(db,'user',null,share),/changed/);assert.equal(sql.prepare('SELECT count(*) n FROM public_officer_presence').get().n,0);}finally{sql.close();}
 });
 
-test('test sharing remains private and stopping remains owner-scoped after withdrawal',async()=>{
- const {db,sql}=fixture();const isolated=installRehearsal(db,{stage:'prelaunch'});
- const testSession=await writePresence(db,'user',null,{action:'start',mode:'test',consent:true,expectedRevision:0});
- const otherSession=await writePresence(db,'other',null,{action:'start',mode:'test',consent:true,expectedRevision:0});
- try{assert.equal((await POST(request({...share,...testSession,mode:'test'}))).status,404);assert.equal((await POST(request({...share,...testSession,mode:'test'},'demo.lokd.co.za'))).status,200);assert.deepEqual((await publicPresence(db)).areas,[]);await writePresence(db,'other',null,{...share,...otherSession,mode:'test'});sql.exec("UPDATE signup_cases SET status='withdrawn'");assert.equal((await POST(request({action:'stop',mode:'test'},'demo.lokd.co.za'))).status,200);assert.equal(sql.prepare('SELECT user_id FROM public_officer_presence').get().user_id,'other');assert.equal((await POST(request({...share,...testSession,mode:'test'},'demo.lokd.co.za'))).status,403);}finally{isolated.close();sql.close();}
+test('production presence rejects alternate sharing modes and logs no coordinates',async()=>{
+ const {db,sql}=fixture(),oldDb=env.DB;env.DB=db;
+ try{
+  for(const mode of ['test','sandbox','demo']){
+   await assert.rejects(()=>writePresence(db,'user',null,{...share,mode}),/Choose live sharing/);
+   assert.equal((await POST(request({...share,mode}))).status,400);
+  }
+  await writePresence(db,'user',null,share);
+  await writePresence(db,'user',null,{action:'stop',mode:'live'});
+  const events=sql.prepare('SELECT event_type,detail FROM audit_events ORDER BY rowid').all();
+  assert.deepEqual(events.map(event=>event.event_type),['presence_shared','presence_consent_revoked']);
+  assert.doesNotMatch(JSON.stringify(events),/latitude|longitude|-26\.2|28\.045/);
+ }finally{if(oldDb===undefined)delete env.DB;else env.DB=oldDb;sql.close();}
 });
 
 test('expired presence and off-post assignments cannot appear publicly',async()=>{

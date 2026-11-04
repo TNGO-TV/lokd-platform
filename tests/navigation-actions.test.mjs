@@ -39,12 +39,7 @@ function find(node, predicate) {
   return null;
 }
 
-test('officer and Operations join actions use client navigation; external client destinations stay full navigation', async () => {
-  const officer = component('officer-app');
-  const apply = find(officer.render(), node => node.type === 'button' && node.props.children === 'Apply / get qualified');
-  assert.ok(apply); apply.props.onClick();
-  assert.deepEqual(officer.pushes, ['/join']);
-  assert.equal(officer.location.href, 'https://example.test/current');
+test('Operations join actions use client navigation; external client destinations stay full navigation', async () => {
   for (const name of ['Officers', 'Bookings', 'Clients']) {
     const workspace = component('workspace-view');
     const top = find(workspace.render({name}), node => node.props?.name === name && typeof node.props.onAction === 'function');

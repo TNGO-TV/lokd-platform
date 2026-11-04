@@ -1,12 +1,14 @@
 import {agreementHash} from '../../lib/agreement-acceptance';
-import {blockedTestSurface,rehearsalEnv} from '../../lib/test-surface-runtime';
+import {officerApiActor,requireOfficerJson,OfficerAccessError} from '../../lib/officer-api-access';
+import {officerEmailStatement,deliverOfficerEmail} from '../../lib/officer-email';
+import {SignupError,writeSignup} from '../../lib/signup-server';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { applicationPsiraDeclaration, psiraIntakeStatus } from '../../lib/psira-pathway';
 import { psiraNumber as validatePsiraNumber } from '../../lib/psira-verification';
 import { env } from "cloudflare:workers";
-import { completeDemoIdentityVerification, PlatformWorkflowError, recordDemoIdentityOutcome, startDemoIdentityVerification } from "../../lib/integration-server";
-import { tokenHash } from "../../lib/passport-server";
-import { PilotAccessError, pilotStage, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
+
+
+
 
 export const dynamic = "force-dynamic";
 
@@ -82,7 +84,7 @@ function allowedList(value: unknown, allowed: Set<string>, field: string, maximu
 }
 
 function responseError(cause: unknown) {
-  const error = cause instanceof ApplicationError || cause instanceof RequestBodyError || cause instanceof PilotAccessError || cause instanceof PlatformWorkflowError
+  const error = cause instanceof ApplicationError || cause instanceof RequestBodyError || cause instanceof OfficerAccessError || cause instanceof SignupError
     ? cause
     : new ApplicationError("We could not complete that application request.", 500);
   return response({ error: error.message }, error.status);
@@ -97,197 +99,45 @@ function response(payload: unknown, status = 200) {
   } });
 }
 
-async function ensureDemoApplications(db: D1Database) {
-  const now = new Date().toISOString();
-  const retention = new Date();
-  retention.setUTCFullYear(retention.getUTCFullYear() + 1);
-  await db.batch([
-    db.prepare(`INSERT OR IGNORE INTO officer_applications
-      (id, pathway, full_name, mobile_normalized, email_normalized, city, province, psira_status,
-       psira_number, psira_grade, service_interests, purpose_interests, training_interests,
-       over_18_confirmed, eligibility_acknowledged, privacy_notice_version, privacy_acknowledged_at,
-       identity_verification_status, identity_consent_version, identity_consented_at,
-       environment, integrity_state, status, source, retention_review_at, created_at, updated_at)
-      VALUES ('APP-DEMO-001', 'qualified', 'Neo Mahlangu', '+27820000001', 'neo.demo@lokd.example',
-       'Johannesburg', 'Gauteng', 'active', 'PSIRA-DEMO-1001', 'Grade B', '["Unarmed","Armed"]',
-       '["Commercial access","Logistics / industrial"]', '[]', 1, 1, ?, ?, 'not_started',
-       'demo-identity-consent-v1', ?, 'demo', 'synthetic', 'submitted', 'demo_seed', ?, ?, ?)`)
-      .bind(privacyNoticeVersion, now, now, retention.toISOString(), now, now),
-    db.prepare(`INSERT OR IGNORE INTO officer_applications
-      (id, pathway, full_name, mobile_normalized, email_normalized, city, province, psira_status,
-       psira_number, psira_grade, service_interests, purpose_interests, training_interests,
-       over_18_confirmed, eligibility_acknowledged, privacy_notice_version, privacy_acknowledged_at,
-       identity_verification_status, identity_consent_version, identity_consented_at,
-       environment, integrity_state, status, source, retention_review_at, created_at, updated_at)
-      VALUES ('APP-DEMO-002', 'training', 'Amahle Nkosi', '+27820000002', 'amahle.demo@lokd.example',
-       'Soweto', 'Gauteng', 'not_registered', NULL, NULL, '["Unarmed"]',
-       '["Retail","School"]', '["Entry-level security training"]', 1, 1, ?, ?, 'not_started',
-       'demo-identity-consent-v1', ?, 'demo', 'synthetic', 'submitted', 'demo_seed', ?, ?, ?)`)
-      .bind(privacyNoticeVersion, now, now, retention.toISOString(), now, now),
-  ]);
+export async function GET(request:Request){
+ try{
+  officerApiActor(request,true);
+  const db=getDb();
+  const result=await db.prepare(`SELECT a.id,a.pathway,a.full_name AS fullName,a.mobile_normalized AS mobile,
+   a.email_normalized AS email,a.city,a.province,a.psira_status AS psiraStatus,a.psira_number AS psiraNumber,
+   a.psira_grade AS psiraGrade,a.service_interests AS services,a.purpose_interests AS purposes,
+   a.training_interests AS training,a.identity_verification_status AS identityStatus,
+   coalesce(c.status,a.status) AS status,coalesce(c.version,0) AS version,a.source,a.created_at AS createdAt,
+   a.updated_at AS updatedAt,er.status AS enrolmentStatus,er.created_at AS enrolmentRequestedAt,n.state AS confirmationEmailStatus,n.last_error AS confirmationEmailError
+   FROM officer_applications a LEFT JOIN signup_cases c ON c.kind='officer' AND c.source_id=a.id
+   LEFT JOIN officer_email_outbox n ON n.id='application-confirmation:'||a.id
+   LEFT JOIN officer_enrolment_requests er ON er.application_id=a.id AND er.application_version=c.version AND er.owner_user_id=c.owner_user_id
+   WHERE a.environment='prelaunch' AND a.integrity_state='user_submitted'
+   ORDER BY a.created_at DESC LIMIT 100`).all<{pathway:string;psiraStatus:string;services:string;purposes:string;training:string}>();
+  return response({applications:result.results.map(item=>({...item,services:JSON.parse(item.services),purposes:JSON.parse(item.purposes),training:JSON.parse(item.training),psiraVerificationRequired:applicationPsiraDeclaration(item.pathway,item.psiraStatus)==='registered'}))});
+ }catch(error){return responseError(error);}
 }
-
-export async function GET(request: Request) {
- const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
-
-  try {
-    requirePilotApiRole(request, "operations");
-    const db = rehearsalEnv.DB;
-    if (!db) throw new ApplicationError("The test application service is unavailable.", 503);
-    if (pilotStage() === "demo") await ensureDemoApplications(db);
-    const result = await db.prepare(`SELECT id, pathway, full_name AS fullName, mobile_normalized AS mobile,
-      email_normalized AS email, city, province, psira_status AS psiraStatus, psira_number AS psiraNumber,
-      psira_grade AS psiraGrade, service_interests AS services, purpose_interests AS purposes,
-      training_interests AS training, identity_verification_status AS identityStatus, status, source,
-      created_at AS createdAt, updated_at AS updatedAt FROM officer_applications
-      WHERE environment = 'demo' AND integrity_state = 'synthetic'
-      ORDER BY CASE WHEN source = 'demo_seed' THEN 1 ELSE 0 END, created_at DESC LIMIT 50`).all<{
-        id: string; pathway: string; fullName: string; mobile: string; email: string; city: string; province: string;
-        psiraStatus: string; psiraNumber: string | null; psiraGrade: string | null; services: string;
-        purposes: string; training: string; identityStatus: string; status: string; source: string;
-        createdAt: string; updatedAt: string;
-      }>();
-    return response({ applications: (result.results ?? []).map((item) => ({
-      ...item,
-      psiraVerificationRequired: applicationPsiraDeclaration(item.pathway, item.psiraStatus) === "registered",
-      services: JSON.parse(item.services) as string[],
-      purposes: JSON.parse(item.purposes) as string[],
-      training: JSON.parse(item.training) as string[],
-    })) });
-  } catch (cause) {
-    return responseError(cause);
+export async function PATCH(request:Request){
+ try{
+  requireOfficerJson(request);const actor=officerApiActor(request,true),db=getDb();
+  let input;try{input=JSON.parse(await readRequestText(request,4000));}catch{throw new ApplicationError('Submit a valid application action.');}
+  if(!input||typeof input!=='object'||Array.isArray(input))throw new ApplicationError('Choose an application.');
+  const id=cleanText(input.id,'Application reference',8,100);
+  if(input.action==='retry_confirmation'){
+   const source=await db.prepare("SELECT id FROM officer_applications WHERE id=? AND environment='prelaunch' AND integrity_state='user_submitted'").bind(id).first();
+   if(!source)throw new ApplicationError('Application not found.',404);
+   const delivery=await deliverOfficerEmail(db,env,'application-confirmation:'+id);
+   return response(delivery,delivery.sent?200:503);
   }
-}
-
-export async function PATCH(request: Request) {
- const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
-
-  try {
-    requireSameOriginJson(request);
-    const actor = requirePilotApiRole(request, "operations");
-    if (pilotStage() !== "demo") throw new ApplicationError("Demo application transitions are disabled outside the isolated demo environment.", 423);
-    const raw = await readRequestText(request, 16_000);
-    let input: { id?: unknown; action?: unknown };
-    try { input = JSON.parse(raw) as { id?: unknown; action?: unknown }; }
-    catch { throw new ApplicationError("The request body is not valid JSON."); }
-    const id = cleanText(input.id, "Application reference", 8, 80);
-    const action = cleanText(input.action, "Review action", 4, 40);
-    const db = rehearsalEnv.DB;
-    if (!db) throw new ApplicationError("The test application service is unavailable.", 503);
-    if (action === "start_demo_identity") {
-      await startDemoIdentityVerification(db, id, actor.email);
-      return response({ ok: true });
-    }
-    if (action === "complete_demo_identity") {
-      await completeDemoIdentityVerification(db, id, actor.email);
-      return response({ ok: true });
-    }
-    if (["demo_identity_manual_review", "demo_identity_rejected", "demo_identity_expired"].includes(action)) {
-      const outcome = action.replace("demo_identity_", "") as "manual_review" | "rejected" | "expired";
-      await recordDemoIdentityOutcome(db, id, actor.email, outcome);
-      return response({ ok: true });
-    }
-    if (action === "issue_demo_network_profile") {
-      const application = await db.prepare(`SELECT id, full_name AS fullName, mobile_normalized AS mobile,
-        email_normalized AS email, city, psira_status AS psiraStatus, psira_number AS psiraNumber,
-        psira_grade AS psiraGrade, service_interests AS services
-        FROM officer_applications WHERE id = ? AND status = 'assessment_ready'
-         AND identity_verification_status = 'demo_verified' AND officer_id IS NULL
-         AND environment = 'demo' AND integrity_state = 'synthetic'`)
-        .bind(id).first<{ id: string; fullName: string; mobile: string; email: string; city: string;
-          psiraStatus: string; psiraNumber: string | null; psiraGrade: string | null; services: string }>();
-      if (!application || application.psiraStatus !== "active" || !application.psiraNumber || !application.psiraGrade) {
-        throw new ApplicationError("A synthetic current PSiRA number, grade and completed assessment are required for this rehearsal.", 409);
-      }
-      const suffix = application.id.replace(/^APP-/, "");
-      const officerId = `OFF-${suffix}`;
-      const publicToken = `lokd_demo_network_${application.id}_${officerId}`;
-      const publicTokenHash = await tokenHash(publicToken);
-      const now = new Date().toISOString();
-      const nextReview = new Date();
-      nextReview.setUTCDate(nextReview.getUTCDate() + 30);
-      const psiraExpiry = new Date();
-      psiraExpiry.setUTCFullYear(psiraExpiry.getUTCFullYear() + 1);
-      const interested = new Set(JSON.parse(application.services) as string[]);
-      const serviceStatements = ["Unarmed", "Armed", "VIP"].map((service) => db.prepare(`INSERT INTO officer_services
-        (officer_id, service_type, qualified, opted_in, qualification_expiry)
-        VALUES (?, ?, ?, 0, NULL)`).bind(officerId, service, service === "Unarmed" && interested.has(service) ? 1 : 0));
-      await db.batch([
-        db.prepare(`INSERT INTO officers
-          (id, full_name, mobile, email, city, psira_number, psira_grade, psira_expiry,
-           approval_status, banking_status, flex_available, external_work_acknowledged,
-           rest_window_confirmed, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'network_demo_only', 'unverified', 0, 0, 0, ?)`)
-          .bind(officerId, application.fullName, application.mobile, application.email, application.city,
-            application.psiraNumber, application.psiraGrade, psiraExpiry.toISOString().slice(0, 10), now),
-        db.prepare(`INSERT INTO officer_passports
-          (officer_id, passport_number, public_token_hash, status, readiness_label, environment,
-           integrity_state, evidence_reference, issued_at, last_reviewed_at, next_review_at, updated_at)
-          VALUES (?, ?, ?, 'restricted', 'Network profile · production verification pending', 'demo',
-           'synthetic', ?, ?, ?, ?, ?)`)
-          .bind(officerId, `LOKD-DEMO-${suffix}`, publicTokenHash,
-            `demo:network-profile:${application.id}`, now, now, nextReview.toISOString(), now),
-        ...serviceStatements,
-        db.prepare(`INSERT INTO compliance_records
-          (id, officer_id, record_type, status, environment, integrity_state, evidence_reference,
-           verified_at, expires_at, next_due_at)
-          VALUES (?, ?, 'Identity workflow rehearsal', 'demo_only', 'demo', 'synthetic', ?, ?, NULL, ?)`)
-          .bind(`CMP-ID-${suffix}`, officerId, `demo:identity:${application.id}`, now, nextReview.toISOString()),
-        db.prepare(`UPDATE officer_applications SET officer_id = ?, status = 'network_profile_created', updated_at = ?
-          WHERE id = ? AND status = 'assessment_ready' AND officer_id IS NULL
-           AND environment = 'demo' AND integrity_state = 'synthetic'`)
-          .bind(officerId, now, application.id),
-        db.prepare(`UPDATE identity_verification_cases SET officer_id = ?, updated_at = ?
-          WHERE application_id = ? AND officer_id IS NULL AND status = 'verified'
-           AND environment = 'demo' AND integrity_state = 'synthetic'`)
-          .bind(officerId, now, application.id),
-        db.prepare(`INSERT INTO audit_events
-          (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
-          VALUES (?, 'operations', ?, 'demo_network_profile_issued', 'officer', ?,
-           'DEMO ONLY: created a restricted Verified Network profile. No employment, payroll route or paid-work eligibility was created.', ?)`)
-          .bind(`AUD-${crypto.randomUUID()}`, actor.email, officerId, now),
-      ]);
-      return response({
-        ok: true,
-        officerId,
-        verificationPath: `/verify?token=${encodeURIComponent(publicToken)}`,
-      });
-    }
-    const now = new Date().toISOString();
-    let detail: string;
-    let result: D1Result<unknown>;
-    if (action === "route_training") {
-      detail = "Applicant routed to the LOKD Academy training pathway for demo planning.";
-      result = await db.prepare(`UPDATE officer_applications SET status = 'training_recommended', updated_at = ?
-        WHERE id = ? AND environment = 'demo' AND integrity_state = 'synthetic'`).bind(now, id).run();
-    } else if (action === "approve_assessment") {
-      detail = "Applicant cleared for a LOKD assessment in demo mode after the evidenced synthetic identity case; this is not operational approval.";
-      result = await db.prepare(`UPDATE officer_applications SET status = 'assessment_ready', updated_at = ?
-        WHERE id = ? AND identity_verification_status = 'demo_verified'
-          AND environment = 'demo' AND integrity_state = 'synthetic'
-          AND EXISTS (SELECT 1 FROM identity_verification_cases identity
-            WHERE identity.application_id = officer_applications.id AND identity.status = 'verified'
-              AND identity.evidence_reference IS NOT NULL AND identity.completed_at IS NOT NULL
-              AND identity.environment = officer_applications.environment
-              AND identity.integrity_state = officer_applications.integrity_state)`)
-        .bind(now, id).run();
-    } else {
-      throw new ApplicationError("Choose a valid application review action.");
-    }
-    if (!result.meta.changes) throw new ApplicationError("That application could not be found.", 404);
-    await db.prepare(`INSERT INTO audit_events
-      (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
-      VALUES (?, 'operations', ?, 'application_demo_reviewed', 'officer_application', ?, ?, ?)`)
-      .bind(`AUD-${crypto.randomUUID()}`, actor.email, id, detail, now).run();
-    return response({ ok: true });
-  } catch (cause) {
-    return responseError(cause);
-  }
+  if(input.action!=='review')throw new ApplicationError('Choose a valid application review action.');
+  await writeSignup(db,actor,{kind:'officer',id,action:'review',expectedVersion:input.expectedVersion,status:input.status,note:input.note});
+  return response({saved:true,id});
+ }catch(error){return responseError(error);}
 }
 
 export async function submitOfficerApplication(request: Request, database?:D1Database) {
   try {
-    requireSameOriginJson(request);
+    requireOfficerJson(request);
     const raw = await readRequestText(request, 16_000);
     let input: ApplicationInput;
     try { input = JSON.parse(raw) as ApplicationInput; }
@@ -334,7 +184,7 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
       if(receipt.payload_hash!==payloadHash)throw new ApplicationError('This submission key already binds different application details. Keep the original request; changed details require a new key.',409);
       return savedReceipt(receipt.application_id);
     };
-    const recovered=await recover();if(recovered)return recovered;
+    const recovered=await recover();if(recovered){const receipt=await db.prepare('SELECT application_id FROM officer_application_receipts WHERE request_key_hash=?').bind(keyHash).first<{application_id:string}>();if(receipt)await deliverOfficerEmail(db,env,'application-confirmation:'+receipt.application_id);return recovered;}
     const now = new Date();
     const nowIso = now.toISOString();
     const retentionReview = new Date(now);
@@ -361,9 +211,13 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
       VALUES (?, 'applicant', ?, 'officer_interest_submitted', 'officer_application', ?, ?, ?)`)
       .bind(`AUD-${crypto.randomUUID()}`, id, id, "Homepage work, purpose and training interests received; identity and credentials remain unverified.", nowIso);
     // D1 batches are atomic: never acknowledge an unaudited or partially saved intake.
-    const writes=[application,audit];
+    const confirmationId='application-confirmation:'+id;
+    const writes=[application,audit,officerEmailStatement(db,{id:confirmationId,applicationId:id,recipient:email,
+      subject:'We received your LOKD application',
+      text:`Hello ${fullName},\n\nThank you for applying to LOKD. Your application reference is ${id}.\n\nSign in with this email address to follow your application, complete your identity check and submit your PSiRA details:\nhttps://officers.lokd.co.za/officer\n\nOur team will review your application and contact you about the next step.\n\nLOKD Security`})];
     if(keyHash)writes.push(db.prepare('INSERT INTO officer_application_receipts(request_key_hash,payload_hash,application_id,created_at) VALUES(?,?,?,?)').bind(keyHash,payloadHash,id,nowIso));
     try{await db.batch(writes);}catch(cause){const concurrent=await recover();if(concurrent)return concurrent;throw cause;}
+    await deliverOfficerEmail(db,env,confirmationId);
     return savedReceipt(id);
   } catch (cause) {
     return responseError(cause);

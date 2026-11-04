@@ -1,5 +1,4 @@
 'use client';
-import {useTestSurface} from './test-surface-context';
 import {useState,useEffect,useRef,useSyncExternalStore} from 'react';
 const subscribeToHydration=()=>()=>{};
 const clientReady=()=>true;
@@ -18,31 +17,28 @@ async function presenceRequest(body:Record<string,unknown>){
  return d;
 }
 export default function OfficerPresencePanel(){
- const testTools=useTestSurface(),ready=useSyncExternalStore(subscribeToHydration,clientReady,serverReady);
+ const ready=useSyncExternalStore(subscribeToHydration,clientReady,serverReady);
  const [sharing,setSharing]=useState(false),[busy,setBusy]=useState(false),[stopping,setStopping]=useState(false),[message,setMessage]=useState(''),[consent,setConsent]=useState(false);
  const generation=useRef(0),activeShare=useRef<object|null>(null),stopLock=useRef(false),consentRef=useRef(false),sharingRef=useRef(false),session=useRef<Session|null>(null);
- async function update(test=false){
-  if(activeShare.current||stopLock.current||(!test&&!consentRef.current))return;
-  const operation={},epoch=generation.current,mode=test?'test':'live';
-  const current=()=>generation.current===epoch&&activeShare.current===operation&&(test||consentRef.current);
+ async function update(){
+  if(activeShare.current||stopLock.current||!consentRef.current)return;
+  const operation={},epoch=generation.current,mode='live';
+  const current=()=>generation.current===epoch&&activeShare.current===operation&&consentRef.current;
   activeShare.current=operation;setBusy(true);
   try{
-   let bound=test?null:session.current;
+   let bound=session.current;
    if(!bound){
     const state=await presenceRequest({action:'state',mode});if(!current())return;
     const started=await presenceRequest({action:'start',mode,consent:true,expectedRevision:state.revision});if(!current())return;
     bound={sessionId:String(started.sessionId),consentRevision:Number(started.consentRevision)};
-    if(!test)session.current=bound;
+    session.current=bound;
    }
-   let coords={latitude:-26.2,longitude:28};
-   if(!test){
-    coords=await new Promise<GeolocationCoordinates>((resolve,reject)=>navigator.geolocation.getCurrentPosition(p=>resolve(p.coords),()=>reject(Error('Location permission denied or unavailable. Nothing was shared.')),{enableHighAccuracy:false,timeout:10000,maximumAge:30000}));
-    if(!current())return;
-   }
+   const coords=await new Promise<GeolocationCoordinates>((resolve,reject)=>navigator.geolocation.getCurrentPosition(p=>resolve(p.coords),()=>reject(Error('Location permission denied or unavailable. Nothing was shared.')),{enableHighAccuracy:false,timeout:10000,maximumAge:30000}));
+   if(!current())return;
    await presenceRequest({action:'share',mode,consent:true,...bound,latitude:Math.round(coords.latitude*10)/10,longitude:Math.round(coords.longitude*10)/10});if(!current())return;
-   setMessage(test?'Synthetic test signal saved privately. It cannot appear on the public map.':'Approximate presence shared. It expires in three minutes unless refreshed.');
-   if(!test){sharingRef.current=true;setSharing(true);}
-  }catch(error){if(!current())return;setMessage(error instanceof Error?error.message:'Sharing could not be confirmed. Stop before trying again.');if(!test){sharingRef.current=false;setSharing(false);}}
+   setMessage('Approximate presence shared. It expires in three minutes unless refreshed.');
+   sharingRef.current=true;setSharing(true);
+  }catch(error){if(!current())return;setMessage(error instanceof Error?error.message:'Sharing could not be confirmed. Stop before trying again.');sharingRef.current=false;setSharing(false);}
   finally{if(activeShare.current===operation){activeShare.current=null;setBusy(false);}}
  }
  async function stop(){
@@ -57,5 +53,5 @@ export default function OfficerPresencePanel(){
  }
  useEffect(()=>{if(!sharing)return;const timer=setInterval(()=>{if(document.visibilityState==='visible'&&sharingRef.current&&consentRef.current&&!stopLock.current)void update();},60000);return()=>clearInterval(timer);});
  useEffect(()=>()=>{generation.current++;activeShare.current=null;sharingRef.current=false;consentRef.current=false;},[]);
- return <section><h2>Officer presence sharing</h2><p>Live sharing publishes only an approximate area, about 11 km across, without your name. It requires an assigned officer account and a current checked-in assignment. While this page is open and visible, sharing refreshes each minute; signals expire after three minutes.</p><label><input type="checkbox" checked={consent} disabled={!ready||sharing||busy} onChange={e=>{consentRef.current=e.target.checked;setConsent(e.target.checked);}}/> I consent to publishing my approximate area on the LOKD homepage while sharing is enabled.</label><p><button disabled={!ready||busy||!consent} onClick={()=>void update()}>Share or refresh live presence</button> <button disabled={!ready||stopping} onClick={()=>void stop()}>{stopping?'Stopping…':'Stop public sharing'}</button></p>{testTools&&<details><summary>Presence testing</summary><p>Private synthetic signals never appear on the public map.</p><button disabled={!ready||busy} onClick={()=>void update(true)}>Send a private synthetic test signal</button></details>}{message&&<p role="status">{message}</p>}</section>;
+ return <section><h2>Officer presence sharing</h2><p>Live sharing publishes only an approximate area, about 11 km across, without your name. It requires an assigned officer account and a current checked-in assignment. While this page is open and visible, sharing refreshes each minute; signals expire after three minutes.</p><label><input type="checkbox" checked={consent} disabled={!ready||sharing||busy} onChange={e=>{consentRef.current=e.target.checked;setConsent(e.target.checked);}}/> I consent to publishing my approximate area on the LOKD homepage while sharing is enabled.</label><p><button disabled={!ready||busy||!consent} onClick={()=>void update()}>Share or refresh live presence</button> <button disabled={!ready||stopping} onClick={()=>void stop()}>{stopping?'Stopping…':'Stop public sharing'}</button></p>{message&&<p role="status">{message}</p>}</section>;
 }

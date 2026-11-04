@@ -1,13 +1,9 @@
+import Link from 'next/link';
 import {requireLokdUser} from '../../lokd-auth';
-import ReadinessWorkspace from '../../components/readiness-workspace';
+import {PortalOnboardingSummary} from '../../components/portal-onboarding-summary';
 export const dynamic='force-dynamic';
-export const metadata={title:'My identity & readiness',robots:{index:false,follow:false}};
-async function ReadinessPage({searchParams}:{searchParams:Promise<{applicantId?:string;officerId?:string;identityId?:string}>}){
- const input=await searchParams;
- const params={applicantId:typeof input.applicantId==='string'?input.applicantId:'',officerId:typeof input.officerId==='string'?input.officerId:'',identityId:typeof input.identityId==='string'?input.identityId:''};
- await requireLokdUser('/officer/readiness?'+new URLSearchParams(Object.entries(params).filter(([,value])=>typeof value==='string') as [string,string][]).toString());
- return <ReadinessWorkspace {...params}/>;
+export const metadata={title:'Your application',robots:{index:false,follow:false}};
+export default async function Page(){
+ await requireLokdUser('/officer/readiness');
+ return <main className="officer-production"><h1>Your application</h1><PortalOnboardingSummary scope="officer"/><section className="officer-work-card"><h2>Your details</h2><p>Keep your application and registration details up to date.</p><div className="officer-work-actions"><Link href="/signup?kind=officer">Update your application</Link><Link href="/officer/psira">Your PSIRA status</Link><Link href="/officer/agreements">Agreements</Link><Link href="/officer">Your account</Link></div></section></main>;
 }
-
-// Keep query-dependent auth in the rendered tree; the framework route probe omits search selectors.
-export default function Page(props:Parameters<typeof ReadinessPage>[0]){return <ReadinessPage {...props}/>;}

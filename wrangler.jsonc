@@ -19,6 +19,11 @@
   "triggers": {
     "crons": ["* * * * *"]
   },
+  // Officer secrets (set with wrangler secret put; never store values here):
+  // RESEND_API_KEY, VERIFYNOW_API_KEY
+  // Officer email config: LOKD_EMAIL_FROM (verified Resend sender).
+  // Identity config: VERIFYNOW_IDENTITY_POLICY_REFERENCE,
+  // VERIFYNOW_IDENTITY_VALIDITY_DAYS (1–365).
   "vars": {
     "LOKD_PUBLIC_ORIGIN": "https://lokd.co.za",
     "LOKD_APP_STAGE": "prelaunch"

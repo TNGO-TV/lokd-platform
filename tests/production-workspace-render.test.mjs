@@ -70,7 +70,7 @@ test('rendered production workspaces and populated intake cards expose real acti
   if(role==='operations')assert.match(production,/Prepare operational record/);
   const isolated=render(true);
   assert.match(isolated,/Testing tools/);assert.match(isolated,/data-rehearsal-agreement/);
-  if(role==='officer'){assert.match(production,/Stop public sharing/);assert.match(isolated,/synthetic test signal/);}
+  if(role==='officer'){assert.match(production,/Stop public sharing/);assert.doesNotMatch(isolated,/synthetic test signal/);}
  }
 });
 

@@ -1,4 +1,4 @@
 import {requireLokdUser} from '../../lokd-auth';
-import ProductionOperationsPanel from '../../components/production-operations-panel';
+import OfficerApp from '../../components/officer-app';
 export const dynamic='force-dynamic';
-export default async function Page(){await requireLokdUser('/officer/service');return <ProductionOperationsPanel kind="officer"/>;}
+export default async function Page(){await requireLokdUser('/officer/service');return <OfficerApp initialTab="Work"/>;}

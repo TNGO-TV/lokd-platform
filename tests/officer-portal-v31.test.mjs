@@ -11,12 +11,10 @@ const publicShellSource = fs.readFileSync(
   "utf8",
 );
 
-test("officer earnings presents the two agreed balances separately", () => {
-  assert.match(officerSource, /Available for withdrawal/);
-  assert.match(officerSource, /Awaiting approval/);
-  assert.match(officerSource, /Withdraw available balance/);
-  assert.match(officerSource, /action: "request_payout"/);
-  assert.match(officerSource, /withdrawalQueuedCents/);
+test('officer earnings reads approved payroll statements and reviewed hours',()=>{
+ assert.match(officerSource,/Hours worked/);assert.match(officerSource,/Pay statements/);
+ assert.match(officerSource,/payableMinutes/);assert.match(officerSource,/netCents/);
+ assert.doesNotMatch(officerSource,/request_payout|usePilot|synthetic|demo/);
 });
 
 test("public navigation sends officers to the dedicated authenticated hostname", () => {
