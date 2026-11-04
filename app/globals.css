@@ -9,16 +9,33 @@
 }
 
 :root {
-  --carbon: #141516;
-  --ink: #151719;
-  --muted: #6d7378;
-  --line: #e5e8e9;
-  --canvas: #f3f5f4;
-  --lime: #7edb04;
-  --lime-soft: #eef9dc;
-  --blue: #2878ee;
-  --amber: #d98b15;
-  --red: #cf3d45;
+  /* LOKD brand tokens (LOKD Brand Design, Oct 2026) */
+  --lokd-red: #ed3543;          /* primary accent: fills and large text only */
+  --lokd-red-strong: #c8212f;   /* red text, hover/pressed, error text */
+  --lokd-blue: #448cca;         /* secondary accent: fills and large text only */
+  --lokd-blue-strong: #2f6fa8;  /* links and blue text on light */
+  --lokd-slate: #344753;        /* ink, dark surfaces, nav, footer */
+  --lokd-canvas: #f2f2f3;       /* page background */
+  --lokd-white: #ffffff;
+  --lokd-slate-70: rgba(52, 71, 83, .72);
+  --lokd-slate-40: rgba(52, 71, 83, .40);
+  --lokd-line: rgba(52, 71, 83, .14);
+  --lokd-success: #1f7a4d;
+  --lokd-warning: #a35f00;
+
+  /* Legacy names mapped to the brand so the whole site switches now.
+     Replace these with --lokd-* in the files you own; delete once unused. */
+  --carbon: var(--lokd-slate);
+  --ink: var(--lokd-slate);
+  --muted: var(--lokd-slate-70);
+  --line: var(--lokd-line);
+  --canvas: var(--lokd-canvas);
+  --lime: var(--lokd-red);
+  --lime-soft: #fde8ea;
+  --blue: var(--lokd-blue);
+  --amber: var(--lokd-warning);
+  --red: var(--lokd-red-strong);
+
   --type-micro: 11px;
   --type-small: 14px;
   --type-secondary: 15px;
