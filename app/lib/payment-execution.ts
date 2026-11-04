@@ -10,7 +10,7 @@ import {assessPaymentEvidence,paymentEvidenceSnapshotHash,type ReconciliationObs
 import type {SigningActor} from './production-signing';
 import type {PaymentKind} from './payment-recovery';
 export type PaymentExecutionRuntime=DestinationRuntime&{LOKD_LIVE_PAYMENTS_ENABLED?:string};
-type Instruction={kind:PaymentKind;reference:string;liability_id:string;mode:'test'|'live';amount_cents:number;source_json:string;source_hash:string;status:string;version:number;destination_id:string;prepared_by:string;prepared_user:string;approved_by:string|null};
+type Instruction={kind:PaymentKind;reference:string;liability_id:string;mode:'live';amount_cents:number;source_json:string;source_hash:string;status:string;version:number;destination_id:string;prepared_by:string;prepared_user:string;approved_by:string|null};
 const text=(v:unknown,label:string,max=1200)=>{if(typeof v!=='string'||v.trim().length<3||v.length>max)throw new SignupError(`Provide ${label}.`);return v.trim();};
 const hash=(v:unknown,label:string)=>{if(typeof v!=='string'||!/^[a-f0-9]{64}$/.test(v))throw new SignupError(`Provide the SHA-256 digest for ${label}.`);return v;};
 const integer=(v:unknown,label:string,min=1,max=25000000)=>{if(!Number.isSafeInteger(v)||Number(v)<min||Number(v)>max)throw new SignupError(`Provide ${label} in cents.`);return Number(v);};
@@ -31,9 +31,8 @@ async function records(db:D1Database,i:Instruction){
 }
 async function instruction(db:D1Database,input:Record<string,unknown>){
  if(input.kind!=='employee'&&input.kind!=='partner')throw new SignupError('Choose employee or partner payments.');
- const i=await db.prepare('SELECT * FROM payment_instruction_records WHERE kind=? AND reference=?').bind(input.kind,text(input.reference,'the original reference')).first<Instruction>();
+ const i=await db.prepare("SELECT * FROM payment_instruction_records WHERE kind=? AND reference=? AND mode='live'").bind(input.kind,text(input.reference,'the original reference')).first<Instruction>();
  if(!i)throw new SignupError('Payment instruction not found.',404);
- if(i.mode!=='live')throw new SignupError('Test evidence cannot enter live execution or reconciliation.',409);
  if(input.sourceHash!==i.source_hash||await agreementHash(i.source_json)!==i.source_hash)throw new SignupError('Refresh the exact saved instruction.',409);
  return i;
 }
@@ -136,8 +135,8 @@ export async function readPaymentExecution(db:D1Database,actor:SigningActor,head
 }
 
 export async function readPaymentEvidenceAssessment(db:D1Database,kind:PaymentKind,reference:string){
- const i=await db.prepare('SELECT * FROM payment_instruction_records WHERE kind=? AND reference=?').bind(kind,reference).first<Instruction>();
+ const i=await db.prepare("SELECT * FROM payment_instruction_records WHERE kind=? AND reference=? AND mode='live'").bind(kind,reference).first<Instruction>();
  if(!i)throw new SignupError('Payment instruction not found.',404);
- const c=await db.prepare(`SELECT id,created_at FROM ${kind}_payment_commands WHERE reference=? AND action=?`).bind(reference,i.mode==='live'?'dispatch_live':'dispatch_test').first<{id:string;created_at:string}>();
+ const c=await db.prepare(`SELECT id,created_at FROM ${kind}_payment_commands WHERE reference=? AND action=?`).bind(reference,'dispatch_live').first<{id:string;created_at:string}>();
  return assessPaymentEvidence({binding:{...binding(i),kind,liabilityId:i.liability_id,sourceHash:i.source_hash},claim:c?{commandId:c.id,reference,mode:i.mode,sourceHash:i.source_hash,claimedAt:c.created_at}:null,observations:await records(db,i)},new Date());
 }

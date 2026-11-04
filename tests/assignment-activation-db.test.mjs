@@ -1930,7 +1930,7 @@ test('production period payroll binds reviewed sources and profiles, enforces in
  await decideProductionPayroll(db,finance,decision('second_approve_payroll'),headers);await decideProductionPayroll(db,maker,decision('export_payroll'),headers);
  const csv=await exportProductionPayrollCsv(db,maker,prepared.runId,headers);assert.match(csv,/NOT_RELEASED/);assert.match(csv,/80000/);assert.ok(!csv.includes('vault:fixture'));assert.equal((await readProductionPayroll(db,officer)).payrollItems.length,1);assert.equal((await readProductionPayroll(db,client)).payrollItems.length,0);assert.equal((await readProductionPayroll(db,officer)).payrollRuns.length,0);const reviewerState=await readProductionPayroll(db,owner);assert.equal(reviewerState.payrollRuns.find(r=>r.id===prepared.runId).payload_json,stored.payload_json);assert.equal((await readProductionPayroll(db,{...owner,email:'ungranted@example.test'})).payrollRuns.length,0);
  assert.equal(database.prepare('SELECT count(*) AS n FROM production_payroll_decisions WHERE auth_basis=?').get('mfa_verified').n,4);assert.equal(current().status,'exported');assert.equal(current().settlement_reference,null);assert.equal(count(database,'disbursement_batches'),0);
- await testContext.test('employee payment instructions and test transfer recovery preserve live salary locks',async()=>{const {employeePaymentJourney}=await import('./fixtures/employee-payment-journey.mjs');await employeePaymentJourney({database,db,maker,owner,finance,officer,headers,runId:prepared.runId});});
+ await testContext.test('employee payment instructions and live transfer recovery preserve live salary locks',async()=>{const {employeePaymentJourney}=await import('./fixtures/employee-payment-journey.mjs');await employeePaymentJourney({database,db,maker,owner,finance,officer,headers,runId:prepared.runId});});
  assert.throws(()=>database.exec("UPDATE production_payroll_snapshots SET payload_json='{}'"),/immutable/);assert.throws(()=>database.prepare("UPDATE payroll_runs SET status='paid',version=version+1 WHERE id=?").run(prepared.runId),/payroll|decision/i);await assert.rejects(()=>decideProductionPayroll(db,finance,decision('void_payroll'),headers),/stage/);database.close();
 });
 
@@ -1946,15 +1946,15 @@ test('production destinations bind exact employee evidence with independent fres
  run(database,"INSERT INTO production_entity_links VALUES('officer','destination-case',1,?,'OFF-1','fixture',?)",officer.userId,new Date().toISOString());
  const profile=await manageProductionEvidence(db,maker,{action:'prepare_evidence',kind:'payroll_profile',sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString(),fields:{profileId:'PROFILE-DEST',officerId:'OFF-1',engagementId:'WE-1',employerId:'EMP-1',taxToken:'vault:fixture:tax',uifToken:'vault:fixture:uif',providentToken:'vault:fixture:provident',payrollReference:'Isolated payroll setup review'}});
  await manageProductionEvidence(db,reviewer,{action:'decide_evidence',reviewId:profile.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Independent isolated payroll profile review.'});
- const runtime={PAYSTACK_TEST_SECRET_KEY:'sk_test_destination_fixture',PAYSTACK_LIVE_SECRET_KEY:'sk_live_destination_fixture'};
- const recipient={id:123,integration:456,recipient_code:'RCP_fixture001',domain:'test',type:'basa',currency:'ZAR',active:true,is_deleted:false,name:'Fixture Employee',updatedAt:'2026-09-01T00:00:00.000Z',details:{account_number:'1234567890',bank_code:'632005',bank_name:'Fixture bank',account_name:'Fixture Employee'}};
+ const runtime={PAYSTACK_LIVE_SECRET_KEY:'sk_live_destination_fixture'};
+ const recipient={id:123,integration:456,recipient_code:'RCP_fixture001',domain:'live',type:'basa',currency:'ZAR',active:true,is_deleted:false,name:'Fixture Employee',updatedAt:'2026-09-01T00:00:00.000Z',details:{account_number:'1234567890',bank_code:'632005',bank_name:'Fixture bank',account_name:'Fixture Employee'}};
  let calls=0;const transport=async(url,options)=>{calls++;assert.equal(url,'https://api.paystack.co/transferrecipient/RCP_fixture001');assert.equal(options.method,'GET');assert.equal(options.redirect,'manual');return Response.json({status:true,data:recipient});};
- const input={action:'prepare_destination',requestKey:'destination-1',profileId:'PROFILE-DEST',mode:'test',recipientCode:recipient.recipient_code,accountNumber:'1234567890',integrationId:'456',ownershipReference:'vault:fixture:ownership-v1',ownershipHash:'a'.repeat(64),mandateReference:'vault:fixture:mandate-v1',mandateHash:'b'.repeat(64),capabilityReference:'vault:fixture:capability-v1',capabilityHash:'c'.repeat(64),expiresAt:new Date(Date.now()+3600000).toISOString(),documentsReviewed:true,capabilityReviewed:true,note:'Isolated fixture ownership and salary mandate; no production source approval.'};
+ const input={action:'prepare_destination',requestKey:'destination-1',profileId:'PROFILE-DEST',mode:'live',recipientCode:recipient.recipient_code,accountNumber:'1234567890',integrationId:'456',ownershipReference:'vault:fixture:ownership-v1',ownershipHash:'a'.repeat(64),mandateReference:'vault:fixture:mandate-v1',mandateHash:'b'.repeat(64),capabilityReference:'vault:fixture:capability-v1',capabilityHash:'c'.repeat(64),expiresAt:new Date(Date.now()+3600000).toISOString(),documentsReviewed:true,capabilityReviewed:true,note:'Isolated fixture ownership and salary mandate; no production source approval.'};
  const prepare=(patch={})=>operate(db,maker,{...input,...patch},headers,runtime,transport);
  await assert.rejects(()=>operate(db,officer,input,headers,runtime,transport),/Operations/);
  await assert.rejects(()=>prepare({profileId:'missing'}),/current/);
  await assert.rejects(()=>prepare({accountNumber:'9999999999'}),/must agree/);
- await assert.rejects(()=>prepare({mode:'invalid'}),/explicit/);
+ await assert.rejects(()=>prepare({mode:'invalid'}),/live provider mode/);await assert.rejects(()=>prepare({mode:'test'}),/live provider mode/);
  await assert.rejects(()=>prepare({integrationId:'999'}),/must agree/);
  let prepared=await prepare(),id=prepared.destinationId;
  const row=()=>database.prepare('SELECT * FROM payment_destination_current WHERE id=?').get(id);
@@ -1966,20 +1966,20 @@ test('production destinations bind exact employee evidence with independent fres
  await assert.rejects(()=>operate(db,reviewer,command('approve_destination',{accountNumber:'9999999999'}),headers,runtime,transport),/does not match/);
  await assert.rejects(()=>operate(db,reviewer,command('approve_destination',{payloadHash:'wrong'}),headers,runtime,transport),/exact/);
  await assert.rejects(()=>operate(db,reviewer,command(),headers,runtime,async()=>{throw Error('timeout');}),/unavailable/);assert.equal(row().status,'pending');
- await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'confirmed_test');
+ await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'verified_live');
  assert.equal((await operate(db,reviewer,command(),headers,runtime,transport)).alreadyDecided,true);
  assert.equal((await read(db,officer)).destinationReviews.length,0);assert.equal((await read(db,{...officer,userId:'other-client'})).destinationCandidates.length,0);assert.equal((await read(db,{...maker,email:'ungranted@example.test'})).destinationAccess,false);
  assert.equal(database.prepare("SELECT payment_destination_token FROM payroll_profiles WHERE id='PROFILE-DEST'").get().payment_destination_token,null);
  const first=id;await assert.rejects(()=>prepare({requestKey:'replacement-no-reference'}),/Explicitly/);
  id=(await prepare({requestKey:'destination-2',supersedesId:first})).destinationId;
- await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'confirmed_test');assert.equal(database.prepare('SELECT status FROM payment_destination_current WHERE id=?').get(first).status,'superseded');
+ await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'verified_live');assert.equal(database.prepare('SELECT status FROM payment_destination_current WHERE id=?').get(first).status,'superseded');
  const second=id;id=(await prepare({requestKey:'destination-3',supersedesId:second})).destinationId;
  if(process.env.LOKD_DESTINATION_FIXTURE_EXPORT){const path=process.env.LOKD_DESTINATION_FIXTURE_EXPORT;assert.match(path,/^\/tmp\/lokd-[a-z0-9-]+\.sqlite$/);assert.equal(fs.existsSync(path),false);database.prepare('VACUUM INTO ?').run(path);}
  recipient.details.account_number='9999999999';await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'held');recipient.details.account_number='1234567890';
  await assert.rejects(()=>operate(db,reviewer,command(),headers,runtime,transport),/within 30 minutes/);
  id=second;await operate(db,reviewer,command('hold_destination'),headers,runtime,transport);assert.equal(row().status,'held');assert.equal(database.prepare('SELECT status FROM payment_destination_current WHERE id=?').get(first).status,'superseded');
- recipient.domain='live';id=(await prepare({requestKey:'destination-live',mode:'live'})).destinationId;
- await assert.rejects(()=>operate(db,reviewer,command(),headers,{PAYSTACK_TEST_SECRET_KEY:runtime.PAYSTACK_TEST_SECRET_KEY},transport),/not configured/);
+ id=(await prepare({requestKey:'destination-live',supersedesId:second})).destinationId;
+ await assert.rejects(()=>operate(db,reviewer,command(),headers,{},transport),/not configured/);
  await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'verified_live');
  await operate(db,reviewer,command('recheck_destination'),headers,runtime,async()=>{throw Error('timeout');});assert.equal(row().status,'held');
  id=(await prepare({requestKey:'destination-live-race',mode:'live',supersedesId:id})).destinationId;
@@ -2054,7 +2054,7 @@ test('legacy partner service history independently allocates invoice evidence an
  await operatePartnerPayable(db,finance,approve,headers);assert.equal((await operatePartnerPayable(db,finance,approve,headers)).alreadyDecided,true);
  const payable=database.prepare('SELECT * FROM partner_payables').get();assert.equal(payable.amount_cents,138000);assert.notEqual(payable.amount_cents,t.gross_cents);assert.equal(payable.status,'approved_unpaid');assert.equal(payable.remittance_reference,null);
  assert.equal(count(database,'payroll_runs'),0);assert.equal((await readPartnerPayables(db,maker)).partnerPayableCandidates.length,0);
- await testContext.test('partner payment instructions bind invoice and mandate with durable isolated test recovery',async()=>{const {partnerPaymentJourney}=await import('./fixtures/partner-payment-journey.mjs');await partnerPaymentJourney({database,db,maker,owner:finance,finance,officer,client,headers,payableId:payable.id});});
+ await testContext.test('partner payment instructions bind invoice and mandate with durable isolated live recovery',async()=>{const {partnerPaymentJourney}=await import('./fixtures/partner-payment-journey.mjs');await partnerPaymentJourney({database,db,maker,owner:finance,finance,officer,client,headers,payableId:payable.id});});
  await assert.rejects(()=>operatePartnerPayable(db,maker,{...prepare,requestKey:'duplicate'},headers),/changed/);
  assert.throws(()=>database.exec("UPDATE partner_payables SET status='paid'"),/immutable/);
  await operatePartnerPayable(db,finance,{...approve,action:'export_partner_payable'},headers);
@@ -2077,15 +2077,15 @@ test('production partner destinations bind exact company evidence with independe
  const maker={userId:users.operations??'destination-maker',email:emails.operations??'destination-maker@example.test',operations:true,owner:false},reviewer={userId:users.owner??'destination-reviewer',email:emails.owner??'destination-reviewer@example.test',operations:true,owner:true},officer={userId:users.officer??'destination-officer',email:emails.officer??'destination-officer@example.test',operations:false,owner:false};
  for(const [a,roles] of [[maker,['operations_controller','finance_approver']],[reviewer,['finance_approver']]])for(const role of roles)await operateProduction(db,reviewer,{action:'grant_operator',email:a.email,role,limitCents:10000000},headers);
  run(database,"UPDATE workforce_employers SET employer_type='partner_company',legal_name='Fixture Partner' WHERE id='EMP-1'");
- const runtime={PAYSTACK_TEST_SECRET_KEY:'sk_test_destination_fixture',PAYSTACK_LIVE_SECRET_KEY:'sk_live_destination_fixture'};
- const recipient={id:123,integration:456,recipient_code:'RCP_fixture001',domain:'test',type:'basa',currency:'ZAR',active:true,is_deleted:false,name:'Fixture Employee',updatedAt:'2026-09-01T00:00:00.000Z',details:{account_number:'1234567890',bank_code:'632005',bank_name:'Fixture bank',account_name:'Fixture Employee'}};
+ const runtime={PAYSTACK_LIVE_SECRET_KEY:'sk_live_destination_fixture'};
+ const recipient={id:123,integration:456,recipient_code:'RCP_fixture001',domain:'live',type:'basa',currency:'ZAR',active:true,is_deleted:false,name:'Fixture Employee',updatedAt:'2026-09-01T00:00:00.000Z',details:{account_number:'1234567890',bank_code:'632005',bank_name:'Fixture bank',account_name:'Fixture Employee'}};
  let calls=0;const transport=async(url,options)=>{calls++;assert.equal(url,'https://api.paystack.co/transferrecipient/RCP_fixture001');assert.equal(options.method,'GET');assert.equal(options.redirect,'manual');return Response.json({status:true,data:recipient});};
- const input={action:'prepare_partner_destination',requestKey:'destination-1',employerId:'EMP-1',mode:'test',recipientCode:recipient.recipient_code,accountNumber:'1234567890',integrationId:'456',ownershipReference:'vault:fixture:ownership-v1',ownershipHash:'a'.repeat(64),mandateReference:'vault:fixture:mandate-v1',mandateHash:'b'.repeat(64),capabilityReference:'vault:fixture:capability-v1',capabilityHash:'c'.repeat(64),expiresAt:new Date(Date.now()+3600000).toISOString(),representativeUserId:'company-representative',representativeReference:'vault:fixture:authority',representativeHash:'d'.repeat(64),companyReference:'vault:fixture:company',companyHash:'e'.repeat(64),documentsReviewed:true,capabilityReviewed:true,note:'Isolated fixture ownership and salary mandate; no production source approval.'};
+ const input={action:'prepare_partner_destination',requestKey:'destination-1',employerId:'EMP-1',mode:'live',recipientCode:recipient.recipient_code,accountNumber:'1234567890',integrationId:'456',ownershipReference:'vault:fixture:ownership-v1',ownershipHash:'a'.repeat(64),mandateReference:'vault:fixture:mandate-v1',mandateHash:'b'.repeat(64),capabilityReference:'vault:fixture:capability-v1',capabilityHash:'c'.repeat(64),expiresAt:new Date(Date.now()+3600000).toISOString(),representativeUserId:'company-representative',representativeReference:'vault:fixture:authority',representativeHash:'d'.repeat(64),companyReference:'vault:fixture:company',companyHash:'e'.repeat(64),documentsReviewed:true,capabilityReviewed:true,note:'Isolated fixture ownership and salary mandate; no production source approval.'};
  const prepare=(patch={})=>operate(db,maker,{...input,...patch},headers,runtime,transport);
  await assert.rejects(()=>operate(db,officer,input,headers,runtime,transport),/Operations/);
  await assert.rejects(()=>prepare({employerId:'missing'}),/current/);
  await assert.rejects(()=>prepare({accountNumber:'9999999999'}),/must agree/);
- await assert.rejects(()=>prepare({mode:'invalid'}),/explicit/);
+ await assert.rejects(()=>prepare({mode:'invalid'}),/live provider mode/);await assert.rejects(()=>prepare({mode:'test'}),/live provider mode/);
  await assert.rejects(()=>prepare({representativeUserId:maker.userId}),/representative/);
  await assert.rejects(()=>prepare({companyReference:'https://public.example/doc'}),/secure/);
  await assert.rejects(()=>prepare({representativeHash:''}),/digest/);
@@ -2101,7 +2101,7 @@ test('production partner destinations bind exact company evidence with independe
  await assert.rejects(()=>operate(db,reviewer,command('approve_partner_destination',{accountNumber:'9999999999'}),headers,runtime,transport),/does not match/);
  await assert.rejects(()=>operate(db,reviewer,command('approve_partner_destination',{payloadHash:'wrong'}),headers,runtime,transport),/exact/);
  await assert.rejects(()=>operate(db,reviewer,command(),headers,runtime,async()=>{throw Error('timeout');}),/unavailable/);assert.equal(row().status,'pending');
- await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'confirmed_test');
+ await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'verified_live');
  assert.equal((await operate(db,reviewer,command(),headers,runtime,transport)).alreadyDecided,true);
  assert.equal((await read(db,officer)).partnerDestinationReviews.length,0);assert.equal((await read(db,{...officer,userId:'other-client'})).partnerDestinationCandidates.length,0);assert.equal((await read(db,{...maker,email:'ungranted@example.test'})).partnerDestinationAccess,false);
  // A second legal company cannot adopt a previously approved company account.
@@ -2114,14 +2114,14 @@ test('production partner destinations bind exact company evidence with independe
  assert.equal(row().status,'pending');id=original;
  const first=id;await assert.rejects(()=>prepare({requestKey:'replacement-no-reference'}),/Explicitly/);
  id=(await prepare({requestKey:'destination-2',supersedesId:first})).destinationId;
- await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'confirmed_test');assert.equal(database.prepare('SELECT status FROM partner_destination_current WHERE id=?').get(first).status,'superseded');
+ await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'verified_live');assert.equal(database.prepare('SELECT status FROM partner_destination_current WHERE id=?').get(first).status,'superseded');
  const second=id;id=(await prepare({requestKey:'destination-3',supersedesId:second})).destinationId;
  if(process.env.LOKD_PARTNER_DESTINATION_FIXTURE_EXPORT){const path=process.env.LOKD_PARTNER_DESTINATION_FIXTURE_EXPORT;assert.match(path,/^\/tmp\/lokd-[a-z0-9-]+\.sqlite$/);assert.equal(fs.existsSync(path),false);database.prepare('VACUUM INTO ?').run(path);}
  recipient.details.account_number='9999999999';await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'held');recipient.details.account_number='1234567890';
  await assert.rejects(()=>operate(db,reviewer,command(),headers,runtime,transport),/within 30 minutes/);
  id=second;await operate(db,reviewer,command('hold_partner_destination'),headers,runtime,transport);assert.equal(row().status,'held');assert.equal(database.prepare('SELECT status FROM partner_destination_current WHERE id=?').get(first).status,'superseded');
- recipient.domain='live';id=(await prepare({requestKey:'destination-live',mode:'live'})).destinationId;
- await assert.rejects(()=>operate(db,reviewer,command(),headers,{PAYSTACK_TEST_SECRET_KEY:runtime.PAYSTACK_TEST_SECRET_KEY},transport),/not configured/);
+ id=(await prepare({requestKey:'destination-live',supersedesId:second})).destinationId;
+ await assert.rejects(()=>operate(db,reviewer,command(),headers,{},transport),/not configured/);
  await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'verified_live');
  await operate(db,reviewer,command('recheck_partner_destination'),headers,runtime,async()=>{throw Error('timeout');});assert.equal(row().status,'held');
  id=(await prepare({requestKey:'destination-live-race',mode:'live',supersedesId:id})).destinationId;

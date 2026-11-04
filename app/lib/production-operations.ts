@@ -33,8 +33,8 @@ export async function readProductionOperations(db:D1Database,actor:SigningActor)
  // Each reader retains its own live entitlement and ownership checks. Do not
  // cache grants or move mutation/approval commands into these groups.
  const [partner,collections,workforce,evidence]=await Promise.all([
-  (async()=>({...await readPartnerPayments(db,actor,true),...await readPartnerDestinations(db,actor,true),...await readPartnerPayables(db,actor),...await readEmployeePayments(db,actor,true)}))(),
-  (async()=>({...await readPaymentDestinations(db,actor,true),...await readBookingSettlements(db,actor,true),...await readBookingCollections(db,actor,true),...await readProductionPayroll(db,actor)}))(),
+  (async()=>({...await readPartnerPayments(db,actor),...await readPartnerDestinations(db,actor),...await readPartnerPayables(db,actor),...await readEmployeePayments(db,actor)}))(),
+  (async()=>({...await readPaymentDestinations(db,actor),...await readBookingSettlements(db,actor,true),...await readBookingCollections(db,actor,true),...await readProductionPayroll(db,actor)}))(),
   (async()=>({...await readProductionPayrollPolicies(db,actor),...await readProductionSchedule(db,actor),...await readProductionService(db,actor)}))(),
   (async()=>({...await readProductionEvidence(db,actor),...await readClientReviews(db,actor),...await readProductionOrders(db,actor)}))(),
  ]);
@@ -52,8 +52,8 @@ async function performProduction(db:D1Database,actor:SigningActor,input:Record<s
  await requireLiveFinanceCommand(db,input);
  const now=new Date().toISOString();
  if(['prepare_partner_payable','approve_partner_payable','reject_partner_payable','hold_partner_payable','export_partner_payable'].includes(String(input.action)))return operatePartnerPayable(db,actor,input,headers);
- if(['prepare_employee_payment','approve_employee_payment','cancel_employee_payment','dispatch_employee_test','verify_employee_test'].includes(String(input.action)))return operateEmployeePayment(db,actor,input,headers,collectionRuntime);
- if(['prepare_partner_payment','approve_partner_payment','cancel_partner_payment','dispatch_partner_test','verify_partner_test'].includes(String(input.action)))return operatePartnerPayment(db,actor,input,headers,collectionRuntime);
+ if(['prepare_employee_payment','approve_employee_payment','cancel_employee_payment'].includes(String(input.action)))return operateEmployeePayment(db,actor,input,headers);
+ if(['prepare_partner_payment','approve_partner_payment','cancel_partner_payment'].includes(String(input.action)))return operatePartnerPayment(db,actor,input,headers);
  if(['prepare_partner_destination','approve_partner_destination','reject_partner_destination','hold_partner_destination','recheck_partner_destination'].includes(String(input.action)))return operatePartnerDestination(db,actor,input,headers,collectionRuntime);
  if(['prepare_destination','approve_destination','reject_destination','hold_destination','recheck_destination'].includes(String(input.action)))return operatePaymentDestination(db,actor,input,headers,collectionRuntime);
  if(['prepare_settlement','approve_settlement','reject_settlement','hold_collection','apply_booking_funding'].includes(String(input.action)))return operateBookingSettlement(db,actor,input,headers,collectionRuntime);

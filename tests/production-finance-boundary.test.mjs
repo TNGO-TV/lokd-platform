@@ -17,11 +17,11 @@ function fixture(){
  const db={prepare(query){assert.match(query,/^SELECT mode FROM /);return {bind(value){return {first:async()=>sql.prepare(query).get(value)??null};}};}};
  return {sql,db,tables};
 }
-test('production finance policy rejects test preparation and dispatch before provider work',async()=>{
+test('production finance policy rejects non-live preparation before provider work',async()=>{
  const {sqlite,db}=operationsDatabase();
  try{
   const headers=addOperator(sqlite,'finance-policy-operator',['finance_approver']),named=await operationsAccess(db,headers);
-  for(const action of ['prepare_collection','prepare_destination','prepare_partner_destination','dispatch_employee_test','verify_employee_test','dispatch_partner_test','verify_partner_test'])await assert.rejects(()=>operateProduction(db,named,{action,mode:'test'},headers),e=>e.status===423);
+  for(const action of ['prepare_collection','prepare_destination','prepare_partner_destination'])await assert.rejects(()=>operateProduction(db,named,{action,mode:'test'},headers),e=>e.status===423);
   assert.throws(()=>collectionKey({PAYSTACK_LIVE_SECRET_KEY:'sk_live_fixture'},'live'),e=>e.status===503&&/Card payments are unavailable/.test(e.message),'unconfigured card payments return a clear availability error');
  }finally{sqlite.close();}
 });
@@ -37,10 +37,10 @@ test('saved test-mode records cannot be relabeled through production mutations o
   for(const table of tables)assert.equal(sql.prepare(`SELECT count(*) n FROM ${table}`).get().n,2,'history retained');
  }finally{sql.close();}
 });
-test('the separate production recovery endpoint refuses test actions and forged live aliases',async()=>{
+test('the separate production recovery endpoint refuses forged live aliases',async()=>{
  const {sql,db}=fixture(),saved={...env};Object.assign(env,{DB:db,LOKD_APP_STAGE:'production',LOKD_ROLE_ACCESS_JSON:JSON.stringify({owners:[actor.email]})});
  try{
-  for(const action of ['propose_test_disposition','approve_test_disposition','propose_live_disposition','approve_live_disposition']){
+  for(const action of ['propose_live_disposition','approve_live_disposition']){
    const response=await recovery(new Request('https://operations.lokd.co.za/api/payment-recovery',{method:'POST',headers:{origin:'https://operations.lokd.co.za','content-type':'application/json','x-lokd-verified-email':actor.email,'x-lokd-verified-user-id':actor.userId,'x-lokd-verified-mfa-enrolled':'true','x-lokd-verified-second-factor-at':new Date().toISOString()},body:JSON.stringify({action,kind:'employee',reference:'test-record'})}));
    assert.equal(response.status,423,await response.text());
   }
