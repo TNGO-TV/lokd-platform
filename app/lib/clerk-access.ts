@@ -14,7 +14,7 @@ export function signInDestination(hostname: string, requested?: string): string 
   if (!requested || /[\\\x00-\x20]/.test(requested) || !requested.startsWith("/") || requested.startsWith("//")) return fallback;
   const url = new URL(requested, "https://lokd.local");
   const paths = ["/signup", ...Object.values(WORKSPACE_PATHS).flatMap(base =>
-    ["", "/agreements", "/service", "/test-cycle", ...(base === "/client" ? [] : ["/identity", "/readiness", "/psira"]), ...(base === "/ops" ? ["/intake", "/security"] : [])].map(suffix => base + suffix))];
+    ["", "/agreements", "/service", ...(base === "/client" ? [] : ["/identity", "/readiness", "/psira"]), ...(base === "/ops" ? ["/intake", "/security"] : [])].map(suffix => base + suffix))];
   if (url.origin !== "https://lokd.local" || !paths.includes(url.pathname)) return fallback;
   if (role && url.pathname !== fallback && !url.pathname.startsWith(fallback + "/")) return fallback;
   const allowed = url.pathname.endsWith("/readiness") ? ["applicantId", "officerId", "identityId"] : url.pathname.endsWith("/identity") ? ["caseId"] : url.pathname === "/ops/intake" || url.pathname === "/signup" ? ["kind"] : [];

@@ -1657,8 +1657,7 @@ test('production intake prepares pending records and reconciles reviewed correct
  function webhook(tx=transaction,secret=runtime.PAYSTACK_TEST_SECRET_KEY){const body=JSON.stringify({event:'charge.success',data:tx});return new Request('https://lokd.co.za/api/paystack/booking/webhook?mode=test',{method:'POST',body,headers:{'x-paystack-signature':createHmac('sha512',secret).update(body).digest('hex')}});}
  await assert.rejects(()=>receiveBookingCollectionWebhook(webhook(transaction,'wrong'),db,runtime,'test'),/signature/);
  await assert.rejects(()=>receiveBookingCollectionWebhook(webhook({...transaction,domain:'live'}),db,runtime,'test'),/mode/);
- const {receivePaystackTest}=await import('../app/lib/paystack-test.ts');
- assert.equal((await receivePaystackTest(webhook(),{...runtime,DB:db})).status,200);assert.equal(saved().state,'review_required');
+ assert.equal((await receiveBookingCollectionWebhook(webhook(),db,runtime,'test')).received,true);assert.equal(saved().state,'review_required');
  const rev=saved().revision;await receiveBookingCollectionWebhook(webhook(),db,runtime,'test');assert.equal(saved().revision,rev);
  await act(owner,command('verify_collection'),transport);assert.equal(saved().state,'matched_test');
  assert.equal(database.prepare('SELECT funding_status FROM bookings WHERE id=?').get(setup.orderId).funding_status,'unfunded');

@@ -30,19 +30,6 @@ export class PilotAccessError extends Error {
 
 const allRoles: PilotRole[] = ["operations", "client", "officer", "reviewer"];
 
-export const PUBLIC_DEMO_EMAIL = "public-demo@lokd.invalid";
-
-export function publicDemoPrincipal(): PilotPrincipal {
-  return {
-    email: PUBLIC_DEMO_EMAIL,
-    displayName: "Public demo visitor",
-    owner: false,
-    roles: [...allRoles],
-    clientId: "CL-001",
-    officerId: "OFF-001",
-  };
-}
-
 function normaliseEmail(value: string) {
   return value.trim().toLowerCase();
 }
@@ -143,7 +130,6 @@ export function roleForPilotAction(action: PilotAction["action"]): PilotRole {
       "create_booking",
       "client_signoff",
       "create_client_service_request",
-      "record_demo_arrival_check",
     ].includes(action)
   )
     return "client";

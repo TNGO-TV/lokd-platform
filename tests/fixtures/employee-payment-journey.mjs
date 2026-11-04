@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import {operateEmployeePayment as operate,readEmployeePayments as read,receiveEmployeeTransferWebhook} from '../../app/lib/employee-payments.ts';
 import {operatePaymentDestination} from '../../app/lib/payment-destinations.ts';
 import {operateProduction} from '../../app/lib/production-operations.ts';
-import {receivePaystackTest} from '../../app/lib/paystack-test.ts';
 export async function employeePaymentJourney({database,db,maker,owner,finance,officer,headers,runId}){
  const now=new Date().toISOString(),item=database.prepare('SELECT * FROM payroll_items WHERE payroll_run_id=?').get(runId);
  database.prepare(`INSERT INTO officer_applications(id,pathway,full_name,mobile_normalized,email_normalized,city,province,psira_status,service_interests,training_interests,over_18_confirmed,eligibility_acknowledged,privacy_notice_version,privacy_acknowledged_at,retention_review_at,environment,integrity_state) VALUES('period-officer-case','qualified','Payment Fixture','+27820000888',?,'Sandton','Gauteng','registered','[]','[]',1,1,'fixture',?,?,'prelaunch','user_submitted')`).run(officer.email,now,now);
@@ -48,7 +47,7 @@ export async function employeePaymentJourney({database,db,maker,owner,finance,of
  assert.equal((await operate(db,finance,command('verify_employee_test'),headers,runtime,transport)).providerState,'awaiting_signed_confirmation');
  const signed=async(event,data=transfer)=>{const body=JSON.stringify({event,data}),key=await crypto.subtle.importKey('raw',new TextEncoder().encode(runtime.PAYSTACK_TEST_SECRET_KEY),{name:'HMAC',hash:'SHA-512'},false,['sign']);const signature=Buffer.from(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(body))).toString('hex');return new Request('https://lokd.co.za/api/paystack/test/webhook',{method:'POST',headers:{'x-paystack-signature':signature},body});};
  await assert.rejects(()=>receiveEmployeeTransferWebhook(new Request('https://fixture',{method:'POST',body:'{}'}),db,runtime),/signature/);
- assert.equal((await receivePaystackTest(await signed('transfer.success'),{...runtime,DB:db})).status,200);assert.equal((await receivePaystackTest(await signed('transfer.success'),{...runtime,DB:db})).status,200);
+ assert.equal((await receiveEmployeeTransferWebhook(await signed('transfer.success'),db,runtime)).received,true);assert.equal((await receiveEmployeeTransferWebhook(await signed('transfer.success'),db,runtime)).received,true);
  assert.equal(database.prepare("SELECT count(*) n FROM employee_transfer_observations WHERE source='webhook'").get().n,1);
  assert.equal((await read(db,finance)).employeePayments.find(i=>i.reference===ref).providerState,'verification_required');
  assert.equal((await operate(db,finance,command('verify_employee_test'),headers,runtime,transport)).providerState,'confirmed_test');

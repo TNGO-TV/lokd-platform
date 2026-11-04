@@ -12,10 +12,10 @@ import {installFixtureClock} from './fixtures/fixture-clock.mjs';
 import {createPrivatePassportMaterial} from '../app/lib/production-identity-contract.ts';
 const stranger={userId:'unrelated-user',email:'unrelated@example.test',operations:false};
 async function setup(t,{migration=true}={}){
- const prior=env.LOKD_PILOT_ACCESS_JSON,priorDb=env.DB;
+ const prior=env.LOKD_ROLE_ACCESS_JSON,priorDb=env.DB;
  const x=await complete(migration?{}:{beforeMigration:'0068'});
- env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({owners:[checker.email,independent.email],operations:[maker.email,assessor.email],clients:{}});
- t.after(()=>{x.db.sql.close();if(prior===undefined)delete env.LOKD_PILOT_ACCESS_JSON;else env.LOKD_PILOT_ACCESS_JSON=prior;if(priorDb===undefined)delete env.DB;else env.DB=priorDb;});return x;
+ env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({owners:[checker.email,independent.email],operations:[maker.email,assessor.email],clients:{}});
+ t.after(()=>{x.db.sql.close();if(prior===undefined)delete env.LOKD_ROLE_ACCESS_JSON;else env.LOKD_ROLE_ACCESS_JSON=prior;if(priorDb===undefined)delete env.DB;else env.DB=priorDb;});return x;
 }
 function req(a,method,body,query=''){
  const host=a.operations?'ops.lokd.co.za':'officers.lokd.co.za',scope=a.operations?'scope=operations&':'';

@@ -9,7 +9,6 @@ import {GET,POST} from '../app/api/signup/route.ts';
 import {POST as apply} from '../app/api/applications/route.ts';
 import {POST as enquire} from '../app/api/enquiries/route.ts';
 import {readSignupRecords,writeSignup} from '../app/lib/signup-server.ts';
-import {liveSurfaceResponse} from '../app/lib/live-surface.ts';
 class D1 {
  constructor(){this.sql=new DatabaseSync(':memory:');for(const f of fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())this.sql.exec(fs.readFileSync(`drizzle/${f}`,'utf8').replaceAll('--> statement-breakpoint',''));}
  prepare(sql){const database=this.sql;const make=(values=[])=>({bind:(...v)=>make(v),first:async()=>database.prepare(sql).get(...values)??null,all:async()=>({results:database.prepare(sql).all(...values)}),run:async()=>({meta:{changes:Number(database.prepare(sql).run(...values).changes)}})});return make();}
@@ -55,22 +54,14 @@ test('signup review cannot promote roles, self-approve, accept malformed registr
  db.sql.close();
 });
 test('signup API has no public-demo bypass; verified identity, host scope, role and origin remain mandatory',async()=>{
- const db=new D1();await seed(db);env.LOKD_APP_STAGE='demo';env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({operations:[ops.email]});
- const request=(scope,user,method='GET',body)=>new Request(`https://${scope==='operations'?'operations':scope==='officer'?'officers':'portal'}.lokd.co.za/api/signup?scope=${scope}&kind=officer`,{method,headers:{...(user?{'x-lokd-verified-user-id':user.userId,'x-lokd-verified-email':user.email}:{}),'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+ const db=new D1();await seed(db);env.LOKD_APP_STAGE='demo';env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({operations:[ops.email]});
+ const request=(scope,user,method='GET',body)=>new Request(`https://${scope==='operations'?'operations':scope==='officer'?'officers':'portal'}.lokd.co.za/api/signup?scope=${scope}&kind=officer`,{method,headers:{...(user?{'x-lokd-verified-user-id':user.userId,'x-lokd-verified-email':user.email,'x-lokd-verified-mfa-enrolled':'true','x-lokd-verified-second-factor-at':new Date().toISOString()}:{}),'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
  assert.equal((await GET(request('officer'))).status,401);assert.equal((await GET(request('operations',actor))).status,403);
  const own=await GET(request('officer',actor));assert.equal(own.status,200);assert.equal((await own.json()).records.length,1);
  const other=await GET(request('officer',{...actor,userId:'other',email:'other@example.test'}));assert.equal((await other.json()).records.length,0);
  const cross=request('officer',actor,'POST',{kind:'officer'});cross.headers.set('origin','https://evil.example');assert.equal((await POST(cross)).status,403);
  assert.equal((await GET(new Request('https://portal.lokd.co.za/api/signup?scope=operations&kind=officer',{headers:{'x-lokd-verified-user-id':ops.userId,'x-lokd-verified-email':ops.email}}))).status,403);
  db.sql.close();
-});
-test('live surface cannot expose rehearsal APIs and real signup stays available',()=>{
- for(const path of ['/api/pilot','/api/platform','/api/onboarding','/api/operations','/api/specialist','/api/passport'])assert.equal(liveSurfaceResponse(path,'production',true).status,423);
- assert.equal(liveSurfaceResponse('/api/platform','production',false).status,401);
- assert.equal(liveSurfaceResponse('/api/platform','demo',true),null);
- assert.equal(liveSurfaceResponse('/api/applications','production',true,'GET').status,423);
- for(const path of ['/api/signup','/api/psira','/api/enquiries','/api/operations/security'])assert.equal(liveSurfaceResponse(path,'production',true),null);
- assert.equal(liveSurfaceResponse('/api/applications','production',false,'POST'),null);
 });
 
 test('signup API acknowledges only the completed command and exact submitted version',async()=>{

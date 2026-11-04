@@ -58,6 +58,9 @@ function operationsRequest(method, body) {
       origin: "https://operations.lokd.co.za",
       "sec-fetch-site": "same-origin",
       "x-lokd-verified-email": "owner@lokd.example",
+      "x-lokd-verified-user-id": "fixture-owner",
+      "x-lokd-verified-mfa-enrolled": "true",
+      "x-lokd-verified-second-factor-at": new Date().toISOString(),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -155,8 +158,8 @@ test('honeypots, malformed bodies and invalid submission keys do not claim a sav
 test("public client intake stays prelaunch, zero-credit and separate from bookings", async () => {
   const database = migratedDatabase();
   env.DB = new D1Adapter(database);
-  env.LOKD_APP_STAGE = "demo";
-  env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
+  env.LOKD_APP_STAGE = "production";
+  env.LOKD_ROLE_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
   const enquiries = await import("../app/api/enquiries/route.ts");
 
   const submitted = await enquiries.POST(publicRequest(validEnquiry));
@@ -191,8 +194,8 @@ test("only signed-in Operations can own and close a client enquiry, including sa
   t.mock.timers.enable({ apis: ["Date"], now: new Date() });
   const database = migratedDatabase();
   env.DB = new D1Adapter(database);
-  env.LOKD_APP_STAGE = "demo";
-  env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
+  env.LOKD_APP_STAGE = "production";
+  env.LOKD_ROLE_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
   const enquiries = await import("../app/api/enquiries/route.ts");
   const submitted = await enquiries.POST(publicRequest({ ...validEnquiry, email: "second@example.test" }));
   const { reference } = await submitted.json();

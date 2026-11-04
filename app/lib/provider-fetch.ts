@@ -3,7 +3,7 @@
 export async function fetchWithoutRedirect(transport:typeof fetch,input:RequestInfo|URL,init:RequestInit):Promise<Response>{
  const response=await transport(input,{...init,redirect:'manual'});
  if(response.status>=300&&response.status<400){
-  await response.body?.cancel();
+  void response.body?.cancel().catch(() => {});
   throw new TypeError('Provider redirect refused');
  }
  return response;

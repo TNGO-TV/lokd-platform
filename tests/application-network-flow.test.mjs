@@ -43,11 +43,11 @@ function migratedDatabase() {
 }
 
 function ownerRequest(method, body) {
-  return new Request("https://demo.lokd.co.za/api/applications", {
+  return new Request("https://operations.lokd.co.za/api/applications", {
     method,
     headers: {
       ...(body ? { "content-type": "application/json" } : {}),
-      origin: "https://demo.lokd.co.za",
+      origin: "https://operations.lokd.co.za",
       "sec-fetch-site": "same-origin",
       "x-lokd-verified-user-id":"user_fixture", "x-lokd-verified-mfa-enrolled":"true", "x-lokd-verified-second-factor-at":new Date(Date.now()-60000).toISOString(),
       "x-lokd-verified-email": "owner@lokd.example",
@@ -147,7 +147,7 @@ test('keyed Officer retries recover one atomic receipt while separate submission
 
 test('Officer receipt migration preserves existing applications, consent and immutable audit history',async()=>{
  const database=new DatabaseSync(':memory:');
- for(const file of fs.readdirSync(new URL('../drizzle',import.meta.url)).filter(name=>name.endsWith('.sql')&&!name.startsWith('0086_')).sort())database.exec(fs.readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8').replaceAll('--> statement-breakpoint',''));
+ for(const file of fs.readdirSync(new URL('../drizzle',import.meta.url)).filter(name=>name.endsWith('.sql')&&Number(name.slice(0,4))<86).sort())database.exec(fs.readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8').replaceAll('--> statement-breakpoint',''));
  const db=new D1Adapter(database),{submitOfficerApplication}=await import('../app/api/applications/route.ts');
  try{
   assert.equal((await submitOfficerApplication(intake('existing@example.test'),db)).status,202);

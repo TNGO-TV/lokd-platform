@@ -11,9 +11,9 @@ const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;})
 const request=(body,host='officers.lokd.co.za')=>new Request('https://'+host+'/api/presence',{method:'POST',headers:{origin:'https://'+host,'content-type':'application/json','x-lokd-verified-user-id':'user','x-lokd-verified-email':'officer@example.test'},body:JSON.stringify(body)});
 
 test('presence resolves reviewed production identity without configured pilot mapping and ignores supplied IDs',async()=>{
- const {db,sql}=fixture(),oldDb=env.DB,oldAccess=env.LOKD_PILOT_ACCESS_JSON;env.DB=db;env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({officers:{'officer@example.test':'OFF-OTHER'}});
+ const {db,sql}=fixture(),oldDb=env.DB,oldAccess=env.LOKD_ROLE_ACCESS_JSON;env.DB=db;env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({officers:{'officer@example.test':'OFF-OTHER'}});
  try{const response=await POST(request({...share,officerId:'OFF-ATTACKER'}));assert.equal(response.status,200);const saved=sql.prepare('SELECT * FROM public_officer_presence').get();assert.equal(saved.officer_id,'OFF-CURRENT');assert.equal(saved.latitude,-26.2);assert.equal(saved.longitude,28);assert.equal(Date.parse(saved.expires_at)-Date.parse(saved.updated_at),180000);assert.equal((await publicPresence(db)).areas.length,1);assert.equal('user_id' in (await publicPresence(db)).areas[0],false);}
- finally{if(oldDb===undefined)delete env.DB;else env.DB=oldDb;if(oldAccess===undefined)delete env.LOKD_PILOT_ACCESS_JSON;else env.LOKD_PILOT_ACCESS_JSON=oldAccess;sql.close();}
+ finally{if(oldDb===undefined)delete env.DB;else env.DB=oldDb;if(oldAccess===undefined)delete env.LOKD_ROLE_ACCESS_JSON;else env.LOKD_ROLE_ACCESS_JSON=oldAccess;sql.close();}
 });
 
 test('stale, withdrawn, unreviewed and reassigned links suppress existing locations and new sharing',async()=>{

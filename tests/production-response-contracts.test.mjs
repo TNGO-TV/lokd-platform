@@ -94,12 +94,6 @@ test('protected review and readiness responses must bind the requested record an
  const jsx=(type,props)=>({type,props}),Hold=load('hold-audit.tsx',{'react/jsx-runtime':{jsx,jsxs:jsx}}).default;
  const rendered=JSON.stringify(Hold({response:holds}));assert.match(rendered,/OPS-1/);assert.match(rendered,/Independent investigation/);
 });
-test('private sandbox reads reject unrelated success and bind command, operation and application references',()=>{
- for(const query of ['commands','commandId=C-1','operationId=OP-1','applicationId=APP-1','catalogue=training','id=DOC-1'])assert.equal(contracts.financePrivateResponse({environment:'sandbox'},new URLSearchParams(query)),false);
- const data={environment:'sandbox',applicationId:'APP-1',applicationVersion:1,enrolmentPaid:false,training:[],workEligible:false};assert.equal(contracts.financePrivateResponse(data,new URLSearchParams('applicationId=APP-1')),true);assert.equal(contracts.financePrivateResponse(data,new URLSearchParams('applicationId=APP-2')),false);
- assert.equal(contracts.sandboxServiceResponse({mode:'sandbox',policyVersion:'lokd-sandbox-completion-v1',productionWorkEligible:false,data:{}},'schedule_read'),false);
-});
-
 test('finance document history validates serialized array entries before rendering and preserves historical test evidence',()=>{
  const source={kind:'invoice',source_id:'INV-1',party_id:'CLIENT-1',recipient_user:'USER-1',amount_cents:100,source_json:'{}',financial_json:'[]',currentState:'unpaid'};
  const document={...source,id:'FD-1',version:1,payload_hash:'a'.repeat(64),parent_id:null,decision:'approved',number:'INV-1',source:{},note:'Issued history',asIssuedState:'unpaid',sourceChanged:false,superseded:false,issued_at:'2026-10-16'};

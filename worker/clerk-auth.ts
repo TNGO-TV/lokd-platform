@@ -23,7 +23,7 @@ export async function authenticateClerkRequest(request: Request, env: ClerkEnv, 
     jwtKey: env.CLERK_JWT_KEY,
     authorizedParties: [
       "https://lokd.co.za", "https://www.lokd.co.za", "https://portal.lokd.co.za",
-      "https://officers.lokd.co.za", "https://operations.lokd.co.za", "https://demo.lokd.co.za",
+      "https://officers.lokd.co.za", "https://operations.lokd.co.za",
       ...(env.CLERK_AUTHORIZED_PARTIES || "").split(",").map((value) => value.trim()).filter(Boolean),
     ],
   });

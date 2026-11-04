@@ -44,11 +44,11 @@ function migratedDatabase() {
 
 
 const actors={officer:{id:'user_officer',email:'officer@example.test'},other:{id:'user_other',email:'other@example.test'},ops:{id:'user_ops',email:'ops@example.test'}};
-function request(who,scope,body){return new Request(`https://${scope==='officer'?'officers':'operations'}.lokd.co.za/api/psira?scope=${scope}`,{method:body?'POST':'GET',headers:{'content-type':'application/json',...(who?{'x-lokd-verified-email':actors[who].email,'x-lokd-verified-user-id':actors[who].id}:{})},body:body?JSON.stringify(body):undefined});}
+function request(who,scope,body){return new Request(`https://${scope==='officer'?'officers':'operations'}.lokd.co.za/api/psira?scope=${scope}`,{method:body?'POST':'GET',headers:{'content-type':'application/json',...(who?{'x-lokd-verified-email':actors[who].email,'x-lokd-verified-user-id':actors[who].id,'x-lokd-verified-mfa-enrolled':'true','x-lokd-verified-second-factor-at':new Date().toISOString()}:{})},body:body?JSON.stringify(body):undefined});}
 const evidence=()=>({source:PSIRA_SOURCE,checkedAt:new Date().toISOString(),returnedNumber:'1234567',returnedName:'Synthetic Officer',returnedStatus:'Registered',grade:'A',certificateExpiry:'',employmentStatus:'Inactive',excerpt:'Synthetic test fixture: Registered, Grade A. Not a live result.',identityEvidence:''});
 const review=(record,overrides={})=>({action:'review',caseId:record.id,expectedVersion:record.version,registrationStatus:'registered',identityMatch:'unchecked',evidence:evidence(),recheckAt:new Date(Date.now()+86400000).toISOString(),...overrides});
 test('account-bound PSiRA workflow preserves evidence, scope, identity separation, expiry and rechecks',async()=>{
- const db=migratedDatabase();env.DB=new D1Adapter(db);env.LOKD_APP_STAGE='demo';env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({operations:[actors.ops.email],officers:{[actors.officer.email]:'OFF-001',[actors.other.email]:'OFF-002'}});
+ const db=migratedDatabase();env.DB=new D1Adapter(db);env.LOKD_APP_STAGE='demo';env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({operations:[actors.ops.email],officers:{[actors.officer.email]:'OFF-001',[actors.other.email]:'OFF-002'}});
  try{
   assert.equal((await GET(request(null,'operations'))).status,401);
   const publicDemo=new Request('https://demo.lokd.co.za/api/psira?scope=operations');assert.equal((await GET(publicDemo)).status,401);
@@ -76,7 +76,7 @@ test('account-bound PSiRA workflow preserves evidence, scope, identity separatio
   const staleVersion=record.version;
   response=await POST(request('officer','officer',{action:'submit',psiraNumber:'7654321',expectedVersion:staleVersion}));record=(await response.json()).cases[0];assert.equal(record.psira_number,'7654321');assert.equal(record.verified,false);assert.equal(record.events.at(-1).psira_number,'1234567');
   assert.equal((await POST(request('ops','operations',review(record,{expectedVersion:staleVersion})))).status,409);
- }finally{db.close();delete env.DB;delete env.LOKD_PILOT_ACCESS_JSON;delete env.LOKD_APP_STAGE;}
+ }finally{db.close();delete env.DB;delete env.LOKD_ROLE_ACCESS_JSON;delete env.LOKD_APP_STAGE;}
 });
 test('source evidence fails closed for mismatched registration, future times, missing identity proof and stale deadlines',()=>{
  const base=review({id:'fixture',version:1});
@@ -89,7 +89,7 @@ test('source evidence fails closed for mismatched registration, future times, mi
 });
 
 test('training and unregistered declarations avoid lookup without granting work eligibility; switching to registered requires verification',async()=>{
- const db=migratedDatabase();env.DB=new D1Adapter(db);env.LOKD_APP_STAGE='demo';env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({operations:[actors.ops.email],officers:{[actors.officer.email]:'OFF-001'}});
+ const db=migratedDatabase();env.DB=new D1Adapter(db);env.LOKD_APP_STAGE='demo';env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({operations:[actors.ops.email],officers:{[actors.officer.email]:'OFF-001'}});
  try{
   for(const declaration of ['training','not_registered']){
    const current=(await(await GET(request('officer','officer'))).json()).cases[0];
@@ -101,7 +101,7 @@ test('training and unregistered declarations avoid lookup without granting work 
   let current=(await(await GET(request('officer','officer'))).json()).cases[0];
   assert.equal((await POST(request('officer','officer',{action:'submit',declaration:'registered',expectedVersion:current.version}))).status,400);
   const response=await POST(request('officer','officer',{action:'submit',declaration:'registered',psiraNumber:'1234567',expectedVersion:current.version}));assert.equal(response.status,200);current=(await response.json()).cases[0];assert.equal(current.events[0].registration_status,'pending_review');assert.equal(current.verified,false);assert.equal(current.events[1].registration_status,'not_required');
- }finally{db.close();delete env.DB;delete env.LOKD_PILOT_ACCESS_JSON;delete env.LOKD_APP_STAGE;}
+ }finally{db.close();delete env.DB;delete env.LOKD_ROLE_ACCESS_JSON;delete env.LOKD_APP_STAGE;}
 });
 
 test('production assignment gate requires matching, current registration and identity evidence',async()=>{

@@ -77,12 +77,12 @@ test('authority revocation/limit changes prevent disclosure across and during pa
  }finally{f.close();}
 });
 test('refund GET validates pagination and retains private no-store responses',async()=>{
- const f=fixture(),oldDb=env.DB,oldAccess=env.LOKD_PILOT_ACCESS_JSON;env.DB=f.db;env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({owners:[actor.email]});
+ const f=fixture(),oldDb=env.DB,oldAccess=env.LOKD_ROLE_ACCESS_JSON;env.DB=f.db;env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({owners:[actor.email]});
  const get=query=>GET(new Request('https://lokd.co.za/api/booking-refunds'+query,{headers:headers()}));
  try{
   const good=await get('?dataset=sources&pageSize=2');assert.equal(good.status,200);assert.equal(good.headers.get('cache-control'),'private, no-store');assert.equal((await good.json()).sources.length,2);
   for(const query of ['?pageSize=101','?pageSize=1&pageSize=2','?offset=5','?dataset=cases&sourcesCursor=bad','?cursor=bad','?dataset=invalid']){const r=await get(query);assert.equal(r.status,400,query);assert.equal(r.headers.get('cache-control'),'private, no-store');}
- }finally{if(oldDb===undefined)delete env.DB;else env.DB=oldDb;if(oldAccess===undefined)delete env.LOKD_PILOT_ACCESS_JSON;else env.LOKD_PILOT_ACCESS_JSON=oldAccess;f.close();}
+ }finally{if(oldDb===undefined)delete env.DB;else env.DB=oldDb;if(oldAccess===undefined)delete env.LOKD_ROLE_ACCESS_JSON;else env.LOKD_ROLE_ACCESS_JSON=oldAccess;f.close();}
 });
 
 test('production refund pages filter test history before paging and bind cursors to the mode boundary',async()=>{

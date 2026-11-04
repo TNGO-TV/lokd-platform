@@ -33,7 +33,7 @@ test('saved test-mode records cannot be relabeled through production mutations o
  }finally{sql.close();}
 });
 test('the separate production recovery endpoint refuses test actions and forged live aliases',async()=>{
- const {sql,db}=fixture(),saved={...env};Object.assign(env,{DB:db,LOKD_APP_STAGE:'production',LOKD_PILOT_ACCESS_JSON:JSON.stringify({owners:[actor.email]}),LOKD_OPERATIONS_MFA_REQUIRED:'false'});
+ const {sql,db}=fixture(),saved={...env};Object.assign(env,{DB:db,LOKD_APP_STAGE:'production',LOKD_ROLE_ACCESS_JSON:JSON.stringify({owners:[actor.email]}),LOKD_OPERATIONS_MFA_REQUIRED:'false'});
  try{
   for(const action of ['propose_test_disposition','approve_test_disposition','propose_live_disposition','approve_live_disposition']){
    const response=await recovery(new Request('https://operations.lokd.co.za/api/payment-recovery',{method:'POST',headers:{origin:'https://operations.lokd.co.za','content-type':'application/json','x-lokd-verified-email':actor.email,'x-lokd-verified-user-id':actor.userId},body:JSON.stringify({action,kind:'employee',reference:'test-record'})}));
@@ -43,7 +43,7 @@ test('the separate production recovery endpoint refuses test actions and forged 
 });
 
 test('production refund endpoint rejects a saved test collection before any refund workflow or provider call',async()=>{
- const {sql,db}=fixture(),saved={...env};Object.assign(env,{DB:db,LOKD_APP_STAGE:'production',LOKD_PILOT_ACCESS_JSON:JSON.stringify({owners:[actor.email]}),LOKD_OPERATIONS_MFA_REQUIRED:'false'});
+ const {sql,db}=fixture(),saved={...env};Object.assign(env,{DB:db,LOKD_APP_STAGE:'production',LOKD_ROLE_ACCESS_JSON:JSON.stringify({owners:[actor.email]}),LOKD_OPERATIONS_MFA_REQUIRED:'false'});
  try{for(const action of ['prepare','approve','claim','dispatch','observe','reconcile']){
   const response=await refund(new Request('https://operations.lokd.co.za/api/booking-refunds',{method:'POST',headers:{origin:'https://operations.lokd.co.za','content-type':'application/json','x-lokd-verified-email':actor.email,'x-lokd-verified-user-id':actor.userId},body:JSON.stringify({action,reference:'test-record'})}));
   assert.equal(response.status,423,await response.text());

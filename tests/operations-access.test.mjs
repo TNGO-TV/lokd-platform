@@ -4,11 +4,11 @@ import { env } from "cloudflare:workers";
 import { requirePilotApiRole } from "../app/lib/pilot-runtime.ts";
 
 test("supplemental Operations configuration retains authentication, workspace, MFA and role boundaries", () => {
-  const keys = ["LOKD_APP_STAGE", "LOKD_PILOT_ACCESS_JSON", "LOKD_OPERATIONS_ACCESS_JSON", "LOKD_OPERATIONS_MFA_REQUIRED"];
+  const keys = ["LOKD_APP_STAGE", "LOKD_ROLE_ACCESS_JSON", "LOKD_OPERATIONS_ACCESS_JSON", "LOKD_OPERATIONS_MFA_REQUIRED"];
   const previous = Object.fromEntries(keys.map(key => [key, env[key]]));
   try {
     env.LOKD_APP_STAGE = "production";
-    env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ operations: ["existing@example.test"] });
+    env.LOKD_ROLE_ACCESS_JSON = JSON.stringify({ operations: ["existing@example.test"] });
     env.LOKD_OPERATIONS_ACCESS_JSON = '["new@example.test"]';
     env.LOKD_OPERATIONS_MFA_REQUIRED = "true";
     // These headers represent the Worker boundary in a local simulated test only.
@@ -36,10 +36,10 @@ test("supplemental Operations configuration retains authentication, workspace, M
 });
 
 test('supplemental owner authority retains authentication, workspace and MFA checks', () => {
-  const keys=['LOKD_APP_STAGE','LOKD_PILOT_ACCESS_JSON','LOKD_OPERATIONS_ACCESS_JSON','LOKD_OWNER_ACCESS_JSON','LOKD_OPERATIONS_MFA_REQUIRED'];
+  const keys=['LOKD_APP_STAGE','LOKD_ROLE_ACCESS_JSON','LOKD_OPERATIONS_ACCESS_JSON','LOKD_OWNER_ACCESS_JSON','LOKD_OPERATIONS_MFA_REQUIRED'];
   const previous=Object.fromEntries(keys.map(k=>[k,env[k]]));
   try {
-    Object.assign(env,{LOKD_APP_STAGE:'production',LOKD_PILOT_ACCESS_JSON:'{}',LOKD_OPERATIONS_ACCESS_JSON:'["ordinary@example.test"]',LOKD_OWNER_ACCESS_JSON:'["approver@example.test"]',LOKD_OPERATIONS_MFA_REQUIRED:'true'});
+    Object.assign(env,{LOKD_APP_STAGE:'production',LOKD_ROLE_ACCESS_JSON:'{}',LOKD_OPERATIONS_ACCESS_JSON:'["ordinary@example.test"]',LOKD_OWNER_ACCESS_JSON:'["approver@example.test"]',LOKD_OPERATIONS_MFA_REQUIRED:'true'});
     const request=(email,method='GET',host='operations.lokd.co.za')=>new Request(`https://${host}/api/quotes?scope=operations`,{method,headers:email?{'x-lokd-verified-email':email,'x-lokd-verified-user-id':'fixture'}:{}});
     assert.equal(requirePilotApiRole(request('approver@example.test'),'operations').owner,true);
     assert.equal(requirePilotApiRole(request('ordinary@example.test'),'operations').owner,false);

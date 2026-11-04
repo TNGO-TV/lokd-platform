@@ -92,14 +92,14 @@ test('public legal, contact, footer and organisation metadata use the approved c
  assert.doesNotMatch(html,/verified officers|Parktown Estates|Tactical Nation/);
 });
 
-test('root layout renders feedback only on explicitly enabled test hosts and metadata makes no verification claim',async()=>{
+test('root layout never enables retired feedback and metadata makes no verification claim',async()=>{
  for(const host of ['lokd.co.za','officers.lokd.co.za','clients.lokd.co.za','operations.lokd.co.za','demo.lokd.co.za'])for(const stage of ['production','prelaunch','demo'])for(const flag of ['true','false']){
   const runtime={LOKD_APP_STAGE:stage,LOKD_TEST_SURFACES_ENABLED:flag};
   const rootModules={...modules,'next/headers':{headers:async()=>new Headers({host})},'cloudflare:workers':{env:runtime},'./components/clerk-login':{LokdClerkProvider:({children})=>children},'./lokd-auth':{getLokdUser:async()=>({id:'synthetic-user'})},'./components/pilot-feedback':{default:()=>React.createElement('div',{'data-feedback':'true'},'Feedback fixture')},'./components/seo-json-ld':{OrganisationJsonLd:()=>null},'./lib/public-site':{PUBLIC_SITE_URL:'https://lokd.co.za'},'./test-surface-policy':{testSurfacesEnabled},'next/navigation':{notFound:()=>{throw Error('not found');}}};
   rootModules['./lib/test-surface-page']=load('../lib/test-surface-page.ts',rootModules);
   const root=load('../layout.tsx',rootModules);
   const html=renderToStaticMarkup(await root.default({children:React.createElement('main',null,'Production content')}));
-  assert.equal(html.includes('data-feedback'),host==='demo.lokd.co.za'&&stage!=='production'&&flag==='true',`${host}/${stage}/${flag}`);
+  assert.equal(html.includes('data-feedback'),false,`${host}/${stage}/${flag}`);
   assert.doesNotMatch(JSON.stringify(root.metadata),/verified officers/i);
  }
 });

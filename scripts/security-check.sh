@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Uses isolated fixtures only. Never runs test:accounts or deploys a release.
+# Uses local fixtures only and does not deploy a release.
 # npm audit sends the locked dependency metadata to the configured npm registry.
 node scripts/verify-vendor.mjs
 node scripts/check-dependency-audit.mjs

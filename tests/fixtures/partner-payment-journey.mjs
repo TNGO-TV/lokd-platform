@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import {operatePartnerPayment as operate,readPartnerPayments as read,receivePartnerTransferWebhook} from '../../app/lib/partner-payments.ts';
 import {operatePartnerDestination} from '../../app/lib/partner-destinations.ts';
 import {operateProduction} from '../../app/lib/production-operations.ts';
-import {receivePaystackTest} from '../../app/lib/paystack-test.ts';
 export async function partnerPaymentJourney({database,db,maker,owner,finance,officer,client,headers,payableId}){
  const item=database.prepare('SELECT * FROM partner_payables WHERE id=?').get(payableId);
  const runtime={PAYSTACK_TEST_SECRET_KEY:'sk_test_employee_fixture',PAYSTACK_LIVE_SECRET_KEY:'sk_live_employee_fixture'};
@@ -58,8 +57,8 @@ export async function partnerPaymentJourney({database,db,maker,owner,finance,off
  assert.equal((await operate(db,finance,command('verify_partner_test'),headers,runtime,transport)).providerState,'awaiting_signed_confirmation');
  const signed=async(event,data=transfer)=>{const body=JSON.stringify({event,data}),key=await crypto.subtle.importKey('raw',new TextEncoder().encode(runtime.PAYSTACK_TEST_SECRET_KEY),{name:'HMAC',hash:'SHA-512'},false,['sign']);const signature=Buffer.from(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(body))).toString('hex');return new Request('https://lokd.co.za/api/paystack/test/webhook',{method:'POST',headers:{'x-paystack-signature':signature},body});};
  await assert.rejects(()=>receivePartnerTransferWebhook(new Request('https://fixture',{method:'POST',body:'{}'}),db,runtime),/signature/);
- assert.equal((await receivePaystackTest(await signed('transfer.success',{...transfer,domain:'live'}),{...runtime,DB:db})).status,422);
- assert.equal((await receivePaystackTest(await signed('transfer.success'),{...runtime,DB:db})).status,200);assert.equal((await receivePaystackTest(await signed('transfer.success'),{...runtime,DB:db})).status,200);
+ const signedLive=await signed('transfer.success',{...transfer,domain:'live'});await assert.rejects(()=>receivePartnerTransferWebhook(signedLive,db,runtime));
+ assert.equal((await receivePartnerTransferWebhook(await signed('transfer.success'),db,runtime)).received,true);assert.equal((await receivePartnerTransferWebhook(await signed('transfer.success'),db,runtime)).received,true);
  assert.equal(database.prepare("SELECT count(*) n FROM partner_transfer_observations WHERE source='webhook'").get().n,1);
  assert.equal((await read(db,finance)).partnerPayments.find(i=>i.reference===ref).providerState,'verification_required');
  assert.equal((await operate(db,finance,command('verify_partner_test'),headers,runtime,transport)).providerState,'confirmed_test');

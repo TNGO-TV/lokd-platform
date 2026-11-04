@@ -16,7 +16,7 @@ test('second-factor proof rejects missing, unenrolled, malformed and expired ass
  }
 });
 test('live Operations mutations need request proof; demo rehearsal and read access do not confer it',()=>{
- env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({operations:['ops@example.test']});
+ env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({operations:['ops@example.test']});
  const request=(headers,method='POST')=>new Request('https://operations.lokd.co.za/api/specialist',{method,headers});
  const headers=proof();
  for(const stage of ['production','pilot','prelaunch']){
@@ -27,10 +27,10 @@ test('live Operations mutations need request proof; demo rehearsal and read acce
   assert.equal(requirePilotApiRole(request(stale,'GET'),'operations').email,'ops@example.test');
  }
  env.LOKD_APP_STAGE='demo';const demo=new Headers(headers);demo.delete('x-lokd-verified-second-factor-at');
- assert.equal(requirePilotApiRole(request(demo),'operations').email,'ops@example.test');
+ assert.throws(()=>requirePilotApiRole(request(demo),'operations'),/second factor/);
 });
 test('security endpoint never uses demo fallback and gives enrollment/reverification separately',async()=>{
- env.LOKD_APP_STAGE='demo';env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({operations:['ops@example.test']});
+ env.LOKD_APP_STAGE='demo';env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({operations:['ops@example.test']});
  const request=headers=>new Request('https://operations.lokd.co.za/api/operations/security?verify=1',{headers});
  assert.equal((await GET(request({}))).status,401);
  const headers=proof();assert.equal((await GET(request(headers))).status,200);
@@ -44,7 +44,7 @@ test('security endpoint never uses demo fallback and gives enrollment/reverifica
 test('owner MFA suspension uses only server configuration and preserves identity and role denial', async()=>{
  const previous=env.LOKD_OPERATIONS_MFA_REQUIRED;
  try {
-  env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({operations:['ops@example.test'],clients:['client@example.test']});
+  env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({operations:['ops@example.test'],clients:['client@example.test']});
   env.LOKD_APP_STAGE='production';
   const headers=new Headers({'x-lokd-verified-user-id':'user_ops','x-lokd-verified-email':'ops@example.test'});
   const mutation=(h)=>new Request('https://operations.lokd.co.za/api/specialist',{method:'POST',headers:h});
