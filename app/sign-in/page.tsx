@@ -8,16 +8,12 @@ import { PublicHeader, PublicFooter } from "../components/public-site-shell";
 import { getLokdUser } from "../lokd-auth";
 import { signInDestination } from "../lib/clerk-access";
 import { hasSignupSubmission } from "../lib/signup-server";
+import { operationsEmailAllowed } from "../lib/signup-access";
 import { publicMetadata, requestHostname, workspaceRoleForHost, workspaceRedirectForHost, type WorkspaceRole } from "../lib/public-site";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { ...publicMetadata("Sign in to your account", "Sign in securely to your LOKD client, officer or operations account.", "/sign-in"), robots: { index: false, follow: false } };
 
-function isOperator(email: string, runtime: Record<string, string | undefined>) {
-  return ["LOKD_OWNER_ACCESS_JSON", "LOKD_OPERATIONS_ACCESS_JSON"].some(key => {
-    try { const entries: unknown = JSON.parse(runtime[key] ?? "[]"); return Array.isArray(entries) && entries.some(entry => typeof entry === "string" && entry.toLowerCase() === email.toLowerCase()); } catch { return false; }
-  });
-}
 async function Login({ searchParams }: { searchParams: Promise<{ return_to?: string }> }) {
   const requestHeaders = await headers();
   const hostname = requestHostname(requestHeaders.get("host"));
@@ -30,7 +26,7 @@ async function Login({ searchParams }: { searchParams: Promise<{ return_to?: str
   if (user) {
     let role: WorkspaceRole = hostRole ?? (destination.startsWith("/ops") ? "operations" : destination.startsWith("/officer") ? "officer" : "client");
     if (!hostRole && destination === "/") {
-      if (isOperator(user.email, runtime)) role = "operations";
+      if (operationsEmailAllowed(user.email, runtime)) role = "operations";
       else if (env.DB) {
         const userId = requestHeaders.get("x-lokd-verified-user-id");
         if (userId && await hasSignupSubmission(env.DB, { userId, email: user.email, operations: false }, "officer")) role = "officer";

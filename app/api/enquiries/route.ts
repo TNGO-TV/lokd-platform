@@ -4,6 +4,8 @@ import { env } from "cloudflare:workers";
 import { agreementHash } from "../../lib/agreement-acceptance";
 import { operationsMfaStatus } from "../../lib/operations-mfa";
 import { deliverEnquiryEmails } from "../../lib/signup-enquiry-delivery";
+import { operationsEmailAllowed } from "../../lib/signup-access";
+import { workspaceRoleForHost } from "../../lib/public-site";
 import type { OperationalRuntime } from "../../lib/operational-provider";
 
 export const dynamic = "force-dynamic";
@@ -70,10 +72,9 @@ function requireSignedInOperations(request: Request) {
   const userId=request.headers.get('x-lokd-verified-user-id'),email=request.headers.get('x-lokd-verified-email');
   if (!userId || !email) throw new EnquiryError('Sign in to Operations to continue.',401);
   const runtime=env as unknown as Record<string,string|undefined>;
-  const allowed=['LOKD_OWNER_ACCESS_JSON','LOKD_OPERATIONS_ACCESS_JSON'].some(key=>{
-    try { const list:unknown=JSON.parse(runtime[key]??'[]');return Array.isArray(list)&&list.some(entry=>typeof entry==='string'&&entry.toLowerCase()===email.toLowerCase()); } catch { return false; }
-  });
-  if (!allowed) throw new EnquiryError('Operations access is required.',403);
+  const hostRole=workspaceRoleForHost(new URL(request.url).hostname);
+  if (hostRole && hostRole !== 'operations') throw new EnquiryError('Open the Operations workspace to continue.',403);
+  if (!operationsEmailAllowed(email,runtime)) throw new EnquiryError('Operations access is required.',403);
   if (!operationsMfaStatus(request.headers).fresh) throw new EnquiryError('Verify your Operations second factor at /ops/security.',403);
   return {userId,email};
 }

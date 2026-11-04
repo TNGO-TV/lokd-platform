@@ -201,7 +201,7 @@ test("only signed-in Operations can own and close a client enquiry, including sa
   env.DB = new D1Adapter(database);
   env.LOKD_APP_STAGE = "production";
   env.LOKD_ROLE_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
-  env.LOKD_OWNER_ACCESS_JSON = JSON.stringify(["owner@lokd.example"]);
+  delete env.LOKD_OWNER_ACCESS_JSON;
   const enquiries = await import("../app/api/enquiries/route.ts");
   const submitted = await enquiries.POST(publicRequest({ ...validEnquiry, email: "second@example.test" }));
   const { reference } = await submitted.json();

@@ -46,10 +46,6 @@ export function requestHostname(value: string | null) {
   return ((value ?? "").split(":", 1)[0] ?? "").trim().toLowerCase();
 }
 
-export function isLegacyPublicDemoHost(hostname: string) {
-  return hostname === "demo.lokd.co.za";
-}
-
 export function isClientPortalHost(hostname: string) {
   return hostname === "portal.lokd.co.za";
 }

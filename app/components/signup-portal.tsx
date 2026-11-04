@@ -52,6 +52,7 @@ function SignupWorkspace({kind,operations}:{kind:SignupKind;operations:boolean})
 }
 function RecordCard({record,operations,busy,run,refresh,onUnconfirmed}:{record:SignupRecord;operations:boolean;busy:boolean;run:(body:Record<string,unknown>)=>Promise<boolean>;refresh:()=>Promise<boolean>;onUnconfirmed:(message:string)=>void}) {
  const [productionReference,setProductionReference]=useState('');
+ const [preparing,setPreparing]=useState(false);
  const [deliveryNotice,setDeliveryNotice]=useState(''),[sendingEmail,setSendingEmail]=useState(false);
  const emailLock=useRef(false);
  async function retryEnquiryEmail(){
@@ -66,7 +67,6 @@ function RecordCard({record,operations,busy,run,refresh,onUnconfirmed}:{record:S
   finally{emailLock.current=false;setSendingEmail(false);}
  }
  const prepareLock=useRef(false);
- const [preparing,setPreparing]=useState(false);
  async function prepareProduction(){
   if(prepareLock.current||busy)return;
   prepareLock.current=true;setPreparing(true);setProductionReference('');
