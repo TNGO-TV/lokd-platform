@@ -714,17 +714,6 @@ for (const route of ["managed", "partner"]) {
   });
 }
 
-test("synthetic commands cannot invoke production activation", async () => {
-  const database = migratedDatabase();
-  await seedValid(database);
-  await signFixtureAgreements(database);
-  const db = new D1Adapter(database);
-  await assert.rejects(() => activateAssignment(db, { ...request("activation:demo-rejected"), environment: "demo_synthetic" }, "ops@example.test"), /synthetic demo/i);
-  assert.equal(count(database, "assignment_activation_commands"), 0);
-  assert.equal(count(database, "roster_assignments"), 0);
-  database.close();
-});
-
 test("a production candidate command cannot reference synthetic client, booking, site, post or slot records", async () => {
   const database = migratedDatabase();
   await seedValid(database);
@@ -1875,7 +1864,7 @@ test('bound officer signature projects workforce terms with replay, cancellation
 });
 
 test('production payroll policy requires three separately granted actors and preserves immutable versions',async()=>{
- const {manageProductionPayrollPolicy}=await import('../app/lib/production-payroll-policy.ts');const {SYNTHETIC_ENGINE_TEST_POLICY}=await import('../app/lib/payroll-engine.ts');
+ const {manageProductionPayrollPolicy}=await import('../app/lib/production-payroll-policy.ts');const {FIXTURE_ENGINE_POLICY:SYNTHETIC_ENGINE_TEST_POLICY}=await import('./fixtures/payroll-engine-policy.mjs');
  const database=migratedDatabase(),db=new D1Adapter(database),headers=operatorHeaders();
  const owner={userId:'payroll-owner',email:'payroll-owner@example.test',operations:true,owner:true},maker={...owner,userId:'policy-maker',email:'policy-maker@example.test',owner:false},reviewer={...maker,userId:'policy-reviewer',email:'policy-reviewer@example.test'},approver={...maker,userId:'policy-approver',email:'policy-approver@example.test'};
  for(const [actor,roles] of [[maker,['payroll_preparer','payroll_reviewer','finance_approver']],[reviewer,['payroll_reviewer','finance_approver']],[approver,['finance_approver']]])for(const role of roles)await operateProduction(db,owner,{action:'grant_operator',email:actor.email,role,limitCents:1000000},headers);

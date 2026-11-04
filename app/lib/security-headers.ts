@@ -40,7 +40,7 @@ export function secureRequest(request: Request) {
 export function officerLocationAllowed(request: Request) {
   const url=new URL(request.url),host=url.hostname;
   const officerHost=host==='officers.lokd.co.za';
-  const localHost=host==='localhost'||host==='127.0.0.1'||host==='app.local'||host==='demo.lokd.co.za'||host.endsWith('.chatgpt.site');
+  const localHost=host==='localhost'||host==='127.0.0.1'||host==='app.local'||host.endsWith('.chatgpt.site');
   const officerPage=url.pathname.replace(/\/+$/,'')==='/officer';
   const officerSignup=url.pathname==='/signup'&&(officerHost||url.searchParams.get('kind')!=='client');
   return (officerHost||localHost)&&(officerPage||officerSignup);
@@ -49,7 +49,7 @@ export function officerLocationAllowed(request: Request) {
 export function secureResponse(response: Response, policy: string, request?: Request) {
   const secured = new Response(response.body, response);
   for (const [name, value] of Object.entries(baselineSecurityHeaders)) secured.headers.set(name, value);
-  // Preserve sandboxed attachment policies; normal HTML must match its SSR nonce.
+  // Preserve attachment CSPs set by download routes; normal HTML must match its SSR nonce.
   const html = secured.headers.get('content-type')?.split(';')[0].trim() === 'text/html';
   if (html && !secured.headers.has('content-disposition')) {
     if(request&&officerLocationAllowed(request))secured.headers.set('permissions-policy','camera=(), microphone=(), geolocation=(self), payment=()');

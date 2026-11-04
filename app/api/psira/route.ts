@@ -9,7 +9,7 @@ import { PsiraError } from '../../lib/psira-verification';
 import { readPsiraCases, writePsiraCase } from '../../lib/psira-server';
 export const dynamic = 'force-dynamic';
 async function actor(request: Request) {
-  // This workflow stores real evidence: public demo fallback is never sufficient.
+  // This workflow stores real evidence: only verified Worker identity headers are accepted.
   const userId = request.headers.get('x-lokd-verified-user-id');
   const email = request.headers.get('x-lokd-verified-email');
   if (!userId || !email) throw new PsiraError('Sign in to access your registration verification.',401);

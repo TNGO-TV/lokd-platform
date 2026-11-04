@@ -4,6 +4,7 @@ import type {SigningActor} from './production-signing';
 import { SPECIALIST_PRICING_VERSION, specialistProfiles, type SpecialistServiceCode } from "./specialist-pricing";
 import { SPECIALIST_TERMS_VERSION, evaluateSpecialistPack, quoteFingerprint, requiredSpecialistChecks } from "./specialist-operations-core";
 import type { SpecialistAction, SpecialistBooking, SpecialistCommercialReview, SpecialistEnvironment, SpecialistOperationsState, SpecialistPack, SpecialistPackContent, SpecialistPartner } from "./specialist-operations-types";
+import { NONPRODUCTION_REFERENCE_PATTERN } from "./stored-identifiers";
 
 export class SpecialistWorkflowError extends Error {
   status: number;
@@ -28,7 +29,7 @@ function date(value:unknown,label:string) {
 }
 function evidenceRef(value:unknown,environment:SpecialistEnvironment) {
   const result=text(value,"Evidence reference",500);
-  if(environment==="production" && /demo:|synthetic|\.invalid\b|\.example\b/i.test(result)) throw new SpecialistWorkflowError("Use a verifiable source document for this record.");
+  if(environment==="production" && NONPRODUCTION_REFERENCE_PATTERN.test(result)) throw new SpecialistWorkflowError("Use a verifiable source document for this record.");
   return result;
 }
 async function rows<T>(db:D1Database,sql:string,...values:unknown[]) { return (await db.prepare(sql).bind(...values).all<T>()).results ?? []; }

@@ -54,8 +54,8 @@ export async function operateEmployeePayment(db:D1Database,actor:SigningActor,in
  const op=await productionOperatorControl(db,actor,headers,code,i.amount_cents,action==='cancel_employee_payment'?undefined:i.prepared_by);
  if(snapshot.ownerUser===actor.userId||action!=='cancel_employee_payment'&&i.prepared_user===actor.userId)throw new SignupError('Independent employee payment review is required.',403);
  if(input.sourceHash!==i.source_hash||await agreementHash(i.source_json)!==i.source_hash)throw new SignupError('Refresh the exact saved instruction evidence.',409);
- // No runtime flag can bypass the existing controlled-pilot live settlement lock.
- if(['dispatch_employee_test','verify_employee_test'].includes(action)&&i.mode!=='test')throw new SignupError('Live salary dispatch remains locked until controlled-pilot operating acceptance.',423);
+ // No runtime flag can bypass the live settlement lock.
+ if(['dispatch_employee_test','verify_employee_test'].includes(action)&&i.mode!=='test')throw new SignupError('Live salary dispatch remains locked until live settlement is approved.',423);
  if(action==='verify_employee_test'){
   if(i.status!=='dispatch_claimed')throw new SignupError('Only a previously claimed test submission may be verified.',409);
   const events=await observations(db,i.reference),secret=destinationKey(runtime,'test'),raw=await provider(secret,'/transfer/verify/'+i.reference,transport);
