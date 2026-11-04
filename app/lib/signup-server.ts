@@ -17,7 +17,7 @@ function select(kind: SignupKind) {
   const c=config[kind];
   return `SELECT s.id,s.email_normalized AS email,s.created_at AS createdAt,coalesce(c.updated_at,s.updated_at) AS updatedAt,c.owner_user_id AS owner,c.version,c.status,c.public_note AS note,c.corrections_json AS corrections,${c.fields} AS details
     FROM ${c.table} s LEFT JOIN signup_cases c ON c.source_id=s.id AND c.kind='${kind}'
-    WHERE s.environment='prelaunch' AND s.integrity_state='user_submitted'`;
+    WHERE s.environment='production' AND s.integrity_state='user_submitted'`;
 }
 function visibility(actor: SignupActor) {
   return actor.operations ? {sql:'',values:[]} : {

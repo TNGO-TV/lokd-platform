@@ -162,7 +162,7 @@ WHEN EXISTS(SELECT 1 FROM operational_delivery_jobs WHERE id=NEW.id OR (kind=NEW
  OR NEW.state!='queued' OR NEW.attempts!=0 OR NEW.provider_id IS NOT NULL OR NEW.request_json IS NOT NULL
  OR NEW.recipient IS NOT NULL OR NEW.first_attempt_at IS NOT NULL
  OR NOT (
-  (NEW.kind IN ('enquiry_crm','enquiry_email') AND NEW.environment='prelaunch' AND EXISTS(SELECT 1 FROM client_enquiries WHERE id=NEW.source_id AND environment='prelaunch' AND integrity_state='user_submitted'))
+  (NEW.kind IN ('enquiry_crm','enquiry_email') AND NEW.environment='production' AND EXISTS(SELECT 1 FROM client_enquiries WHERE id=NEW.source_id AND environment='production' AND integrity_state='user_submitted'))
   OR (NEW.kind='booking_email' AND NEW.environment='production' AND EXISTS(SELECT 1 FROM production_order_setups WHERE id=NEW.source_id))
   OR (NEW.kind='contract_email' AND NEW.environment='production' AND (EXISTS(SELECT 1 FROM production_signing_envelopes WHERE id=NEW.source_id) OR EXISTS(SELECT 1 FROM client_quote_offers WHERE id=NEW.source_id)))
  )

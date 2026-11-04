@@ -90,11 +90,11 @@ test('every advertised service saves without granting credit or bypassing intake
    const result=await submitClientEnquiry(publicRequest({...validEnquiry,serviceType,requestKey:crypto.randomUUID()}),db);
    assert.equal(result.status,202,await result.clone().text());const {reference}=await result.json();
    const row=database.prepare('SELECT * FROM client_enquiries WHERE id=?').get(reference);
-   assert.equal(row.service_type,serviceType);assert.equal(row.credit_terms_days,0);assert.equal(row.integrity_state,'user_submitted');assert.equal(row.environment,'prelaunch');
+   assert.equal(row.service_type,serviceType);assert.equal(row.credit_terms_days,0);assert.equal(row.integrity_state,'user_submitted');assert.equal(row.environment,'production');
    const columns=Object.keys(row),insert=database.prepare('INSERT INTO client_enquiries('+columns.join(',')+') VALUES('+columns.map(()=>'?').join(',')+')');
-   for(const changed of [{service_type:'unsupported_service'},{credit_terms_days:30},{environment:'production'},{integrity_state:'synthetic'}]){
+   for(const changed of [{service_type:'unsupported_service'},{credit_terms_days:30},{environment:'staging'},{integrity_state:'synthetic'}]){
     const forged={...row,...changed,id:crypto.randomUUID()};
-    assert.throws(()=>insert.run(...columns.map(key=>forged[key])),/CHECK|invalid|prelaunch|controlled/);
+    assert.throws(()=>insert.run(...columns.map(key=>forged[key])),/CHECK|invalid|production|controlled/);
    }
   }
   assert.equal(database.prepare('SELECT count(*) n FROM client_enquiries').get().n,7);
@@ -159,7 +159,7 @@ test('honeypots, malformed bodies and invalid submission keys do not claim a sav
  }finally{database.close();}
 });
 
-test("public client intake stays prelaunch, zero-credit and separate from bookings", async () => {
+test("public client intake stays production, zero-credit and separate from bookings", async () => {
   const database = migratedDatabase();
   env.DB = new D1Adapter(database);
   env.LOKD_APP_STAGE = "production";
@@ -175,7 +175,7 @@ test("public client intake stays prelaunch, zero-credit and separate from bookin
   const saved = database.prepare(`SELECT environment,integrity_state AS integrityState,service_type AS serviceType,
     funding_model AS fundingModel,credit_terms_days AS creditTermsDays,status,version FROM client_enquiries WHERE id=?`).get(body.reference);
   assert.deepEqual({ ...saved }, {
-    environment: "prelaunch",
+    environment: "production",
     integrityState: "user_submitted",
     serviceType: "scheduled_unarmed_fixed_site",
     fundingModel: "advance_only",

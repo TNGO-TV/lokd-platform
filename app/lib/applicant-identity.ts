@@ -9,7 +9,7 @@ type CaseRow={source_id:string;owner_user_id:string;version:number;status:string
 const consentVersion='lokd-officer-identity-2026-11-v1';
 export async function identityCase(db:D1Database,userId:string,id:string){
  const c=await db.prepare(`SELECT c.source_id,c.owner_user_id,c.version,c.status,s.pathway,s.psira_status AS psiraStatus,c.corrections_json AS corrections
- FROM signup_cases c JOIN officer_applications s ON s.id=c.source_id WHERE c.kind='officer' AND c.source_id=? AND c.owner_user_id=? AND s.environment='prelaunch' AND s.integrity_state='user_submitted'`).bind(id,userId).first<CaseRow>();
+ FROM signup_cases c JOIN officer_applications s ON s.id=c.source_id WHERE c.kind='officer' AND c.source_id=? AND c.owner_user_id=? AND s.environment='production' AND s.integrity_state='user_submitted'`).bind(id,userId).first<CaseRow>();
  if(!c)throw new SignupError('Link your own officer application first.',404);
  if(c.status==='withdrawn')throw new SignupError('This application is withdrawn.',409);
  const changes=JSON.parse(c.corrections);return {...c,pathway:changes.pathway??c.pathway,psiraStatus:changes.psiraStatus??c.psiraStatus};

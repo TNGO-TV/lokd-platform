@@ -112,7 +112,7 @@ export async function GET(request:Request){
    FROM officer_applications a LEFT JOIN signup_cases c ON c.kind='officer' AND c.source_id=a.id
    LEFT JOIN officer_email_outbox n ON n.id='application-confirmation:'||a.id
    LEFT JOIN officer_work_notifications er ON er.id='enrolment:'||a.id||':'||c.version||':'||c.owner_user_id AND er.kind='enrolment_request'
-   WHERE a.environment='prelaunch' AND a.integrity_state='user_submitted'
+   WHERE a.environment='production' AND a.integrity_state='user_submitted'
    ORDER BY a.created_at DESC LIMIT 100`).all<{pathway:string;psiraStatus:string;services:string;purposes:string;training:string}>();
   return response({applications:result.results.map(item=>({...item,services:JSON.parse(item.services),purposes:JSON.parse(item.purposes),training:JSON.parse(item.training),psiraVerificationRequired:applicationPsiraDeclaration(item.pathway,item.psiraStatus)==='registered'}))});
  }catch(error){return responseError(error);}
@@ -124,7 +124,7 @@ export async function PATCH(request:Request){
   if(!input||typeof input!=='object'||Array.isArray(input))throw new ApplicationError('Choose an application.');
   const id=cleanText(input.id,'Application reference',8,100);
   if(input.action==='retry_confirmation'){
-   const source=await db.prepare("SELECT id FROM officer_applications WHERE id=? AND environment='prelaunch' AND integrity_state='user_submitted'").bind(id).first();
+   const source=await db.prepare("SELECT id FROM officer_applications WHERE id=? AND environment='production' AND integrity_state='user_submitted'").bind(id).first();
    if(!source)throw new ApplicationError('Application not found.',404);
    const delivery=await deliverOfficerEmail(db,env,'application-confirmation:'+id);
    return response(delivery,delivery.sent?200:503);
@@ -201,7 +201,7 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
        identity_verification_status, identity_consent_version, identity_consented_at,
        environment, integrity_state, status, source, retention_review_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, 'consent_pending', NULL, NULL,
-       'prelaunch', 'user_submitted', ?, 'homepage', ?, ?, ?)`)
+       'production', 'user_submitted', ?, 'homepage', ?, ?, ?)`)
       .bind(id, pathway, fullName, mobile, email, city, province, psiraStatus, psiraNumber, psiraGrade,
         JSON.stringify(services), JSON.stringify(purposes), JSON.stringify(training), privacyNoticeVersion, nowIso,
         psiraIntakeStatus(declaration), retentionReview.toISOString(), nowIso, nowIso);

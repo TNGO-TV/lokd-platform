@@ -107,7 +107,7 @@ async function createArmed(db){
  const b=(await current()).bookings[0];assert.equal(b.pricingValid,1);assert.equal(b.planCurrent,1);assert.equal(b.authorityCurrent,1);assert.equal(b.fundingCurrent,1);return b;
 }
 function link(db,kind,name,entityId){
- const table=kind==='client'?'client_enquiries':'officer_applications',values={id:'case-'+name,environment:'prelaunch',integrity_state:'user_submitted',created_at:now,...(kind==='client'?{retention_review_at:future(90),privacy_acknowledged_at:now}:{})};
+ const table=kind==='client'?'client_enquiries':'officer_applications',values={id:'case-'+name,environment:'production',integrity_state:'user_submitted',created_at:now,...(kind==='client'?{retention_review_at:future(90),privacy_acknowledged_at:now}:{})};
  for(const f of db.prepare('PRAGMA table_info('+table+')').all())if(f.notnull&&f.dflt_value===null&&!(f.name in values))values[f.name]=f.type.toLowerCase().includes('int')?0:'Local fixture';
  db.prepare('INSERT INTO '+table+'('+Object.keys(values).join(',')+') VALUES('+Object.keys(values).map(()=>'?').join(',')+')').run(...Object.values(values));
  db.prepare("INSERT INTO signup_cases(kind,source_id,owner_user_id,status,public_note,corrections_json,version,latest_event_id,updated_at) VALUES(?,?,?,'reviewed','','{}',1,'fixture-event',?)").run(kind,'case-'+name,name,now);

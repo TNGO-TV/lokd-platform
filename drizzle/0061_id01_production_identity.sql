@@ -51,7 +51,7 @@ CREATE TABLE `production_identity_suspensions` (
 --> statement-breakpoint
 CREATE TRIGGER production_identity_case_guard BEFORE INSERT ON production_identity_cases BEGIN
  SELECT (CASE WHEN EXISTS(SELECT 1 FROM production_identity_cases c JOIN production_identity_outcomes o ON o.case_id=c.id AND o.sequence=(SELECT MAX(sequence) FROM production_identity_outcomes WHERE case_id=c.id) WHERE c.applicant_id=NEW.applicant_id AND o.outcome IN ('pending','delivery_unknown','unavailable','manual_review')) THEN RAISE(ABORT,'Previous identity delivery unresolved') END);
- SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM signup_cases c JOIN officer_applications a ON a.id=c.source_id WHERE c.kind='officer' AND c.source_id=NEW.applicant_id AND c.version=NEW.applicant_version AND c.owner_user_id=NEW.owner_user_id AND c.status<>'withdrawn' AND a.environment='prelaunch' AND a.integrity_state='user_submitted') THEN RAISE(ABORT,'Identity applicant changed') END);
+ SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM signup_cases c JOIN officer_applications a ON a.id=c.source_id WHERE c.kind='officer' AND c.source_id=NEW.applicant_id AND c.version=NEW.applicant_version AND c.owner_user_id=NEW.owner_user_id AND c.status<>'withdrawn' AND a.environment='production' AND a.integrity_state='user_submitted') THEN RAISE(ABORT,'Identity applicant changed') END);
 END;
 --> statement-breakpoint
 CREATE TRIGGER production_identity_outcome_guard BEFORE INSERT ON production_identity_outcomes BEGIN
@@ -64,7 +64,7 @@ END;
 CREATE VIEW current_production_identity_evidence AS
  SELECT c.*,o.id AS outcome_id,o.sequence,o.provider_reference,o.evidence_reference,o.evidence_hash,o.checked_at,o.expires_at,d.actor_id AS reviewed_by,d.recorded_at AS reviewed_at
  FROM production_identity_cases c JOIN signup_cases s ON s.kind='officer' AND s.source_id=c.applicant_id AND s.version=c.applicant_version AND s.owner_user_id=c.owner_user_id AND s.status<>'withdrawn'
- JOIN officer_applications a ON a.id=s.source_id AND a.environment='prelaunch' AND a.integrity_state='user_submitted'
+ JOIN officer_applications a ON a.id=s.source_id AND a.environment='production' AND a.integrity_state='user_submitted'
  JOIN production_identity_outcomes o ON o.case_id=c.id AND o.sequence=(SELECT MAX(sequence) FROM production_identity_outcomes WHERE case_id=c.id)
  JOIN production_identity_decisions d ON d.outcome_id=o.id AND d.decision='approve'
  WHERE o.outcome='verified' AND julianday(o.expires_at)>julianday('now') AND NOT EXISTS(SELECT 1 FROM production_identity_suspensions x WHERE x.case_id=c.id);

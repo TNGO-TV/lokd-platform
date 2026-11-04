@@ -67,7 +67,7 @@ test("unauthenticated users cannot upload private evidence", async () => {
 
 test("authorised production evidence is privately stored, hashed and downloaded through the protected route", async () => {
   const database = migratedDatabase();
-  const protectedKey="prelaunch/private/2026-10/production-object";
+  const protectedKey="production/private/2026-10/production-object";
   const protectedObject={bytes:Buffer.from("protected primary bytes"),options:{}};
   const objects = new Map([[protectedKey,protectedObject]]);
   env.DB = new D1Adapter(database);

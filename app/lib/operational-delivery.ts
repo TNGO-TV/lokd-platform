@@ -38,7 +38,7 @@ async function requestFor(db:D1Database,job:Job,runtime:OperationalRuntime,resol
  if(job.kind==='enquiry_crm')requireCrmCompanion(runtime);
  if(job.kind==='enquiry_crm'){
   const enquiry=await db.prepare(`SELECT id FROM client_enquiries e
-   WHERE id=? AND environment='prelaunch' AND integrity_state='user_submitted' AND status!='closed'
+   WHERE id=? AND environment='production' AND integrity_state='user_submitted' AND status!='closed'
    AND NOT EXISTS(SELECT 1 FROM signup_cases c WHERE c.source_id=e.id AND c.kind='client' AND c.status='withdrawn')`).bind(job.source_id).first<{id:string}>();
   if(!enquiry)throw new DeliveryError('enquiry_closed_or_withdrawn','cancelled');
   const companion=requireCrmCompanion(runtime);
@@ -58,7 +58,7 @@ async function requestFor(db:D1Database,job:Job,runtime:OperationalRuntime,resol
   text=`Sign in to your LOKD account to review and accept your agreement. Only its named signer can accept it.\n\n${envelope.kind==='client'?CLIENT_PORTAL_URL:OFFICER_PORTAL_URL}/${envelope.kind}/agreements#${encodeURIComponent(job.source_id)}\n\nAgreement reference: ${job.source_id}\nIf the agreement has expired or been withdrawn, contact LOKD Operations.`;
  }else{
   const source=job.kind==='enquiry_email'
-   ?await db.prepare("SELECT id FROM client_enquiries e WHERE id=? AND environment='prelaunch' AND integrity_state='user_submitted' AND status!='closed' AND NOT EXISTS(SELECT 1 FROM signup_cases c WHERE c.source_id=e.id AND c.kind='client' AND c.status='withdrawn')").bind(job.source_id).first()
+   ?await db.prepare("SELECT id FROM client_enquiries e WHERE id=? AND environment='production' AND integrity_state='user_submitted' AND status!='closed' AND NOT EXISTS(SELECT 1 FROM signup_cases c WHERE c.source_id=e.id AND c.kind='client' AND c.status='withdrawn')").bind(job.source_id).first()
    :await db.prepare("SELECT p.id FROM production_order_setups p JOIN bookings b ON b.id=p.id WHERE p.id=? AND b.environment='production' AND b.integrity_state='production_verified' AND b.status='draft'").bind(job.source_id).first();
   if(!source)throw new DeliveryError('notification_source_no_longer_current','cancelled');
   subject=job.kind==='enquiry_email'?'New LOKD service enquiry':'LOKD service order prepared';

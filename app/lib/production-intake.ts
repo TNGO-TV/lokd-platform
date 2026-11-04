@@ -9,7 +9,7 @@ export async function prepareProductionEntity(db:D1Database,actor:SignupActor,in
  const existing=await db.prepare('SELECT * FROM production_entity_links WHERE kind=? AND case_id=?').bind(c.kind,c.source_id).first<{case_version:number;entity_id:string}>();
  if(existing?.case_version===c.version)return {entityId:existing.entity_id,grantsAccess:false,workEligible:false};
  const table=c.kind==='client'?'client_enquiries':'officer_applications';
- const source=await db.prepare(`SELECT * FROM ${table} WHERE id=? AND environment='prelaunch' AND integrity_state='user_submitted'`).bind(c.source_id).first<Record<string,string>>();if(!source)throw new SignupError('A genuine intake record is required.',409);
+ const source=await db.prepare(`SELECT * FROM ${table} WHERE id=? AND environment='production' AND integrity_state='user_submitted'`).bind(c.source_id).first<Record<string,string>>();if(!source)throw new SignupError('A genuine intake record is required.',409);
  const changes=JSON.parse(c.corrections_json) as Record<string,string>,id=existing?.entity_id??(c.kind==='client'?'CLIENT-':'OFFICER-')+crypto.randomUUID();
  if(existing){
   const entityTable=c.kind==='client'?'clients':'officers';

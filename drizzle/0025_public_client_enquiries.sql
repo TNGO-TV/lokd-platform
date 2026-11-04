@@ -16,7 +16,7 @@ CREATE TABLE `client_enquiries` (
 	`status` text DEFAULT 'new' NOT NULL,
 	`owner_id` text,
 	`resolution` text,
-	`environment` text DEFAULT 'prelaunch' NOT NULL,
+	`environment` text DEFAULT 'production' NOT NULL,
 	`integrity_state` text DEFAULT 'user_submitted' NOT NULL,
 	`retention_review_at` text NOT NULL,
 	`created_at` text NOT NULL,
@@ -30,7 +30,7 @@ CREATE TRIGGER `client_enquiry_insert_guard_v30`
 BEFORE INSERT ON `client_enquiries`
 FOR EACH ROW
 BEGIN
-	SELECT (CASE WHEN NEW.`environment` <> 'prelaunch' OR NEW.`integrity_state` <> 'user_submitted'
+	SELECT (CASE WHEN NEW.`environment` <> 'production' OR NEW.`integrity_state` <> 'user_submitted'
 		OR NEW.`service_type` <> 'scheduled_unarmed_fixed_site'
 		OR NEW.`funding_model` <> 'advance_only' OR NEW.`credit_terms_days` <> 0
 		OR NEW.`status` <> 'new' OR NEW.`owner_id` IS NOT NULL OR NEW.`resolution` IS NOT NULL

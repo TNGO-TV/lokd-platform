@@ -17,7 +17,7 @@ test('live Operations mutations need request proof; demo rehearsal and read acce
  env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({operations:['ops@example.test']});
  const request=(headers,method='POST')=>new Request('https://operations.lokd.co.za/api/specialist',{method,headers});
  const headers=proof();
- for(const stage of ['production','pilot','prelaunch']){
+ for(const stage of ['production','pilot','production']){
   env.LOKD_APP_STAGE=stage;
   assert.equal(requireApiRole(request(headers),'operations').email,'ops@example.test');
   const stale=new Headers(headers);stale.delete('x-lokd-verified-second-factor-at');

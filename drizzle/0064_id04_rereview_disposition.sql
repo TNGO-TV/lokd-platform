@@ -64,7 +64,7 @@ CREATE VIEW production_rereview_targets AS
 CREATE VIEW production_rereview_sources AS
  SELECT t.*,c.version AS applicant_version,c.status AS applicant_status,c.latest_event_id,c.corrections_json
  FROM production_rereview_targets t JOIN signup_cases c ON c.kind='officer' AND c.source_id=t.applicant_id AND c.owner_user_id=t.owner_user_id
- JOIN officer_applications a ON a.id=c.source_id AND a.environment='prelaunch' AND a.integrity_state='user_submitted';
+ JOIN officer_applications a ON a.id=c.source_id AND a.environment='production' AND a.integrity_state='user_submitted';
 --> statement-breakpoint
 CREATE VIEW production_rereview_authorizations AS
  SELECT p.*,d.actor_id AS decided_by,d.decided_at,f.passport_sequence,f.officer_rowid,f.readiness_rowid,f.workforce_rowid FROM production_rereview_proposals p JOIN production_rereview_cutoffs f ON f.proposal_id=p.id JOIN production_rereview_decisions d ON d.proposal_id=p.id AND d.decision='allow_replacement'

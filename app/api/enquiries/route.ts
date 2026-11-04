@@ -171,7 +171,7 @@ export async function submitClientEnquiry(request: Request,database?:D1Database,
          privacy_notice_version, privacy_acknowledged_at, status, owner_id, resolution,
          environment, integrity_state, retention_review_at, created_at, updated_at, version,site_address,start_date,end_date,start_time,end_time,officer_count,schedule)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'advance_only', 0,
-         ?, ?, 'new', NULL, NULL, 'prelaunch', 'user_submitted', ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`)
+         ?, ?, 'new', NULL, NULL, 'production', 'user_submitted', ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`)
         .bind(id, organisationName, contactName, emailNormalized, mobileNormalized, siteArea,
           siteType, requiredStart, message, serviceType, privacyNoticeVersion, nowIso, retention.toISOString(), nowIso, nowIso,schedule?.siteAddress??null,schedule?.startDate??null,schedule?.endDate??null,schedule?.startTime??null,schedule?.endTime??null,schedule?.officers??null,schedule?.schedule??null),
       db.prepare(`INSERT INTO audit_events
@@ -207,7 +207,7 @@ export async function GET(request: Request) {
       (SELECT state FROM operational_delivery_jobs j WHERE j.kind='enquiry_email' AND j.source_id=client_enquiries.id) AS emailStatus,
       (SELECT last_error FROM operational_delivery_jobs j WHERE j.kind='enquiry_email' AND j.source_id=client_enquiries.id) AS emailError
       FROM client_enquiries
-      WHERE environment = 'prelaunch' AND integrity_state = 'user_submitted'
+      WHERE environment = 'production' AND integrity_state = 'user_submitted'
       ORDER BY CASE status WHEN 'new' THEN 1 WHEN 'triaged' THEN 2 ELSE 3 END, created_at DESC LIMIT 100`)
       .all<Record<string, unknown>>();
     return reply({ enquiries: result.results ?? [] });
@@ -232,7 +232,7 @@ export async function PATCH(request: Request) {
     const version = typeof input.version === "number" && Number.isSafeInteger(input.version) ? input.version : 0;
     if (version < 1) throw new EnquiryError("Refresh the enquiry before updating it.", 409);
     const current = await getDb().prepare(`SELECT updated_at AS updatedAt FROM client_enquiries
-      WHERE id=? AND version=? AND environment='prelaunch' AND integrity_state='user_submitted'`)
+      WHERE id=? AND version=? AND environment='production' AND integrity_state='user_submitted'`)
       .bind(id, version).first<{ updatedAt: string }>();
     if (!current) throw new EnquiryError("That enquiry changed. Refresh before trying again.", 409);
     // Consecutive valid reviews may share a clock millisecond. Preserve the
@@ -242,13 +242,13 @@ export async function PATCH(request: Request) {
     if (action === "triage") {
       update = getDb().prepare(`UPDATE client_enquiries SET status='triaged', owner_id=?,
         updated_at=?, version=version+1 WHERE id=? AND status='new' AND version=?
-        AND environment='prelaunch' AND integrity_state='user_submitted'`)
+        AND environment='production' AND integrity_state='user_submitted'`)
         .bind(actor.email, now, id, version);
     } else if (action === "close") {
       const resolution = clean(input.resolution, "Resolution", 3, 600);
       update = getDb().prepare(`UPDATE client_enquiries SET status='closed', owner_id=?,
         resolution=?, updated_at=?, version=version+1 WHERE id=? AND status IN ('new','triaged') AND version=?
-        AND environment='prelaunch' AND integrity_state='user_submitted'`)
+        AND environment='production' AND integrity_state='user_submitted'`)
         .bind(actor.email, resolution, now, id, version);
     } else throw new EnquiryError("Choose a valid enquiry action.");
     const results=await getDb().batch([update,getDb().prepare(`INSERT INTO audit_events

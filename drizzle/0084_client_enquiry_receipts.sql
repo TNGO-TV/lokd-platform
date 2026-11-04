@@ -21,7 +21,7 @@ CREATE TRIGGER `client_enquiry_insert_guard_v30`
 BEFORE INSERT ON `client_enquiries`
 FOR EACH ROW
 BEGIN
-	SELECT (CASE WHEN NEW.`environment` <> 'prelaunch' OR NEW.`integrity_state` <> 'user_submitted'
+	SELECT (CASE WHEN NEW.`environment` <> 'production' OR NEW.`integrity_state` <> 'user_submitted'
 		OR NEW.`service_type` NOT IN ('scheduled_unarmed_fixed_site','armed_static','armed_movement','vip_unarmed','vip_armed','vip_protective_driver','vip_team')
 		OR NEW.`funding_model` <> 'advance_only' OR NEW.`credit_terms_days` <> 0
 		OR NEW.`status` <> 'new' OR NEW.`owner_id` IS NOT NULL OR NEW.`resolution` IS NOT NULL

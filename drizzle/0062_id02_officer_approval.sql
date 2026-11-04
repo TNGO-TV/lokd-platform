@@ -39,7 +39,7 @@ CREATE VIEW current_production_officer_sources AS
  strftime('%Y-%m-%dT%H:%M:%fZ',min(julianday(i.expires_at),julianday(e.recheck_at),julianday(json_extract(e.evidence_json,'$.certificateExpiry')||'T00:00:00+02:00'))) AS expires_at
  FROM officers o JOIN production_entity_links l ON l.kind='officer' AND l.entity_id=o.id
  JOIN signup_cases c ON c.kind=l.kind AND c.source_id=l.case_id AND c.version=l.case_version AND c.owner_user_id=l.owner_user_id AND c.status='reviewed'
- JOIN officer_applications a ON a.id=c.source_id AND a.environment='prelaunch' AND a.integrity_state='user_submitted'
+ JOIN officer_applications a ON a.id=c.source_id AND a.environment='production' AND a.integrity_state='user_submitted'
  JOIN current_production_identity_evidence i ON i.applicant_id=l.case_id AND i.applicant_version=l.case_version AND i.owner_user_id=l.owner_user_id
  JOIN psira_verification_cases p ON p.owner_user_id=l.owner_user_id AND p.psira_number=o.psira_number AND p.declaration='registered'
  JOIN psira_verification_events e ON e.id=p.latest_event_id AND e.case_id=p.id AND e.version=p.version AND e.psira_number=p.psira_number

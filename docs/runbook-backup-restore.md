@@ -14,7 +14,7 @@ scripts/d1-backup.sh "$LOKD_BACKUP_AGE_RECIPIENT" /secure/backups/lokd-2026-11-0
 
 The script exports the real production binding, validates the SQL with SQLite `integrity_check` and `foreign_key_check`, then encrypts it with age. It refuses to overwrite an existing artifact. Keep the `.sql.age`, `.sha256`, and `.json` manifest together. The manifest records the account, database, export time, and Git commit. Copy them to an independent encrypted off-host location, verify the checksum after copying, and apply the owner's backup retention policy. Temporary plaintext is removed on exit; encrypted temporary storage is required because unlinking is not physical secure erasure.
 
-Monitor the scheduler's exit status. A failed export or copy must alert the production owner. An export does not back up R2 objects, Clerk accounts or sessions, Worker secret values, DNS, or external provider records. Keep the private R2 evidence backup and owner-held secret inventory with the recovery plan.
+Monitor the scheduler's exit status. A failed export or copy must alert the production owner. An export does not back up R2 objects, identity-provider accounts or sessions, Worker secret values, DNS, or external provider records. Keep the private R2 evidence backup and owner-held secret inventory with the recovery plan.
 
 ## Restore into an empty database
 

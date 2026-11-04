@@ -41,7 +41,7 @@ END;
 --> statement-breakpoint
 CREATE TRIGGER signup_source_guard BEFORE INSERT ON signup_cases BEGIN
   SELECT RAISE(ABORT, 'signup requires a real submitted source') WHERE NOT (
-    (NEW.kind='officer' AND EXISTS (SELECT 1 FROM officer_applications WHERE id=NEW.source_id AND environment='prelaunch' AND integrity_state='user_submitted'))
-    OR (NEW.kind='client' AND EXISTS (SELECT 1 FROM client_enquiries WHERE id=NEW.source_id AND environment='prelaunch' AND integrity_state='user_submitted'))
+    (NEW.kind='officer' AND EXISTS (SELECT 1 FROM officer_applications WHERE id=NEW.source_id AND environment='production' AND integrity_state='user_submitted'))
+    OR (NEW.kind='client' AND EXISTS (SELECT 1 FROM client_enquiries WHERE id=NEW.source_id AND environment='production' AND integrity_state='user_submitted'))
   );
 END;

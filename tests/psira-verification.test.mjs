@@ -48,7 +48,7 @@ function request(who,scope,body){return new Request(`https://${scope==='officer'
 const evidence=()=>({source:PSIRA_SOURCE,checkedAt:new Date().toISOString(),returnedNumber:'1234567',returnedName:'Synthetic Officer',returnedStatus:'Registered',grade:'A',certificateExpiry:'',employmentStatus:'Inactive',excerpt:'Synthetic test fixture: Registered, Grade A. Not a live result.',identityEvidence:''});
 const review=(record,overrides={})=>({action:'review',caseId:record.id,expectedVersion:record.version,registrationStatus:'registered',identityMatch:'unchecked',evidence:evidence(),recheckAt:new Date(Date.now()+86400000).toISOString(),...overrides});
 test('account-bound PSiRA workflow preserves evidence, scope, identity separation, expiry and rechecks',async()=>{
- const db=migratedDatabase();env.DB=new D1Adapter(db);env.LOKD_APP_STAGE='demo';env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({operations:[actors.ops.email],officers:{[actors.officer.email]:'OFF-001',[actors.other.email]:'OFF-002'}});
+ const db=migratedDatabase();env.DB=new D1Adapter(db);env.LOKD_APP_STAGE='production';env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({operations:[actors.ops.email],officers:{[actors.officer.email]:'OFF-001',[actors.other.email]:'OFF-002'}});
  try{
   assert.equal((await GET(request(null,'operations'))).status,401);
   const publicDemo=new Request('https://demo.lokd.co.za/api/psira?scope=operations');assert.equal((await GET(publicDemo)).status,401);
@@ -89,7 +89,7 @@ test('source evidence fails closed for mismatched registration, future times, mi
 });
 
 test('training and unregistered declarations avoid lookup without granting work eligibility; switching to registered requires verification',async()=>{
- const db=migratedDatabase();env.DB=new D1Adapter(db);env.LOKD_APP_STAGE='demo';env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({operations:[actors.ops.email],officers:{[actors.officer.email]:'OFF-001'}});
+ const db=migratedDatabase();env.DB=new D1Adapter(db);env.LOKD_APP_STAGE='production';env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({operations:[actors.ops.email],officers:{[actors.officer.email]:'OFF-001'}});
  try{
   for(const declaration of ['training','not_registered']){
    const current=(await(await GET(request('officer','officer'))).json()).cases[0];

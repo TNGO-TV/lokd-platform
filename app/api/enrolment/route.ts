@@ -8,7 +8,7 @@ const fail=(error:unknown)=>error instanceof SignupError||error instanceof Reque
 async function ownApplication(userId:string,id:unknown){
  if(!env.DB)throw new SignupError('Enrolment storage unavailable.',503);
  if(typeof id!=='string'||id.length>100)throw new SignupError('Choose your application.');
- const source=await env.DB.prepare("SELECT c.source_id,c.version FROM signup_cases c JOIN officer_applications a ON a.id=c.source_id WHERE c.kind='officer' AND c.source_id=? AND c.owner_user_id=? AND c.status!='withdrawn' AND a.environment='prelaunch' AND a.integrity_state='user_submitted'").bind(id,userId).first<{source_id:string;version:number}>();
+ const source=await env.DB.prepare("SELECT c.source_id,c.version FROM signup_cases c JOIN officer_applications a ON a.id=c.source_id WHERE c.kind='officer' AND c.source_id=? AND c.owner_user_id=? AND c.status!='withdrawn' AND a.environment='production' AND a.integrity_state='user_submitted'").bind(id,userId).first<{source_id:string;version:number}>();
  if(!source)throw new SignupError('Application not found.',404);
  return source;
 }
