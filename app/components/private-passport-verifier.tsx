@@ -17,7 +17,7 @@ export default function PrivatePassportVerifier(){
     if(!response.ok)throw new Error(response.status===503?'Verification is temporarily unavailable. Try again.':'This passport could not be verified. Contact LOKD Operations.');
     const payload:unknown=await response.json();if(!publicPassportResponse(payload))throw new Error('Verification is temporarily unavailable. Try again.');
     return payload as PassportResponse;
-   }).then(payload=>{if(active&&!payload.passport.synthetic)setResult(payload.passport);else if(active)setError('This passport could not be verified. Contact LOKD Operations.');}).catch(cause=>{if(active)setError(cause instanceof TypeError?'The connection failed. Try again.':cause instanceof Error?cause.message:'Passport verification is unavailable.');}).finally(()=>{if(active)setBusy(false);});
+   }).then(payload=>{if(active)setResult(payload.passport);}).catch(cause=>{if(active)setError(cause instanceof TypeError?'The connection failed. Try again.':cause instanceof Error?cause.message:'Passport verification is unavailable.');}).finally(()=>{if(active)setBusy(false);});
   },0);
   return()=>{active=false;clearTimeout(timer);controller.abort();};
  },[attempt]);

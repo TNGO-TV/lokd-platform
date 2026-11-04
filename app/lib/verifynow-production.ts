@@ -56,7 +56,7 @@ async function boundedBody(response:Response){
 
 /** Documented SAID transport, intentionally NOT a remote-person verifier.
  * Registry matches yield manual_review. No undocumented negative envelope,
- * biometric status, sandbox result, or local reviewer can turn this into verified.
+ * biometric status, non-production result, or local reviewer can turn this into verified.
  */
 export function createVerifyNowProductionProvider(config:VerifyNowProductionConfig):ProductionIdentityProvider {
  if(!config.apiKey?.trim()||!config.policyReference?.trim()||!Number.isSafeInteger(config.evidenceLifetimeMs)||config.evidenceLifetimeMs<=0)throw new Error('Accepted VerifyNow production configuration required.');

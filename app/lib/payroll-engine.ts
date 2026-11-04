@@ -403,48 +403,6 @@ export function calculatePayrollItem(grossCents: number, serviceDate: string, po
   }, policy);
 }
 
-export const SYNTHETIC_ENGINE_TEST_POLICY: PayrollPolicy = {
-  version: "synthetic-engine-test-v2",
-  jurisdiction: "ZA",
-  currency: "ZAR",
-  effectiveFrom: "2000-01-01",
-  effectiveTo: "2099-12-31",
-  payPeriodsPerYear: 12,
-  incomeTax: {
-    brackets: [
-      { upToAnnualCents: 1_200_000, rateBasisPoints: 1_000 },
-      { upToAnnualCents: null, rateBasisPoints: 2_000 },
-    ],
-    annualPrimaryRebateCents: 12_000,
-    annualSecondaryRebateCents: 0,
-    annualTertiaryRebateCents: 0,
-  },
-  uif: {
-    employeeRateBasisPoints: 100,
-    employerRateBasisPoints: 100,
-    earningsCapPerPeriodCents: 100_000,
-  },
-  skillsDevelopmentLevy: {
-    enabled: true,
-    employerRateBasisPoints: 100,
-  },
-  coida: {
-    enabled: true,
-    employerRateBasisPoints: 50,
-    earningsCapPerPeriodCents: 100_000,
-    classificationCode: "SYNTHETIC-DEMO",
-  },
-  leave: { hoursWorkedDivisor: 17 },
-  wageRules: {
-    ordinaryBasisPoints: 10_000,
-    overtimeBasisPoints: 15_000,
-    sundayOrdinaryBasisPoints: 15_000,
-    sundayOccasionalBasisPoints: 20_000,
-    publicHolidayBasisPoints: 20_000,
-  },
-  sourceReferences: ["https://example.invalid/synthetic-payroll-policy"],
-};
-
 export const ZA_2027_SARS_POLICY_CANDIDATE: PayrollPolicy = {
   version: "ZA-SARS-NBCPSS-2027-CANDIDATE-2026-09-01",
   jurisdiction: "ZA",

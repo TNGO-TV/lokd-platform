@@ -1,6 +1,6 @@
 import {operationsDatabase,addOperator} from './fixtures/operations-db.mjs';
 import {seedEnvironment} from './fixtures/identity-activation-environment.mjs';
-import {runSpecialistRehearsals} from './fixtures/specialist-scenarios.mjs';
+import {runSpecialistScenarios} from './fixtures/specialist-scenarios.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { env } from "cloudflare:workers";
@@ -115,7 +115,7 @@ function link(db,kind,name,entityId){
 }
 
 test("four specialist scenarios exercise valid and invalid commercial controls",()=>{
-  const scenarios=runSpecialistRehearsals();assert.equal(scenarios.length,4);
+  const scenarios=runSpecialistScenarios();assert.equal(scenarios.length,4);
   for(const scenario of scenarios){assert.equal(scenario.status,"passed",JSON.stringify(scenario));assert.ok(scenario.totalCents>0);assert.ok(scenario.steps.length>=6);}
 });
 

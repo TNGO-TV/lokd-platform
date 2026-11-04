@@ -102,24 +102,14 @@ test('finance document history validates serialized array entries before renderi
  assert.equal(contracts.financeDocumentsResponse({...data,documents:[{...document,financial_json:JSON.stringify([{reference:'historical-test',mode:'test',state:'paid'}])}]}),true);
 });
 
-const sandboxRead=data=>({mode:'simulator',policyVersion:'lokd-sandbox-completion-v1',productionWorkEligible:false,data});
-test('passport responses distinguish sandbox envelopes and bind every delivery to the selected officer',()=>{
+test('passport responses bind every delivery to the selected officer',()=>{
  const delivery={deliveryId:'PD-1',officerId:'OFF-1',applicantVersion:1,createdAt:'2026-10-16',expiresAt:'2026-10-17',passportId:null,sequence:null,status:'awaiting_preparation',workEligible:false};
  const records={officerId:'OFF-1',deliveries:[delivery],workEligible:false};
  assert.equal(contracts.passportDeliveryResponse(records,'OFF-1'),true);
- assert.equal(contracts.passportDeliveryResponse(sandboxRead(records),'OFF-1',true),true);
  assert.equal(contracts.passportDeliveryResponse(records,'OFF-2'),false);
  assert.equal(contracts.passportDeliveryResponse({...records,deliveries:[{...delivery,officerId:'OFF-2'}]},'OFF-1'),false);
- assert.equal(contracts.passportDeliveryResponse(sandboxRead({...records,deliveries:[{}]}),'OFF-1',true),false);
- assert.equal(contracts.passportDeliveryResponse(delivery,'OFF-1',false,true),true);
- assert.equal(contracts.passportDeliveryResponse({...sandboxRead(delivery),mode:'sandbox'},'OFF-1',true,true),true);
- assert.equal(contracts.passportDeliveryResponse(sandboxRead(delivery),'OFF-1',true,true),false);
- const queue={contract:'lokd.identity-workspace.v1',recordType:'rule',records:[{id:'RULE-1'}],nextOffset:null,workEligible:false};
- const query=new URLSearchParams('kind=queue&recordType=rule');
- assert.equal(contracts.sandboxReviewResponse(sandboxRead(queue),query),true);
- assert.equal(contracts.sandboxReviewResponse(sandboxRead({...queue,recordType:'officer'}),query),false);
- assert.equal(contracts.sandboxReviewResponse(sandboxRead({...queue,nextOffset:0}),query),false);
- assert.equal(contracts.sandboxReviewResponse({data:queue},query),false);
+ assert.equal(contracts.passportDeliveryResponse({...records,deliveries:[{}]},'OFF-1'),false);
+ assert.equal(contracts.passportDeliveryResponse(delivery,'OFF-1',true),true);
 });
 test('actual readiness form locks an unconfirmed 2xx command and preserves its draft',async()=>{
  const slots=[];let index=0,calls=0,saved=0;
@@ -133,11 +123,6 @@ test('actual readiness form locks an unconfirmed 2xx command and preserves its d
  await find(render(),'form').props.onSubmit({preventDefault(){}});
  const tree=render();assert.equal(find(tree,'button').props.disabled,true);assert.match(JSON.stringify(tree),/must not be repeated/);assert.equal(saved,0);
  await find(tree,'form').props.onSubmit({preventDefault(){}});assert.equal(calls,1);
-});
-
-test('every sandbox readiness branch rejects missing or production-eligible outer envelopes',()=>{
- const cases=[['identity','ID-1',{id:'ID-1',applicantId:'APP-1',applicantVersion:1,outcome:'pending',outcomeId:'OUT-1',identityVerified:false,workEligible:false}],['officer','OFF-1',{officerId:'OFF-1',reviews:[]}],['readiness','OFF-1',{officerId:'OFF-1',reviews:[],optins:[],passport:null,latestSequence:0}],['holds','APP-1',{applicantId:'APP-1',applicantVersion:1,intakeStatus:'reviewed',holds:[]}]];
- for(const [key,id,data] of cases){const valid=sandboxRead(data);assert.equal(contracts.readinessRecordResponse(valid,key,id,true),true,key);assert.equal(contracts.readinessRecordResponse(valid,key,'WRONG',true),false,key);for(const bad of [{data},{...valid,mode:'live'},{...valid,policyVersion:'wrong'},{...valid,productionWorkEligible:true}])assert.equal(contracts.readinessRecordResponse(bad,key,id,true),false,key);}
 });
 
 test('signup retains stale inert records, clears denied access and requires an exact write receipt',async()=>{

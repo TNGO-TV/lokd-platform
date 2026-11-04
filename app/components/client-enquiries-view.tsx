@@ -159,7 +159,7 @@ export default function ClientEnquiriesView({ flash }: { flash: (message: string
               {item.status === "new" && <button disabled={loading||Boolean(error)||busyId!==null} onClick={() => void update(item, "triage")}>Take ownership</button>}
               <button className="secondary" disabled={loading||Boolean(error)||busyId!==null} onClick={() => { setClosingId(closingId === item.id ? null : item.id); setResolution(""); }}>Close with outcome</button>
             </footer>}
-            {closingId === item.id && <div className="enquiry-close-panel"><label><span>Resolution note</span><textarea value={resolution} disabled={loading||Boolean(error)||busyId!==null} minLength={3} maxLength={600} onChange={(event) => setResolution(event.target.value)} placeholder="Add the outcome and next steps for the client." /></label><div><button onClick={() => { setClosingId(null); setResolution(""); }}>Cancel</button><button disabled={resolution.trim().length < 3||loading||Boolean(error)||busyId!==null} onClick={() => void update(item, "close")}>{busyId === item.id ? "Saving…" : "Record and close"}</button></div></div>}
+            {closingId === item.id && <div className="enquiry-close-panel"><label><span>Resolution note</span><textarea value={resolution} disabled={loading||Boolean(error)||busyId!==null} minLength={3} maxLength={600} onChange={(event) => setResolution(event.target.value)} title="Add the outcome and next steps for the client." /></label><div><button onClick={() => { setClosingId(null); setResolution(""); }}>Cancel</button><button disabled={resolution.trim().length < 3||loading||Boolean(error)||busyId!==null} onClick={() => void update(item, "close")}>{busyId === item.id ? "Saving…" : "Record and close"}</button></div></div>}
           </article>)}</div>}
     </section>
     <ServiceRequestsQueue flash={flash}/>
@@ -220,6 +220,6 @@ function RequestReviewForm({item,disabled,review}:{item:OperationsClientRequest;
   const [note,setNote]=useState(''),[status,setStatus]=useState<'triaged'|'closed'>(item.status==='open'?'triaged':'closed');
   return <details><summary>Review request</summary><form className="client-form" onSubmit={async event=>{event.preventDefault();if(await review(item,status,note))setNote('');}}><fieldset disabled={disabled}>
     <label>Outcome<select value={status} onChange={event=>setStatus(event.target.value as 'triaged'|'closed')}>{item.status==='open'&&<option value="triaged">Take ownership</option>}<option value="closed">Close with outcome</option></select></label>
-    <label className="client-full">Message to client<textarea required minLength={3} maxLength={2000} rows={4} value={note} onChange={event=>setNote(event.target.value)} placeholder="Explain the outcome and next steps."/></label>
+    <label className="client-full">Message to client<textarea required minLength={3} maxLength={2000} rows={4} value={note} onChange={event=>setNote(event.target.value)} title="Explain the outcome and next steps."/></label>
   </fieldset><button className="client-primary" disabled={disabled||note.trim().length<3}>{disabled?'Saving…':'Save review'}</button></form></details>;
 }

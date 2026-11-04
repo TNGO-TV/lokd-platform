@@ -1,15 +1,15 @@
 import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { hasLinkedOfficerSignup } from '../../lib/signup-server';
-import { principalForEmail, principalHasRole } from '../../lib/pilot-runtime';
+import { principalForEmail, principalHasRole } from '../../lib/platform-runtime';
 import { workspaceRoleForHost } from '../../lib/public-site';
 import { env } from 'cloudflare:workers';
-import { PilotAccessError, requirePilotApiRole, requireSameOriginJson } from '../../lib/pilot-runtime';
+import { AccessError, requireApiRole, requireSameOriginJson } from '../../lib/platform-runtime';
 import { PsiraError } from '../../lib/psira-verification';
 import { readPsiraCases, writePsiraCase } from '../../lib/psira-server';
 export const dynamic = 'force-dynamic';
 async function actor(request: Request) {
-  // This workflow stores real evidence: public demo fallback is never sufficient.
+  // This workflow stores real evidence: only verified Worker identity headers are accepted.
   const userId = request.headers.get('x-lokd-verified-user-id');
   const email = request.headers.get('x-lokd-verified-email');
   if (!userId || !email) throw new PsiraError('Sign in to access your registration verification.',401);
@@ -20,14 +20,14 @@ async function actor(request: Request) {
   const assigned=principalHasRole(principalForEmail(email),scope);
   if(scope==='operations'||assigned) {
     if(!assigned)throw new PsiraError('This account is not assigned to that workspace.',403);
-    requirePilotApiRole(request,scope);
+    requireApiRole(request,scope);
   } else if(!env.DB || !await hasLinkedOfficerSignup(env.DB,userId)) {
     throw new PsiraError('Link your officer application before requesting registration verification.',403);
   }
   return { userId, email, operations: scope === 'operations' };
 }
 function response(value: unknown, status = 200) { return Response.json(value,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}}); }
-function failure(error: unknown) { return error instanceof PsiraError || error instanceof RequestBodyError || error instanceof PilotAccessError ? response({error:error.message},error.status) : response({error:'Verification records are temporarily unavailable. No verification was granted.'},503); }
+function failure(error: unknown) { return error instanceof PsiraError || error instanceof RequestBodyError || error instanceof AccessError ? response({error:error.message},error.status) : response({error:'Verification records are temporarily unavailable. No verification was granted.'},503); }
 export async function GET(request: Request) {
   try { const principal=await actor(request); if (!env.DB) throw new PsiraError('Verification storage is unavailable.',503); return response({cases:await readPsiraCases(env.DB,principal)}); } catch(error) { return failure(error); }
 }

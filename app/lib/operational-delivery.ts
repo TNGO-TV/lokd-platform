@@ -1,6 +1,6 @@
 import {CLIENT_PORTAL_URL,OFFICER_PORTAL_URL,OPERATIONS_PORTAL_URL} from './public-site';
 import {currentQuote} from './quote-acceptance';
-import {PilotAccessError} from './pilot-runtime';
+import {AccessError} from './platform-runtime';
 import {directoryEmail} from './identity-directory';
 import {agreementHash,canonicalAgreementContext} from './agreement-acceptance';
 import {activationAgreementContext,type ActivationAgreementRole} from './agreement-activation';

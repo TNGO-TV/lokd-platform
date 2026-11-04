@@ -2,26 +2,24 @@ import { operationsMfaRequired } from "./operations-mfa-policy";
 import { operationsMfaStatus } from "./operations-mfa";
 import { env } from "cloudflare:workers";
 import {
-  PilotAccessError,
+  AccessError,
   principalForEmailFromConfig,
   principalHasRole,
   requireSameOriginJson,
-  roleForPilotAction,
-  type PilotPrincipal,
-  type PilotRole,
-} from "./pilot-access-core";
+  type AccessPrincipal,
+  type AccessRole,
+} from "./access-core";
 import {
   requestHostname,
   workspaceRoleForHost,
 } from "./public-site";
 
 export {
-  PilotAccessError,
+  AccessError,
   principalHasRole,
   requireSameOriginJson,
-  roleForPilotAction,
-  type PilotPrincipal,
-  type PilotRole,
+  type AccessPrincipal,
+  type AccessRole,
 };
 
 function runtimeValue(key: string): string {
@@ -29,41 +27,33 @@ function runtimeValue(key: string): string {
   return typeof runtime[key] === "string" ? String(runtime[key]) : "";
 }
 
-export function principalForEmail(email: string, displayName = email): PilotPrincipal {
+export function principalForEmail(email: string, displayName = email): AccessPrincipal {
   return principalForEmailFromConfig(email, displayName,
     runtimeValue("LOKD_ROLE_ACCESS_JSON"), runtimeValue("LOKD_OPERATIONS_ACCESS_JSON"),
     runtimeValue("LOKD_OWNER_ACCESS_JSON"));
 }
 
-export function requirePilotApiRole(request: Request, allowed: PilotRole | PilotRole[]) {
+export function requireApiRole(request: Request, allowed: AccessRole | AccessRole[]) {
   const email = request.headers.get("x-lokd-verified-email");
   const roles = Array.isArray(allowed) ? allowed : [allowed];
   const hostname = requestHostname(new URL(request.url).hostname);
   const hostnameRole = workspaceRoleForHost(hostname);
   if (hostnameRole && !roles.includes(hostnameRole)) {
-    throw new PilotAccessError(
+    throw new AccessError(
       "Use the correct LOKD workspace for this request.",
       403,
     );
   }
   if (!email) {
-    throw new PilotAccessError("Sign in to continue.", 401);
+    throw new AccessError("Sign in to continue.", 401);
   }
   const principal = principalForEmail(email, email);
   if (!roles.some((role) => principalHasRole(principal, role))) {
-    throw new PilotAccessError("This account does not have access to that LOKD workspace.", 403);
+    throw new AccessError("This account does not have access to that LOKD workspace.", 403);
   }
   if (operationsMfaRequired() && roles.includes("operations") && principalHasRole(principal, "operations")
     && !["GET", "HEAD", "OPTIONS"].includes(request.method) && !operationsMfaStatus(request.headers).fresh) {
-    throw new PilotAccessError("Verify your Operations second factor at /ops/security before changing live records.", 403);
+    throw new AccessError("Verify your Operations second factor at /ops/security before changing live records.", 403);
   }
   return principal;
-}
-
-export function pilotStage(): "production" | "demo" | "prelaunch" | "pilot" {
-  return "production";
-}
-
-export function liveShiftScanEnabled() {
-  return runtimeValue("LOKD_LIVE_SHIFT_SCAN").trim().toLowerCase() === "true";
 }

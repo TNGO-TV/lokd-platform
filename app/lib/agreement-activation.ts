@@ -1,6 +1,7 @@
 import {acceptedOrderQuote} from './quote-acceptance';
 import { agreementHash, canonicalAgreementContext, type AgreementContext } from './agreement-acceptance';
 import type { AssignmentActivationFacts } from './assignment-activation-core';
+import {NONPRODUCTION_REFERENCE_PREFIX} from './stored-identifiers';
 export type ActivationAgreementRole = 'CLIENT_MSA' | 'SERVICE_ORDER' | 'OFFICER_EMPLOYMENT' | 'PARTNER_SERVICE';
 export function requiredActivationAgreements(facts: AssignmentActivationFacts): ActivationAgreementRole[] {
   return ['CLIENT_MSA','SERVICE_ORDER',facts.workforce.model==='partner'?'PARTNER_SERVICE':'OFFICER_EMPLOYMENT'];
@@ -56,7 +57,7 @@ export async function readActivationAgreements(db: D1Database, facts: Assignment
           AND environment='production' AND integrity_state='production_verified' AND length(trim(approved_by))>0
           AND NOT EXISTS(SELECT 1 FROM signing_document_withdrawals w WHERE w.document_id=agreement_document_versions.id)`)
           .bind(receipt.documentId,role).first<{template_version:string;template_hash:string;approved_at:string;effective_from:string;effective_to:string|null;entity_id:string;locale:string;document_reference:string}>();
-        if(!template || template.entity_id!==receipt.entityId || template.locale!==receipt.locale || !template.document_reference.trim() || template.document_reference.startsWith('demo:') || template.template_version!==receipt.documentVersion || template.template_hash!==receipt.contentHash)continue;
+        if(!template || template.entity_id!==receipt.entityId || template.locale!==receipt.locale || !template.document_reference.trim() || template.document_reference.startsWith(NONPRODUCTION_REFERENCE_PREFIX) || template.template_version!==receipt.documentVersion || template.template_hash!==receipt.contentHash)continue;
         const signedAt=Date.parse(receipt.acceptedAt);
         if(!Number.isFinite(Date.parse(template.approved_at)) || Date.parse(template.approved_at)>signedAt
           || !Number.isFinite(Date.parse(template.effective_from)) || Date.parse(template.effective_from)>signedAt

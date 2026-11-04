@@ -3,6 +3,7 @@ import {agreementHash} from './agreement-acceptance';
 import {productionOperatorControl} from './production-operator-control';
 import {SignupError} from './signup-server';
 import type {SigningActor} from './production-signing';
+import {NONPRODUCTION_POLICY_VERSION_PATTERN} from './stored-identifiers';
 const text=(v:unknown,label:string)=>{if(typeof v!=='string'||v.trim().length<8||v.length>2000)throw new SignupError(`Provide ${label}.`);return v.trim();};
 export async function readProductionPayrollPolicies(db:D1Database,actor:SigningActor){return {payrollPolicies:actor.operations?(await db.prepare("SELECT * FROM payroll_policy_versions WHERE environment='production' ORDER BY created_at DESC LIMIT 50").all()).results:[]};}
 export async function manageProductionPayrollPolicy(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers){
@@ -10,7 +11,7 @@ export async function manageProductionPayrollPolicy(db:D1Database,actor:SigningA
  if(input.action==='prepare_payroll_policy'){
   const maker=await productionOperatorControl(db,actor,headers,'payroll.calculate',0);
   let policy:PayrollPolicy;try{policy=typeof input.rules==='string'?JSON.parse(input.rules):input.rules as PayrollPolicy;assertPayrollPolicy(policy);}catch{throw new SignupError('Provide a valid South African payroll policy using the documented policy structure.');}
-  if(/synthetic|test|demo/i.test(policy.version)||!policy.sourceReferences?.length||policy.sourceReferences.some(r=>typeof r!=='string'||!r.startsWith('https://')||/example\.(invalid|test)/i.test(r)))throw new SignupError('Production payroll policy requires actual source references and its own reviewed version.');
+  if(NONPRODUCTION_POLICY_VERSION_PATTERN.test(policy.version)||!policy.sourceReferences?.length||policy.sourceReferences.some(r=>typeof r!=='string'||!r.startsWith('https://')||/example\.(invalid|test)/i.test(r)))throw new SignupError('Production payroll policy requires actual source references and its own reviewed version.');
   if(input.sourcesReviewed!==true)throw new SignupError('Confirm review of the actual statutory and employment sources.');
   const source=text(input.sourceReference,'the source-review record'),rules=JSON.stringify(policy);if(rules.length>16000)throw new SignupError('Payroll policy is too large.');const id='POL-'+crypto.randomUUID(),hash=await agreementHash(rules);
   await db.batch([db.prepare("INSERT INTO payroll_policy_versions(id,jurisdiction,currency,effective_from,effective_to,status,rules_json,policy_hash,source_reference,environment,integrity_state,created_by,created_at) VALUES(?,'ZA','ZAR',?,?,'draft',?,?,?,'production','production_verified',?,?)").bind(id,policy.effectiveFrom,policy.effectiveTo,rules,hash,source,maker.id,now),db.prepare("INSERT INTO audit_events VALUES(?,'operations',?,'production_payroll_policy_prepared','payroll_policy',?,?,?)").bind(crypto.randomUUID(),actor.userId,id,JSON.stringify({hash,source}),now)]);return {policyId:id,active:false};
