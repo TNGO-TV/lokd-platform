@@ -14,7 +14,7 @@ async function ownApplication(userId:string,id:unknown){
 }
 export async function GET(request:Request){try{
  const a=officerApiActor(request),source=await ownApplication(a.userId,new URL(request.url).searchParams.get('caseId'));
- const enrolment=await env.DB!.prepare("SELECT id,'requested' AS status,created_at AS createdAt FROM officer_work_notifications WHERE source_id=? AND user_id=? AND id='enrolment:'||?||':'||?||':'||? AND kind='enrolment_request'").bind(source.source_id,a.userId,source.source_id,source.version,a.userId).first();
+ const enrolment=await env.DB!.prepare("SELECT id,'requested' AS status,created_at AS createdAt FROM officer_work_notifications WHERE source_id=? AND user_id=? AND id=? AND kind='enrolment_request'").bind(source.source_id,a.userId,'enrolment:'+source.source_id+':'+source.version+':'+a.userId).first();
  return reply({caseId:source.source_id,caseVersion:source.version,enrolment});
 }catch(error){return fail(error);}}
 export async function POST(request:Request){try{
@@ -27,7 +27,7 @@ export async function POST(request:Request){try{
   env.DB!.prepare("INSERT OR IGNORE INTO officer_work_notifications(id,user_id,kind,source_id,message,created_at) SELECT ?,?,'enrolment_request',?,'Enrolment contact requested.',? WHERE EXISTS(SELECT 1 FROM signup_cases WHERE kind='officer' AND source_id=? AND owner_user_id=? AND version=? AND status!='withdrawn')").bind(id,a.userId,source.source_id,now,source.source_id,a.userId,source.version),
   env.DB!.prepare("INSERT OR IGNORE INTO audit_events(id,actor_type,actor_id,event_type,entity_type,entity_id,detail,created_at) SELECT ?,'officer',?,'officer_enrolment_requested','officer_application',source_id,'Requested enrolment contact.',? FROM officer_work_notifications WHERE id=? AND kind='enrolment_request'").bind('audit:'+id,a.userId,now,id),
  ]);
- const enrolment=await env.DB!.prepare("SELECT id,'requested' AS status,created_at AS createdAt FROM officer_work_notifications WHERE source_id=? AND user_id=? AND id='enrolment:'||?||':'||?||':'||? AND kind='enrolment_request'").bind(source.source_id,a.userId,source.source_id,source.version,a.userId).first();
+ const enrolment=await env.DB!.prepare("SELECT id,'requested' AS status,created_at AS createdAt FROM officer_work_notifications WHERE source_id=? AND user_id=? AND id=? AND kind='enrolment_request'").bind(source.source_id,a.userId,'enrolment:'+source.source_id+':'+source.version+':'+a.userId).first();
  if(!enrolment)throw new SignupError('Your application changed. Refresh and try again.',409);
  return reply({saved:true,enrolment});
 }catch(error){return fail(error);}}
