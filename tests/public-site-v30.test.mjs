@@ -31,8 +31,9 @@ test("robots keeps public client and officer content crawlable while excluding p
   assert.equal(policy.sitemap, "https://lokd.co.za/sitemap.xml");
   const disallow = Array.isArray(policy.rules) ? policy.rules[0].disallow : policy.rules.disallow;
   assert.ok(Array.isArray(disallow));
-  assert.ok(disallow.includes("/api/"));
-  assert.ok(disallow.includes("/ops"));
+  const blocked = path => disallow.some(rule => rule.endsWith("$") ? path === rule.slice(0,-1) : path.startsWith(rule));
+  for (const path of ["/api/enquiries", "/ops", "/officer", "/officer/readiness", "/client", "/client/agreements", "/portal"]) assert.equal(blocked(path), true, path);
+  for (const path of ["/officers", "/clients", "/quote", "/join"]) assert.equal(blocked(path), false, path);
   assert.equal(disallow.includes("/client"), false, "blocking /client also blocks the public /clients prefix");
   assert.equal(disallow.includes("/officer"), false, "blocking /officer also blocks the public /officers prefix");
 });

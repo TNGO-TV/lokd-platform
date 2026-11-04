@@ -138,11 +138,14 @@ test("client quote stores the specialist decision and funds the full total", () 
 test("public specialist routes and database fail-closed controls ship together", () => {
   const armed = fs.readFileSync(new URL("../app/armed-security/page.tsx", import.meta.url), "utf8");
   const vip = fs.readFileSync(new URL("../app/vip-protection/page.tsx", import.meta.url), "utf8");
+  const form = fs.readFileSync(new URL("../app/components/client-enquiry-form.tsx", import.meta.url), "utf8");
   const migration = fs.readFileSync(new URL("../drizzle/0027_marvelous_big_bertha.sql", import.meta.url), "utf8");
-  assert.match(armed, /Armed static guarding/);
-  assert.match(armed, /Armed movement protection/);
-  assert.match(vip, /vip_protective_driver/);
-  assert.match(vip, /vip_team/);
+  assert.match(armed, /Armed site guarding/);
+  assert.match(armed, /Movement protection/);
+  assert.match(vip, /Personal protection/);
+  assert.match(vip, /The right team/);
+  assert.match(form, /value="vip_protective_driver"/);
+  assert.match(form, /value="vip_team"/);
   assert.match(migration, /specialist_pricing_floor_invalid/);
   assert.match(migration, /S1_ARMED_SERVICE_AUTHORITY/);
   assert.match(migration, /S2_VIP_SERVICE_AUTHORITY/);
