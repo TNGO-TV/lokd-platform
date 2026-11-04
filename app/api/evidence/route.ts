@@ -1,6 +1,8 @@
-import {blockedTestSurface,rehearsalEnv as env} from '../../lib/test-surface-runtime';
+import {env} from 'cloudflare:workers';
+import {operationsRequest,requireOperationsRole,requireOperationsJson as requireSameOriginJson,type OperationsActor} from '../../lib/operations-access';
+import {SignupError} from '../../lib/signup-server';
 
-import { PilotAccessError, pilotStage, requirePilotApiRole, requireSameOriginJson, type PilotPrincipal } from "../../lib/pilot-runtime";
+
 
 import { readRequestText, RequestBodyError } from "../../lib/request-body";
 
@@ -36,7 +38,7 @@ function response(payload: unknown, status = 200) {
 }
 
 function errorResponse(cause: unknown) {
-  const error = cause instanceof EvidenceError || cause instanceof PilotAccessError || cause instanceof RequestBodyError
+  const error = cause instanceof EvidenceError || cause instanceof SignupError || cause instanceof RequestBodyError
     ? cause
     : new EvidenceError("The evidence operation could not be completed.", 500);
   return response({ error: error.message }, error.status);
@@ -47,16 +49,8 @@ function backend() {
   return { db: env.DB, bucket: env.BUCKET };
 }
 
-function requirePrivateRuntime() {
-  const stage = pilotStage();
-  if (stage === "demo") throw new EvidenceError("Evidence uploads are disabled in the public demo.", 423);
-  return stage;
-}
-
-// Finance/compliance are labels without supported assignments in PilotPrincipal.
-// Deny them until explicit grants exist; owner does not imply an unsupported class.
-function requireArtifactAccess(actor: PilotPrincipal, accessClass: string) {
-  if (accessClass === "operations" || (accessClass === "owner" && actor.owner)) return;
+function requireArtifactAccess(actor: OperationsActor, accessClass: string) {
+  if (accessClass === "operations" || (accessClass === "owner" && actor.owner) || (accessClass === "finance" && actor.roles.some(r=>["finance_approver","payroll_preparer","payroll_reviewer","funding_reconciler"].includes(r))) || (accessClass === "compliance" && actor.roles.includes("compliance_reviewer"))) return;
   throw new EvidenceError("This account cannot access that evidence class.", 403);
 }
 
@@ -80,14 +74,13 @@ async function hash(bytes: Uint8Array<ArrayBuffer>) {
 }
 
 export async function POST(request: Request) {
- const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
 
   let storageKey: string | null = null;
   try {
     requireSameOriginJson(request);
-    const actor = requirePilotApiRole(request, "operations");
-    const stage = requirePrivateRuntime();
     const { db, bucket } = backend();
+    const actor = await operationsRequest(db,request);
     const raw = await readRequestText(request, 7_500_000);
     let body: { kind?: unknown; mimeType?: unknown; retentionClass?: unknown; accessClass?: unknown; contentBase64?: unknown };
     try {
@@ -111,9 +104,9 @@ export async function POST(request: Request) {
     const contentHash = await hash(bytes);
     const artifactId = `ART-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
-    const dataEnvironment = stage === "production" ? "production" : "prelaunch";
+    const dataEnvironment = "production";
     const integrityState = "user_submitted";
-    storageKey = `rehearsal/v1/${dataEnvironment}/${kind}/${now.slice(0, 7)}/${crypto.randomUUID()}`;
+    storageKey = `operations/v1/${dataEnvironment}/${kind}/${now.slice(0, 7)}/${crypto.randomUUID()}`;
     await bucket.put(storageKey, bytes, {
       httpMetadata: { contentType: mimeType },
       customMetadata: { artifactId, contentHash, accessClass, retentionClass },
@@ -128,7 +121,7 @@ export async function POST(request: Request) {
       db.prepare(`INSERT INTO audit_events
         (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
         VALUES (?, 'operations', ?, 'evidence_stored', 'document_artifact', ?, ?, ?)`)
-        .bind(`AUD-${crypto.randomUUID()}`, actor.email, artifactId,
+        .bind(`AUD-${crypto.randomUUID()}`, actor.userId, artifactId,
           `Stored ${kind} evidence (${bytes.byteLength} bytes, SHA-256 ${contentHash}).`, now),
     ]);
     return response({ artifact: { id: artifactId, kind, mimeType, sizeBytes: bytes.byteLength, contentHash, status: "stored_unverified" } }, 201);
@@ -145,16 +138,22 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
- const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
 
   try {
-    const actor = requirePilotApiRole(request, "operations");
-    const stage = requirePrivateRuntime();
     const { db, bucket } = backend();
+    const actor = await operationsRequest(db,request);
     const url = new URL(request.url);
+    if (url.searchParams.get("kind") === "bank_statement" && !url.searchParams.has("id")) {
+      requireOperationsRole(actor, ['finance_approver', 'funding_reconciler']);
+      const artifacts = await db.prepare(`SELECT id, content_hash AS contentHash, status, created_at AS createdAt, size_bytes AS sizeBytes
+        FROM document_artifacts WHERE kind='bank_statement' AND access_class='finance' AND environment='production'
+        AND storage_reference LIKE 'BUCKET:operations/v1/%' ORDER BY created_at DESC LIMIT 100`).all();
+      return response({artifacts: artifacts.results});
+    }
     const artifactId = url.searchParams.get("id")?.trim() ?? "";
     if (!/^ART-[0-9a-f-]{36}$/i.test(artifactId)) throw new EvidenceError("Choose a valid evidence artifact.");
-    const dataEnvironment = stage === "production" ? "production" : "prelaunch";
+    const dataEnvironment = "production";
     const artifact = await db.prepare(`SELECT id, kind, storage_reference AS storageReference,
       content_hash AS contentHash, mime_type AS mimeType, size_bytes AS sizeBytes,
       retention_class AS retentionClass, access_class AS accessClass, status,
@@ -164,7 +163,7 @@ export async function GET(request: Request) {
         sizeBytes: number; retentionClass: string; accessClass: string; status: string;
         createdAt: string; verifiedAt: string | null;
       }>();
-    if (!artifact || !artifact.storageReference.startsWith("BUCKET:rehearsal/v1/")) throw new EvidenceError("That evidence artifact was not found.", 404);
+    if (!artifact || !artifact.storageReference.startsWith("BUCKET:operations/v1/")) throw new EvidenceError("That evidence artifact was not found.", 404);
     requireArtifactAccess(actor, artifact.accessClass);
     if (url.searchParams.get("download") !== "1") return response({ artifact: { ...artifact, storageReference: undefined } });
     const object = await bucket.get(artifact.storageReference.slice("BUCKET:".length));
@@ -186,13 +185,12 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
- const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
 
   try {
     requireSameOriginJson(request);
-    const actor = requirePilotApiRole(request, "operations");
-    const stage = requirePrivateRuntime();
     const { db, bucket } = backend();
+    const actor = await operationsRequest(db,request);
     const raw = await readRequestText(request, 2_000);
     let body: { artifactId?: unknown; expectedHash?: unknown };
     try {
@@ -205,7 +203,7 @@ export async function PATCH(request: Request) {
     if (!/^ART-[0-9a-f-]{36}$/i.test(artifactId) || !/^[0-9a-f]{64}$/.test(expectedHash)) {
       throw new EvidenceError("Choose a valid artifact and expected SHA-256 hash.");
     }
-    const dataEnvironment = stage === "production" ? "production" : "prelaunch";
+    const dataEnvironment = "production";
     const artifact = await db.prepare(`SELECT artifact.id, artifact.storage_reference AS storageReference,
       artifact.content_hash AS contentHash, artifact.size_bytes AS sizeBytes, artifact.status, artifact.access_class AS accessClass,
       (SELECT audit.actor_id FROM audit_events audit
@@ -216,29 +214,30 @@ export async function PATCH(request: Request) {
         id: string; storageReference: string; contentHash: string; sizeBytes: number;
         status: string; storedBy: string | null; accessClass: string;
       }>();
-    if (!artifact || !artifact.storageReference.startsWith("BUCKET:rehearsal/v1/")) throw new EvidenceError("That evidence artifact was not found.", 404);
+    if (!artifact || !artifact.storageReference.startsWith("BUCKET:operations/v1/")) throw new EvidenceError("That evidence artifact was not found.", 404);
     requireArtifactAccess(actor, artifact.accessClass);
     if (artifact.status !== "stored_unverified") throw new EvidenceError("That evidence artifact has already left the verification queue.", 409);
     if (artifact.contentHash !== expectedHash) throw new EvidenceError("The expected evidence hash does not match the stored record.", 409);
-    if (artifact.storedBy === actor.email) throw new EvidenceError("A second authorised operator must verify this evidence.", 409);
+    if (artifact.storedBy === actor.userId) throw new EvidenceError("A second authorised operator must verify this evidence.", 409);
     const object = await bucket.head(artifact.storageReference.slice("BUCKET:".length));
     if (!object || object.size !== artifact.sizeBytes || object.customMetadata?.contentHash !== artifact.contentHash) {
       throw new EvidenceError("The private evidence object failed its integrity check.", 409);
     }
     const now = new Date().toISOString();
-    const verifiedIntegrityState = stage === "production" ? "production_verified" : "verified";
-    await db.batch([
+    const verifiedIntegrityState = "production_verified";
+    const verification = await db.batch([
       db.prepare(`UPDATE document_artifacts SET status = 'verified', integrity_state = ?, verified_at = ?
         WHERE id = ? AND status = 'stored_unverified' AND content_hash = ? AND environment = ?`)
         .bind(verifiedIntegrityState, now, artifact.id, artifact.contentHash, dataEnvironment),
       db.prepare(`INSERT INTO audit_events
         (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
         SELECT ?, 'operations', ?, 'evidence_verified', 'document_artifact', id, ?, ?
-        FROM document_artifacts WHERE id = ? AND status = 'verified' AND verified_at = ?`)
-        .bind(`AUD-${crypto.randomUUID()}`, actor.email,
+        FROM document_artifacts WHERE id = ? AND status = 'verified' AND verified_at = ? AND changes() = 1`)
+        .bind(`AUD-${crypto.randomUUID()}`, actor.userId,
           `Verified the R2 object size and SHA-256 ${artifact.contentHash} under second-operator control.`,
           now, artifact.id, now),
     ]);
+    if (verification[0].meta.changes !== 1) throw new EvidenceError("The statement was already reviewed. Refresh its current status.", 409);
     return response({ artifact: { id: artifact.id, status: "verified", contentHash: artifact.contentHash, verifiedAt: now } });
   } catch (cause) {
     return errorResponse(cause);

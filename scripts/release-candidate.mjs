@@ -18,7 +18,8 @@ const validationFiles = [
   'test-results/integrated-browser/browser.json',
 ];
 const hash = (data) => createHash('sha256').update(data).digest('hex');
-const json = (file) => JSON.parse(readFileSync(file, 'utf8'));
+// Declaration comments occupy whole lines; all values remain strict JSON.
+const json = (file) => { const raw = readFileSync(file, 'utf8'); return JSON.parse(file.endsWith('.jsonc') ? raw.replace(/^\s*\/\/[^\n]*$/gm, '') : raw); };
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 function requireCondition(value, message) { if (!value) throw new Error(message); }
 function source() {
@@ -76,7 +77,7 @@ function generatedDefault(key, value, original) {
 function nativeConfig() {
   const configPath = 'dist/server/wrangler.json';
   const config = json(configPath);
-  const original = json('wrangler.jsonc'); // This repository's config is strict JSON.
+  const original = json('wrangler.jsonc');
   requireCondition(config.name === original.name && config.account_id === original.account_id, 'Native Worker/account configuration mismatch.');
   requireCondition(!process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID === original.account_id, 'Cloudflare account environment differs from validated configuration.');
   for (const kind of ['d1_databases', 'r2_buckets']) {
@@ -170,7 +171,7 @@ try {
     const receipt = { version: 1, kind: 'validated-native-candidate', source: started.source,
       startedAt: started.startedAt, validatedAt: new Date().toISOString(), command: 'LOKD_NATIVE_CF=1 npm run check:security',
       node: process.version, config, validations: validations(), artifacts: artifacts(),
-      migrationRequirement: 'Apply migrations through 0086 before deploying the updated intake and presence handlers; do not roll back to handlers without receipt protection and consent revocation. Migration execution is a separate authorized operation.' };
+      migrationRequirement: 'Apply migrations through 0171 before deploying the production maintenance and retention handlers; preserve receipt protection, consent revocation and linked-record retention holds. Migration execution is a separate authorized operation.' };
     writeFileSync(candidate, JSON.stringify(receipt, null, 2) + '\n');
     rmSync(pending, { force: true });
     // Reviewable CI summary: selected evidence fields only, never config/vars

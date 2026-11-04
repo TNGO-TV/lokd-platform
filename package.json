@@ -10,22 +10,18 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
     "build": "bash scripts/build-verified.sh",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "npm run build && node --import ./tests/register-cloudflare.mjs --test tests/*.test.mjs",
-    "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
+    "test": "npm run build && node --import ./tests/register-cloudflare.mjs --test --test-concurrency=2 tests/*.test.mjs",
+    "lint": "bash scripts/check-banned-copy.sh --check && bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
-    "test:accounts": "node scripts/test-accounts.mjs",
     "check:security": "bash scripts/security-check.sh"
   },
   "dependencies": {
-    "@clerk/backend": "^3.17.1",
-    "@clerk/react": "^6.15.1",
     "drizzle-orm": "0.45.2",
     "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "@clerk/testing": "^2.2.33",
     "@cloudflare/vite-plugin": "1.66.0",
     "@cloudflare/workers-types": "5.20261023.1",
     "@playwright/test": "^1.63.0",

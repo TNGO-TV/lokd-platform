@@ -1,3 +1,6 @@
+import {changeProductionAssignment,readRosterCandidates} from './production-roster';
+import {auditOperationsCommand} from './operations-audit';
+import {operationsAccess,requireOperationsRole} from './operations-access';
 import {requireLiveFinanceCommand} from './production-finance-boundary';
 import {operatorApprovalLimit} from './operator-approval-limit';
 import {readPartnerPayments,operatePartnerPayment} from './partner-payments';
@@ -22,7 +25,7 @@ import {evaluateAssignmentActivation,recordAssignmentActivationEvaluation,activa
 import type {SigningActor} from './production-signing';
 const text=(v:unknown)=>{if(typeof v!=='string'||!v.trim()||v.length>200)throw new SignupError('Choose a valid operational reference.');return v.trim();};
 export async function readProductionOperations(db:D1Database,actor:SigningActor){
- const rosters=await db.prepare(`SELECT r.id,r.version,r.status,r.starts_at,r.ends_at,ra.officer_id,b.id AS booking_id,b.client_id,b.client_price_cents FROM roster_slots r JOIN bookings b ON b.id=r.booking_id LEFT JOIN roster_assignments ra ON ra.roster_slot_id=r.id AND ra.status='confirmed' AND ra.active_key IS NOT NULL WHERE r.environment='production' AND b.environment='production' ${actor.operations?'':"AND (EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='client' AND l.entity_id=b.client_id AND l.owner_user_id=?) OR EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='officer' AND l.entity_id=ra.officer_id AND l.owner_user_id=?))"} ORDER BY r.starts_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId,actor.userId])).all();
+ const rosters=await db.prepare(`SELECT r.id,r.version,r.status,r.starts_at,r.ends_at,ra.officer_id,ra.id AS assignment_id,ra.version AS assignment_version,b.site_name,b.site_area,b.minimum_grade,b.id AS booking_id,b.client_id,b.client_price_cents FROM roster_slots r JOIN bookings b ON b.id=r.booking_id LEFT JOIN roster_assignments ra ON ra.roster_slot_id=r.id AND ra.status='confirmed' AND ra.active_key IS NOT NULL WHERE r.environment='production' AND b.environment='production' ${actor.operations?'':"AND (EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='client' AND l.entity_id=b.client_id AND l.owner_user_id=?) OR EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='officer' AND l.entity_id=ra.officer_id AND l.owner_user_id=?))"} ORDER BY r.starts_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId,actor.userId])).all();
  const approvals=actor.operations?await db.prepare('SELECT * FROM production_activation_approvals ORDER BY created_at DESC LIMIT 100').all():{results:[]};
  const shifts=await db.prepare(`SELECT s.id,s.officer_id,s.status,s.check_in_at,s.check_out_at,s.client_signoff_status,b.client_id FROM shifts s JOIN bookings b ON b.id=s.booking_id WHERE s.environment='production' AND b.environment='production' ${actor.operations?'':"AND (EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='client' AND l.entity_id=b.client_id AND l.owner_user_id=?) OR EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='officer' AND l.entity_id=s.officer_id AND l.owner_user_id=?))"} ORDER BY s.scheduled_date DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId,actor.userId])).all();
  const operators=actor.owner?await db.prepare("SELECT id,email,status,approval_limit_cents FROM operator_accounts WHERE environment='production'").all():{results:[]};
@@ -30,19 +33,27 @@ export async function readProductionOperations(db:D1Database,actor:SigningActor)
  // Each reader retains its own live entitlement and ownership checks. Do not
  // cache grants or move mutation/approval commands into these groups.
  const [partner,collections,workforce,evidence]=await Promise.all([
-  (async()=>({...await readPartnerPayments(db,actor,true),...await readPartnerDestinations(db,actor,true),...await readPartnerPayables(db,actor),...await readEmployeePayments(db,actor,true)}))(),
-  (async()=>({...await readPaymentDestinations(db,actor,true),...await readBookingSettlements(db,actor,true),...await readBookingCollections(db,actor,true),...await readProductionPayroll(db,actor)}))(),
+  (async()=>({...await readPartnerPayments(db,actor),...await readPartnerDestinations(db,actor),...await readPartnerPayables(db,actor),...await readEmployeePayments(db,actor)}))(),
+  (async()=>({...await readPaymentDestinations(db,actor),...await readBookingSettlements(db,actor,true),...await readBookingCollections(db,actor,true),...await readProductionPayroll(db,actor)}))(),
   (async()=>({...await readProductionPayrollPolicies(db,actor),...await readProductionSchedule(db,actor),...await readProductionService(db,actor)}))(),
   (async()=>({...await readProductionEvidence(db,actor),...await readClientReviews(db,actor),...await readProductionOrders(db,actor)}))(),
  ]);
- return {...partner,...collections,...workforce,...evidence,rosters:rosters.results,approvals:approvals.results,shifts:shifts.results,operators:operators.results,owner:actor.owner};
+ return {rosterCandidates:actor.operations?await readRosterCandidates(db):[],...partner,...collections,...workforce,...evidence,rosters:rosters.results,approvals:approvals.results,shifts:shifts.results,operators:operators.results,owner:actor.owner};
 }
-export async function operateProduction(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,liveCheckInEnabled=false,collectionRuntime:CollectionRuntime={}){
+async function performProduction(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,liveCheckInEnabled=false,collectionRuntime:CollectionRuntime={}){
+ if(actor.operations){
+  const op=await operationsAccess(db,headers);
+  if(op.userId!==actor.userId||op.email!==actor.email.toLowerCase())throw new SignupError('Operator identity does not match the signed request.',403);
+  const action=String(input.action);
+  const roles:import('./operator-controls').OperatorRole[]=action==='grant_operator'||action==='revoke_operator'?['operations_owner']:['prepare_evidence','decide_evidence','suspend_evidence','prepare_client_review','decide_client_review','suspend_client'].includes(action)?['compliance_reviewer']:['quote_order','prepare_order','prepare_roster','evaluate','prepare_activation'].includes(action)?['operations_controller']:action==='approve_activation'?['operations_owner']:[];
+  if(roles.length)requireOperationsRole(op,roles);
+ }
+ if(input.action==='change_assignment')return changeProductionAssignment(db,headers,input);
  await requireLiveFinanceCommand(db,input);
  const now=new Date().toISOString();
  if(['prepare_partner_payable','approve_partner_payable','reject_partner_payable','hold_partner_payable','export_partner_payable'].includes(String(input.action)))return operatePartnerPayable(db,actor,input,headers);
- if(['prepare_employee_payment','approve_employee_payment','cancel_employee_payment','dispatch_employee_test','verify_employee_test'].includes(String(input.action)))return operateEmployeePayment(db,actor,input,headers,collectionRuntime);
- if(['prepare_partner_payment','approve_partner_payment','cancel_partner_payment','dispatch_partner_test','verify_partner_test'].includes(String(input.action)))return operatePartnerPayment(db,actor,input,headers,collectionRuntime);
+ if(['prepare_employee_payment','approve_employee_payment','cancel_employee_payment'].includes(String(input.action)))return operateEmployeePayment(db,actor,input,headers);
+ if(['prepare_partner_payment','approve_partner_payment','cancel_partner_payment'].includes(String(input.action)))return operatePartnerPayment(db,actor,input,headers);
  if(['prepare_partner_destination','approve_partner_destination','reject_partner_destination','hold_partner_destination','recheck_partner_destination'].includes(String(input.action)))return operatePartnerDestination(db,actor,input,headers,collectionRuntime);
  if(['prepare_destination','approve_destination','reject_destination','hold_destination','recheck_destination'].includes(String(input.action)))return operatePaymentDestination(db,actor,input,headers,collectionRuntime);
  if(['prepare_settlement','approve_settlement','reject_settlement','hold_collection','apply_booking_funding'].includes(String(input.action)))return operateBookingSettlement(db,actor,input,headers,collectionRuntime);
@@ -53,11 +64,23 @@ export async function operateProduction(db:D1Database,actor:SigningActor,input:R
  if(['declare_schedule','withdraw_availability'].includes(String(input.action)))return declareProductionSchedule(db,actor,input);
  if(['complete_service','client_signoff','client_dispute','resolve_service_dispute','review_service_pay','reopen_service_pay'].includes(String(input.action)))return recordProductionService(db,actor,input,headers);
  if(['prepare_evidence','decide_evidence','suspend_evidence'].includes(String(input.action)))return manageProductionEvidence(db,actor,input);
- if(['quote_order','prepare_order','prepare_roster'].includes(String(input.action)))return prepareProductionOrder(db,actor,input);
+ if(['quote_order','prepare_order','prepare_roster'].includes(String(input.action))){
+  if(input.action==='prepare_roster'){
+   const booking=await db.prepare("SELECT client_price_cents AS amount FROM bookings WHERE id=? AND environment='production'").bind(text(input.orderId)).first<{amount:number}>();
+   if(!booking)throw new SignupError('Service order not found.',404);
+   await control(db,actor,headers,'offer.release',booking.amount);
+  }else{
+   const priced=await prepareProductionOrder(db,actor,{...input,action:'quote_order'});
+   if(!('quote' in priced)||!priced.quote)throw new SignupError('Service pricing is unavailable.',409);
+   await control(db,actor,headers,'offer.release',priced.quote.clientPriceCents);
+   if(input.action==='quote_order')return priced;
+  }
+  return prepareProductionOrder(db,actor,input);
+ }
  if(['prepare_client_review','decide_client_review','suspend_client'].includes(String(input.action)))return reviewProductionClient(db,actor,input);
  if(input.action==='grant_operator'){
   if(!actor.owner||!actor.operations)throw new SignupError('Only the assigned Operations owner can manage operator roles.',403);
-  const email=text(input.email).toLowerCase(),role=text(input.role);if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!OPERATOR_ACTION_POLICIES.some(p=>p.requiredRole===role))throw new SignupError('Choose an operator email, policy role and non-negative limit in cents.');
+  const email=text(input.email).toLowerCase(),role=text(input.role);if(email===actor.email.toLowerCase())throw new SignupError('Another owner must change your access or approval limit.',403);if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!OPERATOR_ACTION_POLICIES.some(p=>p.requiredRole===role))throw new SignupError('Choose an operator email, policy role and non-negative limit in cents.');
   let limitCents:number;try{limitCents=operatorApprovalLimit(input);}catch(error){throw new SignupError((error as Error).message);}
   let a=await db.prepare("SELECT id FROM operator_accounts WHERE lower(email)=? AND environment='production'").bind(email).first<{id:string}>();
   if(!a){const id='OP-'+crypto.randomUUID();await db.prepare("INSERT INTO operator_accounts(id,email,display_name,status,approval_limit_cents,environment,integrity_state,created_at,updated_at) VALUES(?,?,?,'active',?,'production','production_verified',?,?)").bind(id,email,email,limitCents,now,now).run();a={id};}
@@ -65,7 +88,11 @@ export async function operateProduction(db:D1Database,actor:SigningActor,input:R
  }
  if(input.action==='revoke_operator'){
   if(!actor.owner||!actor.operations)throw new SignupError('Operations owner access required.',403);
-  await db.batch([db.prepare("UPDATE operator_accounts SET status='suspended',version=version+1,updated_at=? WHERE id=? AND environment='production'").bind(now,text(input.operatorId)),db.prepare("INSERT INTO audit_events VALUES(?,'operations',?,'production_operator_suspended','operator',?,?,?)").bind(crypto.randomUUID(),actor.userId,text(input.operatorId),'Owner suspended production operator access.',now)]);return {suspended:true};
+  const operatorId=text(input.operatorId),target=await db.prepare("SELECT email,status FROM operator_accounts WHERE id=? AND environment='production'").bind(operatorId).first<{email:string;status:string}>();
+  if(!target)throw new SignupError('The operator account was not found.',404);
+  if(target.email.toLowerCase()===actor.email.toLowerCase())throw new SignupError('Another owner must suspend your access.',403);
+  if(target.status==='suspended')return {suspended:true};
+  await db.batch([db.prepare("UPDATE operator_accounts SET status='suspended',version=version+1,updated_at=? WHERE id=? AND environment='production'").bind(now,operatorId),db.prepare("INSERT INTO audit_events VALUES(?,'operations',?,'production_operator_suspended','operator',?,?,?)").bind(crypto.randomUUID(),actor.userId,operatorId,'Owner suspended production operator access.',now)]);return {suspended:true};
  }
  if(input.action==='check_in'){
   if(!liveCheckInEnabled)throw new SignupError('Production check-in awaits live operating acceptance.',423);
@@ -101,4 +128,13 @@ export async function operateProduction(db:D1Database,actor:SigningActor,input:R
   await db.prepare("UPDATE production_activation_approvals SET state='activated',updated_at=? WHERE id=? AND approver_id=?").bind(new Date().toISOString(),a.id,approver.id).run();return result;
  }
  throw new SignupError('Choose a supported production command.');
+}
+
+export async function operateProduction(...args:Parameters<typeof performProduction>){
+ const [db,actor,input]=args;
+ // The command itself checks current MFA, role, record version and amount.
+ // Existing immutable domain decisions remain the authoritative success record.
+ if(actor.operations)await auditOperationsCommand(db,actor.userId,input,'requested');
+ try{const result=await performProduction(...args);if(actor.operations)await auditOperationsCommand(db,actor.userId,input,'completed');return result;}
+ catch(error){if(actor.operations)await auditOperationsCommand(db,actor.userId,input,'failed');throw error;}
 }

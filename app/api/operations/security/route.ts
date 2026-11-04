@@ -1,21 +1,19 @@
-import { operationsMfaRequired } from "../../../lib/operations-mfa-policy";
-import { reverificationError } from '@clerk/backend/internal';
-import { principalForEmail, principalHasRole, PilotAccessError } from '../../../lib/pilot-runtime';
-import { operationsMfaStatus } from '../../../lib/operations-mfa';
-export const dynamic = 'force-dynamic';
-export async function GET(request: Request) {
-  const reply = (body: unknown, status = 200) => Response.json(body, {status, headers: {'cache-control':'private, no-store'}});
-  try {
-    const email = request.headers.get('x-lokd-verified-email');
-    if (!email || !request.headers.has('x-lokd-verified-user-id')) throw new PilotAccessError('Sign in to continue.',401);
-    if (!principalHasRole(principalForEmail(email),'operations')) throw new PilotAccessError('Operations access is required.',403);
-    const state = { ...operationsMfaStatus(request.headers), required: operationsMfaRequired() };
-    if (state.required && new URL(request.url).searchParams.get('verify') === '1' && !state.fresh) {
-      if (!state.enrolled) return reply({error:'Enrol an authenticator in Account security first.',...state},403);
-      return reply(reverificationError({level:'second_factor',afterMinutes:4}),403);
-    }
-    return reply(state);
-  } catch (error) {
-    return reply({error:error instanceof PilotAccessError ? error.message : 'Security status is unavailable.'},error instanceof PilotAccessError ? error.status : 503);
+import {env} from 'cloudflare:workers';
+import {operationsRequest} from '../../../lib/operations-access';
+import {operationsMfaStatus} from '../../../lib/operations-mfa';
+import {SignupError} from '../../../lib/signup-server';
+export const dynamic='force-dynamic';
+export async function GET(request:Request) {
+ const reply=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store'}});
+ try {
+  if(!request.headers.get('x-lokd-verified-user-id'))throw new SignupError('Sign in to continue.',401);
+  if(!env.DB)throw new SignupError('Operations storage is unavailable.',503);
+  await operationsRequest(env.DB,request,true);
+  const state={...operationsMfaStatus(request.headers),required:true};
+  if(new URL(request.url).searchParams.get('verify')==='1'&&!state.fresh){
+   if(!state.enrolled)return reply({error:'Enrol an authenticator in Account security first.',...state},403);
+   return reply({error:'Verify your second factor with your sign-in provider, then check again.',...state},403);
   }
+  return reply(state);
+ }catch(error){return reply({error:error instanceof SignupError?error.message:'Security status is unavailable.'},error instanceof SignupError?error.status:503);}
 }

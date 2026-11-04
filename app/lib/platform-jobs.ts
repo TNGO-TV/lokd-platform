@@ -1,13 +1,14 @@
+import {env} from 'cloudflare:workers';
+import {runOperationsNotifications,type OperationsMailRuntime} from './production-notifications';
 import { checkSchemaReadiness, schemaMigration } from "./schema-readiness";
 import { operationsMfaRequired } from "./operations-mfa-policy";
-import { calculatePayrollItem, SYNTHETIC_ENGINE_TEST_POLICY } from "./payroll-engine";
 
 type MaintenanceOptions = {
   actorId: string;
-  trigger: "scheduled" | "operator" | "test";
+  trigger: "scheduled" | "operator";
   evidenceStoreBound: boolean;
-  environment?: "demo" | "prelaunch" | "production";
-  integrityState?: "synthetic" | "user_submitted" | "production_verified";
+  environment?: string;
+  integrityState?: string;
 };
 
 export type PlatformMaintenanceResult = {
@@ -111,8 +112,8 @@ function controlStatement(
 }
 
 export async function runPlatformMaintenance(db: D1Database, options: MaintenanceOptions): Promise<PlatformMaintenanceResult> {
-  const environment = options.environment ?? "demo";
-  const integrityState = options.integrityState ?? "synthetic";
+  const environment = "production";
+  const integrityState = "production_verified";
   const id = runId();
   const startedAt = new Date().toISOString();
   await db.prepare(`INSERT INTO scheduled_job_runs
@@ -122,13 +123,10 @@ export async function runPlatformMaintenance(db: D1Database, options: Maintenanc
     .bind(id, options.trigger, environment, integrityState, startedAt).run();
 
   try {
+    if(environment==='production')await runOperationsNotifications(db,env as OperationsMailRuntime);
     const checks = await checkSchemaReadiness(db);
     if (!checks.schemaComplete) {
       throw new Error("Required current database objects are missing.");
-    }
-    const payrollProof = calculatePayrollItem(100_000, "2026-06-30", SYNTHETIC_ENGINE_TEST_POLICY);
-    if (payrollProof.netPayCents <= 0 || payrollProof.employerCostCents < payrollProof.grossCents) {
-      throw new Error("The payroll policy engine self-test failed.");
     }
     const processedEvents = await dispatchInternalEvents(db, environment, integrityState, id, startedAt);
     const evidenceStatus = options.evidenceStoreBound ? "ready" : "blocked";
@@ -138,30 +136,18 @@ export async function runPlatformMaintenance(db: D1Database, options: Maintenanc
       controlStatement(db, { code: `${prefix}database`, category: "backend", label: "Database and provenance guards", status: "ready", evidenceReference: `schema:${schemaMigration}`, detail: "Current required tables, guards, views and explicit indexes are present. Provider connectivity, evidence validity and operational acceptance are not assessed by this schema check.", environment, integrityState, checkedAt: completedAt, checkedBy: options.actorId }),
       controlStatement(db, { code: `${prefix}access`, category: "security", label: "Authenticated role boundary", status: "ready", evidenceReference: "code:operator-controls-v29", detail: operationsMfaRequired() ? "Role limits, recent MFA and distinct maker/checker approvals are enforced for controlled payroll commands." : "MFA is temporarily off by owner instruction. Role limits and distinct maker/checker approvals remain enforced for controlled payroll commands.", environment, integrityState, checkedAt: completedAt, checkedBy: options.actorId }),
       controlStatement(db, { code: `${prefix}jobs`, category: "backend", label: "Scheduled jobs and durable outbox", status: "ready", evidenceReference: `job:${id}`, detail: `The maintenance runner completed and dispatched ${processedEvents} internal event(s) idempotently.`, environment, integrityState, checkedAt: completedAt, checkedBy: options.actorId }),
-      controlStatement(db, { code: `${prefix}payroll`, category: "finance", label: "Versioned payroll policy engine", status: "ready", evidenceReference: `self-test:${SYNTHETIC_ENGINE_TEST_POLICY.version}`, detail: "Engine v3 shadow passed its PAYE, UIF, SDL, COIDA-provision and leave-accrual self-test. Preview artifacts remain non-settling and a live policy still requires controlled activation.", environment, integrityState, checkedAt: completedAt, checkedBy: options.actorId }),
       controlStatement(db, { code: `${prefix}maps`, category: "operations", label: "Coordinate map and travel evidence", status: "ready", evidenceReference: "code:coordinate-map-v25", detail: "Operations uses stored coordinates and versioned travel assessments without making an external mapping provider a launch dependency.", environment, integrityState, checkedAt: completedAt, checkedBy: options.actorId }),
       controlStatement(db, { code: `${prefix}evidence`, category: "security", label: "Private evidence object store", status: evidenceStatus, evidenceReference: options.evidenceStoreBound ? "binding:BUCKET" : "binding:missing", detail: options.evidenceStoreBound ? "The private R2 binding is present; artifacts are hash-addressed in D1 and served only through an authorised route." : "The evidence adapter is built, but the private R2 binding is not present in this runtime.", environment, integrityState, checkedAt: completedAt, checkedBy: options.actorId }),
-      db.prepare(`UPDATE integration_provider_configs SET mode = 'internal', status = 'sandbox_ready',
-        configuration_version = CASE capability WHEN 'payroll' THEN 'v29-shadow-engine' ELSE 'v29-runtime' END,
-        last_health_state = 'healthy',
-        last_health_checked_at = ?, updated_at = ?
-        WHERE environment = ? AND integrity_state = ? AND capability IN ('backend','payroll','messaging','maps')`)
-        .bind(completedAt, completedAt, environment, integrityState),
-      db.prepare(`UPDATE integration_provider_configs SET mode = 'r2', status = ?,
-        configuration_version = 'v25-r2', last_health_state = ?, last_health_checked_at = ?, updated_at = ?
-        WHERE environment = ? AND integrity_state = ? AND capability = 'evidence'`)
-        .bind(options.evidenceStoreBound ? "sandbox_ready" : "blocked",
-          options.evidenceStoreBound ? "healthy" : "unavailable", completedAt, completedAt, environment, integrityState),
       db.prepare(`INSERT INTO service_heartbeats
         (key, status, environment, detail, checked_at, last_success_at, consecutive_failures)
         VALUES (?, 'healthy', ?, ?, ?, ?, 0)
         ON CONFLICT(key) DO UPDATE SET status = 'healthy', detail = excluded.detail,
           checked_at = excluded.checked_at, last_success_at = excluded.last_success_at, consecutive_failures = 0`)
         .bind(`${environment}:platform-maintenance`, environment,
-          `Version 29 maintenance completed; ${processedEvents} internal event(s) dispatched.`, completedAt, completedAt),
+          `Production maintenance completed; ${processedEvents} internal event(s) dispatched.`, completedAt, completedAt),
       db.prepare(`UPDATE scheduled_job_runs SET status = 'completed', processed_count = ?,
         detail = ?, completed_at = ? WHERE id = ? AND status = 'running'`)
-        .bind(processedEvents, `Schema, payroll engine, evidence binding and internal outbox checked.`, completedAt, id),
+        .bind(processedEvents, `Schema, evidence binding and internal outbox checked.`, completedAt, id),
     ]);
     return { runId: id, status: "completed", processedEvents, ...checks, evidenceStoreBound: options.evidenceStoreBound };
   } catch (cause) {
@@ -179,4 +165,31 @@ export async function runPlatformMaintenance(db: D1Database, options: Maintenanc
     ]);
     throw cause;
   }
+}
+
+// Deadlines come from persisted intake and expiry policies; callers cannot supply
+// a clock or shorten retention. Linked business records require manual review.
+export async function runDataRetention(db: D1Database) {
+  const result = await db.batch([
+    db.prepare(`DELETE FROM client_enquiries WHERE id IN (
+      SELECT id FROM client_enquiries e WHERE julianday(retention_review_at) <= julianday('now')
+      AND NOT EXISTS (SELECT 1 FROM signup_cases c WHERE c.source_id=e.id)
+      AND NOT EXISTS (SELECT 1 FROM operational_delivery_jobs j WHERE j.source_id=e.id AND j.state='dispatching')
+      ORDER BY retention_review_at LIMIT 100)`),
+    db.prepare(`DELETE FROM api_idempotency_keys WHERE id IN (
+      SELECT id FROM api_idempotency_keys WHERE julianday(expires_at) <= julianday('now')
+      ORDER BY expires_at LIMIT 500)`),
+    db.prepare(`DELETE FROM public_officer_presence WHERE id IN (
+      SELECT id FROM public_officer_presence WHERE julianday(expires_at) <= julianday('now')
+      ORDER BY expires_at LIMIT 500)`),
+    db.prepare(`DELETE FROM officer_application_receipts WHERE application_id IN (
+      SELECT a.id FROM officer_applications a WHERE julianday(a.retention_review_at) <= julianday('now')
+      AND NOT EXISTS (SELECT 1 FROM signup_cases c WHERE c.source_id=a.id)
+      AND EXISTS (SELECT 1 FROM officer_application_receipts r WHERE r.application_id=a.id)
+      ORDER BY a.retention_review_at LIMIT 100)`),
+  ]);
+  const removed = result.map(r => Number(r.meta.changes ?? 0));
+  console.info(JSON.stringify({ event: 'data_retention_completed', enquiries: removed[0],
+    requestReceipts: removed[1], presenceSessions: removed[2], applicationReceipts: removed[3] }));
+  return { enquiries: removed[0], requestReceipts: removed[1], presenceSessions: removed[2], applicationReceipts: removed[3] };
 }

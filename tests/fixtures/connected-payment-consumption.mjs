@@ -2,7 +2,7 @@
 // is synthetic and every payment mutation is rolled back before suspension QA.
 import assert from 'node:assert/strict';
 import {suspendOfficerWorkforce} from '../../app/lib/production-rereview.ts';
-import {operateProduction} from '../../app/lib/production-operations.ts';
+import {operateWithProof as operateProduction} from './operations-auth.mjs';
 import {operatePaymentDestination} from '../../app/lib/payment-destinations.ts';
 import {operateEmployeePayment} from '../../app/lib/employee-payments.ts';
 import {operatePaymentExecution,receiveLiveTransferWebhook} from '../../app/lib/payment-execution.ts';
@@ -17,7 +17,7 @@ export async function consumeConnectedPayment({db,database,runId,officerId,maker
  const issuedBefore=JSON.stringify(database.prepare('SELECT * FROM finance_document_versions WHERE id=?').get(document.documentId));
  const gateBefore=database.prepare('SELECT enabled FROM payment_live_control WHERE id=1').get().enabled;
  assert.equal(gateBefore,0);
- const runtime={PAYSTACK_TEST_SECRET_KEY:'sk_test_connected_fixture',PAYSTACK_LIVE_SECRET_KEY:'sk_live_connected_fixture'};
+ const runtime={PAYSTACK_LIVE_SECRET_KEY:'sk_live_connected_fixture'};
  const recipient={id:123,integration:456,recipient_code:'RCP_connected001',domain:'live',type:'basa',currency:'ZAR',active:true,is_deleted:false,name:'Synthetic connected officer',updatedAt:'2026-09-01T00:00:00.000Z',details:{account_number:'1234567890',bank_code:'632005',bank_name:'Fixture bank',account_name:'Synthetic connected officer'}};
  let reference,posts=0,status='success';
  const raw=()=>({id:1987,transfer_code:'TRF_connected001',reference,domain:'live',amount:item.net_pay_cents,currency:'ZAR',source:'balance',recipient:123,integration:456,status});

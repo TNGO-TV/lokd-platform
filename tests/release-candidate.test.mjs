@@ -21,7 +21,7 @@ function fixture(t) {
   const original = { name: 'lokd-security', account_id: 'd7000a5708fdeb67be6e21ee40e9105e',
     compatibility_date: '2026-09-14', compatibility_flags: ['nodejs_compat'], workers_dev: true, keep_vars: true, upload_source_maps: true,
     assets: { directory: './dist/client', binding: 'ASSETS', not_found_handling: 'none' }, images: { binding: 'IMAGES' },
-    triggers: { crons: ['* * * * *'] }, vars: { LOKD_PUBLIC_ORIGIN: 'https://lokd.co.za', LOKD_APP_STAGE: 'prelaunch' }, observability: { enabled: true },
+    triggers: { crons: ['* * * * *'] }, vars: { LOKD_PUBLIC_ORIGIN: 'https://lokd.co.za', LOKD_APP_STAGE: 'production' }, observability: { enabled: true },
     d1_databases: [{ binding: 'DB', database_name: 'lokd-security', database_id: 'real-database' }],
     r2_buckets: [{ binding: 'BUCKET', bucket_name: 'lokd-security' }] };
   put('wrangler.jsonc', JSON.stringify(original)); put('package-lock.json', '{}\n');
@@ -51,7 +51,7 @@ test('candidate records exact source, lock, native assets and validation evidenc
   assert.match(receipt.source.commit, /^[a-f0-9]{40}$/); assert.match(receipt.source.tree, /^[a-f0-9]{40}$/);
   assert.equal(receipt.artifacts.length, 3); assert.equal(receipt.validations.length, 5);
   assert.ok(receipt.validations.some(file=>file.path==='test-results/integrated-browser/browser.json'));
-  assert.equal(f.run('verify').status, 0); assert.match(receipt.migrationRequirement, /through 0086 before deploying/);
+  assert.equal(f.run('verify').status, 0); assert.match(receipt.migrationRequirement, /through 0171 before deploying/);
 });
 
 test('CI summary exposes only validated boundary fields, source commit, config key names and artifact count', (t) => {
@@ -62,7 +62,7 @@ test('CI summary exposes only validated boundary fields, source commit, config k
   assert.equal(summary.artifactFileCount, 3); assert.match(summary.sourceCommit, /^[a-f0-9]{40}$/);
   assert.ok(summary.nativeConfigMatchedKeys.includes('vars')); assert.ok(summary.nativeConfigMatchedKeys.includes('images'));
   assert.deepEqual(summary.dependencyBoundaries, [{ path: 'test-results/dependency-boundary-rsc.json', ...passingBoundary() }]);
-  assert.doesNotMatch(result.stdout, /https:\/\/lokd|prelaunch|real-database/);
+  assert.doesNotMatch(result.stdout, /https:\/\/lokd|production|real-database/);
 });
 
 test('artifact, validation, lock and untracked source drift independently block deployment verification', (t) => {

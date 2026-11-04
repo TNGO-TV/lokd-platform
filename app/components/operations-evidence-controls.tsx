@@ -1,0 +1,24 @@
+'use client';
+import {useCallback,useEffect,useState} from 'react';
+type Artifact={id:string;contentHash:string;status:string;createdAt:string;sizeBytes:number};
+type Envelope={error?:string;artifact?:Partial<Artifact>;artifacts?:Artifact[]};
+async function response(request:Promise<Response>){const r=await request;const raw:unknown=await r.json();if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('The statement response is incomplete.');const data=raw as Envelope;if(!r.ok)throw Error(typeof data?.error==='string'?data.error:'The bank statement could not be confirmed.');return data;}
+export default function OperationsEvidenceControls({selected,onSelect}:{selected:string;onSelect:(id:string)=>void}){
+ const [artifacts,setArtifacts]=useState<Artifact[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
+ const load=useCallback(async()=>{const data=await response(fetch('/api/evidence?kind=bank_statement',{cache:'no-store'}));if(!Array.isArray(data.artifacts)||!data.artifacts.every(a=>typeof a.id==='string'&&typeof a.contentHash==='string'&&typeof a.status==='string'&&typeof a.createdAt==='string'&&typeof a.sizeBytes==='number'))throw Error('The statement list is incomplete.');setArtifacts(data.artifacts);},[]);
+ useEffect(()=>{const timer=setTimeout(()=>void load().catch(e=>setError(e.message)),0);return()=>clearTimeout(timer);},[load]);
+ async function upload(form:HTMLFormElement){setBusy(true);setError('');setMessage('');try{
+  const file=new FormData(form).get('statement');if(!(file instanceof File)||file.size<1||file.size>5000000)throw Error('Choose a bank statement between 1 byte and 5 MB.');
+  const bytes=new Uint8Array(await file.arrayBuffer()),hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(n=>n.toString(16).padStart(2,'0')).join('');
+  let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+  const data=await response(fetch('/api/evidence',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({kind:'bank_statement',mimeType:file.type||(/\.csv$/i.test(file.name)?'text/csv':'application/octet-stream'),retentionClass:'financial_7y',accessClass:'finance',contentBase64:btoa(binary)})}));
+  if(data.artifact?.contentHash!==hash||data.artifact?.status!=='stored_unverified')throw Error('The uploaded statement checksum was not confirmed. Refresh its record before uploading again.');
+  setMessage('Statement stored. A second finance operator must inspect and verify it before reconciliation.');form.reset();await load();
+ }catch(e){setError(e instanceof Error?e.message:'Statement upload failed.');}finally{setBusy(false);}}
+ async function verify(artifact:Artifact){setBusy(true);setError('');setMessage('');try{
+  const data=await response(fetch('/api/evidence',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({artifactId:artifact.id,expectedHash:artifact.contentHash})}));
+  if(data.artifact?.status!=='verified'||data.artifact?.id!==artifact.id)throw Error('Verification was not confirmed. Refresh the statement before retrying.');
+  await load();onSelect(artifact.id);setMessage('Statement verified and selected for reconciliation.');
+ }catch(e){setError(e instanceof Error?e.message:'Statement verification failed.');}finally{setBusy(false);}}
+ return <section className="operations-panel"><h2>Bank statements</h2><p>Upload the original statement, then have another finance operator download and inspect it. Verification confirms the stored document; EFT approval still requires an independent transaction review.</p>{error&&<p role="alert">{error}</p>}{message&&<p role="status">{message}</p>}<form onSubmit={e=>{e.preventDefault();void upload(e.currentTarget);}}><label>Statement (PDF, CSV, PNG or JPEG; up to 5 MB)<input name="statement" type="file" accept="application/pdf,text/csv,image/png,image/jpeg" required/></label><button disabled={busy}>Upload bank statement</button></form><button disabled={busy} onClick={()=>void load().catch(e=>setError(e.message))}>Refresh statements</button>{!artifacts.length&&<p>No bank statements are available.</p>}{artifacts.map(a=><article key={a.id}><p><a href={'/api/evidence?id='+encodeURIComponent(a.id)+'&download=1'}>Download statement from {new Date(a.createdAt).toLocaleString('en-ZA')}</a> · {a.status.replaceAll('_',' ')} · {a.sizeBytes} bytes</p>{a.status==='stored_unverified'&&<form onSubmit={e=>{e.preventDefault();void verify(a);}}><label><input type="checkbox" required/>I downloaded and inspected this statement and did not upload it.</label><button disabled={busy}>Verify statement</button></form>}{a.status==='verified'&&<button aria-pressed={selected===a.id} disabled={busy} onClick={()=>onSelect(a.id)}>{selected===a.id?'Selected for reconciliation':'Use for reconciliation'}</button>}</article>)}</section>;
+}

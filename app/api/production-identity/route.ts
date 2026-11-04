@@ -1,8 +1,9 @@
+import {operationsRequest,requireOperationsRole,requireOperationsJson as requireSameOriginJson} from '../../lib/operations-access';
 import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import {env} from 'cloudflare:workers';
 import {SignupError,writeSignup} from '../../lib/signup-server';
-import {PilotAccessError,principalForEmail,principalHasRole,requirePilotApiRole,requireSameOriginJson} from '../../lib/pilot-runtime';
+
 import {workspaceRoleForHost} from '../../lib/public-site';
 import * as identity from '../../lib/production-identity';
 import * as officer from '../../lib/production-officer-review';
@@ -14,22 +15,22 @@ import * as delivery from '../../lib/production-passport-delivery';
 import {prepareProductionEntity} from '../../lib/production-intake';
 
 export const dynamic='force-dynamic';
-function actor(request:Request){
+async function actor(request:Request){
  const url=new URL(request.url),operations=url.searchParams.get('scope')==='operations';
  const userId=request.headers.get('x-lokd-verified-user-id'),email=request.headers.get('x-lokd-verified-email');
  if(!userId||!email)throw new SignupError('Sign in to your account.',401);
  const host=workspaceRoleForHost(url.hostname);
  if(host&&host!==(operations?'operations':'officer'))throw new SignupError('Open the correct workspace.',403);
- const principal=principalForEmail(email);
- if(operations){if(!principalHasRole(principal,'operations'))throw new SignupError('Operations access required.',403);requirePilotApiRole(request,'operations');}
- return {userId,email,operations,owner:operations&&principal.owner};
+
+ if(operations){if(!env.DB)throw new SignupError('Storage unavailable.',503);const op=await operationsRequest(env.DB,request);if(request.method!=='GET')requireOperationsRole(op,['compliance_reviewer']);return op;}
+ return {userId,email,operations,owner:false};
 }
 const reply=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff'}});
-const fail=(error:unknown)=>error instanceof SignupError||error instanceof RequestBodyError || error instanceof PilotAccessError?reply({error:error.message},error.status):reply({error:'The evidence or authority may have changed. Refresh the saved record before acting again. No approval was restored.'},409);
+const fail=(error:unknown)=>error instanceof SignupError||error instanceof RequestBodyError?reply({error:error.message},error.status):reply({error:'The evidence or authority may have changed. Refresh the saved record before acting again. No approval was restored.'},409);
 const reference=(value:unknown)=>{if(typeof value!=='string'||!value.trim()||value.length>300)throw new SignupError('Choose a valid record.');return value.trim();};
 export async function GET(request:Request){
  try{
-  const a=actor(request),url=new URL(request.url),kind=url.searchParams.get('kind');
+  const a=await actor(request),url=new URL(request.url),kind=url.searchParams.get('kind');
   if(!env.DB)throw new SignupError('Storage unavailable.',503);
   if(kind==='cases')return reply(await reviewData.readIdentityCases(env.DB,a,url.searchParams.get('offset')));
   if(kind==='review_queue')return reply(await reviewData.readIdentityReviewQueue(env.DB,a,{recordType:url.searchParams.get('recordType'),state:url.searchParams.get('state'),offset:url.searchParams.get('offset')}));
@@ -47,7 +48,7 @@ export async function GET(request:Request){
 }
 export async function POST(request:Request){
  try{
-  requireSameOriginJson(request);const a=actor(request);
+  requireSameOriginJson(request);const a=await actor(request);
   const raw = await readRequestText(request, 64000);
   let body;try{body=JSON.parse(raw);}catch{throw new SignupError('Invalid request.');}
   if(!body||typeof body!=='object'||Array.isArray(body))throw new SignupError('Choose an action.');

@@ -1,60 +1,34 @@
-import {blockedTestSurface,rehearsalEnv as env} from '../../lib/test-surface-runtime';
-import {readRequestText, RequestBodyError} from '../../lib/request-body';
+import { env } from 'cloudflare:workers';
+import { SignupError } from '../../lib/signup-server';
+import { readRequestText, RequestBodyError } from '../../lib/request-body';
+import { quoteActor, requireClientJson } from '../../lib/quote-access';
+import { readClientFeedback, writeClientFeedback } from '../../lib/booking-client';
+import { deliverClientNotifications } from '../../lib/quote-notifications';
 
-import { PilotAccessError, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
-
-export const dynamic = "force-dynamic";
-
-function response(payload: unknown, status = 200) {
-  return Response.json(payload, { status, headers: { "cache-control": "no-store, private" } });
+export const dynamic = 'force-dynamic';
+const reply = (value: unknown, status = 200) => Response.json(value, { status, headers: { 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' } });
+function failure(error: unknown) {
+  if (error instanceof SignupError || error instanceof RequestBodyError) return reply({ error: error.message }, error.status);
+  if (error instanceof Error && /UNIQUE constraint/.test(error.message)) return reply({ error: 'You have already rated this shift. Raise an issue if you need help.' }, 409);
+  return reply({ error: 'Your feedback could not be saved. Please try again.' }, 503);
 }
-
-function getDb() {
-  if (!env.DB) throw new Error("The pilot feedback service is unavailable.");
-  return env.DB;
-}
-
 export async function GET(request: Request) {
- const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
-
   try {
-    requirePilotApiRole(request, "operations");
-    const result = await getDb().prepare(`SELECT id, reviewer_email AS reviewerEmail, route, role,
-      category, score, note, status, created_at AS createdAt FROM pilot_feedback
-      ORDER BY created_at DESC LIMIT 100`).all();
-    return response({ feedback: result.results ?? [] });
-  } catch (cause) {
-    if (cause instanceof RequestBodyError || cause instanceof PilotAccessError) return response({ error: cause.message }, cause.status);
-    return response({ error: "Feedback could not be loaded." }, 503);
-  }
+    const actor = quoteActor(request, env);
+    if (!env.DB) throw new SignupError('Feedback storage is unavailable.', 503);
+    return reply(await readClientFeedback(env.DB, actor));
+  } catch (error) { return failure(error); }
 }
-
 export async function POST(request: Request) {
- const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
-
   try {
-    requireSameOriginJson(request);
-    const principal = requirePilotApiRole(request, ["operations", "client", "officer", "reviewer"]);
-    const raw = await readRequestText(request, 8_192);
-    const body = JSON.parse(raw) as { route?: string; category?: string; score?: number; note?: string };
-    const route = typeof body.route === "string" && body.route.startsWith("/") && !body.route.startsWith("//") ? body.route.slice(0, 160) : "/";
-    const role = principal.owner ? "Owner" : principal.roles.join("+").slice(0, 40);
-    const category = body.category ?? "Idea";
-    const note = body.note?.trim().slice(0, 2000) ?? "";
-    const score = Number(body.score ?? 0);
-    if (!['Bug', 'Confusing', 'Missing', 'Idea'].includes(category)) return response({ error: "Choose a feedback category." }, 400);
-    if (!note) return response({ error: "Please add a short note." }, 400);
-    if (score < 1 || score > 5) return response({ error: "Choose a score from 1 to 5." }, 400);
-    const reviewerEmail = principal.email;
-    const now = new Date().toISOString();
-    const id = `FDB-${crypto.randomUUID()}`;
-    await getDb().prepare(`INSERT INTO pilot_feedback
-      (id, reviewer_email, route, role, category, score, note, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?)`)
-      .bind(id, reviewerEmail, route, role, category, score, note, now).run();
-    return response({ ok: true, id }, 201);
-  } catch (cause) {
-    if (cause instanceof RequestBodyError || cause instanceof PilotAccessError) return response({ error: cause.message }, cause.status);
-    return response({ error: "Feedback could not be saved." }, 503);
-  }
+    requireClientJson(request);
+    const actor = quoteActor(request, env);
+    if (!env.DB) throw new SignupError('Feedback storage is unavailable.', 503);
+    let input: unknown;
+    try { input = JSON.parse(await readRequestText(request, 8192)); } catch (error) { if (error instanceof RequestBodyError) throw error; throw new SignupError('Enter valid feedback.'); }
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new SignupError('Enter valid feedback.');
+    const result = await writeClientFeedback(env.DB, actor, input as Record<string, unknown>);
+    const emailDelivery = result.notificationIds.length ? await deliverClientNotifications(env.DB, env, { ids: result.notificationIds, ownerUserId: actor.userId }) : null;
+    return reply({ ok: true, result, emailDelivery, ...await readClientFeedback(env.DB, actor) });
+  } catch (error) { return failure(error); }
 }

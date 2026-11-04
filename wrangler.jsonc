@@ -1,11 +1,24 @@
+// Optional owner-supplied secrets: LOKD_BACKUP_TOKEN_SHA256, VERIFYNOW_API_KEY, RESEND_API_KEY.
+// Reserved, disconnected payment secret: PAYSTACK_LIVE_SECRET_KEY. Do not provision.
+// Purpose and provisioning status: docs/production-secrets.md. Values never belong here.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // Client account and delivery secrets (set with wrangler secret; never store values here):
+  // RESEND_API_KEY, LOKD_EMAIL_FROM, LOKD_QUOTE_EMAIL_FROM, LOKD_TEAM_EMAIL.
+  // Operations access: LOKD_OPERATIONS_ACCESS_JSON, LOKD_OWNER_ACCESS_JSON.
+  // Client payment configuration remains disconnected: PAYSTACK_LIVE_SECRET_KEY,
+  // LOKD_COLLECTION_LIVE_ENABLED, LOKD_EFT_BANK_NAME, LOKD_EFT_ACCOUNT_NAME,
+  // LOKD_EFT_ACCOUNT_NUMBER, LOKD_EFT_BRANCH_CODE, LOKD_EFT_ACCOUNT_TYPE.
   "name": "lokd-security",
   "account_id": "d7000a5708fdeb67be6e21ee40e9105e",
   "compatibility_date": "2026-09-14",
-  "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": true,
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": false,
   "keep_vars": true,
+  // Public-site runtime settings: LOKD_EMAIL_FROM (verified Resend sender),
+  // LOKD_TEAM_EMAIL (operations recipient), LOKD_EMAIL_PROVIDER=resend.
   "upload_source_maps": true,
   "main": "./worker/index.ts",
   "assets": {
@@ -17,11 +30,21 @@
     "binding": "IMAGES"
   },
   "triggers": {
-    "crons": ["* * * * *"]
+    "crons": [
+      "* * * * *"
+    ]
   },
+  // Officer secrets (set with wrangler secret put; never store values here):
+  // RESEND_API_KEY, VERIFYNOW_API_KEY
+  // Officer email config: LOKD_EMAIL_FROM (verified Resend sender).
+  // Identity config: VERIFYNOW_IDENTITY_POLICY_REFERENCE,
+  // VERIFYNOW_IDENTITY_VALIDITY_DAYS (1–365).
+  // Operations secrets: RESEND_API_KEY (set with wrangler secret put).
+  // Email configuration: LOKD_EMAIL_FROM must be a verified Resend sender.
+  // Payment provider keys remain unset.
   "vars": {
     "LOKD_PUBLIC_ORIGIN": "https://lokd.co.za",
-    "LOKD_APP_STAGE": "prelaunch"
+    "LOKD_APP_STAGE": "production"
   },
   "d1_databases": [
     {
@@ -38,6 +61,40 @@
     }
   ],
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "traces": {
+      "enabled": true
+    }
+  },
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "lokd.co.za",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.lokd.co.za",
+      "custom_domain": true
+    },
+    {
+      "pattern": "portal.lokd.co.za",
+      "custom_domain": true
+    },
+    {
+      "pattern": "officers.lokd.co.za",
+      "custom_domain": true
+    },
+    {
+      "pattern": "operations.lokd.co.za",
+      "custom_domain": true
+    }
+  ],
+  "secrets": {
+    "required": [
+      "RESEND_API_KEY",
+      "LOKD_ROLE_ACCESS_JSON",
+      "LOKD_OPERATIONS_ACCESS_JSON",
+      "LOKD_OWNER_ACCESS_JSON"
+    ]
   }
 }

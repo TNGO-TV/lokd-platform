@@ -1,27 +1,42 @@
-import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
-import {blockedTestSurface} from '../../lib/test-surface-runtime';
-import {readFinanceWorkspaces,readFinanceCapabilities,readFinanceReviewQueue,readFinanceOperationEvidence} from '../../lib/finance-workflow-discovery';
-import {readFinanceBody,financeSandboxDatabase} from '../../lib/finance-workflow-request';
 import {env} from 'cloudflare:workers';
+import {operationsRequest,requireOperationsJson,requireOperationsRole} from '../../lib/operations-access';
+import {readEft,operateEft} from '../../lib/production-eft';
+import {runOperationsNotifications,reconcileOperationsNotification,type OperationsMailRuntime} from '../../lib/production-notifications';
+import {DeliveryError,emailValid} from '../../lib/operational-provider';
 import {SignupError} from '../../lib/signup-server';
-import {PilotAccessError,principalForEmail,principalHasRole,requirePilotApiRole,requireSameOriginJson} from '../../lib/pilot-runtime';
-import {workspaceRoleForHost} from '../../lib/public-site';
-import {prepareFinanceCommand,readFinanceJourney,readTrainingCatalogue,financeReadiness,FINANCE_SANDBOX_POLICY} from '../../lib/finance-workflows';
-import {createFinanceWorkspace,applyFinanceCommand,readFinanceCommand,object,str,sandbox,type FinanceRuntime,type Member} from '../../lib/finance-workflow-store';
-import {dispatchFinanceOperation,attestFinanceBank,DeterministicFinanceProvider,type Evidence} from '../../lib/finance-workflow-provider';
+import {readRequestText,RequestBodyError} from '../../lib/request-body';
 export const dynamic='force-dynamic';
-const headers={'cache-control':'private, no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff'};
-export async function POST(request:Request){const blocked=await blockedTestSurface(request);if(blocked)return blocked;try{
- if(request.method!=='GET')requireSameOriginJson(request);const userId=request.headers.get('x-lokd-verified-user-id'),email=request.headers.get('x-lokd-verified-email');if(!userId||!email)throw new SignupError('Sign in to your account.',401);
- const p=principalForEmail(email),operations=principalHasRole(p,'operations'),host=workspaceRoleForHost(new URL(request.url).hostname);if(operations){if(host&&host!=='operations')throw new SignupError('Use the Operations workspace.',403);requirePilotApiRole(request,'operations');}
- const db=await financeSandboxDatabase(env);const runtime=env as unknown as FinanceRuntime,a={userId,email,operations,owner:p.owner},url=new URL(request.url),workspace=url.searchParams.get('workspace')??'';sandbox(runtime);
- if(request.method==='GET')return Response.json(url.searchParams.has('workspaces')?await readFinanceWorkspaces(db,a,runtime):url.searchParams.has('capabilities')?await readFinanceCapabilities(db,a,runtime,workspace):url.searchParams.has('commands')?await readFinanceReviewQueue(db,a,runtime,workspace,url.searchParams.get('afterCommand')??undefined):url.searchParams.has('operationId')?await readFinanceOperationEvidence(db,a,runtime,workspace,url.searchParams.get('operationId')!,Number(url.searchParams.get('afterEvidence')??0)):url.searchParams.get('catalogue')==='training'?await readTrainingCatalogue(db,a,runtime,workspace):url.searchParams.has('commandId')?await readFinanceCommand(db,a,runtime,workspace,url.searchParams.get('commandId')!):url.searchParams.has('applicationId')?await financeReadiness(db,a,runtime,workspace,url.searchParams.get('applicationId')!):await readFinanceJourney(db,a,runtime,workspace,url.searchParams.get('id')??undefined,Number(url.searchParams.get('after')??0),url.searchParams.get('current')==='true'),{headers});
- const raw=await readFinanceBody(request,30000);const input=object(JSON.parse(raw));let result;
- if(input.action==='create_workspace')result=await createFinanceWorkspace(db,a,runtime,str(input,'id'),FINANCE_SANDBOX_POLICY,input.members as unknown as {userId:string;role:Member['role'];limit:number}[]);
- else if(input.action==='decide')result=await applyFinanceCommand(db,a,runtime,workspace,str(input,'commandId'),str(input,'digest'),str(input,'decision') as 'approved'|'rejected',str(input,'findings'));
- else if(input.action==='dispatch'||input.action==='recover'){if(!runtime.FINANCE_SIMULATOR_KEY)throw new SignupError('Provider simulator is disabled.',423);const provider=new DeterministicFinanceProvider();if(input.scenario!==undefined){if(!['success','failed','reversed','pending','needs_attention','timeout'].includes(String(input.scenario)))throw new SignupError('Unknown simulator scenario.');provider.timeout=input.scenario==='timeout';provider.status=provider.timeout?'success':input.scenario as Evidence['status'];}result=await dispatchFinanceOperation(db,a,runtime,workspace,str(input,'operationId'),provider,input.action==='recover');}
- else if(input.action==='bank_evidence')result=await attestFinanceBank(db,a,runtime,workspace,str(input,'operationId'),str(input,'eventId'),input.evidence as unknown as Evidence);
- else result=await prepareFinanceCommand(db,a,runtime,workspace,object(input.command),str(input,'requestKey'),typeof input.policyVersion==='string'?input.policyVersion:undefined);
- return Response.json({...result,commandReceipt:await workspaceCommandReceipt('finance-workflows',{workspace,...input})},{headers});
- }catch(e){return Response.json({error:e instanceof SignupError||e instanceof PilotAccessError?e.message:'Finance state changed or input is invalid. Refresh and review.'},{status:e instanceof SignupError||e instanceof PilotAccessError?e.status:409,headers});}}
-export const GET=POST;
+const reply=(data:unknown,status=200)=>Response.json(data,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
+const failure=(e:unknown)=>reply({error:e instanceof SignupError||e instanceof RequestBodyError||e instanceof DeliveryError?e.message:'The finance record changed or could not be saved. Refresh and inspect the original record before retrying.'},e instanceof SignupError||e instanceof RequestBodyError?e.status:409);
+export async function GET(request:Request){try{
+ if(!env.DB)throw new SignupError('Finance storage is unavailable.',503);
+ const a=await operationsRequest(env.DB,request);requireOperationsRole(a,['finance_approver','funding_reconciler','payroll_preparer','payroll_reviewer']);
+ const [receipts,notifications,invoices]=await Promise.all([readEft(env.DB),env.DB.prepare('SELECT id,subject,state,attempts,last_error,created_at FROM production_notifications ORDER BY created_at DESC LIMIT 100').all(),env.DB.prepare("SELECT id,invoice_number,total_cents,status,booking_id FROM client_invoices WHERE environment='production' ORDER BY created_at DESC LIMIT 100").all()]);
+ const mail=env as OperationsMailRuntime;
+ const configurationWarnings=[];
+ if(!mail.RESEND_API_KEY||!emailValid(mail.LOKD_EMAIL_FROM))configurationWarnings.push('Email delivery requires the RESEND_API_KEY secret and a verified LOKD_EMAIL_FROM sender. Notifications are retained until delivery can be confirmed.');
+ return reply({receipts,notifications:notifications.results,invoices:invoices.results,configurationWarnings});
+}catch(e){return failure(e);}}
+export async function POST(request:Request){try{
+ requireOperationsJson(request);if(!env.DB)throw new SignupError('Finance storage is unavailable.',503);
+ const a=await operationsRequest(env.DB,request);let input;
+ try{input=JSON.parse(await readRequestText(request,24000));}catch(e){if(e instanceof RequestBodyError)throw e;throw new SignupError('Send valid JSON.');}
+ if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a finance action.');
+ if(['prepare_eft','decide_eft','apply_eft_funding'].includes(input.action))return reply({result:await operateEft(env.DB,request.headers,input)});
+ if(input.action==='reconcile_notification'){
+  requireOperationsRole(a,['operations_owner','finance_approver']);
+  if(typeof input.notificationId!=='string'||input.notificationId.length>200||typeof input.providerId!=='string')throw new SignupError('Choose a notification and its Resend email ID.');
+  return reply({result:await reconcileOperationsNotification(env.DB,env as OperationsMailRuntime,a.userId,input.notificationId,input.providerId)});
+ }
+ if(input.action==='retry_notification'){
+  requireOperationsRole(a,['operations_owner','finance_approver']);
+  if(typeof input.notificationId!=='string'||input.notificationId.length>200)throw new SignupError('Choose a notification.');
+  const now=new Date().toISOString();const result=await env.DB.batch([
+   env.DB.prepare("UPDATE production_notifications SET state='queued',next_attempt_at=?,updated_at=? WHERE id=? AND state='blocked' AND (first_attempt_at IS NULL OR first_attempt_at>?)").bind(now,now,input.notificationId,new Date(Date.now()-23*3600000).toISOString()),
+   env.DB.prepare("INSERT INTO audit_events SELECT ?,'operations',?,'production_notification_retry','notification',?,'Retry requested after configuration review.',? WHERE changes()=1").bind(crypto.randomUUID(),a.userId,input.notificationId,now),
+  ]);
+  if(!result[0].meta.changes)throw new SignupError('Only a blocked notification within its safe retry period can be retried.',409);
+  return reply({result:await runOperationsNotifications(env.DB,env as OperationsMailRuntime)});
+ }
+ throw new SignupError('Choose a supported finance action.');
+}catch(e){return failure(e);}}

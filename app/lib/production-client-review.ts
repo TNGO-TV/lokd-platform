@@ -10,7 +10,7 @@ async function subject(db:D1Database,id:string){
 const snapshot=(s:Subject)=>JSON.stringify({clientId:s.id,organisationName:s.organisation_name,contactName:s.contact_name,email:s.contact_email,caseId:s.case_id,caseVersion:s.case_version,ownerUserId:s.owner_user_id});
 export async function currentClientReview(db:D1Database,clientId:string,at=new Date().toISOString()){
  const linked=await db.prepare("SELECT entity_id FROM production_entity_links WHERE kind='client' AND entity_id=?").bind(clientId).first();
- if(!linked)return true; // Existing independently verified records retain their established evidence path.
+ if(!linked)return Boolean(await db.prepare("SELECT id FROM clients WHERE id=? AND environment='production' AND integrity_state='production_verified' AND approval_status='approved'").bind(clientId).first());
  return Boolean(await db.prepare(`SELECT r.id FROM production_client_reviews r JOIN production_client_decisions d ON d.review_id=r.id AND d.decision='approve' JOIN production_entity_links l ON l.kind='client' AND l.entity_id=r.client_id AND l.case_version=r.case_version JOIN signup_cases c ON c.kind=l.kind AND c.source_id=l.case_id AND c.version=r.case_version AND c.owner_user_id=r.owner_user_id AND c.status='reviewed' WHERE r.client_id=? AND r.expires_at>? AND NOT EXISTS(SELECT 1 FROM production_client_suspensions s WHERE s.client_id=r.client_id AND s.created_at>=r.prepared_at) LIMIT 1`).bind(clientId,at).first());
 }
 export async function readClientReviews(db:D1Database,actor:SigningActor){

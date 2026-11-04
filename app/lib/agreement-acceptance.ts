@@ -1,5 +1,4 @@
-// Server-side preparation for the existing contract envelope flow. No public
-// signing endpoint is enabled until legal wording and signer mandates are approved.
+// Exact wording and service scope are retained in each immutable signed receipt.
 export type AgreementPurpose = 'client_service' | 'partner_service' | 'officer_employment' | 'bank_instruction' | 'deduction_authorisation' | 'identity_consent' | 'privacy_acknowledgement' | 'marketing_consent';
 export type AgreementVersion = {
   id: string; version: string; purpose: AgreementPurpose; entityId: string; locale: string;
@@ -28,7 +27,7 @@ export async function prepareAgreementReceipt(input: {
 }) {
   const now=input.now ?? Date.now(),doc=input.document;
   if(doc.status!=='approved' || !doc.approvedBy || !doc.approvedAt || !Number.isFinite(Date.parse(doc.approvedAt)) || Date.parse(doc.approvedAt)>now) throw new Error('Approved legal wording is required.');
-  if(!doc.id || !doc.version || !doc.wording.trim() || /\[\[|WORKING DRAFT|PRELIMINARY FRAMEWORK|SIMULATION ONLY/i.test(doc.wording)) throw new Error('Unfinished or synthetic wording cannot be accepted.');
+  if(!doc.id || !doc.version || !doc.wording.trim() || /\[\[|WORKING DRAFT|PRELIMINARY FRAMEWORK|SIMULATION ONLY/i.test(doc.wording)) throw new Error('Complete approved wording is required.');
   if(!doc.entityId.trim() || !doc.locale.trim() || doc.purpose!==input.expectedPurpose || doc.entityId!==input.expectedEntityId || doc.locale!==input.expectedLocale) throw new Error('Document purpose, entity or locale does not match this step.');
   if(!Number.isFinite(Date.parse(doc.effectiveFrom)) || Date.parse(doc.effectiveFrom)>now || doc.effectiveTo!==null && (!Number.isFinite(Date.parse(doc.effectiveTo)) || Date.parse(doc.effectiveTo)<=now)) throw new Error('The document version is not currently effective.');
   if(!input.affirmative || !input.actorUserId || !input.identityEvidence.trim()) throw new Error('An affirmative action and independently verified actor are required.');

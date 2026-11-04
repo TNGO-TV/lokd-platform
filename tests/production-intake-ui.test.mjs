@@ -9,6 +9,8 @@ import * as receipts from '../app/lib/workspace-command-receipt.ts';
 const record={kind:'officer',id:'APP-fixture',version:2,updatedAt:'2026-10-16T00:00:00Z',details:{fullName:'Isolated fixture'},email:'fixture@example.test',accountLinked:true,status:'reviewed',events:[]};
 const submitted={action:'prepare_entity',kind:record.kind,caseId:record.id,caseVersion:record.version};
 const receipt={documents:[],envelopes:[],owner:false,commandReceipt:await receipts.workspaceCommandReceipt('production-signing',submitted),result:{entityId:'OFFICER-fixture',grantsAccess:false,workEligible:false},entities:[{kind:'officer',case_id:record.id,case_version:record.version,entity_id:'OFFICER-fixture'}]};
+const source=fs.readFileSync(new URL('../app/components/signup-portal.tsx',import.meta.url),'utf8')+'\nexport {RecordCard};';
+const recordCardCode=ts.transpileModule(source,{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 function deferred(){
  let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};
 }
@@ -17,12 +19,11 @@ function setup(fetch,refresh=async()=>true,validateReceipt=receipts.matchesWorks
  // RecordCard's second state is preparing. Its finally block clears it only
  // after response validation, refresh and outcome writes have all completed.
  const useState=initial=>{const index=stateIndex++;return [initial,value=>{writes.push(value);if(index===1&&value===false)completed.resolve();}];};
- const modules={'react/jsx-runtime':{jsx,jsxs:jsx,Fragment:'fragment'},react:{useState,useRef:v=>({current:v}),useEffect:()=>{},useCallback:f=>f},'next/link':{default:'a'},'next/navigation':{useSearchParams:()=>new URLSearchParams()},'../lib/signup-types':{signupNextStep:()=>'',signupStatusLabels:{reviewed:'Reviewed'}},'../lib/psira-pathway':{applicationPsiraDeclaration:()=> 'registered'},'./signup-portal.module.css':{default:{}},'./officer-presence-panel':{default:()=>null},'./test-agreement-panel':{default:()=>null},'./test-surface-context':{useTestSurface:()=>false}};
+ const modules={'react/jsx-runtime':{jsx,jsxs:jsx,Fragment:'fragment'},react:{useState,useRef:v=>({current:v}),useEffect:()=>{},useCallback:f=>f},'next/link':{default:'a'},'next/navigation':{useSearchParams:()=>new URLSearchParams()},'../lib/signup-types':{signupNextStep:()=>'',signupStatusLabels:{reviewed:'Reviewed'}},'../lib/psira-pathway':{applicationPsiraDeclaration:()=> 'registered'},'./signup-portal.module.css':{default:{}},'./officer-presence-panel':{default:()=>null}};
  modules['../lib/workspace-response-contracts']=contracts;modules['../lib/workspace-command-receipt']={...receipts,matchesWorkspaceCommand:validateReceipt};
  const helper={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../app/components/workspace-request.tsx',import.meta.url),'utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS}}).outputText,{exports:helper,Error,require:key=>modules[key]});modules['./workspace-request']=helper;
- const source=fs.readFileSync(new URL('../app/components/signup-portal.tsx',import.meta.url),'utf8')+'\nexport {RecordCard};';
- const code=ts.transpileModule(source,{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,exports={};
- vm.runInNewContext(code,{exports,require:key=>{assert.ok(key in modules,key);return modules[key];},fetch,Intl,URLSearchParams,Error});
+ const exports={};
+ vm.runInNewContext(recordCardCode,{exports,require:key=>{assert.ok(key in modules,key);return modules[key];},fetch,Intl,URLSearchParams,Error});
  const tree=exports.RecordCard({record,operations:true,busy:false,run:async()=>true,refresh,onUnconfirmed:message=>writes.push(message)});
  function find(n){if(!n||typeof n!=='object')return null;if(n.type==='button'&&n.props.children==='Prepare operational record')return n;for(const c of [n.props?.children].flat(Infinity)){const found=find(c);if(found)return found;}return null;}
  const button=find(tree);assert.ok(button);return {click:button.props.onClick,writes,completed:completed.promise};

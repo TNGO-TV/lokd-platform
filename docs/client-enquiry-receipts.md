@@ -8,4 +8,4 @@ The public form generates a random UUID submission key. Identical retries reuse 
 
 A honeypot response contains no saved reference and makes no saved-record claim. The form displays success only for a saved:true receipt with a full enquiry UUID. Network failures, invalid success bodies and uncertain server responses retain the original body in this tab and offer Retry original enquiry. The form is locked until that outcome is recovered, preventing accidental replacement of an uncertain request. Closing the tab loses this in-memory retry key; do not claim cross-device recovery.
 
-The new insert guard accepts the seven services already offered by the public form. All prelaunch/user-submitted, zero-credit, consent, retention, initial status and history protections remain. This intake is neither a booking nor a payment instruction and grants no deployment eligibility.
+The new insert guard accepts the seven services already offered by the public form. All production/user-submitted, zero-credit, consent, retention, initial status and history protections remain. This intake is neither a booking nor a payment instruction and grants no deployment eligibility.

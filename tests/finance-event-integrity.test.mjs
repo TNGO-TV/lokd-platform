@@ -6,7 +6,7 @@ import {DatabaseSync} from 'node:sqlite';
 import test from 'node:test';
 
 // The same module is an offline fixture loader in its child process. No temporary
-// loader file or provider/account connection is used. Markers prove both modes run.
+// loader file or provider/account connection is used. The marker proves the live conflict matrix ran.
 export async function load(url,context,nextLoad){
  const loaded=await nextLoad(url,context);
  if(!url.endsWith('/tests/fixtures/booking-refund-journey.mjs'))return loaded;
@@ -78,7 +78,7 @@ if(process.env.LOKD_FINANCE_EVENT_LOADER!=='1'){
   const root=fileURLToPath(new URL('../',import.meta.url));
   const childEnv={...process.env,LOKD_FINANCE_EVENT_LOADER:'1'};delete childEnv.NODE_TEST_CONTEXT;
   const output=execFileSync(process.execPath,['--experimental-strip-types','--import','./tests/register-finance-event.mjs','--test-reporter=tap','--test-name-pattern=production intake prepares pending records','tests/assignment-activation-db.test.mjs'],{cwd:root,env:childEnv,encoding:'utf8',timeout:30000,stdio:['ignore','pipe','pipe']});
-  for(const mode of ['test','live'])assert.match(output,new RegExp('QA_FINANCE_FIXED: '+mode+' single-event reuse denied'));
+  assert.match(output,/QA_FINANCE_FIXED: live single-event reuse denied; distinct second event accepted; event hash bound; [1-9][0-9]* PK\/alternate-key replacements denied with rows preserved/);
   assert.match(output,/# fail 0/);assert.match(output,/# skipped 0/);
  });
  test('original inbox late-link triggers preserve identity on duplicate projection',()=>{

@@ -2,7 +2,11 @@ import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from "cloudflare:workers";
 import { agreementHash } from "../../lib/agreement-acceptance";
-import { PilotAccessError, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
+import { operationsMfaStatus } from "../../lib/operations-mfa";
+import { deliverEnquiryEmails } from "../../lib/signup-enquiry-delivery";
+import { operationsEmailAllowed } from "../../lib/signup-access";
+import { workspaceRoleForHost } from "../../lib/public-site";
+import type { OperationalRuntime } from "../../lib/operational-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -53,17 +57,49 @@ function reply(payload: unknown, status = 200) {
 }
 
 function failure(cause: unknown) {
-  const error = cause instanceof EnquiryError || cause instanceof RequestBodyError || cause instanceof PilotAccessError
+  const error = cause instanceof EnquiryError || cause instanceof RequestBodyError
     ? cause : new EnquiryError("We could not complete that enquiry request.", 500);
+  if (cause instanceof Error && cause.message.includes('public_enquiry_rate_limited')) return reply({error:'Too many enquiries. Please wait an hour before sending another request.'},429);
   return reply({ error: error.message }, error.status);
 }
 
+function requireSameOriginJson(request: Request) {
+  if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') throw new EnquiryError('Use application/json for this request.',415);
+  const origin=request.headers.get('origin'),site=request.headers.get('sec-fetch-site');
+  if (origin !== new URL(request.url).origin || site && !['same-origin','none'].includes(site)) throw new EnquiryError('Open this form on the LOKD website and try again.',403);
+}
 function requireSignedInOperations(request: Request) {
-  if (!request.headers.get("x-lokd-verified-email")) throw new EnquiryError("Sign in to Operations to continue.", 401);
-  return requirePilotApiRole(request, "operations");
+  const userId=request.headers.get('x-lokd-verified-user-id'),email=request.headers.get('x-lokd-verified-email');
+  if (!userId || !email) throw new EnquiryError('Sign in to Operations to continue.',401);
+  const runtime=env as unknown as Record<string,string|undefined>;
+  const hostRole=workspaceRoleForHost(new URL(request.url).hostname);
+  if (hostRole && hostRole !== 'operations') throw new EnquiryError('Open the Operations workspace to continue.',403);
+  if (!operationsEmailAllowed(email,runtime)) throw new EnquiryError('Operations access is required.',403);
+  if (!operationsMfaStatus(request.headers).fresh) throw new EnquiryError('Verify your Operations second factor at /ops/security.',403);
+  return {userId,email};
+}
+function scheduleDetails(input:Record<string,unknown>) {
+  // Existing integrations can submit an initial brief; website submissions include the full schedule.
+  const keys=['siteAddress','startDate','endDate','startTime','endTime','officers','schedule'];
+  if (!keys.some(key=>input[key]!==undefined)) return null;
+  const siteAddress=clean(input.siteAddress,'Site address',5,200);
+  const date=(value:unknown,label:string)=>{
+    const text=clean(value,label,10,10),stamp=Date.parse(text+'T00:00:00Z');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(text)||!Number.isFinite(stamp)||new Date(stamp).toISOString().slice(0,10)!==text)throw new EnquiryError(label+' is not a valid date.');
+    return text;
+  };
+  const startDate=date(input.startDate,'Start date'),endDate=date(input.endDate,'End date');
+  if(endDate<startDate)throw new EnquiryError('The end date must be on or after the start date.');
+  const time=(value:unknown,label:string)=>{const text=clean(value,label,5,5);if(!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(text))throw new EnquiryError(label+' is not valid.');return text;};
+  const startTime=time(input.startTime,'Shift start'),endTime=time(input.endTime,'Shift end');
+  const officers=input.officers;
+  if(typeof officers!=='number'||!Number.isSafeInteger(officers)||officers<1||officers>100)throw new EnquiryError('Choose between 1 and 100 officers per shift.');
+  const schedule=clean(input.schedule,'Schedule',3,60);
+  if(!['Single shift','Every day in this period','Weekdays in this period','Selected days — described below'].includes(schedule))throw new EnquiryError('Choose a valid schedule.');
+  return {siteAddress,startDate,endDate,startTime,endTime,officers,schedule};
 }
 
-export async function submitClientEnquiry(request: Request,database?:D1Database) {
+export async function submitClientEnquiry(request: Request,database?:D1Database,options:{runtime?:OperationalRuntime;transport?:typeof fetch}={}) {
   try {
     requireSameOriginJson(request);
     const raw = await readRequestText(request, 14_000);
@@ -87,47 +123,63 @@ export async function submitClientEnquiry(request: Request,database?:D1Database)
       : "scheduled_unarmed_fixed_site";
     if (!serviceTypes.has(serviceType)) throw new EnquiryError("Choose a valid security service.");
     const message = clean(input.message, "Site brief", 20, 2_000);
+    const schedule=scheduleDetails(input);
+    if(schedule&&!mobileNormalized)throw new EnquiryError("A contact phone number is required.");
     if (input.advanceFundingAcknowledged !== true) throw new EnquiryError("Confirm that you understand submitting an enquiry does not confirm service until Operations reviews fit and commercial terms.");
     if (input.privacyConsent !== true) throw new EnquiryError("Consent is required to save and respond to this enquiry.");
 
     const db = database??getDb();
+    const runtime=options.runtime??env as unknown as OperationalRuntime;
+    const saved=async(id:string)=>{
+      const delivery=await deliverEnquiryEmails(db,runtime,id,options.transport).catch(()=>({notificationStatus:'pending' as const,confirmationEmailSent:false,opsEmailSent:false}));
+      return reply({saved:true,reference:id,...delivery},202);
+    };
     // Contact details are not an ownership credential or an idempotency key.
     // Only possession of the random submission key can recover this exact receipt.
     const requestKey = input.requestKey;
+    if(schedule&&requestKey===undefined)throw new EnquiryError("A submission key is required. Reload the form and try again.");
     if (requestKey !== undefined && (typeof requestKey !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestKey))) throw new EnquiryError('Use a valid enquiry submission key.');
     const keyHash = typeof requestKey === 'string' ? await agreementHash('client-enquiry:' + requestKey.toLowerCase()) : null;
-    const payloadHash = await agreementHash(JSON.stringify({organisationName,contactName,emailNormalized,mobileNormalized,siteArea,siteType,requiredStart,serviceType,message,privacyNoticeVersion,advanceFundingAcknowledged:true,privacyConsent:true}));
+    const payloadHash = await agreementHash(JSON.stringify({organisationName,contactName,emailNormalized,mobileNormalized,siteArea,siteType,requiredStart,serviceType,message,privacyNoticeVersion,advanceFundingAcknowledged:true,privacyConsent:true,...(schedule?{schedule}: {})}));
     const recover = async () => {
       if (!keyHash) return null;
       const receipt = await db.prepare('SELECT payload_hash,enquiry_id FROM client_enquiry_receipts WHERE request_key_hash=?').bind(keyHash).first<{payload_hash:string;enquiry_id:string}>();
       if (!receipt) return null;
       if (receipt.payload_hash !== payloadHash) throw new EnquiryError('This submission key was used with different enquiry details. Keep the original request and submit changed details with a new key.',409);
-      return reply({saved:true,reference:receipt.enquiry_id},202);
+      return saved(receipt.enquiry_id);
     };
     const recovered = await recover();
     if (recovered) return recovered;
+    if (schedule && schedule.startDate < new Date(Date.now() + 7200000).toISOString().slice(0,10)) throw new EnquiryError('Choose a start date from today onwards.');
 
     const now = new Date();
     const nowIso = now.toISOString();
     const retention = new Date(now);
     retention.setUTCFullYear(retention.getUTCFullYear() + 1);
     const id = `ENQ-${crypto.randomUUID().toUpperCase()}`;
-    const writes = [
+    const ip=request.headers.get('cf-connecting-ip');
+    const rateKeys=[{type:'public_enquiry_rate_email',value:emailNormalized},...(ip?[{type:'public_enquiry_rate_ip',value:ip}]:[])];
+    const writes=[];
+    for(const key of rateKeys){
+      const hash=await agreementHash('public-enquiry-rate:'+key.type+':'+key.value);
+      writes.push(db.prepare("INSERT INTO audit_events(id,actor_type,actor_id,event_type,entity_type,entity_id,detail,created_at) VALUES(?,'public',?,?,'client_enquiry',?,'Public enquiry admission',?)").bind('AUD-'+crypto.randomUUID(),hash,key.type,id,nowIso));
+    }
+    writes.push(
       db.prepare(`INSERT INTO client_enquiries
         (id, organisation_name, contact_name, email_normalized, mobile_normalized, site_area,
          site_type, required_start, message, service_type, funding_model, credit_terms_days,
          privacy_notice_version, privacy_acknowledged_at, status, owner_id, resolution,
-         environment, integrity_state, retention_review_at, created_at, updated_at, version)
+         environment, integrity_state, retention_review_at, created_at, updated_at, version,site_address,start_date,end_date,start_time,end_time,officer_count,schedule)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'advance_only', 0,
-         ?, ?, 'new', NULL, NULL, 'prelaunch', 'user_submitted', ?, ?, ?, 1)`)
+         ?, ?, 'new', NULL, NULL, 'production', 'user_submitted', ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`)
         .bind(id, organisationName, contactName, emailNormalized, mobileNormalized, siteArea,
-          siteType, requiredStart, message, serviceType, privacyNoticeVersion, nowIso, retention.toISOString(), nowIso, nowIso),
+          siteType, requiredStart, message, serviceType, privacyNoticeVersion, nowIso, retention.toISOString(), nowIso, nowIso,schedule?.siteAddress??null,schedule?.startDate??null,schedule?.endDate??null,schedule?.startTime??null,schedule?.endTime??null,schedule?.officers??null,schedule?.schedule??null),
       db.prepare(`INSERT INTO audit_events
         (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
         VALUES (?, 'client_enquiry', ?, 'public_client_enquiry_submitted', 'client_enquiry', ?,
          'A public service enquiry was received. No quotation, booking, credit or deployment was created.', ?)`)
         .bind(`AUD-${crypto.randomUUID()}`, id, id, nowIso),
-    ];
+    );
     if (keyHash) writes.push(db.prepare('INSERT INTO client_enquiry_receipts(request_key_hash,payload_hash,enquiry_id,created_at) VALUES(?,?,?,?)').bind(keyHash,payloadHash,id,nowIso));
     try { await db.batch(writes); }
     catch (cause) {
@@ -137,7 +189,7 @@ export async function submitClientEnquiry(request: Request,database?:D1Database)
       if (concurrent) return concurrent;
       throw cause;
     }
-    return reply({ saved:true,reference:id },202);
+    return saved(id);
   } catch (cause) { return failure(cause); }
 }
 
@@ -150,8 +202,12 @@ export async function GET(request: Request) {
       contact_name AS contactName, email_normalized AS email, mobile_normalized AS mobile,
       site_area AS siteArea, site_type AS siteType, required_start AS requiredStart,
       service_type AS serviceType, message, status, owner_id AS ownerId, resolution, created_at AS createdAt,
-      updated_at AS updatedAt, version FROM client_enquiries
-      WHERE environment = 'prelaunch' AND integrity_state = 'user_submitted'
+      updated_at AS updatedAt, version,site_address AS siteAddress,start_date AS startDate,end_date AS endDate,
+      start_time AS startTime,end_time AS endTime,officer_count AS officers,schedule,
+      (SELECT state FROM operational_delivery_jobs j WHERE j.kind='enquiry_email' AND j.source_id=client_enquiries.id) AS emailStatus,
+      (SELECT last_error FROM operational_delivery_jobs j WHERE j.kind='enquiry_email' AND j.source_id=client_enquiries.id) AS emailError
+      FROM client_enquiries
+      WHERE environment = 'production' AND integrity_state = 'user_submitted'
       ORDER BY CASE status WHEN 'new' THEN 1 WHEN 'triaged' THEN 2 ELSE 3 END, created_at DESC LIMIT 100`)
       .all<Record<string, unknown>>();
     return reply({ enquiries: result.results ?? [] });
@@ -168,33 +224,38 @@ export async function PATCH(request: Request) {
     catch { throw new EnquiryError("The update body is not valid JSON."); }
     const id = clean(input.id, "Enquiry reference", 5, 80);
     const action = clean(input.action, "Action", 4, 20);
+    if(action==='retry_email'){
+      const delivery=await deliverEnquiryEmails(getDb(),env as unknown as OperationalRuntime,id);
+      await getDb().prepare("INSERT INTO audit_events(id,actor_type,actor_id,event_type,entity_type,entity_id,detail,created_at) VALUES(?,'operations',?,'enquiry_email_retry','client_enquiry',?,?,?)").bind('AUD-'+crypto.randomUUID(),actor.email,id,delivery.notificationStatus,new Date().toISOString()).run();
+      return reply({ok:true,...delivery,commandReceipt:await workspaceCommandReceipt('client-enquiries',input)});
+    }
     const version = typeof input.version === "number" && Number.isSafeInteger(input.version) ? input.version : 0;
     if (version < 1) throw new EnquiryError("Refresh the enquiry before updating it.", 409);
     const current = await getDb().prepare(`SELECT updated_at AS updatedAt FROM client_enquiries
-      WHERE id=? AND version=? AND environment='prelaunch' AND integrity_state='user_submitted'`)
+      WHERE id=? AND version=? AND environment='production' AND integrity_state='user_submitted'`)
       .bind(id, version).first<{ updatedAt: string }>();
     if (!current) throw new EnquiryError("That enquiry changed. Refresh before trying again.", 409);
     // Consecutive valid reviews may share a clock millisecond. Preserve the
     // database's strictly increasing audit timestamp without asking for a retry.
     const now = new Date(Math.max(Date.now(), Date.parse(current.updatedAt) + 1)).toISOString();
-    let result: D1Result<unknown>;
+    let update: D1PreparedStatement;
     if (action === "triage") {
-      result = await getDb().prepare(`UPDATE client_enquiries SET status='triaged', owner_id=?,
+      update = getDb().prepare(`UPDATE client_enquiries SET status='triaged', owner_id=?,
         updated_at=?, version=version+1 WHERE id=? AND status='new' AND version=?
-        AND environment='prelaunch' AND integrity_state='user_submitted'`)
-        .bind(actor.email, now, id, version).run();
+        AND environment='production' AND integrity_state='user_submitted'`)
+        .bind(actor.email, now, id, version);
     } else if (action === "close") {
       const resolution = clean(input.resolution, "Resolution", 3, 600);
-      result = await getDb().prepare(`UPDATE client_enquiries SET status='closed', owner_id=?,
+      update = getDb().prepare(`UPDATE client_enquiries SET status='closed', owner_id=?,
         resolution=?, updated_at=?, version=version+1 WHERE id=? AND status IN ('new','triaged') AND version=?
-        AND environment='prelaunch' AND integrity_state='user_submitted'`)
-        .bind(actor.email, resolution, now, id, version).run();
+        AND environment='production' AND integrity_state='user_submitted'`)
+        .bind(actor.email, resolution, now, id, version);
     } else throw new EnquiryError("Choose a valid enquiry action.");
-    if (!result.meta.changes) throw new EnquiryError("That enquiry changed. Refresh before trying again.", 409);
-    await getDb().prepare(`INSERT INTO audit_events
+    const results=await getDb().batch([update,getDb().prepare(`INSERT INTO audit_events
       (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
-      VALUES (?, 'operations', ?, 'client_enquiry_reviewed', 'client_enquiry', ?, ?, ?)`)
-      .bind(`AUD-${crypto.randomUUID()}`, actor.email, id, `Enquiry ${action} recorded by Operations.`, now).run();
+      SELECT ?, 'operations', ?, 'client_enquiry_reviewed', 'client_enquiry', ?, ?, ? WHERE changes()=1`)
+      .bind(`AUD-${crypto.randomUUID()}`, actor.email, id, `Enquiry ${action} recorded by Operations.`, now)]);
+    if (!results[0].meta.changes) throw new EnquiryError("That enquiry changed. Refresh before trying again.", 409);
     return reply({ok:true,commandReceipt:await workspaceCommandReceipt('client-enquiries',input)});
   } catch (cause) { return failure(cause); }
 }

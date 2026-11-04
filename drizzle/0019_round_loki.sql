@@ -201,7 +201,7 @@ CREATE INDEX `service_requests_officer_idx` ON `service_requests` (`officer_id`,
 ALTER TABLE `officer_applications` ADD `identity_consent_version` text;--> statement-breakpoint
 ALTER TABLE `officer_applications` ADD `identity_consented_at` text;--> statement-breakpoint
 ALTER TABLE `officer_applications` ADD `officer_id` text REFERENCES `officers`(`id`) ON DELETE set null;--> statement-breakpoint
-ALTER TABLE `officer_applications` ADD `environment` text DEFAULT 'prelaunch' NOT NULL;--> statement-breakpoint
+ALTER TABLE `officer_applications` ADD `environment` text DEFAULT 'production' NOT NULL;--> statement-breakpoint
 ALTER TABLE `officer_applications` ADD `integrity_state` text DEFAULT 'user_submitted' NOT NULL;--> statement-breakpoint
 UPDATE `officer_applications` SET `environment` = 'demo', `integrity_state` = 'synthetic',
 	`identity_consent_version` = 'demo-identity-consent-v1', `identity_consented_at` = `privacy_acknowledged_at`
@@ -233,7 +233,7 @@ CREATE TRIGGER `officer_application_provenance_insert_v21`
 BEFORE INSERT ON `officer_applications`
 WHEN NOT (
 	(NEW.`environment` = 'demo' AND NEW.`integrity_state` = 'synthetic')
-	OR (NEW.`environment` = 'prelaunch' AND NEW.`integrity_state` = 'user_submitted')
+	OR (NEW.`environment` = 'production' AND NEW.`integrity_state` = 'user_submitted')
 	OR (NEW.`environment` = 'production' AND NEW.`integrity_state` IN ('verified','production_verified'))
 )
 BEGIN
@@ -255,7 +255,7 @@ CREATE TRIGGER `integration_provider_provenance_insert_v21`
 BEFORE INSERT ON `integration_provider_configs`
 WHEN NOT (
 	(NEW.`environment` = 'demo' AND NEW.`integrity_state` = 'synthetic')
-	OR (NEW.`environment` = 'prelaunch' AND NEW.`integrity_state` = 'user_submitted')
+	OR (NEW.`environment` = 'production' AND NEW.`integrity_state` = 'user_submitted')
 	OR (NEW.`environment` = 'production' AND NEW.`integrity_state` IN ('verified','production_verified'))
 )
 BEGIN
@@ -267,7 +267,7 @@ BEFORE INSERT ON `identity_verification_cases`
 BEGIN
 	SELECT (CASE WHEN NOT (
 		(NEW.`environment` = 'demo' AND NEW.`integrity_state` = 'synthetic')
-		OR (NEW.`environment` = 'prelaunch' AND NEW.`integrity_state` = 'user_submitted')
+		OR (NEW.`environment` = 'production' AND NEW.`integrity_state` = 'user_submitted')
 		OR (NEW.`environment` = 'production' AND NEW.`integrity_state` IN ('verified','production_verified'))
 	) OR NOT EXISTS (
 		SELECT 1 FROM `integration_provider_configs` config
@@ -531,7 +531,7 @@ BEFORE INSERT ON `domain_outbox_events`
 BEGIN
 	SELECT (CASE WHEN NOT (
 		(NEW.`environment` = 'demo' AND NEW.`integrity_state` = 'synthetic')
-		OR (NEW.`environment` = 'prelaunch' AND NEW.`integrity_state` = 'user_submitted')
+		OR (NEW.`environment` = 'production' AND NEW.`integrity_state` = 'user_submitted')
 		OR (NEW.`environment` = 'production' AND NEW.`integrity_state` IN ('verified','production_verified'))
 	) OR NEW.`aggregate_type` NOT IN ('officer_application','booking','service_request','identity_case','payment_order')
 	OR (NEW.`aggregate_type` = 'officer_application' AND NOT EXISTS (
@@ -575,7 +575,7 @@ BEFORE INSERT ON `service_requests`
 BEGIN
 	SELECT (CASE WHEN NOT (
 		(NEW.`environment` = 'demo' AND NEW.`integrity_state` = 'synthetic')
-		OR (NEW.`environment` = 'prelaunch' AND NEW.`integrity_state` = 'user_submitted')
+		OR (NEW.`environment` = 'production' AND NEW.`integrity_state` = 'user_submitted')
 		OR (NEW.`environment` = 'production' AND NEW.`integrity_state` IN ('verified','production_verified'))
 	) OR (NEW.`client_id` IS NOT NULL AND NOT EXISTS (
 		SELECT 1 FROM `clients` client WHERE client.`id` = NEW.`client_id`

@@ -6,13 +6,14 @@ export async function bookingRefundJourney({database,db,reviewer,owner,applicant
  const scalar=sql=>database.prepare(sql).get();
  const ref=collection.reference,mode=collection.mode,amount=collection.amount_minor;
  const savedFunding=JSON.stringify(database.prepare('SELECT * FROM booking_funding_reconciliations WHERE provider_reference=?').get(ref));
- const secret=mode==='test'?runtime.PAYSTACK_TEST_SECRET_KEY:runtime.PAYSTACK_LIVE_SECRET_KEY;
+ assert.equal(mode,'live');
+ const secret=runtime.PAYSTACK_LIVE_SECRET_KEY;
  const run=(a,input,transport=async()=>{throw Error('Unexpected network call');},rt=runtime)=>operateBookingRefund(db,a,{reference:ref,...input},headers,rt,transport);
  const request={action:'prepare_refund_case',requestKey:'fixture-refund-'+mode,intent:'refund',evidenceReviewed:true,liabilitiesReviewed:true,policyReference:'fixture-approved-policy',policyHash:'a'.repeat(64),evidenceHash:'b'.repeat(64),liabilityPlan:'Hold funding. Existing service and earned payroll remain payable pending separate review.',note:'Local fixture full refund, no actual customer or bank.'};
  const scenario=async fn=>{database.exec('SAVEPOINT refund_scenario');try{await fn();}finally{database.exec('ROLLBACK TO refund_scenario; RELEASE refund_scenario');}};
  const {operateCreditNote,readCreditNotes}=await import('../../app/lib/credit-notes.ts');
  const oldBatch=db.batch;db.batch=async statements=>{database.exec('SAVEPOINT refund_batch');try{const results=statements.map(s=>s.runSync());database.exec('RELEASE refund_batch');return results;}catch(e){database.exec('ROLLBACK TO refund_batch; RELEASE refund_batch');throw e;}};
- const {operateProduction}=await import('../../app/lib/production-operations.ts');
+ const {operateWithProof:operateProduction}=await import('./operations-auth.mjs');
  await operateProduction(db,owner,{action:'grant_operator',email:reviewer.email,role:'finance_approver',limitCents:25000000},headers);
  const invoice=database.prepare('SELECT * FROM credit_note_sources WHERE booking_id=?').get(collection.order_id);
  const prepare=async(net=invoice.subtotal_cents,tax=invoice.tax_cents,suffix='full',externalRefundId)=>{
@@ -70,7 +71,7 @@ export async function bookingRefundJourney({database,db,reviewer,owner,applicant
   const duplicateRow=database.prepare('SELECT * FROM booking_refund_receipts WHERE id=?').get(duplicate.receiptId);
   const settled=await Promise.allSettled([run(owner,decision),run(owner,decision)]);assert.equal(settled.filter(r=>r.status==='fulfilled').length,1);
   await assert.rejects(()=>run(owner,{...decision,receiptId:duplicateRow.id,payloadHash:duplicateRow.payload_hash}),/already reconciled/);
-  const state=database.prepare('SELECT * FROM booking_refund_state WHERE reference=?').get(ref);assert.equal(state.state,mode==='test'?'test_refund_confirmed':'refunded_funding_held');assert.equal(state.funding_available,0);assert.equal(state.liabilities_cancelled,0);
+  const state=database.prepare('SELECT * FROM booking_refund_state WHERE reference=?').get(ref);assert.equal(state.state,'refunded_funding_held');assert.equal(state.funding_available,0);assert.equal(state.liabilities_cancelled,0);
   // Historical approval survives, but a new contradictory event holds the current projection.
   await assert.rejects(()=>run(owner,{action:'verify_refund',caseId:c.id,refundId:'80001'},async()=>Response.json({status:false},{status:404})),/unavailable/);
   assert.equal(database.prepare('SELECT state FROM booking_refund_state WHERE reference=?').get(ref).state,'reconciled_history_currently_held');
@@ -122,7 +123,7 @@ export async function bookingRefundJourney({database,db,reviewer,owner,applicant
   const settlePartial=async(c,bank)=>{const p=await run(reviewer,{action:'prepare_refund_receipt',caseId:c.id,evidenceReviewed:true,bankReference:bank,bankHash:(bank.endsWith('one')?'1':'2').repeat(64),bankAmountMinor:JSON.parse(c.payload_json).amountMinor,note:'Exact independent partial debit evidence.'});const r=database.prepare('SELECT * FROM booking_refund_receipts WHERE id=?').get(p.receiptId);await run(owner,{action:'approve_refund_receipt',caseId:c.id,receiptId:r.id,payloadHash:r.payload_hash,evidenceReviewed:true,note:'Exact partial reconciliation approved.'});};
   await settlePartial(first,'bank-partial-one');
   assert.equal(database.prepare('SELECT reconciled_minor FROM booking_refund_accounting WHERE reference=?').get(ref).reconciled_minor,firstAmount);
-  assert.equal(database.prepare('SELECT state FROM booking_refund_state WHERE reference=?').get(ref).state,mode==='test'?'test_refund_confirmed':'partially_refunded_funding_held');
+  assert.equal(database.prepare('SELECT state FROM booking_refund_state WHERE reference=?').get(ref).state,'partially_refunded_funding_held');
   const second=await prepare(invoice.subtotal_cents-firstNet,invoice.tax_cents-firstTax,'partial-two');await approve(second);
   const secondRefund=(status='processed')=>({...refund(second,status),id:80003});
   await run(owner,dispatch(second),async url=>Response.json({status:true,data:url.endsWith('/refund')?secondRefund('pending'):transaction}),unlocked);
@@ -130,7 +131,7 @@ export async function bookingRefundJourney({database,db,reviewer,owner,applicant
   await run(owner,{action:'verify_refund',caseId:second.id,refundId:'80003'},async()=>Response.json({status:true,data:secondRefund()}));
   await settlePartial(second,'bank-partial-two');
   const accounted=database.prepare('SELECT * FROM booking_refund_accounting WHERE reference=?').get(ref);assert.equal(accounted.reconciled_minor,amount);assert.equal(accounted.currently_held,0);
-  assert.equal(database.prepare('SELECT state FROM document_invoice_payment_states WHERE reference=?').get(ref).state,mode==='test'?'held':'reversed');
+  assert.equal(database.prepare('SELECT state FROM document_invoice_payment_states WHERE reference=?').get(ref).state,'reversed');
   await assert.rejects(()=>prepare(1,0,'over-credit'),/capacity/);
   assert.equal(database.prepare('SELECT enabled FROM payment_live_control').get().enabled,1); // synthetic scenario only; rollback restores default
  });

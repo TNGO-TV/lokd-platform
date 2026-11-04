@@ -1,7 +1,7 @@
 import {SignupError} from './signup-server';
 
 // Only server-owned table/column names are used. Record modes are immutable;
-// client-supplied mode flags cannot relabel a saved test record as live.
+// client-supplied mode flags cannot relabel a saved non-live record as live.
 async function liveRecord(db:D1Database,table:string,column:string,value:unknown){
  if(typeof value!=='string'||!value||value.length>1200)throw new SignupError('Choose the saved production finance reference.');
  const row=await db.prepare(`SELECT mode FROM ${table} WHERE ${column}=?`).bind(value).first<{mode:string}>();
@@ -11,7 +11,6 @@ export const requireLiveRefundReference=(db:D1Database,reference:unknown)=>liveR
 
 export async function requireLiveFinanceCommand(db:D1Database,input:Record<string,unknown>){
  const action=String(input.action);
- if(['dispatch_employee_test','verify_employee_test','dispatch_partner_test','verify_partner_test','propose_test_disposition','approve_test_disposition'].includes(action))throw new SignupError('Test finance actions are unavailable in this production workspace.',423);
  if(['prepare_collection','prepare_destination','prepare_partner_destination'].includes(action)){
   if(input.mode!=='live')throw new SignupError('Production finance requires live mode. Provider and independent approval requirements still apply.',423);
  }

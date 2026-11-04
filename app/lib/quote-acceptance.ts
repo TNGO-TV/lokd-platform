@@ -3,8 +3,12 @@ import type {SigningActor} from './production-signing';
 import {agreementHash} from './agreement-acceptance';
 import {currentClientReview} from './production-client-review';
 import {lokdInvoicePublicNumber,lokdQuoteMonthKey} from './lokd-numbering';
+import {clientNotificationStatement} from './quote-notifications';
+import {CLIENT_PORTAL_URL,OPERATIONS_PORTAL_URL} from './public-site';
 
 const field=(v:unknown,label:string,max=200)=>{if(typeof v!=='string'||!v.trim()||v.length>max)throw new SignupError('Provide '+label+'.');return v.trim();};
+const agreementUrl=(id:string)=>`${CLIENT_PORTAL_URL}/client/agreements/${encodeURIComponent(id)}`;
+const quoteNotice=(db:D1Database,q:{id:string;owner_user_id:string},event:string,subject:string,text:string,at:string,recipient:'client'|'operations'='client')=>clientNotificationStatement(db,{id:`quote:${event}:${recipient}:${q.id}`,sourceId:q.id,ownerUserId:q.owner_user_id,recipient,subject,text:`LOKD Security\n\n${text}\n\n${recipient==='operations'?`${OPERATIONS_PORTAL_URL}/ops/agreements/${encodeURIComponent(q.id)}`:agreementUrl(q.id)}\n\nLOKD Security`,createdAt:at});
 export const quoteAcknowledgement='I accept this quote and the linked Terms and Conditions, and confirm that I am authorised to accept for the named client.';
 export type QuoteSource={order_id:string;client_id:string;owner_user_id:string;entity_id:string;case_version:number;order_version:number;source_json:string};
 type Terms={id:string;title:string;version:string;entity_id:string;file_hash:string;size_bytes:number;storage_key:string;approved_at:string|null;withdrawn:number};
@@ -81,7 +85,12 @@ export async function issueQuote(db:D1Database,bucket:R2Bucket,actor:SigningActo
  if(!Number.isFinite(issuedAt.getTime()))throw new SignupError('Quote issue time is unavailable.',503);
  const monthKey=lokdQuoteMonthKey(issuedAt);
  try{
-  await db.prepare('INSERT INTO client_quote_offer_issues(id,order_id,owner_user_id,terms_id,source_json,source_hash,offer_hash,issued_by,issued_at,expires_at,sequence,case_version,month_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,s.order_id,s.owner_user_id,t.id,s.source_json,sourceHash,hash,actor.userId,issuedAt.toISOString(),expiresAt,(latest?.sequence??0)+1,s.case_version,monthKey).run();
+  await db.batch([
+   db.prepare('INSERT INTO client_quote_offer_issues(id,order_id,owner_user_id,terms_id,source_json,source_hash,offer_hash,issued_by,issued_at,expires_at,sequence,case_version,month_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,s.order_id,s.owner_user_id,t.id,s.source_json,sourceHash,hash,actor.userId,issuedAt.toISOString(),expiresAt,(latest?.sequence??0)+1,s.case_version,monthKey),
+   quoteNotice(db,{id,owner_user_id:s.owner_user_id},'issued','Your LOKD quote is ready',`Your quote for ${JSON.parse(s.source_json).siteName} is ready. Sign in to review the service, price and terms, then accept or decline.`,issuedAt.toISOString()),
+   db.prepare("UPDATE operational_delivery_jobs SET state='cancelled',last_error='notification_transferred',updated_at=? WHERE id=? AND state='queued'").bind(issuedAt.toISOString(),'quote:'+id),
+   db.prepare("UPDATE client_notification_jobs SET state='cancelled',last_error='Quote superseded.',updated_at=? WHERE id LIKE 'quote:issued:%' AND source_id IN (SELECT id FROM client_quote_offers WHERE order_id=? AND id!=?) AND state IN ('queued','blocked','retry_wait')").bind(issuedAt.toISOString(),s.order_id,id),
+  ]);
  }catch(error){if(error instanceof Error&&error.message.includes('quote_month_sequence_exhausted'))throw new SignupError('This month\'s LOKD quote numbers are exhausted.',409);throw error;}
  const stored=await db.prepare('SELECT public_number FROM client_quote_offers WHERE id=?').bind(id).first<{public_number:string|null}>();
  if(!stored?.public_number||!stored.public_number.startsWith('LOKD'+monthKey))throw new SignupError('Quote number was not assigned.',409);
@@ -94,20 +103,57 @@ export async function acceptQuote(db:D1Database,bucket:R2Bucket,actor:SigningAct
  const current=await currentQuote(db,id,Date.now(),true);
  if(current.receipt){if(await agreementHash(current.receipt.receipt_json)!==current.receipt.receipt_hash)throw new SignupError('Receipt integrity check failed.',409);return {alreadyAccepted:true};}
  await termsBytes(bucket,current.t);
- const receiptJson=JSON.stringify({quoteId:id,orderId:q.order_id,actorUserId:actor.userId,acceptedAt:new Date().toISOString(),acknowledgement:quoteAcknowledgement,offerHash:q.offer_hash,quote:JSON.parse(q.source_json),terms:{id:current.t.id,title:current.t.title,version:current.t.version,sha256:current.t.file_hash}});
- await db.prepare('INSERT OR IGNORE INTO client_quote_receipts VALUES(?,?,?,?,?)').bind(id,actor.userId,receiptJson,await agreementHash(receiptJson),JSON.parse(receiptJson).acceptedAt).run();
+ const acceptedAt=new Date().toISOString(),scope=JSON.parse(q.source_json);
+ const receiptJson=JSON.stringify({quoteId:id,orderId:q.order_id,actorUserId:actor.userId,signerName:scope.contactName,signerEmail:actor.email,signatureMethod:'authenticated_affirmative_acceptance',acceptedAt,acknowledgement:quoteAcknowledgement,offerHash:q.offer_hash,quote:scope,terms:{id:current.t.id,title:current.t.title,version:current.t.version,sha256:current.t.file_hash}});
+ await db.batch([
+  db.prepare('INSERT OR IGNORE INTO client_quote_receipts VALUES(?,?,?,?,?)').bind(id,actor.userId,receiptJson,await agreementHash(receiptJson),acceptedAt),
+  quoteNotice(db,q,'accepted','Your LOKD quote is accepted',`Thank you. Your acceptance for ${scope.siteName} has been recorded. Your signed agreement and terms are available in your account. We will email your booking confirmation when cover is confirmed.`,acceptedAt),
+  quoteNotice(db,q,'accepted','LOKD quote accepted',`The client accepted ${q.public_number??q.id} for ${scope.siteName}. Open Operations to arrange the booking.`,acceptedAt,'operations'),
+  db.prepare("UPDATE client_notification_jobs SET state='cancelled',last_error='Quote accepted.',updated_at=? WHERE id=? AND state IN ('queued','blocked','retry_wait')").bind(acceptedAt,`quote:issued:client:${id}`),
+ ]);
  return {accepted:true,workEligible:false};
+}
+export async function declineQuote(db:D1Database,actor:SigningActor,input:Record<string,unknown>){
+ const q=await offer(db,field(input.quoteId,'a quote'),actor);
+ if(actor.operations||q.owner_user_id!==actor.userId)throw new SignupError('Only the named client account can decline this quote.',403);
+ if(input.offerHash!==q.offer_hash)throw new SignupError('The quote changed. Refresh before declining.',409);
+ const reason=field(input.reason,'a reason for declining',1200);
+ const previous=await db.prepare('SELECT actor_id FROM client_quote_cancellations WHERE quote_id=?').bind(q.id).first<{actor_id:string}>();
+ if(previous){if(previous.actor_id===actor.userId)return {alreadyDeclined:true};throw new SignupError('This quote has been withdrawn.',409);}
+ await currentQuote(db,q.id);
+ const at=new Date().toISOString();
+ await db.batch([
+  db.prepare('INSERT INTO client_quote_cancellations VALUES(?,?,?,?)').bind(q.id,actor.userId,reason,at),
+  quoteNotice(db,q,'declined','Your LOKD quote was declined',`We have recorded your decision to decline ${q.public_number??q.id}.\n\nYour reason: ${reason}\n\nContact LOKD if you would like us to adjust your quote.`,at),
+  quoteNotice(db,q,'declined','LOKD quote declined',`The client declined ${q.public_number??q.id}.\n\nReason: ${reason}\n\nOpen Operations to follow up with the client.`,at,'operations'),
+  db.prepare("UPDATE client_notification_jobs SET state='cancelled',last_error='Quote declined.',updated_at=? WHERE id=? AND state IN ('queued','blocked','retry_wait')").bind(at,`quote:issued:client:${q.id}`),
+ ]);
+ return {declined:true};
 }
 export async function cancelQuote(db:D1Database,actor:SigningActor,input:Record<string,unknown>){
  if(!actor.operations)throw new SignupError('Operations access required.',403);
  const q=await offer(db,field(input.quoteId,'a quote')),reason=field(input.reason,'a cancellation reason',1200);
- await db.prepare('INSERT OR IGNORE INTO client_quote_cancellations VALUES(?,?,?,?)').bind(q.id,actor.userId,reason,new Date().toISOString()).run();
+ if(await db.prepare('SELECT quote_id FROM client_quote_cancellations WHERE quote_id=?').bind(q.id).first())return {alreadyCancelled:true};
+ const at=new Date().toISOString();
+ await db.batch([
+  db.prepare('INSERT OR IGNORE INTO client_quote_cancellations VALUES(?,?,?,?)').bind(q.id,actor.userId,reason,at),
+  quoteNotice(db,q,'cancelled','Your LOKD quote was withdrawn',`Quote ${q.public_number??q.id} has been withdrawn.\n\nReason: ${reason}\n\nContact LOKD to discuss your service requirements.`,at),
+  db.prepare("UPDATE client_notification_jobs SET state='cancelled',last_error='Quote withdrawn.',updated_at=? WHERE id=? AND state IN ('queued','blocked','retry_wait')").bind(at,`quote:issued:client:${q.id}`),
+ ]);
  return {cancelled:true};
 }
-export async function readQuotes(db:D1Database,actor:SigningActor){
+export async function readQuotes(db:D1Database,actor:SigningActor,quoteId?:string){
+ if(quoteId&&(quoteId.length>200||!/^QUOTE-[A-Za-z0-9-]+$/.test(quoteId)))throw new SignupError('Choose a valid quote.');
 
  const [quotes,terms,orders]=await Promise.all([
-  db.prepare(`SELECT q.*,t.title AS terms_title,t.version AS terms_version,r.receipt_json,r.receipt_hash,j.state AS email_delivery_state,EXISTS(SELECT 1 FROM client_quote_cancellations c WHERE c.quote_id=q.id) AS cancelled,EXISTS(SELECT 1 FROM client_terms_withdrawals w WHERE w.terms_id=q.terms_id) AS terms_withdrawn FROM client_quote_offers q JOIN client_terms_files t ON t.id=q.terms_id LEFT JOIN client_quote_receipts r ON r.quote_id=q.id LEFT JOIN operational_delivery_jobs j ON j.source_id=q.id AND j.kind='contract_email' ${actor.operations?'':'WHERE q.owner_user_id=?'} ORDER BY q.issued_at DESC LIMIT 100`).bind(...actor.operations?[]:[actor.userId]).all(),
+  db.prepare(`SELECT q.*,t.title AS terms_title,t.version AS terms_version,r.receipt_json,r.receipt_hash,
+   (SELECT state FROM client_notification_jobs j WHERE j.source_id=q.id AND j.recipient_type='client' AND j.state!='cancelled' ORDER BY j.created_at DESC,j.id DESC LIMIT 1) AS email_delivery_state,
+   (SELECT last_error FROM client_notification_jobs j WHERE j.source_id=q.id AND j.recipient_type='client' AND j.state!='cancelled' ORDER BY j.created_at DESC,j.id DESC LIMIT 1) AS email_delivery_error,
+   EXISTS(SELECT 1 FROM client_quote_cancellations c WHERE c.quote_id=q.id) AS cancelled,
+   EXISTS(SELECT 1 FROM client_quote_cancellations c WHERE c.quote_id=q.id AND c.actor_id=q.owner_user_id) AS declined,
+   (SELECT MAX(later.sequence) FROM client_quote_offers later WHERE later.order_id=q.order_id) AS latest_sequence,
+   EXISTS(SELECT 1 FROM client_terms_withdrawals w WHERE w.terms_id=q.terms_id) AS terms_withdrawn
+   FROM client_quote_offers q JOIN client_terms_files t ON t.id=q.terms_id LEFT JOIN client_quote_receipts r ON r.quote_id=q.id WHERE 1=1 ${actor.operations?'':'AND q.owner_user_id=?'} ${quoteId?'AND q.id=?':''} ORDER BY q.issued_at DESC LIMIT 100`).bind(...actor.operations?[]:[actor.userId],...quoteId?[quoteId]:[]).all(),
   actor.operations?db.prepare('SELECT t.id,t.title,t.version,t.entity_id,t.file_hash,a.approved_at,EXISTS(SELECT 1 FROM client_terms_withdrawals w WHERE w.terms_id=t.id) AS withdrawn FROM client_terms_files t LEFT JOIN client_terms_approvals a ON a.terms_id=t.id ORDER BY t.uploaded_at DESC LIMIT 100').all():{results:[]},
   actor.operations?db.prepare('SELECT s.*,COALESCE((SELECT MAX(sequence) FROM client_quote_offers q WHERE q.order_id=s.order_id),0) AS sequence FROM client_quote_sources s ORDER BY order_id LIMIT 100').all():{results:[]},
  ]);
@@ -117,6 +163,16 @@ export async function quoteFile(db:D1Database,bucket:R2Bucket,actor:SigningActor
  const t=await termsRecord(db,id);
  if(!actor.operations&&!await db.prepare('SELECT id FROM client_quote_offers WHERE terms_id=? AND owner_user_id=? LIMIT 1').bind(id,actor.userId).first())throw new SignupError('Terms file not found for this account.',404);
  return {bytes:await termsBytes(bucket,t),t};
+}
+export async function quoteAcceptanceCopy(db:D1Database,bucket:R2Bucket,actor:SigningActor,id:string){
+ const q=await offer(db,id,actor);
+ const receipt=await db.prepare('SELECT receipt_json,receipt_hash FROM client_quote_receipts WHERE quote_id=?').bind(id).first<{receipt_json:string;receipt_hash:string}>();
+ if(!receipt)throw new SignupError('A signed agreement is not available for this quote.',404);
+ if(await agreementHash(receipt.receipt_json)!==receipt.receipt_hash)throw new SignupError('The signed agreement could not be verified.',409);
+ const terms=await termsRecord(db,q.terms_id),value=JSON.parse(receipt.receipt_json);
+ if(value.actorUserId!==q.owner_user_id||value.offerHash!==q.offer_hash||value.terms?.sha256!==terms.file_hash||JSON.stringify(value.quote)!==q.source_json)throw new SignupError('The signed agreement could not be verified.',409);
+ await termsBytes(bucket,terms);
+ return {receipt:value,receiptHash:receipt.receipt_hash,publicNumber:q.public_number??q.id,termsUrl:'/api/quotes?file='+encodeURIComponent(q.terms_id)};
 }
 export async function acceptedOrderQuote(db:D1Database,orderId:string){
  const latest=await db.prepare('SELECT id FROM client_quote_offers WHERE order_id=? ORDER BY sequence DESC LIMIT 1').bind(orderId).first<{id:string}>();

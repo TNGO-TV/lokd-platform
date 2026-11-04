@@ -1,4 +1,3 @@
-import {installRehearsal} from './fixtures/isolated-rehearsal.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {presenceFixture as fixture} from './fixtures/presence.mjs';
@@ -12,9 +11,9 @@ const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;})
 const request=(body,host='officers.lokd.co.za')=>new Request('https://'+host+'/api/presence',{method:'POST',headers:{origin:'https://'+host,'content-type':'application/json','x-lokd-verified-user-id':'user','x-lokd-verified-email':'officer@example.test'},body:JSON.stringify(body)});
 
 test('presence resolves reviewed production identity without configured pilot mapping and ignores supplied IDs',async()=>{
- const {db,sql}=fixture(),oldDb=env.DB,oldAccess=env.LOKD_PILOT_ACCESS_JSON;env.DB=db;env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({officers:{'officer@example.test':'OFF-OTHER'}});
+ const {db,sql}=fixture(),oldDb=env.DB,oldAccess=env.LOKD_ROLE_ACCESS_JSON;env.DB=db;env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({officers:{'officer@example.test':'OFF-OTHER'}});
  try{const response=await POST(request({...share,officerId:'OFF-ATTACKER'}));assert.equal(response.status,200);const saved=sql.prepare('SELECT * FROM public_officer_presence').get();assert.equal(saved.officer_id,'OFF-CURRENT');assert.equal(saved.latitude,-26.2);assert.equal(saved.longitude,28);assert.equal(Date.parse(saved.expires_at)-Date.parse(saved.updated_at),180000);assert.equal((await publicPresence(db)).areas.length,1);assert.equal('user_id' in (await publicPresence(db)).areas[0],false);}
- finally{if(oldDb===undefined)delete env.DB;else env.DB=oldDb;if(oldAccess===undefined)delete env.LOKD_PILOT_ACCESS_JSON;else env.LOKD_PILOT_ACCESS_JSON=oldAccess;sql.close();}
+ finally{if(oldDb===undefined)delete env.DB;else env.DB=oldDb;if(oldAccess===undefined)delete env.LOKD_ROLE_ACCESS_JSON;else env.LOKD_ROLE_ACCESS_JSON=oldAccess;sql.close();}
 });
 
 test('stale, withdrawn, unreviewed and reassigned links suppress existing locations and new sharing',async()=>{
@@ -25,11 +24,19 @@ test('atomic live write rechecks account linkage after the eligibility read',asy
  const {db,sql}=fixture();try{db.beforeWrite=()=>sql.exec("UPDATE signup_cases SET status='withdrawn'");await assert.rejects(()=>writePresence(db,'user',null,share),/changed/);assert.equal(sql.prepare('SELECT count(*) n FROM public_officer_presence').get().n,0);}finally{sql.close();}
 });
 
-test('test sharing remains private and stopping remains owner-scoped after withdrawal',async()=>{
- const {db,sql}=fixture();const isolated=installRehearsal(db,{stage:'prelaunch'});
- const testSession=await writePresence(db,'user',null,{action:'start',mode:'test',consent:true,expectedRevision:0});
- const otherSession=await writePresence(db,'other',null,{action:'start',mode:'test',consent:true,expectedRevision:0});
- try{assert.equal((await POST(request({...share,...testSession,mode:'test'}))).status,404);assert.equal((await POST(request({...share,...testSession,mode:'test'},'demo.lokd.co.za'))).status,200);assert.deepEqual((await publicPresence(db)).areas,[]);await writePresence(db,'other',null,{...share,...otherSession,mode:'test'});sql.exec("UPDATE signup_cases SET status='withdrawn'");assert.equal((await POST(request({action:'stop',mode:'test'},'demo.lokd.co.za'))).status,200);assert.equal(sql.prepare('SELECT user_id FROM public_officer_presence').get().user_id,'other');assert.equal((await POST(request({...share,...testSession,mode:'test'},'demo.lokd.co.za'))).status,403);}finally{isolated.close();sql.close();}
+test('production presence rejects alternate sharing modes and logs no coordinates',async()=>{
+ const {db,sql}=fixture(),oldDb=env.DB;env.DB=db;
+ try{
+  for(const mode of ['test','sandbox','demo']){
+   await assert.rejects(()=>writePresence(db,'user',null,{...share,mode}),/Choose live sharing/);
+   assert.equal((await POST(request({...share,mode}))).status,400);
+  }
+  await writePresence(db,'user',null,share);
+  await writePresence(db,'user',null,{action:'stop',mode:'live'});
+  const events=sql.prepare('SELECT event_type,detail FROM audit_events ORDER BY rowid').all();
+  assert.deepEqual(events.map(event=>event.event_type),['presence_shared','presence_consent_revoked']);
+  assert.doesNotMatch(JSON.stringify(events),/latitude|longitude|-26\.2|28\.045/);
+ }finally{if(oldDb===undefined)delete env.DB;else env.DB=oldDb;sql.close();}
 });
 
 test('expired presence and off-post assignments cannot appear publicly',async()=>{

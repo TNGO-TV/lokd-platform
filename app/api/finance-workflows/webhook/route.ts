@@ -1,7 +1,10 @@
-import {blockedTestSurface} from '../../../lib/test-surface-runtime';
-import {readFinanceBody,financeSandboxDatabase} from '../../../lib/finance-workflow-request';
 import {env} from 'cloudflare:workers';
-import {acceptFinanceWebhook} from '../../../lib/finance-workflow-provider';
-import {sandbox,type FinanceRuntime} from '../../../lib/finance-workflow-store';
+import {receiveLiveTransferWebhook,type PaymentExecutionRuntime} from '../../../lib/payment-execution';
 import {SignupError} from '../../../lib/signup-server';
-export async function POST(request:Request){const blocked=await blockedTestSurface(request);if(blocked)return blocked;try{const runtime=env as unknown as FinanceRuntime;sandbox(runtime);if(!runtime.FINANCE_SIMULATOR_KEY)throw new SignupError('Simulator webhook unavailable.',423);const db=await financeSandboxDatabase(env);return Response.json(await acceptFinanceWebhook(db,runtime,await readFinanceBody(request,20000),request.headers.get('x-paystack-signature')??''),{headers:{'cache-control':'no-store'}});}catch(e){return Response.json({error:e instanceof SignupError?e.message:'Evidence rejected.'},{status:e instanceof SignupError?e.status:409});}}
+export const dynamic='force-dynamic';
+export async function POST(request:Request){
+ const runtime=env as PaymentExecutionRuntime;
+ if(!runtime.PAYSTACK_LIVE_SECRET_KEY)return Response.json({error:'Payment provider webhooks are not connected.'},{status:503,headers:{'cache-control':'no-store'}});
+ try{if(!env.DB)throw new SignupError('Payment storage is unavailable.',503);return Response.json(await receiveLiveTransferWebhook(request,env.DB,runtime),{headers:{'cache-control':'no-store'}});}
+ catch(e){return Response.json({error:e instanceof SignupError?e.message:'The payment event could not be verified.'},{status:e instanceof SignupError?e.status:400,headers:{'cache-control':'no-store'}});}
+}

@@ -1,22 +1,15 @@
-import type { Metadata } from "next";
 import Link from "next/link";
-import { PublicFooter, PublicHeader, PublicLaunchBar } from "../components/public-site-shell";
+import { PublicPage, PublicSteps } from "../components/public-site-shell";
+import { publicMetadata } from "../lib/public-site";
 
-export const metadata: Metadata = { title: "Security Officer Careers and Applications", description: "Join the LOKD officer pathway across South Africa: register your interest, prepare your evidence and understand the controlled route to eligible work.", alternates: { canonical: "/officers" } };
+export const metadata = publicMetadata("Security officer opportunities", "Apply to LOKD for security work in Johannesburg. Complete PSIRA and identity checks, find suitable shifts and manage your work through the app.", "/officers");
+const cards = [["A profile that represents you","Add your location, PSIRA registration, grade and service interests so LOKD can review the work you are qualified to do."],["Know the assignment","Review the location, hours and duties before accepting a shift. Armed and VIP work require the qualifications for that role."],["Manage work in the app","Follow your application, respond to requests, see your shifts and record your arrival and departure."]] as const;
+export default function Page() {
+  return <PublicPage active="officers" eyebrow="Work with LOKD" title="Put your skills to work." promise="Apply as a security officer, complete your verification and find shifts that match your qualifications and availability." officer>
 
-const pathway = [
-  ["Apply", "Share your current location, PSiRA position and work or training interests. Do not send identity or banking documents through the public form."],
-  ["Verify", "Identity, registration, grade and credentials move through separate secure checks before an officer profile can progress."],
-  ["Prepare", "Service readiness, purpose endorsements, site induction and current evidence determine which posts may fit."],
-  ["Activate", "A lawful employment route, approved terms, payroll readiness, availability, rest and travel must pass before paid work."],
-];
+    <section className="public-section public-section--white"><div className="public-section-heading"><h2>Your work, clearly organised.</h2></div><div className="public-detail-grid">{cards.map(([title, description]) => <article key={title}><h3>{title}</h3><p>{description}</p></article>)}</div><p className="public-note">Applications are reviewed individually. Submitting an application does not guarantee work or a training place.</p></section>
 
-export default function OfficersPage() {
-  return <main className="public-home marketing-page"><PublicLaunchBar /><PublicHeader active="officers" />
-    <section className="marketing-hero marketing-hero--dark"><div><p className="public-kicker"><i /> Build a professional security career</p><h1>Your grade opens a door.<br /><span>Your readiness keeps it open.</span></h1><p>LOKD is building an employer-led route for officers who want clear terms, properly controlled assignments, transparent payroll calculations and continuous development.</p><div className="public-hero-actions"><Link className="public-button public-button--lime" href="/join?path=qualified">I&apos;m already qualified <b>→</b></Link><Link className="public-button public-button--outline" href="/join?path=training">I need training <b>→</b></Link></div></div><aside className="marketing-control-card"><span>OFFICER PATHWAYS</span><h2>Unarmed · Armed · VIP</h2><p>Registering interest is not an offer of employment or a guarantee of work. LOKD verifies the evidence required for the exact role before onboarding or matching.</p><dl><div><dt>Area</dt><dd>South Africa</dd></div><div><dt>Route</dt><dd>Direct employment</dd></div><div><dt>Pay view</dt><dd>Itemised calculation</dd></div></dl></aside></section>
-    <section className="marketing-section"><header><p className="public-kicker">The officer pathway</p><h2>One doorway. Four controlled stages.</h2></header><div className="marketing-card-grid">{pathway.map(([title,text],index) => <article key={title}><span>{String(index+1).padStart(2,"0")}</span><h3>{title}</h3><p>{text}</p></article>)}</div></section>
-    <section className="marketing-split marketing-split--lime"><div><p className="public-kicker">What the LOKD Passport means</p><h2>Current for this post—not approved forever.</h2><p>The Passport is designed to show the minimum assignment-specific readiness result. If an underlying requirement expires, conflicts or cannot be evidenced, the affected offer or assignment is blocked.</p></div><div className="marketing-check-list"><p>Identity workflow complete</p><p>PSiRA status and grade current</p><p>Service and purpose fit</p><p>Site induction current</p><p>Availability and rest pass</p><p>Exact shift match</p></div></section>
-    <section className="marketing-section marketing-section--dark"><header><p className="public-kicker">Payroll transparency</p><h2>A calculated balance—not a wallet.</h2><p>The officer workspace shows approved earnings, itemised lawful deductions, calculated net pay and downloadable detail. It does not create credit, stored value, an IOU or an uncontrolled payout instruction.</p></header><div className="marketing-rule-row"><span>Approved work</span><b>→</b><span>Policy calculation</span><b>→</b><span>Maker/checker review</span><b>→</b><span>Controlled settlement</span></div></section>
-    <section className="marketing-cta"><p className="public-kicker">Start where you are</p><h2>Qualified already or still preparing—choose the right path.</h2><Link className="public-button public-button--dark" href="/join">Start an officer application <b>→</b></Link></section><PublicFooter />
-  </main>;
+    <PublicSteps officer />
+    <section className="public-section public-section--white"><h2>Already applied?</h2><p>Sign in with the email you used to apply and follow your next steps.</p><Link className="public-text-link" href="/sign-in?return_to=%2Fofficer">Open your officer account →</Link></section>
+  </PublicPage>;
 }

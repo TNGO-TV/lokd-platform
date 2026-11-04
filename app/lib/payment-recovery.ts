@@ -11,15 +11,13 @@ export async function operatePaymentRecovery(db:D1Database,actor:SigningActor,in
  if(!actor.operations)throw new SignupError('Operations access required.',403);
  if(input.kind!=='employee'&&input.kind!=='partner')throw new SignupError('Choose employee or partner recovery.');
  const kind=input.kind,reference=text(input.reference,'the original saved reference');
- const i=await db.prepare(`SELECT * FROM ${kind}_payment_instructions WHERE reference=?`).bind(reference).first<{mode:string;status:string;version:number;source_hash:string;source_json:string;prepared_by:string;prepared_user:string;amount_cents:number}>();
+ const i=await db.prepare(`SELECT * FROM ${kind}_payment_instructions WHERE reference=? AND mode='live'`).bind(reference).first<{mode:string;status:string;version:number;source_hash:string;source_json:string;prepared_by:string;prepared_user:string;amount_cents:number}>();
  if(!i)throw new SignupError('Payment instruction not found.',404);
- const liveAction=['propose_live_disposition','approve_live_disposition'].includes(String(input.action));
- if(i.mode!==(liveAction?'live':'test'))throw new SignupError('Use the matching explicit test or live recovery action.',423);
  if(i.status!=='dispatch_claimed'||input.version!==i.version||input.sourceHash!==i.source_hash||await agreementHash(i.source_json)!==i.source_hash)throw new SignupError('Refresh the exact claimed instruction.',409);
  const snapshot=JSON.parse(i.source_json);
  if([snapshot.ownerUser,snapshot.representativeUser,snapshot.officerUser,snapshot.clientUser].includes(actor.userId))throw new SignupError('A payment participant cannot decide recovery.',403);
- const propose=input.action==='propose_test_disposition'||input.action==='propose_live_disposition';
- if(!propose&&!['approve_test_disposition','approve_live_disposition'].includes(String(input.action)))throw new SignupError('Choose a supported recovery action.');
+ const propose=input.action==='propose_live_disposition';
+ if(!propose&&input.action!=='approve_live_disposition')throw new SignupError('Choose a supported recovery action.');
  const note=text(input.note,'the terminal evidence review findings');
  if(input.evidenceReviewed!==true)throw new SignupError('Review the exact authoritative terminal evidence.');
  const prefix=kind==='employee'?'payment':'partner_payment';

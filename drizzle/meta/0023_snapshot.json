@@ -5061,7 +5061,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'prelaunch'"
+          "default": "'production'"
         },
         "integrity_state": {
           "name": "integrity_state",

@@ -1,0 +1,78 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+const rawConfig = JSON.stringify({
+  owners: ["owner@lokd.example"],
+  operations: ["ops@lokd.example"],
+  clients: { "client@lokd.example": "CL-001" },
+  officers: { "officer@lokd.example": "OFF-001" },
+  reviewers: ["reviewer@lokd.example"],
+});
+
+const access = await import("../app/lib/access-core.ts");
+
+test("supplemental Operations access preserves existing assignments and cannot grant other roles", () => {
+  const extra = JSON.stringify(["  NEW@lokd.example  ", "new@lokd.example"]);
+  const added = access.principalForEmailFromConfig("new@lokd.example", "New", rawConfig, extra);
+  assert.deepEqual(added.roles, ["operations"]);
+  assert.equal(added.owner, false);
+  assert.equal(added.clientId, null);
+  assert.equal(added.officerId, null);
+  for (const email of ["owner", "ops", "client", "officer", "reviewer", "unknown"]) {
+    const address = `${email}@lokd.example`;
+    assert.deepEqual(access.principalForEmailFromConfig(address, address, rawConfig, extra),
+      access.principalForEmailFromConfig(address, address, rawConfig));
+  }
+  for (const invalid of ["", "broken", "null", '"new@lokd.example"', '{"owners":["new@lokd.example"]}', '[null,42,{},""]', '[]']) {
+    assert.deepEqual(access.principalForEmailFromConfig("new@lokd.example", "New", rawConfig, invalid).roles, []);
+  }
+  assert.deepEqual(access.principalForEmailFromConfig("", "", rawConfig, '[""]').roles, []);
+  assert.deepEqual(access.principalForEmailFromConfig("new@lokd.example.attacker.test", "", rawConfig, extra).roles, []);
+});
+
+test("access is default-deny and owner access spans every role", () => {
+  const unknown = access.principalForEmailFromConfig("unknown@lokd.example", "Unknown", rawConfig);
+  assert.deepEqual(unknown.roles, []);
+  const owner = access.principalForEmailFromConfig("OWNER@lokd.example", "Owner", rawConfig);
+  assert.equal(owner.owner, true);
+  for (const role of ["operations", "client", "officer", "reviewer"]) assert.equal(access.principalHasRole(owner, role), true);
+});
+
+test("configured users receive only their assigned role and entity", () => {
+  const client = access.principalForEmailFromConfig("client@lokd.example", "Client", rawConfig);
+  assert.deepEqual(client.roles, ["client"]);
+  assert.equal(client.clientId, "CL-001");
+  assert.equal(access.principalHasRole(client, "operations"), false);
+  const officer = access.principalForEmailFromConfig("officer@lokd.example", "Officer", rawConfig);
+  assert.deepEqual(officer.roles, ["officer"]);
+  assert.equal(officer.officerId, "OFF-001");
+});
+
+test("JSON mutations must be same-origin", () => {
+  assert.doesNotThrow(() => access.requireSameOriginJson(new Request("https://operations.lokd.co.za/api/signup", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://operations.lokd.co.za", "sec-fetch-site": "same-origin" },
+  })));
+  assert.throws(() => access.requireSameOriginJson(new Request("https://operations.lokd.co.za/api/signup", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://attacker.example", "sec-fetch-site": "cross-site" },
+  })), /Cross-site/);
+});
+
+test('explicit supplemental owner assignment preserves existing grants and remains default-deny', () => {
+  const ownerAccess = '[" OPERATIONS@lokd.example ","operations@lokd.example"]';
+  const assigned = access.principalForEmailFromConfig('operations@lokd.example', 'Operations', rawConfig, '', ownerAccess);
+  assert.equal(assigned.owner, true);
+  assert.equal(assigned.clientId, null);
+  assert.equal(assigned.officerId, null);
+  for (const role of ['operations','reviewer','client','officer']) assert.equal(access.principalHasRole(assigned,role),true);
+  for (const email of ['owner','ops','client','officer','reviewer','unknown']) {
+    const address = email+'@lokd.example';
+    assert.deepEqual(access.principalForEmailFromConfig(address,address,rawConfig,'',ownerAccess),access.principalForEmailFromConfig(address,address,rawConfig));
+  }
+  for (const raw of ['', 'broken', 'null', '"operations@lokd.example"', '{"owners":["operations@lokd.example"]}', '[null,42,{},""]', '[]']) {
+    assert.equal(access.principalForEmailFromConfig('operations@lokd.example','',rawConfig,'',raw).owner,false);
+  }
+  assert.equal(access.principalForEmailFromConfig('','',rawConfig,'','[""]').owner,false);
+  assert.equal(access.principalForEmailFromConfig('operations@lokd.example.attacker.test','',rawConfig,'',ownerAccess).owner,false);
+  assert.equal(access.principalForEmailFromConfig('operations@lokd.example','',rawConfig,'["operations@lokd.example"]','[]').owner,false);
+});

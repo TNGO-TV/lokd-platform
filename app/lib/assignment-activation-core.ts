@@ -1,3 +1,4 @@
+import { MANUAL_FUNDING_PROVIDER } from "./stored-identifiers";
 import {
   launchGateDecision,
   type LaunchGateInput,
@@ -16,7 +17,7 @@ export const REQUIRED_EMPLOYER_EVIDENCE = [
   "service_agreement",
 ] as const;
 
-export type ActivationEnvironment = "production" | "demo_synthetic";
+export type ActivationEnvironment = "production";
 export type ActivationCheckpoint = "activation" | "t_minus_24" | "t_minus_2" | "check_in";
 
 export type ActivationBlocker = {
@@ -180,12 +181,11 @@ function evidencePasses(
   const verifiedAt = parsedTime(evidence.verifiedAt);
   const evaluatedTime = parsedTime(evaluatedAt);
   const expiresAt = evidence.expiresAt ? parsedExpiry(evidence.expiresAt) : null;
-  const expectedEvidenceEnvironment = environment === "production" ? "production" : "demo";
-  const expectedIntegrity = environment === "production" ? "verified" : "synthetic";
   return Boolean(evidence.id)
+    && environment === "production"
     && statuses.includes(evidence.status ?? "")
-    && evidence.environment === expectedEvidenceEnvironment
-    && evidence.integrityState === expectedIntegrity
+    && evidence.environment === "production"
+    && evidence.integrityState === "verified"
     && present(evidence.evidenceReference)
     && Number.isFinite(verifiedAt)
     && Number.isFinite(evaluatedTime)
@@ -256,8 +256,8 @@ export function evaluateAssignmentActivation(facts: AssignmentActivationFacts) {
   const evaluatedAt = parsedTime(facts.evaluatedAt);
   const evidenceDeadline = Math.max(endTime, evaluatedAt);
   const weekSegments = splitAcrossIsoWeeks(facts.shift.startsAt, facts.shift.endsAt);
-  const expectedDataEnvironment = facts.environment === "production" ? "production" : "demo";
-  const expectedIntegrity = facts.environment === "production" ? "verified" : "synthetic";
+  const expectedDataEnvironment = "production";
+  const expectedIntegrity = "verified";
 
   if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime || !weekSegments.length) {
     add("SHIFT_WINDOW_INVALID", "schedule", "The assignment start and end must form a valid whole-minute interval.");
@@ -280,7 +280,7 @@ export function evaluateAssignmentActivation(facts: AssignmentActivationFacts) {
     }
   }
   if (facts.environment !== "production") {
-    add("PRODUCTION_ENVIRONMENT_REQUIRED", "launch", "Synthetic demo records cannot authorise a live paid deployment.");
+    add("PRODUCTION_ENVIRONMENT_REQUIRED", "launch", "Only production records can authorise a live paid deployment.");
   }
 
   if (!facts.agreements?.ready) add("SIGNED_AGREEMENTS_REQUIRED", "workforce", `Approved signatures for the current order and employer arrangement are required: ${facts.agreements?.missing.join(', ') || 'client MSA, service order and workforce agreement'}.`);
@@ -306,7 +306,7 @@ export function evaluateAssignmentActivation(facts: AssignmentActivationFacts) {
   const funding = facts.funding;
   if (!funding.reconciliationId || funding.status !== "cleared_reconciled" || funding.environment !== expectedDataEnvironment
     || funding.integrityState !== expectedIntegrity || !funding.provider
-    || (facts.environment === "production" && funding.provider === "demo_manual")
+    || funding.provider === MANUAL_FUNDING_PROVIDER
     || !present(funding.providerReference) || !present(funding.evidenceReference)
     || funding.currency !== "ZAR"
     || !Number.isFinite(parsedTime(funding.clearedAt)) || parsedTime(funding.clearedAt) > evaluatedAt
@@ -319,7 +319,7 @@ export function evaluateAssignmentActivation(facts: AssignmentActivationFacts) {
   }
   if (facts.client.approvalStatus !== "approved") add("CLIENT_NOT_APPROVED", "site", "The client is not active and approved.");
   if (facts.site.status !== "active") add("SITE_NOT_ACTIVE", "site", "The operational site is not active.");
-  if (!evidencePasses(facts.site.risk, facts.shift.endsAt, ["approved"], facts.evaluatedAt, facts.environment, true)) add("SITE_RISK_NOT_APPROVED", "site", "The versioned site risk assessment is missing, unapproved, synthetic or expired.");
+  if (!evidencePasses(facts.site.risk, facts.shift.endsAt, ["approved"], facts.evaluatedAt, facts.environment, true)) add("SITE_RISK_NOT_APPROVED", "site", "The versioned site risk assessment is missing, unapproved, not production-verified or expired.");
   if (!Number.isFinite(parsedTime(facts.site.risk.validFrom)) || parsedTime(facts.site.risk.validFrom) > startTime) {
     add("SITE_RISK_NOT_EFFECTIVE", "site", "The approved site risk assessment is not effective by shift start.");
   }
@@ -334,7 +334,7 @@ export function evaluateAssignmentActivation(facts: AssignmentActivationFacts) {
   if (!evidencePasses(facts.induction, facts.shift.endsAt, ["completed"], facts.evaluatedAt, facts.environment, true)) add("OFFICER_INDUCTION_NOT_APPROVED", "site", "The officer has not completed the current verified site induction.");
 
   if (facts.officer.approvalStatus !== "approved") add("OFFICER_NOT_APPROVED", "officer", "The officer is not approved for the LOKD Verified Network.");
-  if (!evidencePasses(facts.officer.identity, facts.shift.endsAt, ["current"], facts.evaluatedAt, facts.environment, true)) add("IDENTITY_NOT_CURRENT", "officer", "Identity evidence is missing, synthetic or not current through shift end.");
+  if (!evidencePasses(facts.officer.identity, facts.shift.endsAt, ["current"], facts.evaluatedAt, facts.environment, true)) add("IDENTITY_NOT_CURRENT", "officer", "Identity evidence is missing, not production-verified or not current through shift end.");
   const psiraExpiry = parsedTime(facts.officer.psiraExpiry);
   if (!evidencePasses(facts.officer.psira, facts.shift.endsAt, ["current"], facts.evaluatedAt, facts.environment, true)
     || !Number.isFinite(psiraExpiry) || psiraExpiry < evidenceDeadline) add("PSIRA_NOT_CURRENT", "officer", "PSiRA evidence or the officer registration expires before shift end or evaluation time.");

@@ -1,38 +1,30 @@
 'use client';
 
 import Image from "next/image";
-import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
-import type { WorkspaceRole } from '../lib/public-site';
-import styles from './workspace-shell.module.css';
-import { TestSurfaceContext } from './test-surface-context';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type { WorkspaceRole } from "../lib/public-site";
+import styles from "./workspace-shell.module.css";
 
-export default function WorkspaceShell({ role, children, testTools = false }: { role: WorkspaceRole; children: React.ReactNode; testTools?: boolean }) {
+export default function WorkspaceShell({ role, children }: { role: WorkspaceRole; children: React.ReactNode }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const base = role === 'operations' ? '/ops' : `/${role}`;
-  const label = role === 'operations' ? 'Operations' : role === 'client' ? 'Client' : 'Officer';
+  const base = role === "operations" ? "/ops" : "/" + role;
+  const label = role === "operations" ? "Operations" : role === "client" ? "Client" : "Officer";
   const links = [
-    { href: base, label: role === 'operations' ? 'Intake review' : 'My submission', active: pathname === base || pathname === '/signup' || pathname === '/ops/intake' },
-    { href: `${base}/agreements`, label: 'Agreements' },
-    { href: `${base}/service`, label: 'Service & payments' },
-    ...(role !== 'client' ? [{ href: `${base}/readiness`, label: 'Identity & readiness' }, { href: `${base}/psira`, label: 'PSiRA checks' }] : []),
-    ...(role === 'operations' ? [{ href: '/ops/security', label: 'Account security' }] : []),
+    { href: base, label: role === "operations" ? "Overview" : role === "client" ? "Your bookings" : "Your shifts" },
+    ...(role === "operations" ? [{ href: "/ops/intake", label: "Applications & enquiries" }] : []),
+    { href: base + "/agreements", label: "Agreements" },
+    { href: base + "/service", label: "Service & payments" },
+    ...(role !== "client" ? [{ href: base + "/readiness", label: "Identity & qualifications" }, { href: base + "/psira", label: "PSIRA checks" }] : []),
+    ...(role === "operations" ? [{ href: "/ops/security", label: "Account security" }] : []),
   ];
-  return <TestSurfaceContext.Provider value={testTools}><div className={styles.workspace}>
+  return <div className={styles.workspace}>
     <a className={styles.skip} href="#workspace-content">Skip to page content</a>
-    <header className={styles.header}>
-      <div className={styles.brand}><a href="https://lokd.co.za"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD home" /></a><strong>{label} portal</strong><Link prefetch={false} href="/sign-out">Sign out</Link></div>
-      <nav className={styles.nav} aria-label={`${label} navigation`}>
-        {links.map(link => <Link prefetch={false} key={link.href} href={link.href} aria-current={(link.active ?? pathname === link.href) ? 'page' : undefined}>{link.label}</Link>)}
-      </nav>
-      {testTools&&<details className={styles.testing} open={['identity','sandbox','test-cycle','payment-test'].some(page => pathname === `${base}/${page}`) || undefined}><summary>Testing tools</summary><nav className={styles.nav} aria-label={`${label} testing navigation`}>
-        {pathname === `${base}/identity` && <Link prefetch={false} href={`${pathname}?${searchParams.toString()}`} aria-current="page">Identity · sandbox</Link>}
-        <Link prefetch={false} href={`${base}/sandbox`} aria-current={pathname === `${base}/sandbox` ? 'page' : undefined}>Sandbox workflows</Link>
-        <Link prefetch={false} href={`${base}/test-cycle`} aria-current={pathname === `${base}/test-cycle` ? 'page' : undefined}>Test cycle · simulated</Link>
-        {role === 'operations' && <Link prefetch={false} href="/ops/payment-test" aria-current={pathname === '/ops/payment-test' ? 'page' : undefined}>Paystack TEST check · owner</Link>}
-      </nav></details>}
-    </header>
+    <header className={styles.header}><div className={styles.headerInner}>
+      <div className={styles.brand}><Link href="/" aria-label="LOKD home"><Image width={2192} height={665} unoptimized priority src="/lokd-logo-reverse.svg" alt="LOKD" /></Link><strong>{label} portal</strong><Link prefetch={false} href="/sign-out">Sign out</Link></div>
+      <nav className={styles.nav} aria-label={label + " navigation"}>{links.map(link => <Link prefetch={false} key={link.href} href={link.href} aria-current={pathname === link.href || link.href !== base && pathname.startsWith(link.href + "/") ? "page" : undefined}>{link.label}</Link>)}</nav>
+    </div></header>
     <div id="workspace-content" className={styles.content} tabIndex={-1}>{children}</div>
-  </div></TestSurfaceContext.Provider>;
+    <footer className={styles.footer}><Link href="/contact">Contact LOKD</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></footer>
+  </div>;
 }

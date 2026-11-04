@@ -1,9 +1,9 @@
-// Synthetic, in-memory acceptance only: this does not attest statutory sources or release money.
+// In-memory fixture only: this does not attest statutory sources or release money.
 import assert from 'node:assert/strict';
 import {manageProductionEvidence} from '../../app/lib/production-evidence.ts';
 import {manageProductionPayrollPolicy} from '../../app/lib/production-payroll-policy.ts';
 import {prepareProductionPayroll,decideProductionPayroll,exportProductionPayrollCsv,readProductionPayroll} from '../../app/lib/production-payroll.ts';
-import {operateProduction} from '../../app/lib/production-operations.ts';
+import {operateWithProof as operateProduction} from './operations-auth.mjs';
 import {ZA_2027_SARS_POLICY_CANDIDATE} from '../../app/lib/payroll-engine.ts';
 export const freshHeaders=actor=>new Headers({'x-lokd-verified-mfa-enrolled':'true','x-lokd-verified-user-id':actor.userId,'x-lokd-verified-second-factor-at':new Date().toISOString()});
 export async function consumeConnectedPayroll({db,database,officerId,shiftId,maker,checker,applicant,client}){
@@ -40,12 +40,10 @@ export async function consumeConnectedPayroll({db,database,officerId,shiftId,mak
  for(const table of ['disbursement_batches','employee_payment_instructions','partner_payment_instructions'])assert.equal(database.prepare(`SELECT count(*) AS n FROM ${table}`).get().n,0,table);
  assert.throws(()=>database.prepare("UPDATE payroll_runs SET status='paid',version=version+1 WHERE id=?").run(prepared.runId),/payroll|decision/);
  const {financeDocumentJourney}=await import('./finance-document-journey.mjs');
- const document=await financeDocumentJourney({db,database,maker,finance,recipient:applicant,kind:'payslip',sourceId:item.id,headers:freshHeaders(finance),expectsHistoricalTestPayment:false});
+ const document=await financeDocumentJourney({db,database,maker,finance,recipient:applicant,kind:'payslip',sourceId:item.id,headers:freshHeaders(finance)});
  assert.equal((await document.read()).documents[0].currentState,'unpaid');
  const {payrollCorrectionReviewJourney}=await import('./payroll-correction-review-journey.mjs');
  await payrollCorrectionReviewJourney({db,database,itemId:item.id,maker,finance,applicant,headers:freshHeaders});
- const {exportedPayrollAdjustment}=await import('./finance-workflow-connected.mjs');
- await exportedPayrollAdjustment({db,database,itemId:item.id,maker,checker,applicant,client});
  const {consumeConnectedPayment}=await import('./connected-payment-consumption.mjs');
  const payment=await consumeConnectedPayment({db,database,runId:prepared.runId,officerId,maker,checker,finance,applicant,document,headers:freshHeaders});
  assert.equal(payment.dispatches,1);assert.equal(payment.restored,true);

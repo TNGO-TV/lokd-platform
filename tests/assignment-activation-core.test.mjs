@@ -452,8 +452,8 @@ test("roster service date must equal the Johannesburg shift-start date", () => {
   assert.ok(evaluateAssignmentActivation(facts).blockers.some((blocker) => blocker.code === "ROSTER_SERVICE_DATE_MISMATCH"));
 });
 
-test("synthetic demo facts can never authorise production activation", () => {
+test("non-production facts can never authorise production activation", () => {
   const facts = validFacts();
-  facts.environment = "demo_synthetic";
+  facts.environment = "staging";
   assert.ok(evaluateAssignmentActivation(facts).blockers.some((blocker) => blocker.code === "PRODUCTION_ENVIRONMENT_REQUIRED"));
 });

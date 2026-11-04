@@ -4,8 +4,8 @@ import {env} from 'cloudflare:workers';
 import {GET,POST} from '../app/api/production-identity/route.ts';
 
 test('production identity HTTP boundary rejects unauthenticated, cross-host, cross-origin and forged-authority actions',async()=>{
- const previous=env.LOKD_PILOT_ACCESS_JSON,db=env.DB;
- env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({owners:['ops@example.test'],operations:[],clients:{}});
+ const previous=env.LOKD_ROLE_ACCESS_JSON,db=env.DB;
+ env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({owners:['ops@example.test'],operations:[],clients:{}});
  const request=(body={},email='officer@example.test',url='https://officers.lokd.co.za/api/production-identity',origin=new URL(url).origin)=>new Request(url,{method:'POST',headers:{origin,'content-type':'application/json',...(email?{'x-lokd-verified-user-id':'fixture-user','x-lokd-verified-email':email,'x-lokd-verified-mfa-enrolled':'true','x-lokd-verified-second-factor-at':new Date().toISOString()}:{})},body:JSON.stringify(body)});
  try{
   delete env.DB;
@@ -26,5 +26,5 @@ test('production identity HTTP boundary rejects unauthenticated, cross-host, cro
   env.DB={prepare(){return {bind(){return {first:async()=>({id:'other',owner_user_id:'other-user'})};}};}};
   const denied=await GET(new Request('https://officers.lokd.co.za/api/production-identity?kind=identity&id=other',{headers:{'x-lokd-verified-user-id':'fixture-user','x-lokd-verified-email':'officer@example.test'}}));
   assert.equal(denied.status,404);assert.equal(denied.headers.get('cache-control'),'private, no-store');
- }finally{if(previous===undefined)delete env.LOKD_PILOT_ACCESS_JSON;else env.LOKD_PILOT_ACCESS_JSON=previous;if(db===undefined)delete env.DB;else env.DB=db;}
+ }finally{if(previous===undefined)delete env.LOKD_ROLE_ACCESS_JSON;else env.LOKD_ROLE_ACCESS_JSON=previous;if(db===undefined)delete env.DB;else env.DB=db;}
 });

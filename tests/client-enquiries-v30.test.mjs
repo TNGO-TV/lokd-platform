@@ -58,6 +58,9 @@ function operationsRequest(method, body) {
       origin: "https://operations.lokd.co.za",
       "sec-fetch-site": "same-origin",
       "x-lokd-verified-email": "owner@lokd.example",
+      "x-lokd-verified-user-id": "fixture-owner",
+      "x-lokd-verified-mfa-enrolled": "true",
+      "x-lokd-verified-second-factor-at": new Date().toISOString(),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -78,18 +81,20 @@ const validEnquiry = {
   company: "",
 };
 
-test('every advertised service saves without granting credit or bypassing intake integrity',async()=>{
+test('every advertised service saves without granting credit or bypassing intake integrity',async(t)=>{
+ t.mock.timers.enable({apis:['Date'],now:new Date()});
  const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
  try{
   for(const serviceType of ['scheduled_unarmed_fixed_site','armed_static','armed_movement','vip_unarmed','vip_armed','vip_protective_driver','vip_team']){
+   t.mock.timers.tick(3600001);
    const result=await submitClientEnquiry(publicRequest({...validEnquiry,serviceType,requestKey:crypto.randomUUID()}),db);
    assert.equal(result.status,202,await result.clone().text());const {reference}=await result.json();
    const row=database.prepare('SELECT * FROM client_enquiries WHERE id=?').get(reference);
-   assert.equal(row.service_type,serviceType);assert.equal(row.credit_terms_days,0);assert.equal(row.integrity_state,'user_submitted');assert.equal(row.environment,'prelaunch');
+   assert.equal(row.service_type,serviceType);assert.equal(row.credit_terms_days,0);assert.equal(row.integrity_state,'user_submitted');assert.equal(row.environment,'production');
    const columns=Object.keys(row),insert=database.prepare('INSERT INTO client_enquiries('+columns.join(',')+') VALUES('+columns.map(()=>'?').join(',')+')');
-   for(const changed of [{service_type:'unsupported_service'},{credit_terms_days:30},{environment:'production'},{integrity_state:'synthetic'}]){
+   for(const changed of [{service_type:'unsupported_service'},{credit_terms_days:30},{environment:'staging'},{integrity_state:'synthetic'}]){
     const forged={...row,...changed,id:crypto.randomUUID()};
-    assert.throws(()=>insert.run(...columns.map(key=>forged[key])),/CHECK|invalid|prelaunch|controlled/);
+    assert.throws(()=>insert.run(...columns.map(key=>forged[key])),/CHECK|invalid|production|controlled/);
    }
   }
   assert.equal(database.prepare('SELECT count(*) n FROM client_enquiries').get().n,7);
@@ -97,11 +102,13 @@ test('every advertised service saves without granting credit or bypassing intake
  }finally{database.close();}
 });
 
-test('same contact can save distinct site, service and brief enquiries without disclosure or silent loss',async()=>{
+test('same contact can save distinct site, service and brief enquiries without disclosure or silent loss',async(t)=>{
+ t.mock.timers.enable({apis:['Date'],now:new Date()});
  const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
  try{
   const ids=[];
   for(const change of [{},{siteArea:'Pretoria'},{serviceType:'vip_team'},{message:'A separate brief for a different building and a different operating schedule.'}]){
+   t.mock.timers.tick(3600001);
    const result=await submitClientEnquiry(publicRequest({...validEnquiry,...change,requestKey:crypto.randomUUID()}),db);
    assert.equal(result.status,202);const saved=await result.json();assert.equal(saved.saved,true);ids.push(saved.reference);
   }
@@ -152,11 +159,12 @@ test('honeypots, malformed bodies and invalid submission keys do not claim a sav
  }finally{database.close();}
 });
 
-test("public client intake stays prelaunch, zero-credit and separate from bookings", async () => {
+test("public client intake stays production, zero-credit and separate from bookings", async () => {
   const database = migratedDatabase();
   env.DB = new D1Adapter(database);
-  env.LOKD_APP_STAGE = "demo";
-  env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
+  env.LOKD_APP_STAGE = "production";
+  env.LOKD_ROLE_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
+  env.LOKD_OWNER_ACCESS_JSON = JSON.stringify(["owner@lokd.example"]);
   const enquiries = await import("../app/api/enquiries/route.ts");
 
   const submitted = await enquiries.POST(publicRequest(validEnquiry));
@@ -167,7 +175,7 @@ test("public client intake stays prelaunch, zero-credit and separate from bookin
   const saved = database.prepare(`SELECT environment,integrity_state AS integrityState,service_type AS serviceType,
     funding_model AS fundingModel,credit_terms_days AS creditTermsDays,status,version FROM client_enquiries WHERE id=?`).get(body.reference);
   assert.deepEqual({ ...saved }, {
-    environment: "prelaunch",
+    environment: "production",
     integrityState: "user_submitted",
     serviceType: "scheduled_unarmed_fixed_site",
     fundingModel: "advance_only",
@@ -176,7 +184,7 @@ test("public client intake stays prelaunch, zero-credit and separate from bookin
     version: 1,
   });
   assert.equal(database.prepare("SELECT COUNT(*) AS total FROM bookings").get().total, 0);
-  assert.equal(database.prepare("SELECT COUNT(*) AS total FROM audit_events WHERE entity_id=?").get(body.reference).total, 1);
+  assert.equal(database.prepare("SELECT COUNT(*) AS total FROM audit_events WHERE entity_id=? AND event_type NOT LIKE 'public_enquiry_rate_%'").get(body.reference).total, 1);
   assert.throws(() => database.prepare("UPDATE client_enquiries SET credit_terms_days=30 WHERE id=?").run(body.reference), /controlled_transition_required/);
   assert.throws(() => database.prepare("DELETE FROM client_enquiries WHERE id=?").run(body.reference), /history_required/);
 
@@ -191,8 +199,9 @@ test("only signed-in Operations can own and close a client enquiry, including sa
   t.mock.timers.enable({ apis: ["Date"], now: new Date() });
   const database = migratedDatabase();
   env.DB = new D1Adapter(database);
-  env.LOKD_APP_STAGE = "demo";
-  env.LOKD_PILOT_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
+  env.LOKD_APP_STAGE = "production";
+  env.LOKD_ROLE_ACCESS_JSON = JSON.stringify({ owners: ["owner@lokd.example"] });
+  delete env.LOKD_OWNER_ACCESS_JSON;
   const enquiries = await import("../app/api/enquiries/route.ts");
   const submitted = await enquiries.POST(publicRequest({ ...validEnquiry, email: "second@example.test" }));
   const { reference } = await submitted.json();
@@ -217,7 +226,70 @@ test("only signed-in Operations can own and close a client enquiry, including sa
   });
   const stale = await enquiries.PATCH(operationsRequest("PATCH", { id: reference, action: "close", version: 2, resolution: "Stale write" }));
   assert.equal(stale.status, 409);
-  assert.equal(database.prepare("SELECT COUNT(*) AS total FROM audit_events WHERE entity_id=?").get(reference).total, 3);
+  assert.equal(database.prepare("SELECT COUNT(*) AS total FROM audit_events WHERE entity_id=? AND event_type NOT LIKE 'public_enquiry_rate_%'").get(reference).total, 3);
   database.close();
   delete env.DB;
+});
+
+test('public schedule and both Resend messages persist with exactly one saved receipt',async()=>{
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
+ const messages=[];
+ const runtime={LOKD_EMAIL_PROVIDER:'resend',RESEND_API_KEY:'local-only-credential',LOKD_EMAIL_FROM:'sender@example.test',LOKD_TEAM_EMAIL:'operations@example.test'};
+ const transport=async(url,init)=>{assert.equal(url,'https://api.resend.com/emails');messages.push({key:init.headers['idempotency-key'],body:JSON.parse(init.body)});return Response.json({id:'receipt-'+messages.length});};
+ const input={...validEnquiry,siteAddress:'A local fixture address',startDate:'2099-01-01',endDate:'2099-01-03',startTime:'18:00',endTime:'06:00',officers:2,schedule:'Every day in this period'};
+ try{
+  const response=await submitClientEnquiry(publicRequest(input),db,{runtime,transport});assert.equal(response.status,202);const saved=await response.json();assert.equal(saved.confirmationEmailSent,true);assert.equal(saved.opsEmailSent,true);
+  const row=database.prepare('SELECT * FROM client_enquiries').get();assert.equal(row.site_address,input.siteAddress);assert.equal(row.start_date,input.startDate);assert.equal(row.end_time,'06:00');assert.equal(row.officer_count,2);
+  assert.equal(messages.length,2);assert.deepEqual(messages[0].body.to,['operations@example.test']);assert.deepEqual(messages[1].body.to,[validEnquiry.email]);assert.match(messages[1].body.text,new RegExp(saved.reference));
+  const replay=await(await submitClientEnquiry(publicRequest(input),db,{runtime,transport})).json();assert.equal(replay.reference,saved.reference);assert.equal(replay.confirmationEmailSent,true);assert.equal(messages.length,2);
+  assert.equal(database.prepare("SELECT state FROM operational_delivery_jobs WHERE kind='enquiry_email'").get().state,'sent');
+  assert.equal((await submitClientEnquiry(publicRequest({...input,officers:3}),db,{runtime,transport})).status,409);
+ }finally{database.close();}
+});
+
+test('lost email acknowledgement retries frozen messages and never reports false email success',async()=>{
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
+ const runtime={LOKD_EMAIL_PROVIDER:'resend',RESEND_API_KEY:'local-only-credential',LOKD_EMAIL_FROM:'sender@example.test',LOKD_TEAM_EMAIL:'operations@example.test'};
+ let lost=true;const requests=[];
+ const transport=async(_url,init)=>{requests.push({key:init.headers['idempotency-key'],body:init.body});if(lost&&requests.length===2)throw new TypeError('Lost acknowledgement');return Response.json({id:init.headers['idempotency-key'].endsWith(':confirmation')?'confirmation-id':'operations-id'});};
+ try{
+  const first=await(await submitClientEnquiry(publicRequest(validEnquiry),db,{runtime,transport})).json();assert.equal(first.saved,true);assert.equal(first.confirmationEmailSent,false);
+  lost=false;const recovered=await(await submitClientEnquiry(publicRequest(validEnquiry),db,{runtime,transport})).json();assert.equal(recovered.reference,first.reference);assert.equal(recovered.confirmationEmailSent,true);
+  assert.deepEqual(requests[0],requests[2]);assert.deepEqual(requests[1],requests[3]);assert.equal(database.prepare('SELECT count(*) n FROM client_enquiries').get().n,1);
+ }finally{database.close();}
+});
+
+test('missing email configuration remains visible without losing a valid enquiry',async()=>{
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
+ try{const result=await(await submitClientEnquiry(publicRequest(validEnquiry),db,{runtime:{},transport:async()=>{assert.fail('No provider request without configuration');}})).json();assert.equal(result.saved,true);assert.equal(result.confirmationEmailSent,false);assert.match(database.prepare("SELECT last_error FROM operational_delivery_jobs WHERE kind='enquiry_email'").get().last_error,/RESEND_API_KEY/);}finally{database.close();}
+});
+
+test('an older operations-only receipt never claims a visitor confirmation',async()=>{
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
+ try{
+  const first=await(await submitClientEnquiry(publicRequest(validEnquiry),db,{runtime:{}})).json();
+  database.prepare("UPDATE operational_delivery_jobs SET state='sent',request_json=?,provider_id='resend:existing' WHERE source_id=? AND kind='enquiry_email'").run(JSON.stringify({_lokdProvider:'cpanel_smtp',to:['operations@example.test']}),first.reference);
+  const replay=await(await submitClientEnquiry(publicRequest(validEnquiry),db,{runtime:{}})).json();
+  assert.equal(replay.reference,first.reference);assert.equal(replay.saved,true);assert.equal(replay.confirmationEmailSent,false);
+ }finally{database.close();}
+});
+
+test('spam admission is atomic and exact receipt recovery remains available after the limit',async()=>{
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
+ try{
+  const inputs=Array.from({length:4},()=>({...validEnquiry,requestKey:crypto.randomUUID()}));
+  const responses=await Promise.all(inputs.map(input=>submitClientEnquiry(publicRequest(input),db)));
+  assert.deepEqual(responses.map(r=>r.status).sort(),[202,202,202,429]);assert.equal(database.prepare('SELECT count(*) n FROM client_enquiries').get().n,3);
+  const original=inputs[responses.findIndex(r=>r.status===202)];assert.equal((await submitClientEnquiry(publicRequest(original),db)).status,202);
+ }finally{database.close();}
+});
+
+test('invalid schedules and cross-origin submissions leave no enquiry behind',async()=>{
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
+ const base={...validEnquiry,siteAddress:'A local fixture address',startDate:'2099-01-01',endDate:'2099-01-03',startTime:'18:00',endTime:'06:00',officers:2,schedule:'Every day in this period'};
+ try{
+  for(const change of [{startDate:'2099-02-30'},{endDate:'2098-12-31'},{startTime:'25:00'},{officers:0},{officers:1.5},{schedule:'unknown'},{siteAddress:''}])assert.equal((await submitClientEnquiry(publicRequest({...base,...change}),db)).status,400);
+  const request=publicRequest(base);request.headers.set('origin','https://unrelated.example.test');assert.equal((await submitClientEnquiry(request,db)).status,403);
+  assert.equal(database.prepare('SELECT count(*) n FROM client_enquiries').get().n,0);
+ }finally{database.close();}
 });

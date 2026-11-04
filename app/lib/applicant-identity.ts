@@ -1,74 +1,99 @@
 import {SignupError} from './signup-server';
-import {applicationPsiraDeclaration} from './psira-pathway';
-import {dispatchVerifyNow,scenarioSignal} from './verifynow-adapter';
-type Runtime={DB?:D1Database;VERIFYNOW_API_KEY?:string;VERIFYNOW_SANDBOX_ENABLED?:string};
+import {enqueueOfficerEmail,deliverOfficerEmail,type OfficerEmailRuntime} from './officer-email';
+import {createVerifyNowProductionProvider, type PrivateIdentityCapture} from './verifynow-production';
+import {verifyNowD1Receipts} from './verifynow-receipts';
+import {readProductionIdentity, startProductionIdentity, recoverProductionIdentity} from './production-identity';
+
+export type OfficerIdentityRuntime=OfficerEmailRuntime&{DB?:D1Database;BUCKET?:R2Bucket;VERIFYNOW_API_KEY?:string;VERIFYNOW_IDENTITY_POLICY_REFERENCE?:string;VERIFYNOW_IDENTITY_VALIDITY_DAYS?:string};
 type CaseRow={source_id:string;owner_user_id:string;version:number;status:string;pathway:string;psiraStatus:string;corrections:string};
+const consentVersion='lokd-officer-identity-2026-11-v1';
 export async function identityCase(db:D1Database,userId:string,id:string){
  const c=await db.prepare(`SELECT c.source_id,c.owner_user_id,c.version,c.status,s.pathway,s.psira_status AS psiraStatus,c.corrections_json AS corrections
- FROM signup_cases c JOIN officer_applications s ON s.id=c.source_id WHERE c.kind='officer' AND c.source_id=? AND c.owner_user_id=? AND s.environment='prelaunch' AND s.integrity_state='user_submitted'`).bind(id,userId).first<CaseRow>();
+ FROM signup_cases c JOIN officer_applications s ON s.id=c.source_id WHERE c.kind='officer' AND c.source_id=? AND c.owner_user_id=? AND s.environment='production' AND s.integrity_state='user_submitted'`).bind(id,userId).first<CaseRow>();
  if(!c)throw new SignupError('Link your own officer application first.',404);
  if(c.status==='withdrawn')throw new SignupError('This application is withdrawn.',409);
  const changes=JSON.parse(c.corrections);return {...c,pathway:changes.pathway??c.pathway,psiraStatus:changes.psiraStatus??c.psiraStatus};
 }
+export function officerIdNumber(value:unknown){
+ if(typeof value!=='string'||!/^\d{13}$/.test(value))throw new SignupError('Enter your 13-digit South African ID number.');
+ let sum=0;for(let i=0;i<13;i++){let digit=Number(value[i]);if(i%2===1){digit*=2;if(digit>9)digit-=9;}sum+=digit;}
+ const year=Number(value.slice(0,2)),month=Number(value.slice(2,4)),day=Number(value.slice(4,6));
+ const fullYear=year>new Date().getUTCFullYear()%100?1900+year:2000+year;
+ const date=new Date(Date.UTC(fullYear,month-1,day));
+ if(sum%10!==0||date.getUTCMonth()!==month-1||date.getUTCDate()!==day)throw new SignupError('Check your South African ID number.');
+ return value;
+}
+export function officerIdentityProvider(runtime:OfficerIdentityRuntime,transport:typeof fetch=fetch){
+ if(!runtime.DB||!runtime.BUCKET)throw new SignupError('Identity storage is unavailable. Operations must configure DB and BUCKET.',503);
+ if(!runtime.VERIFYNOW_API_KEY)throw new SignupError('Identity checking is unavailable. Operations must configure VERIFYNOW_API_KEY.',503);
+ const days=Number(runtime.VERIFYNOW_IDENTITY_VALIDITY_DAYS);
+ if(!runtime.VERIFYNOW_IDENTITY_POLICY_REFERENCE||!Number.isSafeInteger(days)||days<1||days>365)throw new SignupError('Operations must configure VERIFYNOW_IDENTITY_POLICY_REFERENCE and VERIFYNOW_IDENTITY_VALIDITY_DAYS (1–365).',503);
+ const db=runtime.DB,bucket=runtime.BUCKET;
+ return createVerifyNowProductionProvider({apiKey:runtime.VERIFYNOW_API_KEY,policyReference:runtime.VERIFYNOW_IDENTITY_POLICY_REFERENCE,evidenceLifetimeMs:days*86400000,transport,
+  receipts:verifyNowD1Receipts(db),
+  captures:{async read(reference){
+   const row=await db.prepare('SELECT * FROM officer_identity_captures WHERE capture_reference=?').bind(reference).first<{object_key:string;applicant_id:string;owner_user_id:string;applicant_version:number}>();
+   if(!row)return null;
+   const current=await identityCase(db,row.owner_user_id,row.applicant_id);
+   if(current.version!==row.applicant_version)return null;
+   const object=await bucket.get(row.object_key);if(!object)return null;
+   return object.json<PrivateIdentityCapture>();
+  }},
+  evidence:{async put(caseId,bytes,digest){
+   const reference='identity_evidence_'+crypto.randomUUID();
+   const objectKey='officer-identity/evidence/'+reference;
+   await bucket.put(objectKey,bytes,{httpMetadata:{contentType:'application/json'},customMetadata:{caseId,digest}});
+   await db.prepare('INSERT INTO officer_identity_evidence(reference,case_id,object_key,sha256,recorded_at) VALUES(?,?,?,?,?)').bind(reference,caseId,objectKey,digest,new Date().toISOString()).run();
+   return reference;
+  }},
+ });
+}
 export async function readApplicantIdentity(db:D1Database,userId:string,id:string){
  const c=await identityCase(db,userId,id);
- const checks=await db.prepare(`SELECT id,scenario,signal,state,attempts,recovery_note AS recoveryNote,recovery_actor AS recoveryActor,http_status AS httpStatus,retry_at AS retryAt,created_at AS createdAt,updated_at AS updatedAt
- FROM applicant_verification_checks WHERE case_id=? AND owner_user_id=? AND case_version=? ORDER BY created_at DESC,rowid DESC`).bind(id,userId,c.version).all<{signal:string;state:string}>();
- const history=await db.prepare('SELECT e.snapshot,e.recorded_at AS recordedAt FROM verification_recovery_events e JOIN applicant_verification_checks c ON c.id=e.check_id WHERE c.case_id=? AND c.owner_user_id=? ORDER BY e.rowid DESC LIMIT 100').bind(id,userId).all();
- const entry=checks.results.find(r=>r.signal==='id');
- return {caseId:id,caseVersion:c.version,mode:'sandbox',identityVerified:false,workEligible:false,checks:checks.results,history:history.results,
-  nextStep:entry?.state==='mock_approved'?(applicationPsiraDeclaration(c.pathway,c.psiraStatus)==='registered'?'registered_enrolment':'training_options'):'entry_id',
-  enrolment:{applicable:applicationPsiraDeclaration(c.pathway,c.psiraStatus)==='registered',amountMinor:applicationPsiraDeclaration(c.pathway,c.psiraStatus)==='registered'?35000:null,currency:'ZAR',priceApproved:true,paymentState:'not_started',liveChargingEnabled:false},
-  independentStates:{face:checks.results.find(r=>r.signal==='face')?.state??'not_started',bank:checks.results.find(r=>r.signal==='bank')?.state??'not_started',psira:'separate_workflow',training:'options_pending',activation:'not_approved'}};
+ const row=await db.prepare('SELECT id FROM production_identity_cases WHERE applicant_id=? AND applicant_version=? AND owner_user_id=?').bind(id,c.version,userId).first<{id:string}>();
+ const result=row?await readProductionIdentity(db,{userId,email:'',operations:false},row.id):null;
+ const history=await db.prepare(`SELECT o.id,o.outcome AS state,o.recorded_at AS recordedAt FROM production_identity_outcomes o JOIN production_identity_cases c ON c.id=o.case_id WHERE c.applicant_id=? AND c.owner_user_id=? ORDER BY o.recorded_at DESC,o.sequence DESC LIMIT 50`).bind(id,userId).all();
+ return {caseId:id,caseVersion:c.version,mode:'production',nextStep:'identity_review',consentVersion,identityVerified:result?.identityVerified??false,outcome:result?.outcome??'not_started',identityCaseId:result?.id??null,outcomeId:result?.outcomeId??null,history:history.results};
 }
-const cooldownSql="NOT EXISTS (SELECT 1 FROM applicant_verification_checks WHERE state='pending' OR retry_at>?)";
-async function executeCheck(runtime:Runtime,id:string,scenario:string,transport:typeof fetch){
- try{
-  const result=await dispatchVerifyNow(scenario,runtime.VERIFYNOW_API_KEY!,id,transport);
-  const retryAt=['rate_limited','unavailable'].includes(result.outcome)?result.retryAt:new Date(Date.now()+3000).toISOString();
-  await runtime.DB!.prepare(`UPDATE applicant_verification_checks SET state=?,response_hash=?,http_status=?,retry_at=?,updated_at=? WHERE id=? AND state='pending'`).bind(result.outcome,result.responseHash,result.httpStatus,retryAt,new Date().toISOString(),id).run();
- }catch{
-  await runtime.DB!.prepare("UPDATE applicant_verification_checks SET state='delivery_unknown',retry_at=?,updated_at=? WHERE id=? AND state='pending'").bind(new Date(Date.now()+60000).toISOString(),new Date().toISOString(),id).run();
+export async function runApplicantIdentity(runtime:OfficerIdentityRuntime,userId:string,input:Record<string,unknown>,transport:typeof fetch=fetch){
+ const provider=officerIdentityProvider(runtime,transport),db=runtime.DB!;
+ if(typeof input.caseId!=='string'||input.caseId.length>100||Object.keys(input).some(k=>!['caseId','caseVersion','idNumber','consent','consentVersion'].includes(k)))throw new SignupError('Choose your officer application.');
+ const c=await identityCase(db,userId,input.caseId);
+ if(input.caseVersion!==c.version)throw new SignupError('Your application changed. Refresh before checking.',409);
+ const existing=await db.prepare('SELECT id FROM production_identity_cases WHERE applicant_id=? AND applicant_version=?').bind(input.caseId,c.version).first();
+ if(existing)return identityNotification(runtime,userId,input.caseId);
+ if(input.consent!==true||input.consentVersion!==consentVersion)throw new SignupError('Read and accept the current identity consent.');
+ const idNumber=officerIdNumber(input.idNumber);
+ let row=await db.prepare('SELECT capture_reference FROM officer_identity_captures WHERE applicant_id=? AND applicant_version=? AND owner_user_id=?').bind(input.caseId,c.version,userId).first<{capture_reference:string}>();
+ if(!row){
+  const reference='identity_capture_'+crypto.randomUUID(),now=new Date().toISOString();
+  const objectKey='officer-identity/captures/'+reference;
+  const capture:PrivateIdentityCapture={environment:'production',applicantId:input.caseId,applicantVersion:c.version,ownerUserId:userId,captureReference:reference,consentVersion,idNumber,capturedAt:now,expiresAt:new Date(Date.now()+Number(runtime.VERIFYNOW_IDENTITY_VALIDITY_DAYS)*86400000).toISOString(),consentEvidenceReference:'identity_consent_'+reference};
+  await runtime.BUCKET!.put(objectKey,JSON.stringify(capture),{httpMetadata:{contentType:'application/json'}});
+  try{await db.batch([
+   db.prepare('INSERT INTO officer_identity_captures(capture_reference,applicant_id,applicant_version,owner_user_id,object_key,consent_version,captured_at,expires_at) VALUES(?,?,?,?,?,?,?,?)').bind(reference,input.caseId,c.version,userId,objectKey,consentVersion,now,capture.expiresAt),
+   db.prepare("INSERT INTO audit_events(id,actor_type,actor_id,event_type,entity_type,entity_id,detail,created_at) VALUES(?,'officer',?,'identity_consent_recorded','officer_application',?,?,?)").bind(crypto.randomUUID(),userId,input.caseId,consentVersion,now),
+  ]);row={capture_reference:reference};}
+  catch(error){await runtime.BUCKET!.delete(objectKey);row=await db.prepare('SELECT capture_reference FROM officer_identity_captures WHERE applicant_id=? AND applicant_version=? AND owner_user_id=?').bind(input.caseId,c.version,userId).first<{capture_reference:string}>();if(!row)throw error;}
  }
+ await startProductionIdentity(db,{userId,email:'',operations:false},{applicantId:input.caseId,applicantVersion:c.version,captureReference:row.capture_reference,consentVersion},provider);
+ return identityNotification(runtime,userId,input.caseId);
 }
-function configured(runtime:Runtime){if(!runtime.DB||runtime.VERIFYNOW_SANDBOX_ENABLED!=='true'||!runtime.VERIFYNOW_API_KEY)throw new SignupError('Verification testing is not configured.',503);return runtime.DB;}
-export async function runApplicantIdentity(runtime:Runtime,userId:string,input:Record<string,unknown>,transport:typeof fetch=fetch){
- const db=configured(runtime);
- if(typeof input.caseId!=='string'||input.caseId.length>100||typeof input.scenario!=='string'||!scenarioSignal[input.scenario]||Object.keys(input).some(k=>!['caseId','caseVersion','scenario'].includes(k)))throw new SignupError('Choose a supported sandbox check. Real identity data is not accepted here.');
- const c=await identityCase(db,userId,input.caseId);if(input.caseVersion!==c.version)throw new SignupError('Application changed. Refresh before checking.',409);
- const existing=await db.prepare('SELECT id FROM applicant_verification_checks WHERE case_id=? AND owner_user_id=? AND case_version=? AND scenario=?').bind(input.caseId,userId,c.version,input.scenario).first();
- if(existing)return readApplicantIdentity(db,userId,input.caseId);
- const id=crypto.randomUUID(),now=new Date().toISOString();
- const claimed=await db.prepare(`INSERT OR IGNORE INTO applicant_verification_checks
- (id,case_id,owner_user_id,case_version,scenario,signal,mode,state,attempts,created_at,updated_at)
- SELECT ?,?,?,?,?,?,'sandbox','pending',1,?,? WHERE ${cooldownSql}`).bind(id,input.caseId,userId,c.version,input.scenario,scenarioSignal[input.scenario],now,now,now).run();
- if(claimed.meta.changes)await executeCheck(runtime,id,input.scenario,transport);
- else if(!await db.prepare('SELECT id FROM applicant_verification_checks WHERE case_id=? AND owner_user_id=? AND case_version=? AND scenario=?').bind(input.caseId,userId,c.version,input.scenario).first())throw new SignupError('Provider check in progress or cooldown active. Wait and refresh; no request was sent.',429);
- return readApplicantIdentity(db,userId,input.caseId);
+async function identityNotification(runtime:OfficerIdentityRuntime,userId:string,caseId:string){
+ const state=await readApplicantIdentity(runtime.DB!,userId,caseId);
+ if(!state.outcomeId)return state;
+ const row=await runtime.DB!.prepare('SELECT email_normalized AS email FROM officer_applications WHERE id=?').bind(caseId).first<{email:string}>();
+ if(!row)return state;
+ const id='officer-identity:'+state.outcomeId;
+ await enqueueOfficerEmail(runtime.DB!,{id,applicationId:caseId,recipient:row.email,subject:'Your LOKD identity check',text:'Your identity check status has been updated. Sign in to your LOKD account to see your result and next step: https://officers.lokd.co.za/officer/identity?caseId='+encodeURIComponent(caseId)+'\n\nLOKD Security'});
+ const notification=await deliverOfficerEmail(runtime.DB!,runtime,id);
+ return {...state,notification};
 }
-// Only the API's server-verified Operations actor may call this command.
-export async function recoverApplicantIdentity(runtime:Runtime,operator:string,input:Record<string,unknown>,transport:typeof fetch=fetch){
- const db=configured(runtime);
- if(typeof input.checkId!=='string'||typeof input.caseId!=='string'||typeof input.note!=='string'||input.note.trim().length<12||input.note.length>1200)throw new SignupError('Provide the check and a specific review/evidence note.');
- const check=await db.prepare('SELECT * FROM applicant_verification_checks WHERE id=? AND case_id=?').bind(input.checkId,input.caseId).first<{id:string;case_id:string;owner_user_id:string;case_version:number;scenario:string;state:string;attempts:number;retry_at:string|null;updated_at:string}>();
- if(!check)throw new SignupError('Check not found.',404);
- if(operator===check.owner_user_id)throw new SignupError('Another Operations reviewer must handle your own check.',403);
- const c=await identityCase(db,check.owner_user_id,check.case_id);
- if(c.version!==input.caseVersion||c.version!==check.case_version||check.attempts!==input.expectedAttempts)throw new SignupError('Check or application changed. Refresh before acting.',409);
- const now=new Date().toISOString();
- if(input.action==='resolve_unknown'){
-  if(check.state!=='delivery_unknown'&&!(check.state==='pending'&&Date.parse(check.updated_at)<Date.now()-60000))throw new SignupError('Only unknown or stale pending delivery can be reconciled.',409);
-  if(input.noResultConfirmed!==true)throw new SignupError('Confirm external provider review found no completed result before authorising retry.');
-  const changed=await db.prepare(`UPDATE applicant_verification_checks SET state='retry_authorized',recovery_actor=?,recovery_note=?,retry_at=?,updated_at=? WHERE id=? AND state=? AND attempts=? AND updated_at=?`).bind(operator,input.note,new Date(Math.max(Date.now()+60000,Date.parse(check.retry_at??now))).toISOString(),now,check.id,check.state,check.attempts,check.updated_at).run();
-  if(!changed.meta.changes)throw new SignupError('Check changed. Refresh.',409);
- }else if(input.action==='retry'){
-  if(!['rate_limited','unavailable','retry_authorized'].includes(check.state))throw new SignupError('This outcome is not retryable. Review evidence first.',409);
-  if(check.attempts>=3)throw new SignupError('Three dispatches reached. Escalate provider review.',409);
-  if(!check.retry_at||Date.parse(check.retry_at)>Date.now())throw new SignupError('Provider retry time has not arrived.',429);
-  const changed=await db.prepare(`UPDATE applicant_verification_checks SET state='pending',attempts=attempts+1,recovery_actor=?,recovery_note=?,updated_at=? WHERE id=? AND state=? AND attempts=? AND ${cooldownSql}`).bind(operator,input.note,now,check.id,check.state,check.attempts,now).run();
-  if(!changed.meta.changes)throw new SignupError('Another request is running, cooldown is active or this check changed.',409);
-  // Stable provider idempotency key across retries of the same logical request.
-  await executeCheck(runtime,check.id,check.scenario,transport);
- }else throw new SignupError('Choose a valid recovery action.');
- return readApplicantIdentity(db,check.owner_user_id,check.case_id);
+export async function recoverApplicantIdentity(runtime:OfficerIdentityRuntime,operator:string,input:Record<string,unknown>,transport:typeof fetch=fetch){
+ const provider=officerIdentityProvider(runtime,transport),db=runtime.DB!;
+ if(typeof input.caseId!=='string'||typeof input.identityCaseId!=='string'||typeof input.outcomeId!=='string')throw new SignupError('Choose an identity result to refresh.');
+ const record=await db.prepare('SELECT owner_user_id,applicant_id FROM production_identity_cases WHERE id=?').bind(input.identityCaseId).first<{owner_user_id:string;applicant_id:string}>();
+ if(!record||record.applicant_id!==input.caseId)throw new SignupError('Identity record not found.',404);
+ await recoverProductionIdentity(db,{userId:operator,email:'',operations:true},input.identityCaseId,input.outcomeId,provider);
+ return readApplicantIdentity(db,record.owner_user_id,record.applicant_id);
 }

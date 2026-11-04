@@ -12,7 +12,7 @@ async function fixture(){
  CREATE TABLE officer_applications(id TEXT,pathway TEXT,psira_status TEXT,environment TEXT,integrity_state TEXT);
  CREATE TABLE audit_events(id TEXT,actor_type TEXT,actor_id TEXT,event_type TEXT,entity_type TEXT,entity_id TEXT,detail TEXT,created_at TEXT);
  INSERT INTO signup_cases VALUES('officer','fixture-applicant','fixture-owner',1,'reviewed','{}');
- INSERT INTO officer_applications VALUES('fixture-applicant','qualified','active','prelaunch','user_submitted');`);
+ INSERT INTO officer_applications VALUES('fixture-applicant','qualified','active','production','user_submitted');`);
  const db={prepare:query=>{const make=(v=[])=>({bind:(...values)=>make(values),first:async()=>sql.prepare(query).get(...v)??null,run:async()=>sql.prepare(query).run(...v)});return make();}};
  const bytes=new TextEncoder().encode('{"synthetic":"private identity fixture"}');
  const r={caseId:'fixture-case',applicantId:'fixture-applicant',applicantVersion:1,ownerUserId:'fixture-owner',bindingHash:'a'.repeat(64),captureReference:'fixture-capture',provider:'verifynow-said-production-v1',environment:'production',outcome:'manual_review',evidenceReference:'fixture-private-object',evidenceHash:await identityDigest(bytes),providerReference:'fixture-provider-reference',checkedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+60000).toISOString()};

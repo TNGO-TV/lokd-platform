@@ -1,7 +1,11 @@
-import {blockedTestSurface,rehearsalEnv as env} from '../../lib/test-surface-runtime';
+import {auditOperationsCommand} from '../../lib/operations-audit';
+import {env} from 'cloudflare:workers';
+import {operationsRequest,requireOperationsJson as requireSameOriginJson} from '../../lib/operations-access';
+import {SignupError} from '../../lib/signup-server';
+import {workspaceRoleForHost} from '../../lib/public-site';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
 
-import { PilotAccessError, pilotStage, principalForEmail, principalHasRole, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
+
 import { applySpecialistAction, readSpecialistState, specialistDocument, SpecialistWorkflowError } from "../../lib/specialist-operations-server";
 import { specialistTerms } from "../../lib/specialist-operations-core";
 import type { SpecialistAction, SpecialistEnvironment } from "../../lib/specialist-operations-types";
@@ -9,29 +13,28 @@ import type { SpecialistAction, SpecialistEnvironment } from "../../lib/speciali
 export const dynamic="force-dynamic";
 function reply(payload:unknown,status=200) {return Response.json(payload,{status,headers:{"cache-control":"no-store, private","x-content-type-options":"nosniff","referrer-policy":"no-referrer",vary:"x-lokd-verified-email"}});}
 function failure(cause:unknown) {
-  if(cause instanceof SpecialistWorkflowError||cause instanceof RequestBodyError || cause instanceof PilotAccessError) return reply({error:cause.message},cause.status);
+  if(cause instanceof SpecialistWorkflowError||cause instanceof RequestBodyError || cause instanceof SignupError) return reply({error:cause.message},cause.status);
   console.error("specialist_workflow_failed",cause instanceof Error?cause.message:"unknown");
   return reply({error:"The specialist workflow could not complete. Your unsaved inputs are still available; refresh the record and try again."},500);
 }
-function context(request:Request) {
-  const url=new URL(request.url),scope=url.searchParams.get("scope")??"operations";
-  if(scope!=="operations"&&scope!=="client"&&scope!=="officer") throw new SpecialistWorkflowError("Choose a valid workspace.");
-  const principal=requirePilotApiRole(request,scope);
-  // This new workflow never accepts the legacy public-demo fallback as a named reviewer.
-  const email=request.headers.get("x-lokd-verified-email");
-  if(!email) throw new PilotAccessError("Sign in to access specialist assignment records.",401);
-  const assigned=principalForEmail(email);
-  if(!principalHasRole(assigned,scope)) throw new PilotAccessError("This account is not assigned to this workspace.",403);
-  if(!env.DB) throw new SpecialistWorkflowError("The specialist record store is unavailable.",503);
-  const environment:SpecialistEnvironment=pilotStage()==="demo"?"demo":"production";
-  return {url,scope:scope as "operations"|"client"|"officer",principal,environment,db:env.DB};
+async function context(request:Request) {
+ const url=new URL(request.url),scope=url.searchParams.get('scope')??'operations';
+ if(scope!=='operations'&&scope!=='client'&&scope!=='officer')throw new SignupError('Choose a valid workspace.');
+ if(!env.DB)throw new SignupError('Specialist storage is unavailable.',503);
+ const host=workspaceRoleForHost(url.hostname);if(host&&host!==scope)throw new SignupError('Open the correct workspace.',403);
+ const userId=request.headers.get('x-lokd-verified-user-id'),email=request.headers.get('x-lokd-verified-email');
+ if(!userId||!email)throw new SignupError('Sign in to your account.',401);
+ const operator=scope==='operations'?await operationsRequest(env.DB,request):null;
+ const linked=scope==='operations'?null:await env.DB.prepare("SELECT l.entity_id FROM production_entity_links l JOIN signup_cases c ON c.kind=l.kind AND c.source_id=l.case_id AND c.owner_user_id=l.owner_user_id AND c.version=l.case_version WHERE l.kind=? AND l.owner_user_id=? AND c.status!='withdrawn'").bind(scope,userId).first<{entity_id:string}>();
+ if(!operator&&!linked)throw new SignupError('A current linked account is required.',403);
+ return {url,scope:scope as 'operations'|'client'|'officer',principal:{email,clientId:scope==='client'?linked!.entity_id:null,officerId:scope==='officer'?linked!.entity_id:null},operator,environment:'production' as SpecialistEnvironment,db:env.DB};
 }
 
 export async function GET(request:Request) {
- const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
 
   try {
-    const {url,scope,principal,environment,db}=context(request);
+    const {url,scope,principal,environment,db}=await context(request);
     const state=await readSpecialistState(db,environment,principal.email);
     if(scope==="operations" && !url.searchParams.has("pack")) return reply({state});
     const accessible=state.packs.filter(pack=>{
@@ -56,15 +59,20 @@ export async function GET(request:Request) {
 }
 
 export async function POST(request:Request) {
- const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
+
 
   try {
     requireSameOriginJson(request);
-    const {scope,principal,environment,db}=context(request);
-    if(scope!=="operations") throw new PilotAccessError("Only Operations can change specialist records.",403);
+    const {scope,principal,environment,db,operator}=await context(request);
+    if(scope!=="operations") throw new SignupError("Only Operations can change specialist records.",403);
     const raw = await readRequestText(request, 100000);
     let action:SpecialistAction; try{action=JSON.parse(raw);}catch{throw new SpecialistWorkflowError("The request must contain valid JSON.");}
-    await applySpecialistAction(db,environment,principal.email,action);
+    if(!operator)throw new SignupError('Operations access required.',403);
+    await auditOperationsCommand(db,operator.userId,action,'requested');
+    try{
+      await applySpecialistAction(db,environment,principal.email,action,{actor:operator,headers:request.headers});
+      await auditOperationsCommand(db,operator.userId,action,'completed');
+    }catch(error){await auditOperationsCommand(db,operator.userId,action,'failed');throw error;}
     return reply({state:await readSpecialistState(db,environment,principal.email)});
   }catch(cause){return failure(cause);}
 }

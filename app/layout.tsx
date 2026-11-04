@@ -1,18 +1,12 @@
-import { headers } from "next/headers";
-import { pageTestSurfacesEnabled } from './lib/test-surface-page';
-import type { Metadata } from "next";
-import { env } from "cloudflare:workers";
-import { LokdClerkProvider } from "./components/clerk-login";
-import { getLokdUser } from "./lokd-auth";
-import PilotFeedback from "./components/pilot-feedback";
+import type { Metadata, Viewport } from "next";
 import { OrganisationJsonLd } from "./components/seo-json-ld";
 import { PUBLIC_SITE_URL } from "./lib/public-site";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(PUBLIC_SITE_URL),
-  title: { default: "LOKD Security | Guarding, Armed Security and VIP Protection", template: "%s | LOKD Security" },
-  description: "Unarmed guarding, armed security and VIP protection in South Africa, with application review, controlled operations and auditable service delivery.",
+  title: { default: "LOKD | Security on your terms", template: "%s | LOKD Security" },
+  description: "Book verified security officers in Johannesburg for guarding, armed security or VIP protection. Get a quote for a shift, event or ongoing cover.",
   alternates: { canonical: "/" },
   applicationName: "LOKD Security",
   category: "business",
@@ -22,14 +16,14 @@ export const metadata: Metadata = {
     locale: "en_ZA",
     siteName: "LOKD Security",
     url: PUBLIC_SITE_URL,
-    title: "LOKD Security | Guarding, Armed Security and VIP Protection",
-    description: "Unarmed guarding, armed security and VIP protection with application review, controlled operations and auditable service delivery.",
+    title: "LOKD | Security on your terms",
+    description: "Verified officers. Clear quotes. Security cover in Johannesburg.",
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "LOKD Security Platform" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "LOKD Security | Guarding, Armed Security and VIP Protection",
-    description: "Unarmed guarding, armed security and VIP protection with application review and controlled operations.",
+    title: "LOKD | Security on your terms",
+    description: "Verified security officers for your Johannesburg site or event.",
     images: ["/og.png"],
   },
   icons: {
@@ -39,14 +33,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const user = await getLokdUser();
-  const nonce = (await headers()).get("x-lokd-script-nonce") ?? undefined;
-  const runtime = env as unknown as Record<string, string | undefined>;
-  const publishableKey = runtime.CLERK_PUBLISHABLE_KEY || runtime.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+export const viewport: Viewport = { themeColor: "rgb(52, 71, 83)", width: "device-width", initialScale: 1 };
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body><LokdClerkProvider publishableKey={publishableKey} nonce={nonce}>{children}<OrganisationJsonLd />{user && await pageTestSurfacesEnabled() && <PilotFeedback />}</LokdClerkProvider></body>
+      <body>{children}<OrganisationJsonLd /></body>
     </html>
   );
 }

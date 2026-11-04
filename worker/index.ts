@@ -1,27 +1,20 @@
 import { secureRequest, secureResponse } from "../app/lib/security-headers";
 import { ownerBackup, type BackupEnv } from "./owner-backup";
-import { receivePaystackTest } from '../app/lib/paystack-test';
-import { liveSurfaceResponse } from "../app/lib/live-surface";
-import { isolatedRehearsalStorage } from '../app/lib/test-surface-storage';
-import { testSurfaceResponse } from "../app/lib/test-surface-policy";
-/** Cloudflare Worker entry point for the vinext-starter template. */
+/** Production Cloudflare Worker entry point. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { runDueAssignmentRevalidations } from "../app/lib/assignment-activation-server";
-import { runPlatformMaintenance } from "../app/lib/platform-jobs";
+import { runDataRetention, runPlatformMaintenance } from "../app/lib/platform-jobs";
 import { runOperationalDelivery } from "../app/lib/operational-delivery";
+import { deliverClientNotifications } from "../app/lib/quote-notifications";
 import type { OperationalRuntime } from "../app/lib/operational-provider";
-import { authenticateClerkRequest, type ClerkEnv } from "./clerk-auth";
+import { authenticateRequest } from "./identity";
+import { recordVerifiedIdentity } from "../app/lib/identity-directory";
 
-interface Env extends ClerkEnv, BackupEnv, OperationalRuntime {
-  PAYSTACK_TEST_SECRET_KEY?: string;
+interface Env extends BackupEnv, OperationalRuntime {
   ASSETS: Fetcher;
   DB: D1Database;
-  TEST_DB?: D1Database;
-  TEST_BUCKET?: R2Bucket;
   BUCKET: R2Bucket;
-  LOKD_APP_STAGE?: string;
-  LOKD_TEST_SURFACES_ENABLED?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -29,17 +22,6 @@ interface Env extends ClerkEnv, BackupEnv, OperationalRuntime {
       };
     };
   };
-}
-
-interface ExecutionContext {
-  waitUntil(promise: Promise<unknown>): void;
-  passThroughOnException(): void;
-}
-
-interface ScheduledController {
-  scheduledTime: number;
-  cron: string;
-  noRetry(): void;
 }
 
 // Image security config. SVG sources with .svg extension auto-skip the
@@ -53,8 +35,6 @@ const worker = {
     const backup = await ownerBackup(request, env);
     if (backup) return backup;
     const url = new URL(request.url);
-    const blockedTest = testSurfaceResponse(request, env);
-    if (blockedTest) return blockedTest;
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
@@ -70,21 +50,21 @@ const worker = {
     // Infrastructure probes must remain usable when browser authentication fails.
     if (url.pathname === '/api/health/live' || url.pathname === '/api/health/ready') return await handler.fetch(request, env, ctx);
     // Provider authentication is HMAC, independent of browser sessions.
-    if (url.pathname === '/api/finance-workflows/webhook' || url.pathname === '/api/paystack/booking/webhook' || url.pathname === '/api/paystack/transfers/live/webhook') return await handler.fetch(request, env, ctx);
-    if (url.pathname === '/api/paystack/test/webhook') {
-      if (!await isolatedRehearsalStorage(env) || !env.TEST_DB) return new Response('Not found', {status:404});
-      return await receivePaystackTest(request, {...env, DB:env.TEST_DB});
-    }
+    if (url.pathname === '/api/paystack/booking/webhook' || url.pathname === '/api/paystack/transfers/live/webhook') return await handler.fetch(request, env, ctx);
+
     let auth;
     try {
-      auth = await authenticateClerkRequest(request, env);
+      auth = await authenticateRequest(request);
     } catch {
       return new Response("Sign-in is temporarily unavailable. Please try again.", {
         status: 503, headers: { "cache-control": "private, no-store", "content-type": "text/plain; charset=utf-8" },
       });
     }
     if (auth.response) return auth.response;
-    const response = liveSurfaceResponse(url.pathname, env.LOKD_APP_STAGE, auth.request.headers.has("x-lokd-verified-user-id"), request.method) ?? await handler.fetch(auth.request, env, ctx);
+    if (env.DB && auth.request.headers.has("x-lokd-verified-user-id")) {
+      ctx.waitUntil(recordVerifiedIdentity(env.DB, auth.request.headers).catch(() => undefined));
+    }
+    const response = await handler.fetch(auth.request, env, ctx);
     const forwarded = new Response(response.body, response);
     auth.headers.forEach((value, key) => forwarded.headers.append(key, value));
     if (auth.request.headers.has("x-lokd-verified-email") || url.pathname.startsWith("/sign-")) {
@@ -98,18 +78,16 @@ const worker = {
     catch { return secureResponse(new Response("Service temporarily unavailable.", {status: 503, headers: {"content-type": "text/plain; charset=utf-8", "cache-control": "no-store"}}), secured.policy); }
   },
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    const configuredStage = env.LOKD_APP_STAGE?.trim().toLowerCase();
-    const environment = configuredStage === "demo" ? "demo" : configuredStage === "production" ? "production" : "prelaunch";
-    const integrityState = environment === "demo" ? "synthetic" : environment === "production" ? "production_verified" : "user_submitted";
     ctx.waitUntil(runPlatformMaintenance(env.DB, {
       actorId: "system:scheduled-maintenance",
       trigger: "scheduled",
       evidenceStoreBound: Boolean(env.BUCKET),
-      environment,
-      integrityState,
     }).then(() => undefined));
+    ctx.waitUntil(runDataRetention(env.DB).then(() => undefined));
     ctx.waitUntil(runDueAssignmentRevalidations(env.DB, "system:scheduled-revalidation").then(() => undefined));
     ctx.waitUntil(runOperationalDelivery(env.DB, env).then(() => undefined));
+    // Client emails queued by bookings, quotes, agreements and billing send and retry here.
+    ctx.waitUntil(deliverClientNotifications(env.DB, env).then(() => undefined));
   },
 };
 

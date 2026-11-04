@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import {DatabaseSync} from 'node:sqlite';
-import {uploadTerms,manageTerms,issueQuote,acceptQuote,cancelQuote,readQuotes,quoteFile,currentQuote,acceptedOrderQuote} from '../app/lib/quote-acceptance.ts';
+import {uploadTerms,manageTerms,issueQuote,acceptQuote,declineQuote,cancelQuote,readQuotes,quoteFile,quoteAcceptanceCopy,currentQuote,acceptedOrderQuote} from '../app/lib/quote-acceptance.ts';
 import {readActivationAgreements} from '../app/lib/agreement-activation.ts';
 import {currentEnvelopeRecipient} from '../app/lib/operational-delivery.ts';
+import {deliverClientNotifications,clientNotificationStatement,readClientNotificationFailures} from '../app/lib/quote-notifications.ts';
+import {quoteAcceptanceDocument} from '../app/lib/quote-document.ts';
 class D1 {
  constructor(){this.database=new DatabaseSync(':memory:');this.database.exec('PRAGMA foreign_keys=ON');for(const f of fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())this.database.exec(fs.readFileSync('drizzle/'+f,'utf8'));}
  prepare(sql){const database=this.database;const make=(values=[])=>({bind:(...v)=>make(v),first:async()=>database.prepare(sql).get(...values)??null,all:async()=>({results:database.prepare(sql).all(...values)}),run:async()=>({meta:{changes:Number(database.prepare(sql).run(...values).changes)}})});return make();}
@@ -19,8 +21,7 @@ class Bucket {
 async function setup(){
  const {prepareProductionEntity}=await import('../app/lib/production-intake.ts');const {POST:enquire}=await import('../app/api/enquiries/route.ts');const {writeSignup}=await import('../app/lib/signup-server.ts');const {env}=await import('cloudflare:workers');
  const db=new D1(),database=db.database;env.DB=db;
- const browserUsers=JSON.parse(process.env.LOKD_COLLECTION_BROWSER_USERS??'{}'),browserEmails=JSON.parse(process.env.LOKD_COLLECTION_BROWSER_EMAILS??'{}');
- const applicant={userId:browserUsers.client??'intake-user',email:browserEmails.client??'intake-fixture@example.test',operations:false},ops={userId:browserUsers.operations??'intake-ops',email:browserEmails.operations??'intake-ops@example.test',operations:true};
+ const applicant={userId:'intake-user',email:'intake-fixture@example.test',operations:false},ops={userId:'intake-ops',email:'intake-ops@example.test',operations:true};
  const response=await enquire(new Request('https://lokd.co.za/api/enquiries',{method:'POST',headers:{origin:'https://lokd.co.za','content-type':'application/json'},body:JSON.stringify({organisationName:'Intake Fixture Client',contactName:'Fixture Signer',email:applicant.email,mobile:'0821234567',siteArea:'Sandton',siteType:'commercial_property',requiredStart:'planning',message:'Production intake fixture in isolated memory only.',advanceFundingAcknowledged:true,privacyConsent:true})}));const caseId=(await response.json()).reference;
  await writeSignup(db,applicant,{action:'link',kind:'client',id:caseId,expectedVersion:0});
  await assert.rejects(()=>prepareProductionEntity(db,ops,{kind:'client',caseId,caseVersion:1}),/reviewed/);
@@ -34,7 +35,7 @@ async function setup(){
  assert.throws(()=>database.prepare("UPDATE clients SET integrity_state='production_verified' WHERE id=?").run(prepared.entityId),/immutable/);
  assert.equal(database.prepare("SELECT count(*) AS n FROM audit_events WHERE event_type='production_entity_reconciled'").get().n,1);
  const {reviewProductionClient,currentClientReview}=await import('../app/lib/production-client-review.ts');
- const reviewer={...ops,owner:false},owner={userId:browserUsers.owner??'independent-owner',email:browserEmails.owner??'independent-owner@example.test',operations:true,owner:true};
+ const reviewer={...ops,owner:false},owner={userId:'independent-owner',email:'independent-owner@example.test',operations:true,owner:true};
  const reviewInput={action:'prepare_client_review',clientId:prepared.entityId,caseVersion:4,documentsActuallyReviewed:true,checkedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+86400000).toISOString(),identityReference:'Isolated fixture identity source',companyReference:'Isolated fixture company source',authorityReference:'Isolated fixture representative mandate',note:'Independent fixture document review, no live customer.'};
  await assert.rejects(()=>reviewProductionClient(db,reviewer,{...reviewInput,documentsActuallyReviewed:false}),/Confirm/);
  const review=await reviewProductionClient(db,reviewer,reviewInput);
@@ -199,16 +200,20 @@ test('changed post scope or minimum grade invalidates earlier client acceptance'
  }
 });
 
-test('new booking and quote emails use Operations and client portals (provider transport simulated)',async()=>{
+test('issued and accepted quotes send branded email with a stable Resend idempotency key',async()=>{
  const x=await setup(),{quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),messages=[];
- const {runOperationalDelivery}=await import('../app/lib/operational-delivery.ts');
- await runOperationalDelivery(x.db,{LOKD_OPERATIONAL_DELIVERY_ENABLED:'true',LOKD_DELIVERY_SOURCE_ALLOWLIST:[x.orderId,quoteId].join(','),LOKD_DELIVERY_EMAIL_ALLOWLIST:[x.applicant.email,'team@example.test'].join(','),LOKD_TEAM_EMAIL:'team@example.test',LOKD_EMAIL_PROVIDER:'smtp',LOKD_EMAIL_FROM:'notices@example.test',LOKD_QUOTE_EMAIL_FROM:'quotes@example.test',LOKD_SMTP_HOST:'mail.lokd.co.za',LOKD_SMTP_PORT:'587',LOKD_SMTP_USER:'notices@example.test',LOKD_SMTP_PASSWORD:'synthetic-only',LOKD_SMTP_RELAY_URL:'https://mail-relay.example.test/smtp',LOKD_SMTP_RELAY_TOKEN:'synthetic-relay-token'},{now:()=>Date.now()+1000,verifiedEmail:async()=>x.applicant.email,transport:async(url,init)=>{messages.push(JSON.parse(init.body));return Response.json({provider_id:'smtp:mail-'+messages.length+':250 ok'});}});
- assert.equal(messages.length,2);
- const booking=messages.find(m=>m.subject==='LOKD service order prepared'),quote=messages.find(m=>m.subject==='Your LOKD quote is ready to review');
- assert.equal(booking.from,'notices@example.test');assert.equal(quote.from,'quotes@example.test');
- assert.ok(booking.text.includes('https://operations.lokd.co.za/ops/service'));
- assert.ok(quote.text.includes('https://portal.lokd.co.za/client/agreements#'+quoteId));
- for(const m of messages)assert.equal(m.text.includes('demo.lokd.co.za'),false);
+ const runtime={RESEND_API_KEY:'in-process-credential',LOKD_EMAIL_FROM:'notices@example.test',LOKD_QUOTE_EMAIL_FROM:'quotes@example.test',LOKD_TEAM_EMAIL:'team@example.test'};
+ const options={now:()=>Date.now()+1000,verifiedEmail:async()=>x.applicant.email,transport:async(url,init)=>{assert.equal(url,'https://api.resend.com/emails');messages.push({body:JSON.parse(init.body),key:init.headers['idempotency-key']});return Response.json({id:'email-'+messages.length});}};
+ const delivered=await deliverClientNotifications(x.db,runtime,options);
+ assert.equal(delivered.sent,1);assert.equal(messages[0].body.from,'quotes@example.test');assert.ok(messages[0].body.text.includes('https://portal.lokd.co.za/client/agreements/'+quoteId));
+ assert.match(messages[0].key,/^client-[a-f0-9]{64}$/);assert.equal(messages[0].body._lokdProvider,undefined);
+ const {q}=await currentQuote(x.db,quoteId);
+ await acceptQuote(x.db,x.bucket,x.applicant,{quoteId,offerHash:q.offer_hash,affirmative:true});
+ assert.equal((await deliverClientNotifications(x.db,runtime,options)).sent,2);
+ assert.ok(messages.some(message=>message.body.subject==='Your LOKD quote is accepted'&&message.body.to[0]===x.applicant.email));
+ assert.ok(messages.some(message=>message.body.subject==='LOKD quote accepted'&&message.body.to[0]===runtime.LOKD_TEAM_EMAIL));
+ assert.equal((await deliverClientNotifications(x.db,runtime,options)).sent,0);
+ assert.equal(x.database.prepare("SELECT count(*) AS n FROM audit_events WHERE event_type IN ('quote_issued','quote_accepted')").get().n,2);
  x.database.close();
 });
 
@@ -229,22 +234,90 @@ test('quote reads overlap only authorized queries and reject any storage failure
  }finally{x.database.close();}
 });
 
-// One continuous synthetic journey; external transports remain explicitly simulated.
-test('one dummy quote binds notification, downloaded terms, immutable acceptance without accounting provider calls',async()=>{
+test('signed terms remain viewable after the live order changes and never expose another client',async()=>{
  const x=await setup();
  try {
-  const {quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),messages=[];
-  const {runOperationalDelivery}=await import('../app/lib/operational-delivery.ts');
-  await runOperationalDelivery(x.db,{LOKD_OPERATIONAL_DELIVERY_ENABLED:'true',LOKD_DELIVERY_SOURCE_ALLOWLIST:quoteId,LOKD_DELIVERY_EMAIL_ALLOWLIST:x.applicant.email,LOKD_EMAIL_PROVIDER:'smtp',LOKD_EMAIL_FROM:'notices@example.test',LOKD_QUOTE_EMAIL_FROM:'quotes@example.test',LOKD_SMTP_HOST:'mail.lokd.co.za',LOKD_SMTP_PORT:'587',LOKD_SMTP_USER:'notices@example.test',LOKD_SMTP_PASSWORD:'synthetic-only',LOKD_SMTP_RELAY_URL:'https://mail-relay.example.test/smtp',LOKD_SMTP_RELAY_TOKEN:'synthetic-relay-token'},{now:()=>Date.now()+1000,verifiedEmail:async()=>x.applicant.email,transport:async(url,init)=>{messages.push(JSON.parse(init.body));return Response.json({provider_id:'smtp:synthetic-quote:250 ok'});}});
-  assert.equal(messages.length,1);assert.ok(messages[0].text.includes('/client/agreements#'+quoteId));
-  const {bytes,t}=await quoteFile(x.db,x.bucket,x.applicant,x.termsId);
-  assert.deepEqual(Buffer.from(bytes),fs.readFileSync(new URL('./fixtures/dummy-client-terms.pdf',import.meta.url)));
-  const {q}=await currentQuote(x.db,quoteId);
-  await acceptQuote(x.db,x.bucket,x.applicant,{quoteId,offerHash:q.offer_hash,affirmative:true});
-  const {receipt}=await currentQuote(x.db,quoteId,Date.now(),true);
-  assert.equal(JSON.parse(receipt.receipt_json).terms.sha256,t.file_hash);
-  assert.equal(x.database.prepare('SELECT funding_status FROM bookings WHERE id=?').get(x.orderId).funding_status,'unfunded');
-  const evidence={mode:'isolated-actual-handlers',externalEmail:'simulated-provider-acceptance',externalBooks:'none',liveMoneyMoved:false,quoteId,orderId:x.orderId,termsSha256:t.file_hash,notification:messages[0],receipt:JSON.parse(receipt.receipt_json),receiptHash:receipt.receipt_hash};
-  if(process.env.LOKD_DUMMY_JOURNEY_EVIDENCE)fs.writeFileSync(process.env.LOKD_DUMMY_JOURNEY_EVIDENCE,JSON.stringify(evidence,null,2));
+  const {q}=await issueAndAccept(x);
+  x.database.prepare("UPDATE bookings SET site_name='Updated site' WHERE id=?").run(x.orderId);
+  const copy=await quoteAcceptanceCopy(x.db,x.bucket,x.applicant,q.id);
+  assert.equal(copy.receipt.quote.siteName,'Fixture Site');
+  assert.equal(copy.receipt.signerEmail,x.applicant.email);
+  assert.ok(quoteAcceptanceDocument(copy).includes('Signed service agreement'));
+  copy.receipt.quote.siteName='<script>alert(1)</script>';
+  assert.ok(quoteAcceptanceDocument(copy).includes('&lt;script&gt;'));
+  await assert.rejects(quoteAcceptanceCopy(x.db,x.bucket,{...x.applicant,userId:'other'},q.id),/not found/);
  } finally {x.database.close();}
+});
+
+test('client decline is audited, sends both notices and cannot accept or overwrite the decision',async()=>{
+ const x=await setup();
+ try {
+  const {quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),{q}=await currentQuote(x.db,quoteId);
+  const decision={quoteId,offerHash:q.offer_hash,reason:'Our dates have changed'};
+  await assert.rejects(declineQuote(x.db,{...x.applicant,userId:'other'},decision),/not found/);
+  await assert.rejects(declineQuote(x.db,x.reviewer,decision),/Only/);
+  await assert.rejects(declineQuote(x.db,x.applicant,{...decision,offerHash:'changed'}),/changed/);
+  assert.equal((await declineQuote(x.db,x.applicant,decision)).declined,true);
+  assert.equal((await declineQuote(x.db,x.applicant,decision)).alreadyDeclined,true);
+  assert.equal((await readQuotes(x.db,x.applicant)).quotes[0].declined,1);
+  assert.equal(x.database.prepare("SELECT count(*) AS n FROM audit_events WHERE event_type='quote_declined'").get().n,1);
+  assert.equal(x.database.prepare("SELECT count(*) AS n FROM client_notification_jobs WHERE id LIKE 'quote:declined:%'").get().n,2);
+  assert.equal(x.database.prepare("SELECT state FROM client_notification_jobs WHERE id=?").get('quote:issued:client:'+q.id).state,'cancelled');
+  await assert.rejects(acceptQuote(x.db,x.bucket,x.applicant,{quoteId,offerHash:q.offer_hash,affirmative:true}),/changed/);
+ } finally {x.database.close();}
+});
+
+test('mail configuration errors preserve the action and can be retried after configuration',async()=>{
+ const x=await setup();
+ try {
+  const {quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),id='quote:issued:client:'+quoteId;
+  const blocked=await deliverClientNotifications(x.db,{}, {ids:[id]});
+  assert.equal(blocked.blocked,1);assert.match(blocked.errors[0],/RESEND_API_KEY/);
+  assert.equal(x.database.prepare('SELECT attempts FROM client_notification_jobs WHERE id=?').get(id).attempts,0);
+  assert.equal((await readClientNotificationFailures(x.db,x.applicant.userId)).length,1);
+  assert.equal((await readClientNotificationFailures(x.db,'unrelated')).length,0);
+  assert.equal((await deliverClientNotifications(x.db,{RESEND_API_KEY:'in-process-credential',LOKD_EMAIL_FROM:'quotes@example.test'}, {ids:[id],verifiedEmail:async()=>x.applicant.email,transport:async()=>Response.json({id:'mail-ok'})})).sent,1);
+ } finally {x.database.close();}
+});
+
+test('mail replays reuse the frozen Resend body and key; no other provider can send',async()=>{
+ const x=await setup();
+ try {
+  const {quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),id='quote:issued:client:'+quoteId,requests=[];
+  const runtime={RESEND_API_KEY:'in-process-credential',LOKD_EMAIL_FROM:'quotes@example.test'};
+  let fail=true;
+  const options={ids:[id],verifiedEmail:async()=>x.applicant.email,transport:async(url,init)=>{requests.push({body:init.body,key:init.headers['idempotency-key']});if(fail)throw Error('lost response');return Response.json({id:'mail-ok'});}};
+  assert.equal((await deliverClientNotifications(x.db,runtime,options)).pending,1);
+  fail=false;assert.equal((await deliverClientNotifications(x.db,runtime,options)).sent,1);
+  assert.deepEqual(requests[0],requests[1]);
+  const other='local-unsupported-provider';
+  await clientNotificationStatement(x.db,{id:other,sourceId:quoteId,ownerUserId:x.applicant.userId,recipient:'client',subject:'LOKD update',text:'Your account update is saved.'}).run();
+  let calls=0;const otherOptions={ids:[other],verifiedEmail:async()=>x.applicant.email,transport:async()=>{calls++;return Response.json({id:'never'});}};
+  assert.equal((await deliverClientNotifications(x.db,{...runtime,LOKD_EMAIL_PROVIDER:'smtp'},otherOptions)).sent,0);assert.equal(calls,0);
+ } finally {x.database.close();}
+});
+
+test('pending client service agreements remain visible and cannot be signed through another account or role',async()=>{
+ const x=await setup();
+ try{
+  const {readClientAgreements,acceptClientAgreement,clientAgreementCopy}=await import('../app/lib/agreement-client.ts');
+  const at=new Date().toISOString(),expires=new Date(Date.now()+86400000).toISOString();
+  x.database.prepare('INSERT INTO signing_document_bodies VALUES(?,?,?,?,?,?,?,?,?)').run('DOC-client-agreement','CLIENT_MSA','v1','ENTITY','en-ZA','Local agreement wording for permission checks.','content-hash',x.reviewer.userId,at);
+  const insert=x.database.prepare('INSERT INTO production_signing_envelopes(id,document_id,role,owner_user_id,case_kind,case_id,case_version,roster_slot_id,officer_id,slot_version,context_json,context_hash,content_hash,identity_evidence,authority_evidence,issued_by,issued_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+  insert.run('ENV-client-agreement','DOC-client-agreement','CLIENT_MSA',x.applicant.userId,'client',x.caseId,4,'SLOT-local','OFF-local',1,JSON.stringify({scope:{siteName:'Local site'}}),'context-hash','content-hash','Reviewed identity','Reviewed authority',x.reviewer.userId,at,expires);
+  insert.run('ENV-officer-agreement','DOC-client-agreement','OFFICER_EMPLOYMENT',x.applicant.userId,'officer','officer-case',1,'SLOT-local','OFF-local',1,JSON.stringify({scope:{siteName:'Local site'}}),'other-context-hash','content-hash','Reviewed identity',null,x.reviewer.userId,at,expires);
+  const rows=await readClientAgreements(x.db,x.applicant);
+  assert.equal(rows.agreements.length,1);assert.equal(rows.agreements[0].id,'ENV-client-agreement');assert.equal(rows.agreements[0].receipt_json,null);
+  assert.equal((await readClientAgreements(x.db,{...x.applicant,userId:'other-account'})).agreements.length,0);
+  const input={action:'sign',envelopeId:'ENV-client-agreement',contentHash:'content-hash',contextHash:'wrong',affirmative:true};
+  await assert.rejects(acceptClientAgreement(x.db,x.applicant,input),/exact/);
+  await assert.rejects(acceptClientAgreement(x.db,{...x.applicant,userId:'other-account'},input),/not found/);
+  await assert.rejects(acceptClientAgreement(x.db,x.applicant,{...input,envelopeId:'ENV-officer-agreement'}),/not found/);
+  await assert.rejects(clientAgreementCopy(x.db,x.applicant,'ENV-client-agreement'),/not found/);
+  const {GET,POST}=await import('../app/api/client-agreements/route.ts');
+  const headers={'x-lokd-verified-user-id':x.applicant.userId,'x-lokd-verified-email':x.applicant.email};
+  const response=await GET(new Request('https://portal.lokd.co.za/api/client-agreements',{headers}));
+  assert.equal(response.status,200);assert.equal((await response.json()).agreements.length,1);
+  assert.equal((await POST(new Request('https://portal.lokd.co.za/api/client-agreements',{method:'POST',headers:{...headers,'content-type':'application/json',origin:'https://evil.example'},body:JSON.stringify(input)}))).status,403);
+ }finally{x.database.close();}
 });

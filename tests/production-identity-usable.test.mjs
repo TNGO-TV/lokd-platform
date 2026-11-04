@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
+import {addOperator} from './fixtures/operations-db.mjs';
 import {env} from 'cloudflare:workers';
 import {complete,applicant,maker,checker,assessor,independent} from './fixtures/production-identity-journey.mjs';
 import {GET,POST} from '../app/api/production-identity/route.ts';
@@ -12,10 +13,11 @@ import {installFixtureClock} from './fixtures/fixture-clock.mjs';
 import {createPrivatePassportMaterial} from '../app/lib/production-identity-contract.ts';
 const stranger={userId:'unrelated-user',email:'unrelated@example.test',operations:false};
 async function setup(t,{migration=true}={}){
- const prior=env.LOKD_PILOT_ACCESS_JSON,priorDb=env.DB;
+ const prior=env.LOKD_ROLE_ACCESS_JSON,priorDb=env.DB;
  const x=await complete(migration?{}:{beforeMigration:'0068'});
- env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({owners:[checker.email,independent.email],operations:[maker.email,assessor.email],clients:{}});
- t.after(()=>{x.db.sql.close();if(prior===undefined)delete env.LOKD_PILOT_ACCESS_JSON;else env.LOKD_PILOT_ACCESS_JSON=prior;if(priorDb===undefined)delete env.DB;else env.DB=priorDb;});return x;
+ for(const actor of [maker,checker,assessor,independent])addOperator(x.db.sql,actor.userId,['compliance_reviewer',...(actor.owner?['operations_owner']:[])],1000000,actor.email);
+ env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({owners:[checker.email,independent.email],operations:[maker.email,assessor.email],clients:{}});
+ t.after(()=>{x.db.sql.close();if(prior===undefined)delete env.LOKD_ROLE_ACCESS_JSON;else env.LOKD_ROLE_ACCESS_JSON=prior;if(priorDb===undefined)delete env.DB;else env.DB=priorDb;});return x;
 }
 function req(a,method,body,query=''){
  const host=a.operations?'ops.lokd.co.za':'officers.lokd.co.za',scope=a.operations?'scope=operations&':'';

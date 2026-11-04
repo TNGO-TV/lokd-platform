@@ -2,15 +2,15 @@
 // the Worker; caller-supplied CSP and nonce headers must never select the value.
 export function contentSecurityPolicy(nonce?: string, development = false) {
   if (nonce && !/^[A-Za-z0-9+/=_-]{20,100}$/.test(nonce)) throw new Error('Invalid script nonce.');
-  const clerkOrigin = development ? 'https://awake-gorilla-7447.clerk.accounts.dev' : 'https://clerk.lokd.co.za';
+  void development;
   return [
     "default-src 'self'", "base-uri 'self'", "form-action 'self'",
     "frame-ancestors 'none'", "object-src 'none'",
-    `script-src 'self' ${nonce ? `'nonce-${nonce}' ` : ''}${clerkOrigin} https://challenges.cloudflare.com https://*.protect.clerk.com`,
-    "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob: https://img.clerk.com https://lokd.co.za",
+    `script-src 'self' ${nonce ? `'nonce-${nonce}' ` : ''}https://challenges.cloudflare.com`,
+    "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob: https://lokd.co.za",
     "font-src 'self' data:",
-    `connect-src 'self' ${clerkOrigin} https://*.protect.clerk.com:* https://clerk-telemetry.com https://*.clerk-telemetry.com`,
-    "frame-src 'self' https://challenges.cloudflare.com https://*.protect.clerk.com",
+    "connect-src 'self'",
+    "frame-src 'self' https://challenges.cloudflare.com",
     "worker-src 'self' blob:",
   ].join('; ');
 }
@@ -40,7 +40,7 @@ export function secureRequest(request: Request) {
 export function officerLocationAllowed(request: Request) {
   const url=new URL(request.url),host=url.hostname;
   const officerHost=host==='officers.lokd.co.za';
-  const localHost=host==='localhost'||host==='127.0.0.1'||host==='app.local'||host==='demo.lokd.co.za'||host.endsWith('.chatgpt.site');
+  const localHost=host==='localhost'||host==='127.0.0.1'||host==='app.local'||host.endsWith('.chatgpt.site');
   const officerPage=url.pathname.replace(/\/+$/,'')==='/officer';
   const officerSignup=url.pathname==='/signup'&&(officerHost||url.searchParams.get('kind')!=='client');
   return (officerHost||localHost)&&(officerPage||officerSignup);
@@ -49,7 +49,7 @@ export function officerLocationAllowed(request: Request) {
 export function secureResponse(response: Response, policy: string, request?: Request) {
   const secured = new Response(response.body, response);
   for (const [name, value] of Object.entries(baselineSecurityHeaders)) secured.headers.set(name, value);
-  // Preserve sandboxed attachment policies; normal HTML must match its SSR nonce.
+  // Preserve attachment CSPs set by download routes; normal HTML must match its SSR nonce.
   const html = secured.headers.get('content-type')?.split(';')[0].trim() === 'text/html';
   if (html && !secured.headers.has('content-disposition')) {
     if(request&&officerLocationAllowed(request))secured.headers.set('permissions-policy','camera=(), microphone=(), geolocation=(self), payment=()');

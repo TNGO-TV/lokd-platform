@@ -1,74 +1,11 @@
-import {blockedTestSurface,rehearsalEnv as env} from '../../lib/test-surface-runtime';
-import {readRequestText, RequestBodyError} from '../../lib/request-body';
-
-import { OperationsError, applyOperationsAction, ensureOperationsDemoData, readOperationsState } from "../../lib/operations-server";
-import type { OperationsAction } from "../../lib/operations-types";
-import { PilotAccessError, pilotStage, requirePilotApiRole, requireSameOriginJson } from "../../lib/pilot-runtime";
-
-export const dynamic = "force-dynamic";
-
-function database() {
-  if (!env.DB) throw new OperationsError("The Operations database is unavailable.", 503);
-  return env.DB;
-}
-
-function requireSyntheticDemo() {
-  if (pilotStage() !== "demo") throw new PilotAccessError("The synthetic Operations command model is disabled outside the demo environment.", 423);
-}
-
-function response(payload: unknown, status = 200) {
-  return Response.json(payload, {
-    status,
-    headers: {
-      "cache-control": "no-store, private",
-      "x-content-type-options": "nosniff",
-      "referrer-policy": "no-referrer",
-      vary: "x-lokd-verified-email",
-    },
-  });
-}
-
-function failure(cause: unknown) {
-  const error = cause instanceof OperationsError || cause instanceof RequestBodyError || cause instanceof PilotAccessError
-    ? cause
-    : new OperationsError("The Operations command service could not complete that request.", 500);
-  return response({ error: error.message }, error.status);
-}
-
-export async function GET(request: Request) {
- const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
-
-  try {
-    requirePilotApiRole(request, "operations");
-    requireSyntheticDemo();
-    const db = database();
-    await ensureOperationsDemoData(db);
-    return response({ state: await readOperationsState(db) });
-  } catch (cause) {
-    return failure(cause);
-  }
-}
-
-export async function POST(request: Request) {
- const blockedTest = await blockedTestSurface(request); if (blockedTest) return blockedTest;
-
-  try {
-    requireSameOriginJson(request);
-    const actor = requirePilotApiRole(request, "operations");
-    requireSyntheticDemo();
-    const raw = await readRequestText(request, 8_192);
-    let payload: OperationsAction;
-    try {
-      payload = JSON.parse(raw) as OperationsAction;
-    } catch {
-      throw new OperationsError("The request body is not valid JSON.");
-    }
-    if (!payload || typeof payload !== "object" || typeof payload.action !== "string") throw new OperationsError("Choose a valid Operations action.");
-    const db = database();
-    await ensureOperationsDemoData(db);
-    await applyOperationsAction(db, payload, actor);
-    return response({ state: await readOperationsState(db) });
-  } catch (cause) {
-    return failure(cause);
-  }
-}
+import {env} from 'cloudflare:workers';
+import {operationsRequest,requireOperationsJson} from '../../lib/operations-access';
+import {readOperationsWorkspace} from '../../lib/operations-workspace';
+import {operateProduction} from '../../lib/production-operations';
+import {SignupError} from '../../lib/signup-server';
+import {readRequestText,RequestBodyError} from '../../lib/request-body';
+export const dynamic='force-dynamic';
+const reply=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
+const failure=(e:unknown)=>reply({error:e instanceof SignupError||e instanceof RequestBodyError?e.message:'The Operations request could not be completed. Refresh the record before retrying.'},e instanceof SignupError||e instanceof RequestBodyError?e.status:500);
+export async function GET(request:Request){try{if(!env.DB)throw new SignupError('Operations storage is unavailable.',503);const actor=await operationsRequest(env.DB,request);return reply({state:await readOperationsWorkspace(env.DB,actor,new URL(request.url).searchParams.get("before"))});}catch(e){return failure(e);}}
+export async function POST(request:Request){try{requireOperationsJson(request);if(!env.DB)throw new SignupError('Operations storage is unavailable.',503);const actor=await operationsRequest(env.DB,request);let input;try{input=JSON.parse(await readRequestText(request,24000));}catch(e){if(e instanceof RequestBodyError)throw e;throw new SignupError('Send a valid JSON object.');}if(!input||Array.isArray(input)||typeof input!=='object'||typeof input.action!=='string')throw new SignupError('Choose an Operations action.');return reply({result:await operateProduction(env.DB,actor,input,request.headers,false,env),state:await readOperationsWorkspace(env.DB,actor)});}catch(e){return failure(e);}}

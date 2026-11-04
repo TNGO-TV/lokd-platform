@@ -43,9 +43,10 @@ test('deadline applies to the whole body rather than resetting after each chunk'
 test('public intake rejects oversized bodies early and returns typed failures before storage access',async()=>{
  for(const [handler,path,cap] of [[submitClientEnquiry,'enquiries',14000],[submitOfficerApplication,'applications',16000]]){
   const s=source([new Uint8Array(cap+1),bytes('must remain unread')]);
-  const r=new Request('https://demo.lokd.co.za/api/'+path,{method:'POST',headers:{'content-type':'application/json'},body:s.body,duplex:'half'});
+  const headers={'content-type':'application/json',origin:'https://lokd.co.za','sec-fetch-site':'same-origin'};
+  const r=new Request('https://lokd.co.za/api/'+path,{method:'POST',headers,body:s.body,duplex:'half'});
   assert.equal((await handler(r)).status,413);assert.deepEqual(s.state(),{reads:1,cancelled:true});
-  const malformed=new Request(r.url,{method:'POST',headers:{'content-type':'application/json'},body:Uint8Array.of(255)});
+  const malformed=new Request(r.url,{method:'POST',headers,body:Uint8Array.of(255)});
   assert.equal((await handler(malformed)).status,400);
  }
 });

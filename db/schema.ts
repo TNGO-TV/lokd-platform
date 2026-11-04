@@ -103,7 +103,7 @@ export const officerApplications = sqliteTable(
     identityConsentVersion: text("identity_consent_version"),
     identityConsentedAt: text("identity_consented_at"),
     convertedOfficerId: text("officer_id").references(() => officers.id, { onDelete: "set null" }),
-    environment: text("environment").notNull().default("prelaunch"),
+    environment: text("environment").notNull().default("production"),
     integrityState: text("integrity_state").notNull().default("user_submitted"),
     status: text("status").notNull().default("submitted"),
     source: text("source").notNull().default("homepage"),
@@ -2209,7 +2209,7 @@ export const clientEnquiries = sqliteTable(
     status: text("status").notNull().default("new"),
     ownerId: text("owner_id"),
     resolution: text("resolution"),
-    environment: text("environment").notNull().default("prelaunch"),
+    environment: text("environment").notNull().default("production"),
     integrityState: text("integrity_state").notNull().default("user_submitted"),
     retentionReviewAt: text("retention_review_at").notNull(),
     createdAt: text("created_at").notNull(),
@@ -3176,7 +3176,7 @@ export const operationalDeliveryJobs=sqliteTable('operational_delivery_jobs',{
 },t=>[uniqueIndex('operational_delivery_source_idx').on(t.kind,t.sourceId),index('operational_delivery_due_idx').on(t.state,t.nextAttemptAt),
  check('operational_delivery_kind',sql.raw("kind IN ('enquiry_crm','enquiry_email','booking_email','contract_email')")),
  check('operational_delivery_state',sql.raw("state IN ('queued','blocked','dispatching','retry_wait','sent','delivered','failed','uncertain','cancelled')")),
- check('operational_delivery_environment',sql.raw("environment IN ('prelaunch','production')")),
+ check('operational_delivery_environment',sql.raw("environment IN ('production')")),
  check('operational_delivery_attempts',sql.raw('attempts>=0 AND attempts<=5')),
  check('operational_delivery_request',sql.raw('request_json IS NULL OR json_valid(request_json)'))]);
 

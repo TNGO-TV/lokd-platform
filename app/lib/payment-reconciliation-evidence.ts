@@ -11,7 +11,7 @@ export type ReconciliationBinding = EmployeeTransferBinding & {
 export type SubmissionClaim = {
  commandId: string;
  reference: string;
- mode: 'test' | 'live';
+ mode: 'live';
  sourceHash: string;
  claimedAt: string;
 };
@@ -45,9 +45,9 @@ export type ReviewablePaymentSnapshot = {
 };
 export type PaymentEvidenceDecision = {
  state: PaymentEvidenceState;
- mode: 'test' | 'live';
+ mode: 'live';
  reasons: PaymentEvidenceReason[];
- reviewableFor: 'test_confirmation' | 'live_reconciliation' | 'terminal_disposition' | null;
+ reviewableFor: 'live_reconciliation' | 'terminal_disposition' | null;
  snapshot: ReviewablePaymentSnapshot | null;
  // Neither provider success nor this in-memory assessment authorizes money movement.
  canMarkPaid: false;
@@ -121,7 +121,7 @@ export function assessPaymentEvidence(input:PaymentEvidenceInput,now:Date):Payme
  if(['pending','otp','received'].includes(status))return result('pending','provider_pending');
  if(!observations.some(o=>o.source==='webhook'&&o.event===`transfer.${status}`))return result('held','signed_confirmation_required');
  const decision=result(status==='success'?'provider_success':status==='failed'?'provider_failed':'provider_reversed');
- decision.reviewableFor=status==='success'?(b.mode==='test'?'test_confirmation':'live_reconciliation'):'terminal_disposition';
+ decision.reviewableFor=status==='success'?'live_reconciliation':'terminal_disposition';
  decision.snapshot=copySnapshot(b,c,observations,last);
  return decision;
 }

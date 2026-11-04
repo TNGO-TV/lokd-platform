@@ -2,7 +2,7 @@ import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {readFinanceText} from '../../lib/finance-body';
 import {env} from 'cloudflare:workers';
 import {SignupError} from '../../lib/signup-server';
-import {PilotAccessError,principalForEmail,principalHasRole,requirePilotApiRole,requireSameOriginJson} from '../../lib/pilot-runtime';
+import {AccessError,principalForEmail,principalHasRole,requireApiRole,requireSameOriginJson} from '../../lib/platform-runtime';
 import {workspaceRoleForHost} from '../../lib/public-site';
 import {prepareFinanceDocument,decideFinanceDocument,readFinanceDocuments,renderFinanceDocument,financeDocumentReport,prepareDocumentInvoice} from '../../lib/finance-documents';
 export const dynamic='force-dynamic';
@@ -10,11 +10,11 @@ const headers={'cache-control':'private, no-store','referrer-policy':'no-referre
 function actor(request:Request){
  const userId=request.headers.get('x-lokd-verified-user-id'),email=request.headers.get('x-lokd-verified-email');if(!userId||!email)throw new SignupError('Sign in to your account.',401);
  const url=new URL(request.url),operations=url.searchParams.get('scope')==='operations',host=workspaceRoleForHost(url.hostname),principal=principalForEmail(email);
- if(operations){if(host&&host!=='operations'||!principalHasRole(principal,'operations'))throw new SignupError('Operations access required.',403);requirePilotApiRole(request,'operations');}
+ if(operations){if(host&&host!=='operations'||!principalHasRole(principal,'operations'))throw new SignupError('Operations access required.',403);requireApiRole(request,'operations');}
  else if(host==='operations')throw new SignupError('Choose the Operations document scope.',403);
  return {userId,email,operations,owner:operations&&principal.owner};
 }
-const fail=(e:unknown)=>Response.json({error:e instanceof SignupError||e instanceof PilotAccessError?e.message:'Document evidence or authority changed. Refresh and review.'},{status:e instanceof SignupError||e instanceof PilotAccessError?e.status:409,headers});
+const fail=(e:unknown)=>Response.json({error:e instanceof SignupError||e instanceof AccessError?e.message:'Document evidence or authority changed. Refresh and review.'},{status:e instanceof SignupError||e instanceof AccessError?e.status:409,headers});
 export async function GET(request:Request){try{const a=actor(request);if(!env.DB)throw new SignupError('Storage unavailable.',503);const url=new URL(request.url),id=url.searchParams.get('documentId')??undefined,data=await readFinanceDocuments(env.DB,a,request.headers,id);
  const host=workspaceRoleForHost(url.hostname);if(!a.operations&&host){data.documents=data.documents.filter(d=>host==='officer'?d.kind==='payslip':d.kind!=='payslip');if(id&&!data.documents.length)throw new SignupError('Private document not found in this workspace.',404);}
  if(url.searchParams.get('download')==='document'){if(!id)throw new SignupError('Choose an issued document.');return new Response(renderFinanceDocument(data.documents[0]),{headers:{...headers,'content-type':'text/html; charset=utf-8','content-disposition':'attachment; filename=lokd-finance-document.html','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; sandbox"}});}

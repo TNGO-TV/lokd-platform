@@ -15,16 +15,16 @@ async function role(db:D1Database,actor:SigningActor){
  if(!actor.operations)return false;
  return !!await db.prepare("SELECT a.id FROM operator_accounts a JOIN operator_role_assignments g ON g.operator_id=a.id WHERE lower(a.email)=? AND a.environment='production' AND a.integrity_state='production_verified' AND a.status='active' AND g.environment='production' AND g.integrity_state='production_verified' AND g.status='active' AND g.role IN ('operations_controller','finance_approver') LIMIT 1").bind(actor.email.toLowerCase()).first();
 }
-export async function readPartnerDestinations(db:D1Database,actor:SigningActor,liveOnly=false){
+export async function readPartnerDestinations(db:D1Database,actor:SigningActor){
  const allowed=await role(db,actor);if(!allowed)return {partnerDestinationAccess:false,partnerDestinationReviews:[],partnerDestinationCandidates:[]};
- return {partnerDestinationAccess:true,partnerDestinationReviews:(await db.prepare(`SELECT * FROM partner_destination_current ${liveOnly?"WHERE mode='live'":''} ORDER BY prepared_at DESC LIMIT 100`).all()).results,partnerDestinationCandidates:(await db.prepare('SELECT employer_id,source_json FROM partner_destination_sources ORDER BY employer_id LIMIT 500').all()).results};
+ return {partnerDestinationAccess:true,partnerDestinationReviews:(await db.prepare(`SELECT * FROM partner_destination_current WHERE mode='live' ORDER BY prepared_at DESC LIMIT 100`).all()).results,partnerDestinationCandidates:(await db.prepare('SELECT employer_id,source_json FROM partner_destination_sources ORDER BY employer_id LIMIT 500').all()).results};
 }
 export async function operatePartnerDestination(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,runtime:DestinationRuntime={},transport:typeof fetch=fetch){
  const preparing=input.action==='prepare_partner_destination',reviewing=['approve_partner_destination','reject_partner_destination','recheck_partner_destination'].includes(String(input.action));
  if(!preparing&&!reviewing&&input.action!=='hold_partner_destination')throw new SignupError('Choose a supported destination action.');
  const op=await productionOperatorControl(db,actor,headers,preparing?'partner.prepare':'partner.approve',0),now=new Date().toISOString();
  if(preparing){
-  if(input.mode!=='test'&&input.mode!=='live')throw new SignupError('Choose an explicit provider mode.');const mode=input.mode;
+  if(input.mode!=='live')throw new SignupError('Choose live provider mode.');const mode=input.mode;
   if(input.documentsReviewed!==true||input.capabilityReviewed!==true)throw new SignupError('Review ownership, the company payment mandate and this provider account’s South African transfer capability.');
   const secret=destinationKey(runtime,mode),requestKey=text(input.requestKey,'a unique destination request reference');
   const employerId=text(input.employerId,'the legal partner company'),code=text(input.recipientCode,'the existing recipient code'),accountNumber=account(input.accountNumber);
@@ -40,14 +40,14 @@ export async function operatePartnerDestination(db:D1Database,actor:SigningActor
   if(expiry>Date.parse(JSON.parse(source.source_json).expiresAt))throw new SignupError('Destination evidence cannot outlive its company compliance evidence.',409);
   const provider=await fetchRecipient(secret,code,mode,transport);
   if(!provider||provider.integration!==integrationId||provider.accountHash!==await accountFingerprint(secret,provider.bankCode,accountNumber))throw new SignupError('The active ZAR bank recipient, integration and ownership account must agree.',409);
-  const last=await db.prepare("SELECT r.id FROM partner_destination_reviews r JOIN partner_destination_decisions d ON d.review_id=r.id AND d.decision IN ('verified_live','confirmed_test') WHERE r.employer_id=? AND r.mode=? ORDER BY r.revision DESC LIMIT 1").bind(source.employer_id,mode).first<{id:string}>();if((last?.id??'')!==supersedesId)throw new SignupError('Explicitly select the last approved destination being replaced.',409);
+  const last=await db.prepare("SELECT r.id FROM partner_destination_reviews r JOIN partner_destination_decisions d ON d.review_id=r.id AND d.decision='verified_live' WHERE r.employer_id=? AND r.mode=? ORDER BY r.revision DESC LIMIT 1").bind(source.employer_id,mode).first<{id:string}>();if((last?.id??'')!==supersedesId)throw new SignupError('Explicitly select the last approved destination being replaced.',409);
   const revision=(await db.prepare('SELECT coalesce(max(revision),0)+1 AS revision FROM partner_destination_reviews WHERE employer_id=? AND mode=?').bind(source.employer_id,mode).first<{revision:number}>())!.revision;
   const payload:Payload={sourceJson:source.source_json,provider,providerHash:await agreementHash(JSON.stringify(provider)),ownershipReference,ownershipHash,mandateReference,mandateHash,capabilityReference,capabilityHash,supersedesId,note,representativeUserId,representativeReference,representativeHash,companyReference,companyHash};
   const json=JSON.stringify(payload),id='PDEST-'+crypto.randomUUID();
   await db.prepare('INSERT INTO partner_destination_reviews VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,employerId,mode,revision,requestKey,requestHash,json,await agreementHash(json),op.id,actor.userId,now,new Date(Date.now()+30*60000).toISOString(),new Date(expiry).toISOString()).run();
   return {destinationId:id,pendingIndependentReview:true,moneyMoved:false};
  }
- const id=text(input.destinationId,'the destination review'),r=await db.prepare('SELECT * FROM partner_destination_current WHERE id=?').bind(id).first<Review>();if(!r)throw new SignupError('Destination review not found.',404);
+ const id=text(input.destinationId,'the destination review'),r=await db.prepare("SELECT * FROM partner_destination_current WHERE id=? AND mode='live'").bind(id).first<Review>();if(!r)throw new SignupError('Destination review not found.',404);
  if(input.payloadHash!==r.payload_hash||await agreementHash(r.payload_json)!==r.payload_hash)throw new SignupError('Refresh and review the exact destination evidence.',409);
  const p=JSON.parse(r.payload_json) as Payload;
  if(p.representativeUserId===actor.userId)throw new SignupError('A company representative cannot review their own company destination.',403);
@@ -60,7 +60,7 @@ export async function operatePartnerDestination(db:D1Database,actor:SigningActor
  }
  await productionOperatorControl(db,actor,headers,'partner.approve',0,r.prepared_by);
  if(r.prepared_user===actor.userId)throw new SignupError('The preparer cannot approve their own destination.',403);
- const approving=input.action==='approve_partner_destination',decision=approving?r.mode==='live'?'verified_live':'confirmed_test':'rejected';
+ const approving=input.action==='approve_partner_destination',decision=approving?'verified_live':'rejected';
  const existing=await db.prepare('SELECT decision FROM partner_destination_decisions WHERE review_id=?').bind(id).first<{decision:string}>();
  if(existing){if(existing.decision!==decision)throw new SignupError('This destination decision is final. Prepare a new review.',409);return {alreadyDecided:true,status:r.status,moneyMoved:false};}
  const note=text(input.note,'the independent findings',1200);let providerHash:string|null=null;

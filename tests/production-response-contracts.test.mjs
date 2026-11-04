@@ -94,12 +94,6 @@ test('protected review and readiness responses must bind the requested record an
  const jsx=(type,props)=>({type,props}),Hold=load('hold-audit.tsx',{'react/jsx-runtime':{jsx,jsxs:jsx}}).default;
  const rendered=JSON.stringify(Hold({response:holds}));assert.match(rendered,/OPS-1/);assert.match(rendered,/Independent investigation/);
 });
-test('private sandbox reads reject unrelated success and bind command, operation and application references',()=>{
- for(const query of ['commands','commandId=C-1','operationId=OP-1','applicationId=APP-1','catalogue=training','id=DOC-1'])assert.equal(contracts.financePrivateResponse({environment:'sandbox'},new URLSearchParams(query)),false);
- const data={environment:'sandbox',applicationId:'APP-1',applicationVersion:1,enrolmentPaid:false,training:[],workEligible:false};assert.equal(contracts.financePrivateResponse(data,new URLSearchParams('applicationId=APP-1')),true);assert.equal(contracts.financePrivateResponse(data,new URLSearchParams('applicationId=APP-2')),false);
- assert.equal(contracts.sandboxServiceResponse({mode:'sandbox',policyVersion:'lokd-sandbox-completion-v1',productionWorkEligible:false,data:{}},'schedule_read'),false);
-});
-
 test('finance document history validates serialized array entries before rendering and preserves historical test evidence',()=>{
  const source={kind:'invoice',source_id:'INV-1',party_id:'CLIENT-1',recipient_user:'USER-1',amount_cents:100,source_json:'{}',financial_json:'[]',currentState:'unpaid'};
  const document={...source,id:'FD-1',version:1,payload_hash:'a'.repeat(64),parent_id:null,decision:'approved',number:'INV-1',source:{},note:'Issued history',asIssuedState:'unpaid',sourceChanged:false,superseded:false,issued_at:'2026-10-16'};
@@ -108,24 +102,14 @@ test('finance document history validates serialized array entries before renderi
  assert.equal(contracts.financeDocumentsResponse({...data,documents:[{...document,financial_json:JSON.stringify([{reference:'historical-test',mode:'test',state:'paid'}])}]}),true);
 });
 
-const sandboxRead=data=>({mode:'simulator',policyVersion:'lokd-sandbox-completion-v1',productionWorkEligible:false,data});
-test('passport responses distinguish sandbox envelopes and bind every delivery to the selected officer',()=>{
+test('passport responses bind every delivery to the selected officer',()=>{
  const delivery={deliveryId:'PD-1',officerId:'OFF-1',applicantVersion:1,createdAt:'2026-10-16',expiresAt:'2026-10-17',passportId:null,sequence:null,status:'awaiting_preparation',workEligible:false};
  const records={officerId:'OFF-1',deliveries:[delivery],workEligible:false};
  assert.equal(contracts.passportDeliveryResponse(records,'OFF-1'),true);
- assert.equal(contracts.passportDeliveryResponse(sandboxRead(records),'OFF-1',true),true);
  assert.equal(contracts.passportDeliveryResponse(records,'OFF-2'),false);
  assert.equal(contracts.passportDeliveryResponse({...records,deliveries:[{...delivery,officerId:'OFF-2'}]},'OFF-1'),false);
- assert.equal(contracts.passportDeliveryResponse(sandboxRead({...records,deliveries:[{}]}),'OFF-1',true),false);
- assert.equal(contracts.passportDeliveryResponse(delivery,'OFF-1',false,true),true);
- assert.equal(contracts.passportDeliveryResponse({...sandboxRead(delivery),mode:'sandbox'},'OFF-1',true,true),true);
- assert.equal(contracts.passportDeliveryResponse(sandboxRead(delivery),'OFF-1',true,true),false);
- const queue={contract:'lokd.identity-workspace.v1',recordType:'rule',records:[{id:'RULE-1'}],nextOffset:null,workEligible:false};
- const query=new URLSearchParams('kind=queue&recordType=rule');
- assert.equal(contracts.sandboxReviewResponse(sandboxRead(queue),query),true);
- assert.equal(contracts.sandboxReviewResponse(sandboxRead({...queue,recordType:'officer'}),query),false);
- assert.equal(contracts.sandboxReviewResponse(sandboxRead({...queue,nextOffset:0}),query),false);
- assert.equal(contracts.sandboxReviewResponse({data:queue},query),false);
+ assert.equal(contracts.passportDeliveryResponse({...records,deliveries:[{}]},'OFF-1'),false);
+ assert.equal(contracts.passportDeliveryResponse(delivery,'OFF-1',true),true);
 });
 test('actual readiness form locks an unconfirmed 2xx command and preserves its draft',async()=>{
  const slots=[];let index=0,calls=0,saved=0;
@@ -139,11 +123,6 @@ test('actual readiness form locks an unconfirmed 2xx command and preserves its d
  await find(render(),'form').props.onSubmit({preventDefault(){}});
  const tree=render();assert.equal(find(tree,'button').props.disabled,true);assert.match(JSON.stringify(tree),/must not be repeated/);assert.equal(saved,0);
  await find(tree,'form').props.onSubmit({preventDefault(){}});assert.equal(calls,1);
-});
-
-test('every sandbox readiness branch rejects missing or production-eligible outer envelopes',()=>{
- const cases=[['identity','ID-1',{id:'ID-1',applicantId:'APP-1',applicantVersion:1,outcome:'pending',outcomeId:'OUT-1',identityVerified:false,workEligible:false}],['officer','OFF-1',{officerId:'OFF-1',reviews:[]}],['readiness','OFF-1',{officerId:'OFF-1',reviews:[],optins:[],passport:null,latestSequence:0}],['holds','APP-1',{applicantId:'APP-1',applicantVersion:1,intakeStatus:'reviewed',holds:[]}]];
- for(const [key,id,data] of cases){const valid=sandboxRead(data);assert.equal(contracts.readinessRecordResponse(valid,key,id,true),true,key);assert.equal(contracts.readinessRecordResponse(valid,key,'WRONG',true),false,key);for(const bad of [{data},{...valid,mode:'live'},{...valid,policyVersion:'wrong'},{...valid,productionWorkEligible:true}])assert.equal(contracts.readinessRecordResponse(bad,key,id,true),false,key);}
 });
 
 test('signup retains stale inert records, clears denied access and requires an exact write receipt',async()=>{
@@ -169,20 +148,21 @@ test('signup retains stale inert records, clears denied access and requires an e
  assert.equal(contracts.signupResponse({...valid,records:[{...record,kind:'client'}]},'officer'),false);
 });
 
-test('account-security verification rejects truthy, failed, stale and malformed success while preserving Clerk challenge retry',async()=>{
- const slots=[];let index=0,tree,status=200,payload,challengeCount=0,requests=0;
+test('account-security verification rejects truthy, failed, stale and malformed success and sends one request per click',async()=>{
+ const slots=[];let index=0,tree,status=200,payload,requests=0;
  const fresh=()=>({fresh:true,enrolled:true,required:true,verifiedAt:new Date().toISOString(),maxAgeMinutes:5});
  const jsx=(type,props)=>({type,props});
- const modules={'react/jsx-runtime':{jsx,jsxs:jsx},react:{useRef:value=>slots[index++]??={current:value},useState:value=>{const key=index++;if(!(key in slots))slots[key]=value;return [slots[key],next=>{slots[key]=next;}];}},'@clerk/react':{useAuth:()=>({getToken:async()=> 'synthetic',isLoaded:true}),useClerk:()=>({openUserProfile:()=>{}}),useReverification:fn=>async()=>{const result=await fn();if(result?.clerk_error){challengeCount++;status=200;payload=fresh();return fn();}return result;}}};
+ const modules={'react/jsx-runtime':{jsx,jsxs:jsx},react:{useRef:value=>slots[index++]??={current:value},useState:value=>{const key=index++;if(!(key in slots))slots[key]=value;return [slots[key],next=>{slots[key]=next;}];}},'next/link':{default:props=>jsx('a',props)}};
  const Panel=load('operations-security.tsx',modules,{fetch:async()=>{requests++;return Response.json(payload,{status});}}).default;
  const render=()=>{index=0;tree=Panel({});};
  const children=()=>tree.props.children.flat(Infinity).filter(Boolean);
- const run=async()=>{render();children().find(node=>node.type==='button'&&node.props.children==='Verify second factor').props.onClick();for(let i=0;i<5;i++)await new Promise(setImmediate);render();return children().find(node=>node.props?.role==='status').props.children;};
+ const button=()=>children().find(node=>node.type==='button');
+ const run=async()=>{render();button().props.onClick();for(let i=0;i<5;i++)await new Promise(setImmediate);render();return children().find(node=>node.props?.role==='status').props.children;};
  for(const invalid of [{fresh:{}},{...fresh(),fresh:'true'},{...fresh(),enrolled:false},{...fresh(),verifiedAt:'invalid'},{...fresh(),verifiedAt:new Date(Date.now()-6*60_000).toISOString()}]){payload=invalid;assert.doesNotMatch(await run(),/^Second factor verified/);}
- status=503;payload=fresh();assert.doesNotMatch(await run(),/^Second factor verified/);
- status=403;payload={clerk_error:{type:'forbidden',reason:'reverification-error',metadata:{reverification:{level:'second_factor',afterMinutes:4}}}};
- assert.match(await run(),/^Second factor verified/);assert.equal(challengeCount,1);
- payload=fresh();render();const button=children().find(node=>node.type==='button'&&node.props.children==='Verify second factor');const before=requests;button.props.onClick();button.props.onClick();for(let i=0;i<5;i++)await new Promise(setImmediate);assert.equal(requests,before+1);
+ status=503;payload={error:'unavailable'};assert.doesNotMatch(await run(),/^Second factor verified/);
+ status=403;payload={...fresh(),fresh:false,verifiedAt:null,error:'Verify your second factor with your sign-in provider, then check again.'};assert.match(await run(),/^Verify your second factor/);
+ status=200;payload=fresh();assert.match(await run(),/^Second factor verified/);
+ render();const b=button();const before=requests;b.props.onClick();b.props.onClick();for(let i=0;i<5;i++)await new Promise(setImmediate);assert.equal(requests,before+1);
 });
 
 test('private passport verification validates every displayed field and retains the no-work-authorisation boundary',()=>{

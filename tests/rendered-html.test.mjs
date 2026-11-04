@@ -27,11 +27,9 @@ test("renders the canonical public LOKD launch identity with real signup entry p
     /^text\/html\b/i,
   );
   const html = await response.text();
-  assert.match(html, /<title>LOKD Security \| Guarding, Armed Security and VIP Protection<\/title>/i);
+  assert.match(html, /<title>Security on your terms \| LOKD<\/title>/i);
   assert.match(html, /<link rel="canonical" href="https:\/\/lokd\.co\.za\/?"\/>/i);
-  assert.match(html, /Sign in with your application email to track your progress/i);
-  assert.match(html, /An application does not guarantee work\./i);
-  assert.match(html, /Service starts only after terms are agreed and Operations confirms readiness\./i);
+  assert.match(html, /Book verified security officers/i);
 
   // Check actual rendered anchors, not labels that could survive with broken
   // destinations or occur only in the serialized React payload.
@@ -40,25 +38,17 @@ test("renders the canonical public LOKD launch identity with real signup entry p
     text: content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(),
   }));
   for (const [href, label] of [
-    ["/contact", "Request security"],
-    ["/join", "Apply as an officer"],
-    ["/contact", "Start a security enquiry"],
-    ["/join", "Start an application"],
-    ["/join?path=training", "Explore training pathways"],
-    ["https://portal.lokd.co.za", "Client sign in"],
-    ["https://officers.lokd.co.za", "Officer sign in"],
-    ["/security-services", "Security services"],
-    ["/armed-security", "Armed security"],
-    ["/vip-protection", "VIP protection"],
-    ["/privacy", "Privacy notice"],
-    ["/terms-and-conditions", "Terms and conditions"],
+    ["/quote", "Get a quote"], ["/join", "Apply as an officer"],
+    ["/security-services", "Explore our services"], ["/armed-security", "Armed security"],
+    ["/vip-protection", "VIP protection"], ["/privacy", "Privacy"], ["/terms", "Terms and conditions"],
+    ["/sign-in?return_to=%2Fclient", "Client sign in"], ["/sign-in?return_to=%2Fofficer", "Officer sign in"],
   ]) {
     assert.ok(links.some((link) => link.href === href && link.text.startsWith(label)), `${label} must link to ${href}`);
   }
   assert.doesNotMatch(html, /<dd>R800<\/dd>|Prototype offer|Passport preview ready/i);
   assert.doesNotMatch(html, /Starter Project/i);
-  assert.doesNotMatch(html, /Verified officers/);
-  assert.match(html, /Security services · Officer applications/);
+  assert.match(html, /PSIRA-verified officers/);
+  assert.match(html, /Johannesburg/);
 });
 
 test('built Worker rejects rehearsal paths and router aliases on production despite forged test host headers',async()=>{
@@ -66,10 +56,16 @@ test('built Worker rejects rehearsal paths and router aliases on production desp
  let touched=0;
  const environment={LOKD_APP_STAGE:'demo',LOKD_TEST_SURFACES_ENABLED:'true',DB:{prepare(){touched++;throw Error('Primary database must not be touched');}},ASSETS:{fetch:async()=>new Response('not found',{status:404})}};
  const context={waitUntil(){},passThroughOnException(){}};
- for(const path of ['/api/pilot','/api/pilot/','/api/%70ilot','/api/platform/export','/api/platform/export/file','/api/sandbox/identity','/api/agreements/test','/api/test-cycle','/api/finance-workflows','/api/finance-workflows/webhook','/api/paystack/test/webhook']){
+ for(const path of ['/api/pilot','/api/pilot/','/api/%70ilot','/api/platform/export/file','/api/sandbox/identity','/api/agreements/test','/api/test-cycle','/api/paystack/test/webhook']){
   const response=await worker.fetch(new Request('https://operations.lokd.co.za'+path,{headers:{host:'demo.lokd.co.za','x-forwarded-host':'demo.lokd.co.za','x-lokd-verified-email':'owner@example.test'}}),environment,context);
-  assert.equal(response.status,404,path);
+  assert.ok([404,405].includes(response.status),path+': '+response.status);
  }
+ for(const path of ['/api/operations','/api/platform/export?run=private','/api/finance-workflows','/api/specialist']){
+  const response=await worker.fetch(new Request('https://operations.lokd.co.za'+path,{headers:{'x-lokd-verified-user-id':'forged','x-lokd-verified-email':'owner@example.test'}}),environment,context);
+  assert.ok([401,503].includes(response.status),path+': '+response.status);
+ }
+ const webhook=await worker.fetch(new Request('https://operations.lokd.co.za/api/finance-workflows/webhook',{method:'POST',body:'{}'}),environment,context);
+ assert.equal(webhook.status,503,'Disconnected payment webhook must refuse events before any database or provider work.');
  assert.equal(touched,0);
 });
 
@@ -84,7 +80,7 @@ test("built Worker HTML nonces every executable bootstrap script and replaces at
   assert.ok(!policy.split('; ').find(d=>d.startsWith('script-src')).includes('unsafe-inline'));
   assert.notEqual(policy,second.headers.get('content-security-policy'));
   assert.equal(first.headers.get('cache-control'),'private, no-store');
-  const html=await first.text(),scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
+  const html=await first.text(),scripts=html.split(/<script\b/i).slice(1).map(part=>[part,part.slice(0,part.indexOf('>'))]);
   assert.ok(scripts.length>2,'actual SSR includes bootstrap and RSC scripts');
   for(const [,attributes] of scripts){assert.ok(attributes.includes(`nonce="${nonce}"`),`script lacks response nonce: ${attributes}`);}
   assert.match(html,/Symbol\.for\("vinext\.navigationRuntime"\)/);

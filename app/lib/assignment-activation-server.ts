@@ -17,7 +17,7 @@ import {
   officerShiftEconomicsForRoster,
   type CalendarCategory,
   type EngagementModel,
-} from "./pilot-pricing";
+} from "./production-pricing";
 import type { LaunchGateInput, WorkforceModel } from "./workforce-core";
 
 export class AssignmentActivationError extends Error {
@@ -169,9 +169,9 @@ function id(prefix: string, hash: string) {
   return `${prefix}-${hash.slice(0, 24).toUpperCase()}`;
 }
 
-async function readCandidate(db: D1Database, rosterSlotId: string, environment: ActivationEnvironment) {
-  const dataEnvironment = environment === "production" ? "production" : "demo";
-  const integrityState = environment === "production" ? "production_verified" : "synthetic";
+async function readCandidate(db: D1Database, rosterSlotId: string) {
+  const dataEnvironment = "production";
+  const integrityState = "production_verified";
   return db.prepare(`SELECT rs.id AS rosterSlotId, rs.version AS slotVersion, rs.status AS slotStatus, rs.booking_id AS bookingId,
     rs.starts_at AS startsAt, rs.ends_at AS endsAt, rs.check_in_due_at AS checkInDueAt, rs.service_date AS serviceDate,
     b.client_id AS clientId, c.approval_status AS clientApprovalStatus, b.contracting_entity_id AS contractingEntityId, b.agreement_version AS orderVersion,
@@ -224,14 +224,14 @@ async function loadAssignmentActivationFacts(
   request: AssignmentActivationRequest,
   evaluatedAt: string,
 ): Promise<AssignmentActivationFacts> {
-  const environment = request.environment ?? "production";
-  const candidate = await readCandidate(db, request.rosterSlotId, environment);
+  const environment: ActivationEnvironment = "production";
+  const candidate = await readCandidate(db, request.rosterSlotId);
   if (!candidate) throw new AssignmentActivationError("The roster slot, site or post is unavailable.", 404);
-  if (environment === 'production' && !await currentClientReview(db,candidate.clientId,evaluatedAt)) candidate.clientApprovalStatus='pending';
+  if (!await currentClientReview(db,candidate.clientId,evaluatedAt)) candidate.clientApprovalStatus='pending';
   if (candidate.slotVersion !== request.expectedSlotVersion) throw new AssignmentActivationError("The roster slot changed before evaluation.", 409);
 
-  const dataEnvironment = environment === "production" ? "production" : "demo";
-  const integrityState = environment === "production" ? "verified" : "synthetic";
+  const dataEnvironment = "production";
+  const integrityState = "verified";
   const [launchGates, funding, risk, orders, induction, officer, identityRecord, psiraRecord, passport,
     core, service, purpose, workforce, availability, scheduleDeclaration, travel, employerEvidence, conflicts, hourRows, legacyIntervals,
     invalidCommitmentEvidence] = await Promise.all([
@@ -302,7 +302,7 @@ async function loadAssignmentActivationFacts(
       AND starts_at <= ? AND ends_at >= ? AND environment = ? AND integrity_state = ?
       AND evidence_reference IS NOT NULL AND rest_confirmed_at <= ? ORDER BY starts_at DESC LIMIT 1`)
       .bind(request.officerId, candidate.startsAt, candidate.endsAt,
-        environment === "production" ? "production" : "demo", environment === "production" ? "verified" : "synthetic", evaluatedAt)
+        dataEnvironment, integrityState, evaluatedAt)
       .first<{ id: string; status: string; environment: string; integrityState: string; source: string;
         evidenceReference: string; verifiedAt: string; validFrom: string; expiresAt: string; version: number }>(),
     db.prepare(`SELECT id, version, status, environment, integrity_state AS integrityState,
@@ -336,9 +336,9 @@ async function loadAssignmentActivationFacts(
       UNION ALL
       SELECT owc.id, owc.starts_at, owc.ends_at, 'external work' AS kind
       FROM officer_work_commitments owc WHERE owc.officer_id = ? AND owc.environment = ? AND owc.status <> 'cancelled'`)
-      .bind(request.officerId, dataEnvironment, environment === "production" ? "production_verified" : "synthetic",
+      .bind(request.officerId, dataEnvironment, "production_verified",
         request.rosterSlotId, request.officerId, dataEnvironment,
-        environment === "production" ? "production_verified" : "synthetic", request.rosterSlotId,
+        "production_verified", request.rosterSlotId,
         request.officerId, dataEnvironment)),
     all<{ isoWeekStart: string; minutes: number }>(db.prepare(`SELECT whr.iso_week_start AS isoWeekStart,
       COALESCE(SUM(whr.reserved_minutes), 0) AS minutes FROM workforce_hour_reservations whr
@@ -360,9 +360,9 @@ async function loadAssignmentActivationFacts(
         AND NOT EXISTS (SELECT 1 FROM workforce_hour_reservations whr WHERE whr.relief_dispatch_id = rd.id AND whr.status = 'active')
       UNION ALL SELECT owc.starts_at, owc.ends_at FROM officer_work_commitments owc
       WHERE owc.officer_id = ? AND owc.environment = ? AND owc.status <> 'cancelled'`)
-      .bind(request.officerId, dataEnvironment, environment === "production" ? "production_verified" : "synthetic",
+      .bind(request.officerId, dataEnvironment, "production_verified",
         request.rosterSlotId, request.officerId, dataEnvironment,
-        environment === "production" ? "production_verified" : "synthetic", request.rosterSlotId,
+        "production_verified", request.rosterSlotId,
         request.officerId, dataEnvironment)),
     db.prepare(`SELECT COUNT(*) AS invalidCount FROM officer_work_commitments
       WHERE officer_id = ? AND environment = ? AND status <> 'cancelled'
@@ -405,8 +405,7 @@ async function loadAssignmentActivationFacts(
   const officerOfferCents = shiftEconomics?.officerOfferCents ?? 0;
   const statutoryCostCents = workforce?.model === "partner" ? 0 : Math.round(officerOfferCents * 0.15);
 
-  const mandatoryPsiraVerified = environment !== 'production'
-    || await officerHasCurrentPsiraVerification(db, request.officerId, candidate.endsAt);
+  const mandatoryPsiraVerified = await officerHasCurrentPsiraVerification(db, request.officerId, candidate.endsAt);
   const facts: AssignmentActivationFacts = {
     environment,
     checkpoint: request.checkpoint ?? "activation",
@@ -603,7 +602,7 @@ async function existingCommand(db: D1Database, activationKey: string) {
 
 async function requestHash(request: AssignmentActivationRequest) {
   return digest({ rosterSlotId: request.rosterSlotId, officerId: request.officerId,
-    expectedSlotVersion: request.expectedSlotVersion, environment: request.environment ?? "production" });
+    expectedSlotVersion: request.expectedSlotVersion, environment: "production" });
 }
 
 function commitFailureBlocker(message: string) {
@@ -700,9 +699,7 @@ export async function recordAssignmentActivationEvaluation(
   const commandId = id("AC", await digest(request.activationKey));
   const decisionId = id("AD", await digest(`${request.activationKey}:evaluation`));
   const state = evaluation.result.ready ? "ready" : "blocked";
-  const integrityState = (request.environment ?? "production") === "production"
-    ? "production_candidate"
-    : "synthetic_demo_only";
+  const integrityState = "production_candidate";
   const summary = evaluation.result.ready ? "Every production activation condition passed at evaluation time."
     : `${evaluation.result.blockers.length} activation blocker${evaluation.result.blockers.length === 1 ? "" : "s"} recorded.`;
   try {
@@ -712,12 +709,12 @@ export async function recordAssignmentActivationEvaluation(
          integrity_state, state, roster_assignment_id, shift_id, requested_by, requested_at, completed_at, version)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, 1)`)
         .bind(commandId, request.activationKey, hash, request.rosterSlotId, request.officerId,
-          request.expectedSlotVersion, request.environment ?? "production", integrityState, state, actorId,
+          request.expectedSlotVersion, "production", integrityState, state, actorId,
           evaluation.facts.evaluatedAt, evaluation.facts.evaluatedAt),
       db.prepare(`INSERT INTO assignment_activation_decisions
         (id, command_id, sequence, checkpoint, decision, environment, summary, evaluation_hash, evaluated_at)
         VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?)`)
-        .bind(decisionId, commandId, request.checkpoint ?? "activation", state, request.environment ?? "production",
+        .bind(decisionId, commandId, request.checkpoint ?? "activation", state, "production",
           summary, evaluation.evaluationHash, evaluation.facts.evaluatedAt),
       ...evaluation.result.blockers.map((blocker, index) => db.prepare(`INSERT INTO assignment_activation_blockers
         (id, decision_id, code, category, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
@@ -741,9 +738,6 @@ export async function activateAssignment(
   request: AssignmentActivationRequest,
   actorId: string,
 ) {
-  if (request.environment && request.environment !== "production") {
-    throw new AssignmentActivationError("Synthetic demo commands cannot be promoted into production activation.", 403);
-  }
   const hash = await requestHash(request);
   let prior = await existingCommand(db, request.activationKey);
   if (prior) {
@@ -1036,9 +1030,9 @@ export async function revalidateAssignment(
       ? ["t_minus_24", "t_minus_2"]
       : [];
   if (requiredCheckpoints.length) {
-    const placeholders = requiredCheckpoints.map(() => "?").join(",");
+    const bindSlots = requiredCheckpoints.map(() => "?").join(",");
     const passed = await all<{ checkpoint: string }>(db.prepare(`SELECT checkpoint FROM assignment_revalidations
-      WHERE snapshot_id = ? AND checkpoint IN (${placeholders}) AND status = 'passed'`)
+      WHERE snapshot_id = ? AND checkpoint IN (${bindSlots}) AND status = 'passed'`)
       .bind(activation.snapshotId, ...requiredCheckpoints));
     const passedSet = new Set(passed.map((item) => item.checkpoint));
     const missing = requiredCheckpoints.filter((required) => !passedSet.has(required));

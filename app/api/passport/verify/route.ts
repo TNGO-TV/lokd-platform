@@ -1,6 +1,6 @@
 import {readRequestText, RequestBodyError} from '../../../lib/request-body';
 import {env} from 'cloudflare:workers';
-import {PilotAccessError,requireSameOriginJson} from '../../../lib/pilot-runtime';
+import {AccessError,requireSameOriginJson} from '../../../lib/platform-runtime';
 import {readPublicPassport} from '../../../lib/passport-server';
 
 export const dynamic='force-dynamic';
@@ -16,5 +16,5 @@ export async function POST(request:Request){
   if(!env.DB)return reply({error:'Passport verification is unavailable.'},503);
   const passport=await readPublicPassport(env.DB,body.token,body.bookingId,body.shiftId);
   return passport?reply({passport}):reply({error:'This passport is unavailable or no longer current.'},404);
- }catch(error){return error instanceof RequestBodyError || error instanceof PilotAccessError?reply({error:error.message},error.status):reply({error:'Passport verification is unavailable.'},503);}
+ }catch(error){return error instanceof RequestBodyError || error instanceof AccessError?reply({error:error.message},error.status):reply({error:'Passport verification is unavailable.'},503);}
 }

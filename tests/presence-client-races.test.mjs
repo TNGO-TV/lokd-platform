@@ -11,7 +11,7 @@ const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;})
 const receipt=body=>body.action==='state'?{mode:'live',revision:1}:body.action==='start'?{mode:'live',consentRevision:2,sessionId:'11111111-1111-4111-8111-111111111111'}:body.action==='share'?{mode:'live',sharing:true,expiresAt:new Date(Date.now()+180000).toISOString()}:{mode:'live',sharing:false};
 function setup({pending,stopResponse,holdLocation=false}={}){
  const slots=[],calls=[],effects=[],exports={},jsx=(type,props)=>({type,props});let index=0,tree,tick,locationCallback;
- const modules={'react/jsx-runtime':{jsx,jsxs:jsx},'./test-surface-context':{useTestSurface:()=>false},react:{
+ const modules={'react/jsx-runtime':{jsx,jsxs:jsx},react:{
   useState:value=>{const key=index++;if(!(key in slots))slots[key]=value;return [slots[key],value=>{slots[key]=value;}];},
   useRef:value=>{const key=index++;return slots[key]??=( {current:value} );},
   useEffect:effect=>effects.push(effect),useSyncExternalStore:()=>true,

@@ -21,8 +21,8 @@ for k in ['employee','partner']:
 `],{input:JSON.stringify(files),encoding:'utf8'});
 });
 test('recovery HTTP route rejects anonymous, cross-origin, participant and wrong-workspace requests',async()=>{
- const before=env.LOKD_PILOT_ACCESS_JSON;
- env.LOKD_PILOT_ACCESS_JSON=JSON.stringify({owners:['finance@example.test'],operations:[],clients:{'client@example.test':'fixture-client'}});
+ const before=env.LOKD_ROLE_ACCESS_JSON;
+ env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({owners:['finance@example.test'],operations:[],clients:{'client@example.test':'fixture-client'}});
  const request=(email,url='https://lokd.co.za/api/payment-recovery',origin=new URL(url).origin)=>new Request(url,{method:'POST',headers:{origin,'content-type':'application/json',...(email?{'x-lokd-verified-user-id':'fixture-user','x-lokd-verified-email':email,'x-lokd-verified-mfa-enrolled':'true','x-lokd-verified-second-factor-at':new Date().toISOString()}:{})},body:'{}'});
  try{
   assert.equal((await POST(request())).status,401);
@@ -30,6 +30,6 @@ test('recovery HTTP route rejects anonymous, cross-origin, participant and wrong
   assert.equal((await POST(request('client@example.test'))).status,403);
   assert.equal((await POST(request('finance@example.test'))).status,503);
   assert.equal((await POST(request('finance@example.test','https://officers.lokd.co.za/api/payment-recovery'))).status,403);
- }finally{if(before===undefined)delete env.LOKD_PILOT_ACCESS_JSON;else env.LOKD_PILOT_ACCESS_JSON=before;}
+ }finally{if(before===undefined)delete env.LOKD_ROLE_ACCESS_JSON;else env.LOKD_ROLE_ACCESS_JSON=before;}
  assert.equal(env.DB,undefined,'HTTP denial tests never acquire a real database');
 });

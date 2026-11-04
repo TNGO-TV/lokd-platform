@@ -17,7 +17,7 @@ CREATE TABLE `operational_delivery_jobs` (
 	`updated_at` text NOT NULL,
 	CONSTRAINT "operational_delivery_kind" CHECK(kind IN ('enquiry_crm','enquiry_email','booking_email','contract_email')),
 	CONSTRAINT "operational_delivery_state" CHECK(state IN ('queued','blocked','dispatching','retry_wait','sent','delivered','failed','uncertain','cancelled')),
-	CONSTRAINT "operational_delivery_environment" CHECK(environment IN ('prelaunch','production')),
+	CONSTRAINT "operational_delivery_environment" CHECK(environment IN ('production')),
 	CONSTRAINT "operational_delivery_attempts" CHECK(attempts>=0 AND attempts<=5),
 	CONSTRAINT "operational_delivery_request" CHECK(request_json IS NULL OR json_valid(request_json))
 );
@@ -26,12 +26,12 @@ CREATE UNIQUE INDEX `operational_delivery_source_idx` ON `operational_delivery_j
 CREATE INDEX `operational_delivery_due_idx` ON `operational_delivery_jobs` (`state`,`next_attempt_at`);
 --> statement-breakpoint
 CREATE TRIGGER operational_enquiry_delivery AFTER INSERT ON client_enquiries
-WHEN NEW.environment='prelaunch' AND NEW.integrity_state='user_submitted'
+WHEN NEW.environment='production' AND NEW.integrity_state='user_submitted'
 BEGIN
  INSERT INTO operational_delivery_jobs(id,kind,source_id,environment,next_attempt_at,created_at,updated_at)
- VALUES('crm:'||NEW.id,'enquiry_crm',NEW.id,'prelaunch',NEW.created_at,NEW.created_at,NEW.created_at);
+ VALUES('crm:'||NEW.id,'enquiry_crm',NEW.id,'production',NEW.created_at,NEW.created_at,NEW.created_at);
  INSERT INTO operational_delivery_jobs(id,kind,source_id,environment,next_attempt_at,created_at,updated_at)
- VALUES('team:'||NEW.id,'enquiry_email',NEW.id,'prelaunch',NEW.created_at,NEW.created_at,NEW.created_at);
+ VALUES('team:'||NEW.id,'enquiry_email',NEW.id,'production',NEW.created_at,NEW.created_at,NEW.created_at);
 END;
 --> statement-breakpoint
 CREATE TRIGGER operational_booking_delivery AFTER INSERT ON production_order_setups
@@ -84,7 +84,7 @@ WHEN EXISTS(SELECT 1 FROM operational_delivery_jobs WHERE id=NEW.id OR (kind=NEW
  OR NEW.state!='queued' OR NEW.attempts!=0 OR NEW.provider_id IS NOT NULL OR NEW.request_json IS NOT NULL
  OR NEW.recipient IS NOT NULL OR NEW.first_attempt_at IS NOT NULL
  OR NOT (
-  (NEW.kind IN ('enquiry_crm','enquiry_email') AND NEW.environment='prelaunch' AND EXISTS(SELECT 1 FROM client_enquiries WHERE id=NEW.source_id AND environment='prelaunch' AND integrity_state='user_submitted'))
+  (NEW.kind IN ('enquiry_crm','enquiry_email') AND NEW.environment='production' AND EXISTS(SELECT 1 FROM client_enquiries WHERE id=NEW.source_id AND environment='production' AND integrity_state='user_submitted'))
   OR (NEW.kind='booking_email' AND NEW.environment='production' AND EXISTS(SELECT 1 FROM production_order_setups WHERE id=NEW.source_id))
   OR (NEW.kind='contract_email' AND NEW.environment='production' AND EXISTS(SELECT 1 FROM production_signing_envelopes WHERE id=NEW.source_id))
  )
