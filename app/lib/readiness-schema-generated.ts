@@ -1040,6 +1040,10 @@ export const readinessSchema = {
     },
     {
       "type": "index",
+      "name": "public_enquiry_rate_lookup"
+    },
+    {
+      "type": "index",
       "name": "public_presence_expiry_idx"
     },
     {
@@ -3081,6 +3085,10 @@ export const readinessSchema = {
     {
       "type": "trigger",
       "name": "client_enquiry_retention_children"
+    },
+    {
+      "type": "trigger",
+      "name": "client_enquiry_schedule_immutable"
     },
     {
       "type": "trigger",
@@ -5173,6 +5181,10 @@ export const readinessSchema = {
     {
       "type": "trigger",
       "name": "psira_verification_events_insert_activation_epoch"
+    },
+    {
+      "type": "trigger",
+      "name": "public_enquiry_rate_guard"
     },
     {
       "type": "trigger",

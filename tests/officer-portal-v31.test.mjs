@@ -17,7 +17,7 @@ test('officer earnings reads approved payroll statements and reviewed hours',()=
  assert.doesNotMatch(officerSource,/request_payout|usePilot|synthetic|demo/);
 });
 
-test("public navigation sends officers to the dedicated authenticated hostname", () => {
-  assert.match(publicShellSource, /OFFICER_PORTAL_URL/);
+test("public navigation starts officer sign-in with a scoped return path", () => {
+  assert.match(publicShellSource, /href="\/sign-in\?return_to=%2Fofficer"/);
   assert.doesNotMatch(publicShellSource, /href="\/officer">Officer portal/);
 });
