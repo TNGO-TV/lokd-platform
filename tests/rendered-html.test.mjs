@@ -80,7 +80,7 @@ test("built Worker HTML nonces every executable bootstrap script and replaces at
   assert.ok(!policy.split('; ').find(d=>d.startsWith('script-src')).includes('unsafe-inline'));
   assert.notEqual(policy,second.headers.get('content-security-policy'));
   assert.equal(first.headers.get('cache-control'),'private, no-store');
-  const html=await first.text(),scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
+  const html=await first.text(),scripts=html.split(/<script\b/i).slice(1).map(part=>[part,part.slice(0,part.indexOf('>'))]);
   assert.ok(scripts.length>2,'actual SSR includes bootstrap and RSC scripts');
   for(const [,attributes] of scripts){assert.ok(attributes.includes(`nonce="${nonce}"`),`script lacks response nonce: ${attributes}`);}
   assert.match(html,/Symbol\.for\("vinext\.navigationRuntime"\)/);

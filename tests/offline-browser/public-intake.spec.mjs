@@ -40,7 +40,7 @@ const test = base.extend({
 
 // Labels wrap their controls, so a select's accessible name also carries its
 // chosen option and a filled input its value: match on the label prefix.
-const label = text => new RegExp('^' + text.replace(/[?]/g, '\\$&'));
+const label = text => new RegExp('^' + text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 
 async function fitsViewport(page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
