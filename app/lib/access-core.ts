@@ -1,8 +1,6 @@
-import type { PilotAction } from "./pilot-types";
+export type AccessRole = "operations" | "client" | "officer" | "reviewer";
 
-export type PilotRole = "operations" | "client" | "officer" | "reviewer";
-
-type PilotAccessConfig = {
+type AccessConfig = {
   owners?: string[];
   operations?: string[];
   reviewers?: string[];
@@ -10,16 +8,16 @@ type PilotAccessConfig = {
   officers?: Record<string, string>;
 };
 
-export type PilotPrincipal = {
+export type AccessPrincipal = {
   email: string;
   displayName: string;
   owner: boolean;
-  roles: PilotRole[];
+  roles: AccessRole[];
   clientId: string | null;
   officerId: string | null;
 };
 
-export class PilotAccessError extends Error {
+export class AccessError extends Error {
   status: number;
 
   constructor(message: string, status: number) {
@@ -28,7 +26,7 @@ export class PilotAccessError extends Error {
   }
 }
 
-const allRoles: PilotRole[] = ["operations", "client", "officer", "reviewer"];
+const allRoles: AccessRole[] = ["operations", "client", "officer", "reviewer"];
 
 function normaliseEmail(value: string) {
   return value.trim().toLowerCase();
@@ -60,12 +58,12 @@ function entityMap(values: unknown) {
   return result;
 }
 
-function parseConfig(raw: string): PilotAccessConfig {
+function parseConfig(raw: string): AccessConfig {
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw) as unknown;
     return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as PilotAccessConfig)
+      ? (parsed as AccessConfig)
       : {};
   } catch {
     return {};
@@ -78,12 +76,12 @@ export function principalForEmailFromConfig(
   rawConfig: string,
   operationsAccess = "",
   ownerAccess = "",
-): PilotPrincipal {
+): AccessPrincipal {
   const email = normaliseEmail(emailValue);
   const config = parseConfig(rawConfig);
   const owners = emailSet(config.owners);
   const owner = Boolean(email) && (owners.has(email) || configuredEmails(ownerAccess).has(email));
-  const roles = new Set<PilotRole>(owner ? allRoles : []);
+  const roles = new Set<AccessRole>(owner ? allRoles : []);
   if (emailSet(config.operations).has(email)) roles.add("operations");
   // Separate server-managed lists preserve the existing redacted role map.
   // Ordinary Operations membership never implies owner approval authority.
@@ -103,7 +101,7 @@ export function principalForEmailFromConfig(
   };
 }
 
-export function principalHasRole(principal: PilotPrincipal, role: PilotRole) {
+export function principalHasRole(principal: AccessPrincipal, role: AccessRole) {
   return principal.owner || principal.roles.includes(role);
 }
 
@@ -114,38 +112,12 @@ export function requireSameOriginJson(request: Request) {
     ?.trim()
     .toLowerCase();
   if (contentType !== "application/json")
-    throw new PilotAccessError("Use application/json for this request.", 415);
+    throw new AccessError("Use application/json for this request.", 415);
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin)
-    throw new PilotAccessError("Cross-site requests are not accepted.", 403);
+    throw new AccessError("Cross-site requests are not accepted.", 403);
   const fetchSite = request.headers.get("sec-fetch-site");
   if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") {
-    throw new PilotAccessError("Cross-site requests are not accepted.", 403);
+    throw new AccessError("Cross-site requests are not accepted.", 403);
   }
-}
-
-export function roleForPilotAction(action: PilotAction["action"]): PilotRole {
-  if (
-    [
-      "create_booking",
-      "client_signoff",
-      "create_client_service_request",
-    ].includes(action)
-  )
-    return "client";
-  if (
-    [
-      "accept_offer",
-      "decline_offer",
-      "update_service_preference",
-      "update_flex_availability",
-      "check_in",
-      "complete_shift",
-      "report_issue",
-      "create_officer_service_request",
-      "request_payout",
-    ].includes(action)
-  )
-    return "officer";
-  return "operations";
 }

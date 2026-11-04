@@ -1,4 +1,4 @@
-// Synthetic, in-memory acceptance only: this does not attest statutory sources or release money.
+// In-memory fixture only: this does not attest statutory sources or release money.
 import assert from 'node:assert/strict';
 import {manageProductionEvidence} from '../../app/lib/production-evidence.ts';
 import {manageProductionPayrollPolicy} from '../../app/lib/production-payroll-policy.ts';
@@ -44,8 +44,6 @@ export async function consumeConnectedPayroll({db,database,officerId,shiftId,mak
  assert.equal((await document.read()).documents[0].currentState,'unpaid');
  const {payrollCorrectionReviewJourney}=await import('./payroll-correction-review-journey.mjs');
  await payrollCorrectionReviewJourney({db,database,itemId:item.id,maker,finance,applicant,headers:freshHeaders});
- const {exportedPayrollAdjustment}=await import('./finance-workflow-connected.mjs');
- await exportedPayrollAdjustment({db,database,itemId:item.id,maker,checker,applicant,client});
  const {consumeConnectedPayment}=await import('./connected-payment-consumption.mjs');
  const payment=await consumeConnectedPayment({db,database,runId:prepared.runId,officerId,maker,checker,finance,applicant,document,headers:freshHeaders});
  assert.equal(payment.dispatches,1);assert.equal(payment.restored,true);

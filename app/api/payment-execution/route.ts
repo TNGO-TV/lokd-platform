@@ -2,7 +2,7 @@ import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {readFinanceText} from '../../lib/finance-body';
 import {env} from 'cloudflare:workers';
 import {SignupError} from '../../lib/signup-server';
-import {PilotAccessError,principalForEmail,principalHasRole,requirePilotApiRole,requireSameOriginJson} from '../../lib/pilot-runtime';
+import {AccessError,principalForEmail,principalHasRole,requireApiRole,requireSameOriginJson} from '../../lib/platform-runtime';
 import {workspaceRoleForHost} from '../../lib/public-site';
 import {operatePaymentExecution,readPaymentExecution,type PaymentExecutionRuntime} from '../../lib/payment-execution';
 export const dynamic='force-dynamic';
@@ -14,14 +14,14 @@ export async function POST(request:Request){
   if(!userId||!email)throw new SignupError('Sign in to your account.',401);
   const host=workspaceRoleForHost(new URL(request.url).hostname),principal=principalForEmail(email);
   if(host&&host!=='operations'||!principalHasRole(principal,'operations'))throw new SignupError('Operations access required.',403);
-  requirePilotApiRole(request,'operations');
+  requireApiRole(request,'operations');
   if(!env.DB)throw new SignupError('Storage unavailable.',503);
   if(request.method==='GET')return reply(await readPaymentExecution(env.DB,{userId,email,operations:true,owner:principal.owner},request.headers,env as PaymentExecutionRuntime));
   const raw=await readFinanceText(request,6000);
   let input;try{input=JSON.parse(raw);}catch{throw new SignupError('Invalid request.');}
   if(!input||typeof input!=='object'||Array.isArray(input))throw new SignupError('Choose a recovery action.');
   return reply({...await operatePaymentExecution(env.DB,{userId,email,operations:true,owner:principal.owner},input,request.headers,env as PaymentExecutionRuntime),commandReceipt:await workspaceCommandReceipt('payment-execution',input)});
- }catch(e){return e instanceof SignupError||e instanceof PilotAccessError?reply({error:e.message},e.status):reply({error:'Payment evidence or authority changed. Keep the original reference held and refresh.'},409);}
+ }catch(e){return e instanceof SignupError||e instanceof AccessError?reply({error:e.message},e.status):reply({error:'Payment evidence or authority changed. Keep the original reference held and refresh.'},409);}
 }
 
 export const GET=POST;

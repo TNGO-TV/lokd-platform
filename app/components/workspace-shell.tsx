@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import type { WorkspaceRole } from "../lib/public-site";
 import styles from "./workspace-shell.module.css";
 
-export default function WorkspaceShell({ role, children }: { role: WorkspaceRole; children: React.ReactNode; testTools?: boolean }) {
+export default function WorkspaceShell({ role, children }: { role: WorkspaceRole; children: React.ReactNode }) {
   const pathname = usePathname();
   const base = role === "operations" ? "/ops" : "/" + role;
   const label = role === "operations" ? "Operations" : role === "client" ? "Client" : "Officer";

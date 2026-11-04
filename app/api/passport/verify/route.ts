@@ -1,6 +1,6 @@
 import {readRequestText, RequestBodyError} from '../../../lib/request-body';
 import {env} from 'cloudflare:workers';
-import {PilotAccessError,requireSameOriginJson} from '../../../lib/pilot-runtime';
+import {AccessError,requireSameOriginJson} from '../../../lib/platform-runtime';
 import {readPublicPassport} from '../../../lib/passport-server';
 
 export const dynamic='force-dynamic';
@@ -15,6 +15,6 @@ export async function POST(request:Request){
   if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['token','bookingId','shiftId'].includes(k))||typeof body.token!=='string'||!/^lokd_live_[a-f0-9]{64}$/.test(body.token)||['bookingId','shiftId'].some(k=>body[k]!=null&&(typeof body[k]!=='string'||!body[k].trim()||body[k].length>300)))return reply({error:'Provide a valid private passport token and optional assignment references.'},400);
   if(!env.DB)return reply({error:'Passport verification is unavailable.'},503);
   const passport=await readPublicPassport(env.DB,body.token,body.bookingId,body.shiftId);
-  return passport&&!passport.synthetic?reply({passport}):reply({error:'This passport is unavailable or no longer current.'},404);
- }catch(error){return error instanceof RequestBodyError || error instanceof PilotAccessError?reply({error:error.message},error.status):reply({error:'Passport verification is unavailable.'},503);}
+  return passport?reply({passport}):reply({error:'This passport is unavailable or no longer current.'},404);
+ }catch(error){return error instanceof RequestBodyError || error instanceof AccessError?reply({error:error.message},error.status):reply({error:'Passport verification is unavailable.'},503);}
 }

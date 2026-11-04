@@ -1,7 +1,7 @@
 import {workspaceCommandReceipt} from '../../lib/workspace-command-receipt';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { env } from 'cloudflare:workers';
-import { principalForEmail, principalHasRole, requirePilotApiRole, requireSameOriginJson, PilotAccessError } from '../../lib/pilot-runtime';
+import { principalForEmail, principalHasRole, requireApiRole, requireSameOriginJson, AccessError } from '../../lib/platform-runtime';
 import { workspaceRoleForHost } from '../../lib/public-site';
 import { readSignupRecords, writeSignup, SignupError, type SignupActor } from '../../lib/signup-server';
 export const dynamic='force-dynamic';
@@ -14,7 +14,7 @@ function actor(request:Request):SignupActor {
   const operations=scope==='operations';
   if(operations) {
     if(!principalHasRole(principalForEmail(email),'operations'))throw new SignupError('Operations access is required.',403);
-    requirePilotApiRole(request,'operations');
+    requireApiRole(request,'operations');
   }
   return {userId,email,operations};
 }
@@ -23,7 +23,7 @@ function kind(request:Request,operations:boolean) {
   if(value!=='client'&&value!=='officer')throw new SignupError('Choose Client or Officer intake.');return value;
 }
 function reply(value:unknown,status=200){return Response.json(value,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});}
-function failure(error:unknown){return error instanceof SignupError||error instanceof RequestBodyError || error instanceof PilotAccessError?reply({error:error.message},error.status):reply({error:'Your submissions could not be loaded or saved. Please try again.'},503);}
+function failure(error:unknown){return error instanceof SignupError||error instanceof RequestBodyError || error instanceof AccessError?reply({error:error.message},error.status):reply({error:'Your submissions could not be loaded or saved. Please try again.'},503);}
 export async function GET(request:Request){try{
  const user=actor(request);if(!env.DB)throw new SignupError('Submission storage is unavailable.',503);
  const offset=Number(new URL(request.url).searchParams.get('offset')??0);

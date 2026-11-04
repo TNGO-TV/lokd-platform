@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
-import { defaultRiskInput, quoteBooking } from "../app/lib/pilot-pricing.ts";
+import { defaultRiskInput, quoteBooking } from "../app/lib/pricing.ts";
 
 function migratedDatabase(beforeNoVat = false) {
   const database = new DatabaseSync(":memory:");

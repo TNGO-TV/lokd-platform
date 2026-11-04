@@ -1,8 +1,5 @@
 import { evaluateReadiness } from "./passport-rules";
-import type { PassportEndorsement, PassportStatus, ServiceType } from "./pilot-types";
-
-export const PILOT_PASSPORT_NUMBER = "LKD-P-1842";
-export const PILOT_PASSPORT_TOKEN = "lokdvp_7f4a2c91e6d84b3fa92c1d8e5a70b641";
+import type { PassportEndorsement, PassportStatus, ServiceType } from "./platform-types";
 
 async function all<T>(statement: D1PreparedStatement) {
   const result = await statement.all<T>();
@@ -154,7 +151,6 @@ export type PublicPassport = {
   status: PassportStatus;
   environment: string;
   integrityState: string;
-  synthetic: boolean;
   productionAuthorized: boolean;
   result: "green" | "amber" | "red" | "grey";
   message: string;
@@ -199,6 +195,9 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
   if (!passport) return null;
 
   const managedPassport = passport.evidenceReference?.startsWith('readiness-passport:') === true;
+  // Only production-verified passports are publicly verifiable.
+  if (passport.environment !== "production"
+    || (passport.integrityState !== "production_verified" && !(managedPassport && passport.integrityState === "verified"))) return null;
   const ledgerCurrent = !managedPassport || Boolean(await db.prepare(`SELECT id FROM usable_production_readiness_passports
     WHERE officer_id=? AND token_hash=? AND 'readiness-passport:'||id=?`)
     .bind(passport.officerId,hash,passport.evidenceReference).first());
@@ -268,14 +267,6 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
     message = "Passport is current for this assignment. A readiness review is due soon.";
   }
 
-  const synthetic = passport.environment !== "production" || (passport.integrityState !== "production_verified" && !(managedPassport && passport.integrityState === "verified"));
-  if (synthetic) {
-    result = "grey";
-    message = assignmentMatch
-      ? "Synthetic Passport rehearsal. This readiness result is illustrative and cannot authorise deployment."
-      : "Synthetic Passport rehearsal. No matching synthetic assignment was found.";
-  }
-
   const initials = passport.officerName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
   return {
     passportNumber: passport.passportNumber,
@@ -287,7 +278,6 @@ export async function readPublicPassport(db: D1Database, rawToken: string, booki
     status: passport.status,
     environment: passport.environment,
     integrityState: passport.integrityState,
-    synthetic,
     productionAuthorized: false,
     result,
     message,

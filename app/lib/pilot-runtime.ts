@@ -1,15 +1,16 @@
 import { operationsMfaRequired } from "./operations-mfa-policy";
 import { operationsMfaStatus } from "./operations-mfa";
 import { env } from "cloudflare:workers";
+// Retained only for app/lib/operational-delivery.ts and
+// app/api/operational-delivery/route.ts until they import ./platform-runtime.
 import {
-  PilotAccessError,
+  AccessError as PilotAccessError,
   principalForEmailFromConfig,
   principalHasRole,
   requireSameOriginJson,
-  roleForPilotAction,
-  type PilotPrincipal,
-  type PilotRole,
-} from "./pilot-access-core";
+  type AccessPrincipal as PilotPrincipal,
+  type AccessRole as PilotRole,
+} from "./access-core";
 import {
   requestHostname,
   workspaceRoleForHost,
@@ -19,7 +20,6 @@ export {
   PilotAccessError,
   principalHasRole,
   requireSameOriginJson,
-  roleForPilotAction,
   type PilotPrincipal,
   type PilotRole,
 };
@@ -58,12 +58,4 @@ export function requirePilotApiRole(request: Request, allowed: PilotRole | Pilot
     throw new PilotAccessError("Verify your Operations second factor at /ops/security before changing live records.", 403);
   }
   return principal;
-}
-
-export function pilotStage(): "production" | "demo" | "prelaunch" | "pilot" {
-  return "production";
-}
-
-export function liveShiftScanEnabled() {
-  return runtimeValue("LOKD_LIVE_SHIFT_SCAN").trim().toLowerCase() === "true";
 }

@@ -10,7 +10,7 @@ import {
   revalidateAssignment,
   runDueAssignmentRevalidations,
 } from "../../app/lib/assignment-activation-server.ts";
-import { officerShiftEconomicsForRoster } from "../../app/lib/pilot-pricing.ts";
+import { officerShiftEconomicsForRoster } from "../../app/lib/pricing.ts";
 import { REQUIRED_LAUNCH_GATE_CODES } from "../../app/lib/workforce-core.ts";
 
 class Prepared {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { signInDestination, cleanIdentityHeaders, verifiedPrimaryEmail } from "../app/lib/clerk-access.ts";
 import { authenticateClerkRequest } from "../worker/clerk-auth.ts";
-import { principalForEmailFromConfig, principalHasRole } from "../app/lib/pilot-access-core.ts";
+import { principalForEmailFromConfig, principalHasRole } from "../app/lib/access-core.ts";
 
 test("each Clerk portal returns to its own workspace regardless of a supplied redirect", () => {
   for (const [host, destination] of [["portal.lokd.co.za", "/client"], ["officers.lokd.co.za", "/officer"], ["operations.lokd.co.za", "/ops"]]) {

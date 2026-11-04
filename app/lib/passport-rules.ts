@@ -1,4 +1,4 @@
-import type { PassportEndorsement, PassportStatus, ServiceType } from "./pilot-types";
+import type { PassportEndorsement, PassportStatus, ServiceType } from "./platform-types";
 
 export type ReadinessInput = {
   assignmentDate: string;

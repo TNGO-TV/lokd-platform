@@ -83,7 +83,7 @@ test('current reviewed sources produce scoped passport, private token and existi
  assert.equal(await readPublicPassport(x.db,p.token),null);
  await decision(x.db,'passport',p.id);
  const status=await readProductionReadiness(x.db,applicant,x.officerId);assert.equal(status.passport.id,p.id);assert.equal(status.workEligible,false);assert.ok(!JSON.stringify(status).includes('private:'));
- const publicStatus=await readPublicPassport(x.db,p.token);assert.equal(publicStatus.synthetic,false);assert.equal(publicStatus.result,'green');assert.equal(publicStatus.productionAuthorized,false);
+ const publicStatus=await readPublicPassport(x.db,p.token);assert.equal(publicStatus.result,'green');assert.equal(publicStatus.productionAuthorized,false);
  const proof=await readinessContract(x.db,x.officerId,new Date(Date.now()+60000).toISOString(),'Unarmed','commercial_access');assert.equal(proof.contract,'lokd.production-readiness.v1');assert.equal(proof.workEligible,false);assert.ok(!('token_hash' in proof));
  assert.equal(await readinessContract(x.db,x.officerId,new Date(Date.now()+60000).toISOString(),'Armed','commercial_access'),null);
  assert.equal(await readinessContract(x.db,x.officerId,new Date(Date.now()+2*86400000).toISOString(),'Unarmed','commercial_access'),null);

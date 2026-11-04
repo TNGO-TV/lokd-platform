@@ -8,7 +8,7 @@ const rawConfig = JSON.stringify({
   reviewers: ["reviewer@lokd.example"],
 });
 
-const access = await import("../app/lib/pilot-access-core.ts");
+const access = await import("../app/lib/access-core.ts");
 
 test("supplemental Operations access preserves existing assignments and cannot grant other roles", () => {
   const extra = JSON.stringify(["  NEW@lokd.example  ", "new@lokd.example"]);
@@ -29,7 +29,7 @@ test("supplemental Operations access preserves existing assignments and cannot g
   assert.deepEqual(access.principalForEmailFromConfig("new@lokd.example.attacker.test", "", rawConfig, extra).roles, []);
 });
 
-test("pilot access is default-deny and owner access spans every role", () => {
+test("access is default-deny and owner access spans every role", () => {
   const unknown = access.principalForEmailFromConfig("unknown@lokd.example", "Unknown", rawConfig);
   assert.deepEqual(unknown.roles, []);
   const owner = access.principalForEmailFromConfig("OWNER@lokd.example", "Owner", rawConfig);
@@ -37,7 +37,7 @@ test("pilot access is default-deny and owner access spans every role", () => {
   for (const role of ["operations", "client", "officer", "reviewer"]) assert.equal(access.principalHasRole(owner, role), true);
 });
 
-test("configured pilot users receive only their assigned role and entity", () => {
+test("configured users receive only their assigned role and entity", () => {
   const client = access.principalForEmailFromConfig("client@lokd.example", "Client", rawConfig);
   assert.deepEqual(client.roles, ["client"]);
   assert.equal(client.clientId, "CL-001");
@@ -47,21 +47,12 @@ test("configured pilot users receive only their assigned role and entity", () =>
   assert.equal(officer.officerId, "OFF-001");
 });
 
-test("pilot action roles prevent cross-role mutations", () => {
-  assert.equal(access.roleForPilotAction("create_booking"), "client");
-  assert.equal(access.roleForPilotAction("accept_offer"), "officer");
-  assert.equal(access.roleForPilotAction("confirm_booking_payment"), "operations");
-  assert.equal(access.roleForPilotAction("create_client_service_request"), "client");
-  assert.equal(access.roleForPilotAction("create_officer_service_request"), "officer");
-  assert.equal(access.roleForPilotAction("reset_demo"), "operations");
-});
-
 test("JSON mutations must be same-origin", () => {
-  assert.doesNotThrow(() => access.requireSameOriginJson(new Request("https://demo.lokd.co.za/api/pilot", {
+  assert.doesNotThrow(() => access.requireSameOriginJson(new Request("https://operations.lokd.co.za/api/signup", {
     method: "POST",
-    headers: { "content-type": "application/json", origin: "https://demo.lokd.co.za", "sec-fetch-site": "same-origin" },
+    headers: { "content-type": "application/json", origin: "https://operations.lokd.co.za", "sec-fetch-site": "same-origin" },
   })));
-  assert.throws(() => access.requireSameOriginJson(new Request("https://demo.lokd.co.za/api/pilot", {
+  assert.throws(() => access.requireSameOriginJson(new Request("https://operations.lokd.co.za/api/signup", {
     method: "POST",
     headers: { "content-type": "application/json", origin: "https://attacker.example", "sec-fetch-site": "cross-site" },
   })), /Cross-site/);

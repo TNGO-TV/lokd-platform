@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { env } from 'cloudflare:workers';
 import { clerkSecondFactorVerifiedAt, operationsMfaStatus } from '../app/lib/operations-mfa.ts';
-import { requirePilotApiRole } from '../app/lib/pilot-runtime.ts';
+import { requireApiRole } from '../app/lib/platform-runtime.ts';
 import { GET } from '../app/api/operations/security/route.ts';
 const now = Date.now();
 const proof = () => new Headers({'x-lokd-verified-user-id':'user_ops','x-lokd-verified-email':'ops@example.test','x-lokd-verified-mfa-enrolled':'true','x-lokd-verified-second-factor-at':new Date(now-60_000).toISOString()});
@@ -22,13 +22,13 @@ test('live Operations mutations need request proof; demo rehearsal and read acce
  const headers=proof();
  for(const stage of ['production','pilot','prelaunch']){
   env.LOKD_APP_STAGE=stage;
-  assert.equal(requirePilotApiRole(request(headers),'operations').email,'ops@example.test');
+  assert.equal(requireApiRole(request(headers),'operations').email,'ops@example.test');
   const stale=new Headers(headers);stale.delete('x-lokd-verified-second-factor-at');
-  assert.throws(()=>requirePilotApiRole(request(stale),'operations'),/second factor/);
-  assert.equal(requirePilotApiRole(request(stale,'GET'),'operations').email,'ops@example.test');
+  assert.throws(()=>requireApiRole(request(stale),'operations'),/second factor/);
+  assert.equal(requireApiRole(request(stale,'GET'),'operations').email,'ops@example.test');
  }
  env.LOKD_APP_STAGE='demo';const demo=new Headers(headers);demo.delete('x-lokd-verified-second-factor-at');
- assert.throws(()=>requirePilotApiRole(request(demo),'operations'),/second factor/);
+ assert.throws(()=>requireApiRole(request(demo),'operations'),/second factor/);
 });
 test('security endpoint uses named operators and distinguishes enrollment from reverification',async()=>{
  const {sqlite,db}=operationsDatabase(),saved=env.DB;env.DB=db;

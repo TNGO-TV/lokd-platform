@@ -11,7 +11,7 @@ import {
   SPECIALIST_PRICING_VERSION,
   LOKD_VAT_RATE_BASIS_POINTS,
 } from "../app/lib/specialist-pricing.ts";
-import { defaultRiskInput, quoteBooking } from "../app/lib/pilot-pricing.ts";
+import { defaultRiskInput, quoteBooking } from "../app/lib/pricing.ts";
 
 const specialistCodes = [
   "armed_static",

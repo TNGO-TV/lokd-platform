@@ -1,6 +1,6 @@
 import {env} from 'cloudflare:workers';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
-import {PilotAccessError,requireSameOriginJson} from '../../lib/pilot-runtime';
+import {AccessError,requireSameOriginJson} from '../../lib/platform-runtime';
 import {readPublicPassport} from '../../lib/passport-server';
 
 export const dynamic='force-dynamic';
@@ -10,7 +10,7 @@ async function verify(token:unknown,bookingId:unknown,shiftId:unknown){
  if(Boolean(bookingId)!==Boolean(shiftId))return response({error:'Provide both the booking and shift references.'},400);
  if(!env.DB)return response({error:'Passport verification is temporarily unavailable.'},503);
  const passport=await readPublicPassport(env.DB,token,bookingId as string|null,shiftId as string|null);
- if(!passport||passport.synthetic)return response({error:'This LOKD Passport could not be verified.'},404);
+ if(!passport)return response({error:'This LOKD Passport could not be verified.'},404);
  return response({passport});
 }
 export async function GET(request:Request){try{const url=new URL(request.url);return await verify(url.searchParams.get('token'),url.searchParams.get('booking'),url.searchParams.get('shift'));}catch{return response({error:'Passport verification is temporarily unavailable.'},503);}}
@@ -21,4 +21,4 @@ export async function POST(request:Request){try{
  try{body=JSON.parse(raw);}catch{return response({error:'Submit a valid verification request.'},400);}
  if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(key=>!['token','bookingId','shiftId'].includes(key)))return response({error:'Submit a valid verification request.'},400);
  return await verify(body.token,body.bookingId,body.shiftId);
-}catch(error){return error instanceof RequestBodyError||error instanceof PilotAccessError?response({error:error.message},error.status):response({error:'Passport verification is temporarily unavailable.'},503);}}
+}catch(error){return error instanceof RequestBodyError||error instanceof AccessError?response({error:error.message},error.status):response({error:'Passport verification is temporarily unavailable.'},503);}}
