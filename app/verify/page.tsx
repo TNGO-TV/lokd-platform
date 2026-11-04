@@ -37,6 +37,7 @@ export default function VerifyPage() {
         setResult({ state: "unavailable", title: response.status === 404 ? "Passport not found" : "Verification unavailable", message: response.status === 404 ? "This link is no longer available. Ask the officer for their current LOKD Passport or contact LOKD." : "We could not check the current record. Try again before relying on this Passport." }); return;
       }
       const body = await response.json() as {passport?: Passport & {environment: string}}, passport = body?.passport;
+      if (generation !== request.current) return;
       if (!passport || passport.environment !== "production" || !["green", "amber", "red"].includes(passport.result) || !["officerName", "passportNumber", "status", "verifiedAt", "psiraGrade"].every(key => typeof (passport as unknown as Record<string, unknown>)[key] === "string")) throw new Error("Incomplete Passport");
       if (passport.status === "revoked") setResult({ state: "revoked", title: "Passport revoked", message: "This Passport has been revoked. Do not accept it as current clearance. Contact LOKD about the assignment.", passport });
       else if (passport.status === "expired") setResult({ state: "expired", title: "Passport expired", message: "This Passport has expired. Ask for a renewed Passport before confirming clearance.", passport });
@@ -48,10 +49,14 @@ export default function VerifyPage() {
   }
   useEffect(() => {
     const activeRequest = request;
-    const candidate = new URLSearchParams(location.hash.slice(1)).get("token") ?? "";
-    if (location.hash || location.search) history.replaceState(history.state, "", location.pathname);
-    const timer = setTimeout(() => { if (candidate) void verify(candidate); }, 0);
-    return () => { clearTimeout(timer); activeRequest.current++; };
+    const consumeLink = () => {
+      const candidate = new URLSearchParams(location.hash.slice(1)).get("token") ?? "";
+      if (location.hash || location.search) history.replaceState(history.state, "", location.pathname);
+      if (candidate) void verify(candidate);
+    };
+    const timer = setTimeout(consumeLink, 0);
+    addEventListener("hashchange", consumeLink);
+    return () => { clearTimeout(timer); removeEventListener("hashchange", consumeLink); activeRequest.current++; };
   }, []);
   function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!busy) void verify(input); }
   return <div className="public-site"><PublicHeader /><main id="main-content" className="public-system" tabIndex={-1}>
