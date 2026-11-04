@@ -1,10 +1,10 @@
 import {fetchWithoutRedirect} from './provider-fetch';
 import {readFinanceProviderJson} from './finance-body';
 import {SignupError} from './signup-server';
-export type DestinationMode='test'|'live';
-export type DestinationRuntime={PAYSTACK_TEST_SECRET_KEY?:string;PAYSTACK_LIVE_SECRET_KEY?:string};
+export type DestinationMode='live';
+export type DestinationRuntime={PAYSTACK_LIVE_SECRET_KEY?:string};
 export function destinationKey(runtime:DestinationRuntime,mode:DestinationMode){
- const key=mode==='test'?runtime.PAYSTACK_TEST_SECRET_KEY:runtime.PAYSTACK_LIVE_SECRET_KEY;
+ const key=runtime.PAYSTACK_LIVE_SECRET_KEY;
  if(!key?.startsWith('sk_'+mode+'_'))throw new SignupError('The selected provider mode is not configured for recipient verification.',409);
  return key;
 }

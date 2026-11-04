@@ -1,17 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {collectionMetadata,collectionTransaction,collectionEvidenceDecision} from '../app/lib/collection-evidence.ts';
-const b={reference:'lokd-booking-fixture',orderId:'ORDER-fixture',clientId:'CLIENT-fixture',applicantId:'applicant',caseId:'case',caseVersion:3,sourceHash:'source-hash',amountMinor:10000,currency:'ZAR',mode:'test'};
-const raw={id:42,reference:b.reference,domain:'test',status:'success',amount:10000,currency:'ZAR',paid_at:'2026-01-01T00:00:00Z',metadata:collectionMetadata(b)};
+const b={reference:'lokd-booking-fixture',orderId:'ORDER-fixture',clientId:'CLIENT-fixture',applicantId:'applicant',caseId:'case',caseVersion:3,sourceHash:'source-hash',amountMinor:10000,currency:'ZAR',mode:'live'};
+const raw={id:42,reference:b.reference,domain:'live',status:'success',amount:10000,currency:'ZAR',paid_at:'2026-01-01T00:00:00Z',metadata:collectionMetadata(b)};
 const decide=(api,events=[{event:'charge.success',transaction:api}],bound=null,current=true)=>collectionEvidenceDecision(b,api,events,bound,current);
-test('collection match needs signed webhook and exact API transaction; test and live remain unsettled',()=>{
- const t=collectionTransaction(raw);assert.equal(decide(t),'matched_test');assert.equal(decide(t,[]),'awaiting_webhook');
- const live={...b,mode:'live'},l=collectionTransaction({...raw,domain:'live',metadata:collectionMetadata(live)});
- assert.equal(collectionEvidenceDecision(live,l,[{event:'charge.success',transaction:l}],null,true),'matched_live_unsettled');
- assert.equal(decide(l),'review_required');assert.equal(decide(t,undefined,'43'),'review_required');assert.equal(decide(t,undefined,null,false),'review_required');
+test('collection match needs signed webhook and exact API transaction; live remains unsettled',()=>{
+ const t=collectionTransaction(raw);assert.equal(decide(t),'matched_live_unsettled');assert.equal(decide(t,[]),'awaiting_webhook');
+ assert.equal(collectionTransaction({...raw,domain:'test'}),null);assert.equal(decide(t,undefined,'43'),'review_required');assert.equal(decide(t,undefined,null,false),'review_required');
 });
 test('each source field and financial dimension is independently bound',()=>{
- for(const [k,v] of Object.entries({reference:'other',domain:'live',amount:9999,currency:'USD'}))assert.equal(decide(collectionTransaction({...raw,[k]:v})),'review_required',k);
+ for(const [k,v] of Object.entries({reference:'other',amount:9999,currency:'USD'}))assert.equal(decide(collectionTransaction({...raw,[k]:v})),'review_required',k);
  for(const k of Object.keys(raw.metadata))assert.equal(decide(collectionTransaction({...raw,metadata:{...raw.metadata,[k]:'different'}})),'review_required',k);
  const t=collectionTransaction(raw);assert.equal(decide(t,[{event:'charge.success',transaction:{...t,id:'43'}}]),'review_required');
  assert.equal(decide(t,[{event:'charge.success',transaction:{...t,paidAt:'2026-01-02T00:00:00.000Z'}}]),'review_required');

@@ -3,7 +3,7 @@ import {operatePaymentExecution as execute,receiveLiveTransferWebhook} from '../
 import {operatePaymentRecovery as recover} from '../../app/lib/payment-recovery.ts';
 import {operateEmployeePayment} from '../../app/lib/employee-payments.ts';
 import {operatePartnerPayment} from '../../app/lib/partner-payments.ts';
-export async function paymentExecutionJourney({kind,database,db,maker,owner,finance,officer,headers,runtime,reference,recipient,input,addTestDestination}){
+export async function paymentExecutionJourney({kind,database,db,maker,owner,finance,officer,headers,runtime,reference,recipient,input}){
  const operate=kind==='employee'?operateEmployeePayment:operatePartnerPayment;
  const current=()=>database.prepare(`SELECT * FROM ${kind}_payment_instructions WHERE reference=?`).get(reference),original={...current()};
  let posts=0,status='success',timeout=false;
@@ -58,7 +58,7 @@ export async function paymentExecutionJourney({kind,database,db,maker,owner,fina
   await assert.rejects(()=>call('dispatch_live_payment',{releaseId:release.id},finance,live),/cannot be resubmitted/);
   await assert.rejects(()=>operate(db,finance,{action:`cancel_${kind}_payment`,reference,version:current().version,sourceHash:original.source_hash,note:'No cancellation after claim'},headers,runtime,transport),/cannot be repeated/);
   assert.equal(financial().financial_state,'held');
-  await assert.rejects(()=>signed('transfer.success',{},runtime.PAYSTACK_TEST_SECRET_KEY),/signature/);
+  await assert.rejects(()=>signed('transfer.success',{},'sk_live_wrong_fixture'),/signature/);
   await assert.rejects(()=>signed('transfer.success',{domain:'test'}),/explicit live/);
   await signed();await signed();assert.equal(database.prepare(`SELECT count(*) n FROM ${kind}_transfer_observations WHERE reference=? AND source='webhook'`).get(reference).n,1);
   await call('verify_live_payment');
@@ -77,7 +77,7 @@ export async function paymentExecutionJourney({kind,database,db,maker,owner,fina
   const mismatches=Object.entries(workspaceContracts.operations.fields).filter(([key,field])=>!(field.optional&&workspace[key]===undefined)&&!matchesWorkspaceContract(workspace[key],field.schema)).map(([key])=>key);
   assert.equal(productionOperationsResponse(workspace),true,'populated finance workspace contract; structural mismatches: '+mismatches.join(','));
   const {financeDocumentJourney}=await import('./finance-document-journey.mjs');
-  const document=await financeDocumentJourney({db,database,maker,finance,recipient:kind==='employee'?officer:{userId:'partner-representative-user',email:'partner@example.test',operations:false},kind:documentKind,sourceId:documentSource,headers,addTestDestination});
+  const document=await financeDocumentJourney({db,database,maker,finance,recipient:kind==='employee'?officer:{userId:'partner-representative-user',email:'partner@example.test',operations:false},kind:documentKind,sourceId:documentSource,headers});
   assert.equal((await document.read()).documents[0].asIssuedState,'paid');
   await call('verify_live_payment');assert.equal(financial().financial_state,'paid','fresh identical evidence preserves historical receipt');
   const {prepareFinanceDocument,decideFinanceDocument}=await import('../../app/lib/finance-documents.ts');

@@ -32,7 +32,7 @@ export async function invoiceDocumentJourney({database,db,reviewer,owner,applica
  clone('client_invoices',otherInvoice);
  const otherLine={...database.prepare('SELECT * FROM client_invoice_lines WHERE invoice_id=?').get(prepared.invoiceId),id:'DOC-UNFROZEN-LINE',invoice_id:otherInvoice.id};
  clone('client_invoice_lines',otherLine);
- const journey=await financeDocumentJourney({db,database,maker:reviewer,finance:owner,recipient:applicant,kind:'invoice',sourceId:prepared.invoiceId,headers,expectsHistoricalTestPayment:false});
+ const journey=await financeDocumentJourney({db,database,maker:reviewer,finance:owner,recipient:applicant,kind:'invoice',sourceId:prepared.invoiceId,headers});
  assert.equal((await journey.read()).documents[0].currentState,'unpaid');
  assert.equal(database.prepare('SELECT status FROM client_invoices WHERE id=?').get(prepared.invoiceId).status,'issued');assert.ok(database.prepare('SELECT invoice_number FROM client_invoices WHERE id=?').get(prepared.invoiceId).invoice_number);
  assert.throws(()=>database.prepare('UPDATE client_invoices SET total_cents=1 WHERE id=?').run(prepared.invoiceId),/frozen/);
