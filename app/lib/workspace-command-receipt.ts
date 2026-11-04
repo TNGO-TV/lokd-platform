@@ -1,4 +1,4 @@
-export type WorkspaceCommandKind='client-enquiries'|'signup'|'production-operations'|'finance-documents'|'payment-recovery'|'payment-execution'|'production-signing'|'quotes'|'psira'|'operational-delivery'|'credit-notes'|'booking-refunds'|'payroll-correction-reviews'|'production-identity'|'finance-workflows'|'sandbox-application'|'sandbox-identity';
+export type WorkspaceCommandKind='client-enquiries'|'signup'|'production-operations'|'finance-documents'|'payment-recovery'|'payment-execution'|'production-signing'|'quotes'|'psira'|'operational-delivery'|'credit-notes'|'booking-refunds'|'payroll-correction-reviews'|'production-identity'|'finance-workflows';
 const record=(value:unknown):value is Record<string,unknown>=>Boolean(value)&&typeof value==='object'&&!Array.isArray(value);
 async function fingerprint(input:Record<string,unknown>){
  const bytes=new TextEncoder().encode(JSON.stringify(input));

@@ -3,7 +3,6 @@
 import Image from "next/image";
 import { PublicFooter } from "../components/public-site-shell";
 import { applicationPsiraDeclaration } from "../lib/psira-pathway";
-import SandboxCommandRecovery from '../components/sandbox-command-recovery';
 import Link from "next/link";
 import { OFFICER_PORTAL_URL } from "../lib/public-site";
 import { useSearchParams } from "next/navigation";
@@ -36,11 +35,10 @@ const subscribeToHydration = () => () => {};
 
 export default function JoinPage() { return <OfficerApplicationJourney/>; }
 
-export function OfficerApplicationJourney({sandbox=false,onSubmitted,onAccessLost}:{sandbox?:boolean;onSubmitted?:(reference:string)=>void;onAccessLost?:()=>void}) {
-  const Root = sandbox ? 'section' : 'main';
-  const Heading = sandbox ? 'h3' : 'h1';
+export function OfficerApplicationJourney({onSubmitted}:{onSubmitted?:(reference:string)=>void}) {
+  const Root = 'main';
+  const Heading = 'h1';
   const [uncertain,setUncertain] = useState(false);
-  const originalSandboxBody = useRef<string|null>(null);
   const originalPublicBody=useRef<string|null>(null),publicInput=useRef<string|null>(null),inFlight=useRef(false);
   const ready = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const search = useSearchParams();
@@ -91,13 +89,11 @@ export function OfficerApplicationJourney({sandbox=false,onSubmitted,onAccessLos
   async function sendBody(body:string){
     if(inFlight.current)return;inFlight.current=true;setBusy(true);setError('');
     try{
-      const response=await fetch(sandbox?'/api/sandbox/application':'/api/applications',{method:'POST',headers:{'content-type':'application/json'},body});
-      if(sandbox&&[401,403].includes(response.status))onAccessLost?.();
-      if(response.status>=500||sandbox&&response.status===202)setUncertain(true);
+      const response=await fetch('/api/applications',{method:'POST',headers:{'content-type':'application/json'},body});
+      if(response.status>=500)setUncertain(true);
       const raw:unknown=await response.json(),result=record(raw)?raw:null;
       if(!response.ok){if(response.status<500)setUncertain(false);throw Error(typeof result?.error==='string'?result.error:'The application could not be confirmed. Keep this tab and retry the original request.');}
-      if(sandbox&&(result?.mode!=='sandbox'||result?.policyVersion!=='lokd-sandbox-completion-v1'||result?.productionWorkEligible!==false)){setUncertain(true);throw Error('The isolated intake boundary could not be verified.');}
-      const payload=sandbox?result?.data:result;
+      const payload=result;
       if(!savedApplication(payload)){setUncertain(true);throw Error('A saved application could not be confirmed. Keep this tab and recover the original receipt before submitting again.');}
       setUncertain(false);setReference(payload.reference);onSubmitted?.(payload.reference);
     }catch(cause){
@@ -115,18 +111,17 @@ export function OfficerApplicationJourney({sandbox=false,onSubmitted,onAccessLos
     const form=new FormData(event.currentTarget);
     const input={pathway,...details,services,purposes,training,over18Confirmed:form.get('over18Confirmed')==='on',eligibilityAcknowledged:form.get('eligibilityAcknowledged')==='on',contactConsent:form.get('contactConsent')==='on',company:form.get('company')};
     const canonical=JSON.stringify(input);
-    const body=!sandbox&&publicInput.current===canonical&&originalPublicBody.current?originalPublicBody.current:JSON.stringify(sandbox?{service:'officer_application',input,requestKey:crypto.randomUUID()}:{...input,requestKey:crypto.randomUUID()});
-    if(sandbox)originalSandboxBody.current=body;else{originalPublicBody.current=body;publicInput.current=canonical;}
+    const body=publicInput.current===canonical&&originalPublicBody.current?originalPublicBody.current:JSON.stringify({...input,requestKey:crypto.randomUUID()});
+    originalPublicBody.current=body;publicInput.current=canonical;
     await sendBody(body);
   }
 
-  if (sandbox&&reference) return <section className="join-success"><h3 ref={headingRef} tabIndex={-1}>Fictional officer application saved</h3><p>Reference: {reference}</p><p>No real onboarding contact or approval was issued. Link this source to the signed-in synthetic account below.</p></section>;
   if (reference) {
     return <main className="join-shell public-home"><header className="join-header"><Link href="/"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" /></Link><span>Officer network</span></header><section className="join-success"><div className="join-success-mark">✓</div><p className="public-kicker">Application received</p><h1 ref={headingRef} tabIndex={-1}>Your LOKD journey has started.</h1><p>We have saved your {pathway === "training" ? "training-pathway interest" : "officer application"}. A LOKD team member will contact you when the relevant intake opens.</p><p>{psiraRequired ? "Your application requires PSiRA verification and identity matching before security-work approval." : "Your training or registration-guidance intake will not be sent for a PSiRA registration lookup. You can update your pathway when registered."}</p><div className="journey-next"><h2>What happens next?</h2><p><strong>{psiraRequired ? "Verification pending" : pathway === "training" ? "Training interest recorded" : "Registration guidance requested"}</strong></p><p>{psiraRequired ? "Operations must check the official registration result and separately confirm it belongs to you. An unavailable, unclear or expired result remains unverified; a review may need more information." : "This intake does not require a PSiRA lookup. Registration and identity checks apply if you later apply for registered security work."}</p><p>Save your reference. Sign in to the officer portal using the same email, then link this application to follow progress and send corrections. Account linking does not grant work approval.</p><p>Work remains unavailable until the required checks and approved agreements are complete. Live identity verification remains gated. Approved agreements are delivered separately through your account; there is nothing to sign in this form.</p></div><dl><dt>Your reference</dt><dd>{reference}</dd></dl><div><Link className="public-button public-button--dark" href="/">Return home</Link><a className="public-button public-button--outline-dark" href={OFFICER_PORTAL_URL}>Track my application</a></div><small>Keep your reference. The authenticated onboarding stage will use a specialist identity provider for secure ID validation, selfie/liveness and face matching. Do not send identity documents, certificates or banking information by email or chat.</small></section><PublicFooter /></main>;
   }
 
   return (
-    <Root className={sandbox ? "join-shell" : "join-shell public-home"}>
+    <Root className="join-shell public-home">
       <header className="join-header"><Link href="/"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" /></Link><span>Officer network</span><a href={OFFICER_PORTAL_URL}>Officer portal →</a></header>
       <div className="join-progress" aria-label={`Step ${step} of 3`}><span style={{ width: progress }} /></div>
       <section className="join-layout">
@@ -184,9 +179,8 @@ export function OfficerApplicationJourney({sandbox=false,onSubmitted,onAccessLos
           <div className="join-form-actions">{step > 1 && <button type="button" disabled={busy||uncertain} onClick={() => { setError(""); setStep(step - 1); }}>← Back</button>}<span />{step < 3 ? <button className="public-button public-button--dark" type="submit" disabled={!ready}>Continue →</button> : <button className="public-button public-button--lime" type="submit" disabled={busy||uncertain}>{busy ? "Saving…" : pathway === "training" ? "Find my training pathway →" : "Submit officer application →"}</button>}</div>
         </fieldset></form>
       </section>
-      {uncertain&&!sandbox&&<button type="button" className="public-button public-button--dark" disabled={busy} onClick={()=>{if(originalPublicBody.current)void sendBody(originalPublicBody.current);}}>Retry original application</button>}
-      {uncertain&&sandbox&&<SandboxCommandRecovery scope='officer_application' endpoint='/api/sandbox/application' getBody={()=>originalSandboxBody.current} onRejected={()=>{originalSandboxBody.current=null;setUncertain(false);setError('The original request was rejected before any source write. Review and correct your details before submitting a new request.');}} onDenied={()=>{originalSandboxBody.current=null;onAccessLost?.();}} onRecovered={result=>{if(savedApplication(result)){setReference(result.reference);setUncertain(false);setError('');onSubmitted?.(result.reference);}}}/>}{uncertain&&<p role="alert" className="join-error">The original application outcome is unconfirmed. Its exact request is retained in this tab. Do not submit another application until the original source is recovered.</p>}
-      <div className="join-footer">Qualification, registration, licensing and app approval are separate processes. LOKD verifies the requirements applicable to each work category.</div>{!sandbox && <PublicFooter />}
+      {uncertain&&<button type="button" className="public-button public-button--dark" disabled={busy} onClick={()=>{if(originalPublicBody.current)void sendBody(originalPublicBody.current);}}>Retry original application</button>}
+      <div className="join-footer">Qualification, registration, licensing and app approval are separate processes. LOKD verifies the requirements applicable to each work category.</div><PublicFooter />
     </Root>
   );
 }

@@ -15,8 +15,8 @@ export function testSurfacesEnabled(runtime: TestSurfaceRuntime, hostname: strin
 
 const testApiRoots = ['/api/pilot', '/api/operations', '/api/platform', '/api/onboarding',
   '/api/specialist', '/api/passport', '/api/evidence', '/api/service-record', '/api/feedback',
-  '/api/sandbox', '/api/test-cycle', '/api/identity', '/api/enrolment', '/api/agreements/test',
-  '/api/provider-test', '/api/paystack/test', '/api/finance-workflows'];
+  '/api/test-cycle', '/api/identity', '/api/enrolment', '/api/agreements/test',
+  '/api/provider-test', '/api/paystack/test'];
 
 export function isTestApi(pathname: string, method = 'GET') {
   let decoded = pathname;

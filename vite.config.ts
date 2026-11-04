@@ -49,9 +49,7 @@ const localBindingConfig = nativeCf
         : [],
     };
 
-export default defineConfig(async ({command}) => {
-  const sandboxLocal=process.env.LOKD_LOCAL_SANDBOX_COMPLETION==='true';
-  if(sandboxLocal&&command!=='serve')throw new Error('The sandbox database binding is local development only.');
+export default defineConfig(async () => {
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
   process.env.WRANGLER_WRITE_LOGS ??= "false";
@@ -64,7 +62,7 @@ export default defineConfig(async ({command}) => {
   return {
     server: {
       host: "0.0.0.0",
-      allowedHosts: ["terminal.local",...(sandboxLocal?["portal.lokd.co.za","officers.lokd.co.za","operations.lokd.co.za"]:[])],
+      allowedHosts: ["terminal.local"],
       ...(isCodexSeatbeltSandbox
         ? { watch: { useFsEvents: false, usePolling: true } }
         : {}),
@@ -77,7 +75,7 @@ export default defineConfig(async ({command}) => {
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
-        config: sandboxLocal?{...localBindingConfig,d1_databases:[...(localBindingConfig.d1_databases??[]),{binding:'SANDBOX_DB',database_name:'lokd-sandbox-completion-local',database_id:'00000000-0000-4000-8000-000000000002'}]}:localBindingConfig,
+        config: localBindingConfig,
       }),
     ],
   };
