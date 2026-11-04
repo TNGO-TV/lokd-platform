@@ -1,7 +1,9 @@
 import {test,expect} from '@playwright/test';
 import {randomUUID} from 'node:crypto';
 const valid=()=>({requestKey:randomUUID(),organisationName:'Fixture Organisation',contactName:'Fixture Contact',email:'contact@example.test',mobile:'0821234567',siteArea:'Sandton',siteType:'commercial_property',requiredStart:'planning',message:'Security services for a local fixture office building.',advanceFundingAcknowledged:true,privacyConsent:true});
-const submit=(request,body,options={})=>request.post('/api/enquiries',{data:body,...options});
+// The handler only accepts same-origin JSON writes, as the browser form sends them.
+const origin=()=>new URL(test.info().project.use.baseURL).origin;
+const submit=(request,body,options={})=>request.post('/api/enquiries',{data:body,...options,headers:{origin:origin(),...options.headers}});
 const state=async request=>(await request.get('/__fixture/state')).json();
 test.beforeEach(async({request})=>{expect((await request.post('/__fixture/reset')).ok()).toBeTruthy();});
 for(const serviceType of ['scheduled_unarmed_fixed_site','armed_static','armed_movement','vip_unarmed','vip_armed','vip_protective_driver','vip_team'])test('persists requested service '+serviceType,async({request})=>{const response=await submit(request,{...valid(),serviceType});expect(response.status()).toBe(202);const data=await state(request);expect(data.enquiries).toHaveLength(1);expect(data.enquiries[0].service_type).toBe(serviceType);expect(data.receipts).toBe(1);});
@@ -14,13 +16,13 @@ test('separate submissions from the same contact remain separate',async({request
 test('cross-origin writes are refused',async({request})=>{expect((await submit(request,valid(),{headers:{origin:'https://untrusted.example'}})).status()).toBe(403);});
 test('non-JSON writes are refused',async({request})=>{expect((await submit(request,JSON.stringify(valid()),{headers:{'content-type':'text/plain'}})).status()).toBe(415);});
 test('anonymous queue reads are denied',async({request})=>{expect((await request.get('/api/enquiries')).status()).toBe(401);});
-test('anonymous queue updates are denied',async({request})=>{expect((await request.patch('/api/enquiries',{data:{id:'private',action:'triage',version:1}})).status()).toBe(401);});
+test('anonymous queue updates are denied',async({request})=>{expect((await request.patch('/api/enquiries',{data:{id:'private',action:'triage',version:1},headers:{origin:origin()}})).status()).toBe(401);});
 test('honeypot does not fabricate a saved receipt',async({request})=>{const response=await submit(request,{...valid(),company:'filled'});expect(response.status()).toBe(202);expect((await response.json()).saved).toBeUndefined();expect((await state(request)).receipts).toBe(0);});
-test('production enquiry form renders accessible controls',async({page})=>{await page.goto('/contact');await expect(page.getByRole('heading',{name:'Contact LOKD'})).toBeVisible();await expect(page.getByRole('button',{name:/enquiry/i})).toBeVisible();});
+test('production enquiry form renders accessible controls',async({page})=>{await page.goto('/contact');await expect(page.getByRole('heading',{name:'Contact LOKD'})).toBeVisible();await expect(page.getByRole('button',{name:'Get a quote',exact:true})).toBeVisible();});
 test('production enquiry form fits the viewport',async({page})=>{await page.goto('/contact');await expect(page.getByRole('heading',{name:'Contact LOKD'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);});
 test('saved receipt corresponds to a committed enquiry',async({request})=>{const result=await(await submit(request,valid())).json();expect(result.saved).toBe(true);expect((await state(request)).enquiries[0].id).toBe(result.reference);});
 test('persisted retention deadline follows creation by one year',async({request})=>{await submit(request,valid());const row=(await state(request)).enquiries[0],expected=new Date(row.created_at);expected.setUTCFullYear(expected.getUTCFullYear()+1);expect(row.retention_review_at).toBe(expected.toISOString());});
 test('email is normalized for storage',async({request})=>{await submit(request,{...valid(),email:' CONTACT@EXAMPLE.TEST '});expect((await state(request)).enquiries[0].email_normalized).toBe('contact@example.test');});
 test('caller cannot assign credit or approve a service',async({request})=>{await submit(request,{...valid(),creditTermsDays:90,status:'approved'});const row=(await state(request)).enquiries[0];expect(row.credit_terms_days).toBe(0);expect(row.status).toBe('new');});
 test('client-provided identity headers cannot access the queue',async({request})=>{expect((await request.get('/api/enquiries',{headers:{'x-lokd-verified-email':'owner@example.test'}})).status()).toBe(401);});
-test('a successful enquiry writes exactly one audit record',async({request})=>{await submit(request,valid());expect((await state(request)).audits).toBe(1);});
+test('a successful enquiry writes exactly one submission audit record',async({request})=>{await submit(request,valid());const data=await state(request);expect(data.submissionAudits).toBe(1);expect(data.audits).toBe(2);});

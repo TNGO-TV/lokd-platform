@@ -18,7 +18,7 @@ const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://'+req.headers.host);
   let response;
   if(url.pathname==='/__fixture/reset'&&req.method==='POST'){reset();response=Response.json({reset:true});}
-  else if(url.pathname==='/__fixture/state')response=Response.json({enquiries:sql.prepare('SELECT * FROM client_enquiries').all(),receipts:sql.prepare('SELECT count(*) AS count FROM client_enquiry_receipts').get().count,audits:sql.prepare("SELECT count(*) AS count FROM audit_events WHERE entity_type='client_enquiry'").get().count});
+  else if(url.pathname==='/__fixture/state')response=Response.json({enquiries:sql.prepare('SELECT * FROM client_enquiries').all(),receipts:sql.prepare('SELECT count(*) AS count FROM client_enquiry_receipts').get().count,audits:sql.prepare("SELECT count(*) AS count FROM audit_events WHERE entity_type='client_enquiry'").get().count,submissionAudits:sql.prepare("SELECT count(*) AS count FROM audit_events WHERE event_type='public_client_enquiry_submitted'").get().count});
   else if(url.pathname==='/api/enquiries'){
    const headers=new Headers(req.headers);for(const key of [...headers.keys()])if(key.startsWith('x-lokd-verified-'))headers.delete(key);
    const body=['GET','HEAD'].includes(req.method)?undefined:Buffer.concat(await Array.fromAsync(req));
