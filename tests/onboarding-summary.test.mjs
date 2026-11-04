@@ -6,7 +6,8 @@ import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 async function render(state){
  let source=fs.readFileSync(new URL('../app/components/portal-onboarding-summary.tsx',import.meta.url),'utf8');
- source=source.replace('import { useOnboarding } from "../lib/use-onboarding";',`const useOnboarding=()=>(${JSON.stringify(state)});`);
+ globalThis.__lokdOnboardingState=state;
+ source=source.replace('import { useOnboarding } from "../lib/use-onboarding";','const useOnboarding=()=>globalThis.__lokdOnboardingState;');
  let code=ts.transpileModule(source,{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
  code=code.replaceAll('"react/jsx-runtime"',JSON.stringify(import.meta.resolve('react/jsx-runtime')));
  const componentModule=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));

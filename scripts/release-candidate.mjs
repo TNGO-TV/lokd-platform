@@ -19,7 +19,7 @@ const validationFiles = [
 ];
 const hash = (data) => createHash('sha256').update(data).digest('hex');
 // Declaration comments occupy whole lines; all values remain strict JSON.
-const json = (file) => JSON.parse(readFileSync(file, 'utf8').replace(file.endsWith('.jsonc') ? /^\s*\/\/[^\n]*$/gm : /$^/, ''));
+const json = (file) => { const raw = readFileSync(file, 'utf8'); return JSON.parse(file.endsWith('.jsonc') ? raw.replace(/^\s*\/\/[^\n]*$/gm, '') : raw); };
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 function requireCondition(value, message) { if (!value) throw new Error(message); }
 function source() {

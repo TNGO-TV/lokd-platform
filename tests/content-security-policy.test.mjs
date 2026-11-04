@@ -26,7 +26,7 @@ test('release CSP keeps scripts, connections and frames first-party', async () =
     const policy = rules[0].headers.find(header => header.key === 'Content-Security-Policy').value;
     const directives = Object.fromEntries(policy.split('; ').map(directive => { const [name, ...sources] = directive.split(' '); return [name, sources]; }));
     assert.deepEqual(directives['connect-src'], ["'self'"]);
-    assert.ok(directives['frame-src'].includes('https://challenges.cloudflare.com'));
+    assert.ok(new Set(directives['frame-src']).has('https://challenges.cloudflare.com'));
     assert.ok(!/clerk/i.test(policy));
     assert.ok(!directives['script-src'].includes('https:'));
     assert.ok(!directives['script-src'].includes("'unsafe-eval'"));
@@ -45,7 +45,7 @@ test('Worker nonce ignores attacker headers, changes per response and preserves 
   assert.notEqual(first.nonce,second.nonce);assert.notEqual(first.nonce,'attacker');
   assert.equal(first.request.headers.get('x-lokd-script-nonce'),first.nonce);
   assert.equal(first.request.headers.get('content-security-policy-report-only'),null);
-  assert.match(first.policy,new RegExp("'nonce-"+first.nonce.replace(/[+]/g,'\\+')+"'"));
+  assert.match(first.policy,new RegExp("'nonce-"+first.nonce.replace(/[\\^$.*+?()[\]{}|/]/g,'\\$&')+"'"));
   assert.ok(!first.policy.split('; ').find(x=>x.startsWith('script-src')).includes('unsafe-inline'));
   const html=secureResponse(new Response('<html/>',{headers:{'content-type':'text/html','cache-control':'public,max-age=3600'}}),first.policy);
   assert.equal(html.headers.get('content-security-policy'),first.policy);assert.equal(html.headers.get('cache-control'),'private, no-store');

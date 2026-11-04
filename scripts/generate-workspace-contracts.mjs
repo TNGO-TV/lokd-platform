@@ -71,7 +71,7 @@ for(const file of files){
   for(const edit of edits.sort((a,b)=>b.at-a.at))content=content.slice(0,edit.at)+edit.text+content.slice(edit.at);
   if(!content.includes('import {workspaceAutoContract')&&!/import \{[^}]*\bworkspaceAutoContract\b/.test(content)){
    const existing=/import \{([^}]+)\} from ['"]\.\.\/lib\/workspace-response-contracts['"];/.exec(content);
-   if(existing)content=content.replace(existing[0],existing[0].replace('{','{workspaceAutoContract,'));
+   if(existing)content=content.replace(existing[0],existing[0].replace(/^import \{/,'import {workspaceAutoContract,'));
    else content=content.replace(/(['"]use client['"];?)/,"$1\nimport {workspaceAutoContract} from '../lib/workspace-response-contracts';");
   }
   fs.writeFileSync(file,content);
