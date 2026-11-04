@@ -1,6 +1,6 @@
 # Thread 5 production platform handoff
 
-Branch: `final/production-site`. Base: `492d08a`. No pull request was opened.
+Branch: `final/production-site`. Original base: `492d08a`; Thread 1 integrated through `79a6958`. No pull request was opened.
 
 ## Implemented
 
@@ -12,28 +12,28 @@ Encrypted D1 export and empty-target restore scripts validate full-schema foreig
 
 Banned-copy checking is strict by default and warning-only in `npm run lint`, as requested. The 78-check integrated browser release gate remains mandatory; its removed-screen scenarios now exercise production enquiry submission, durability, idempotency, validation and HTTP access boundaries with local fixtures.
 
+## Validation
+
+`npm run build`, `npm run lint` and `npm test` passed on the combined Thread 1/Thread 5 branch: 569 tests, zero failures or skips. All 78 mandatory integrated browser checks passed. TypeScript, both generated schema/contract checks, full-schema restore, retention batching and repeat cleanup also passed. Copy violations remain warning-only pending the other slices.
+
 ## Shared modules awaiting caller removal
 
 This list was checked with `git grep` after pulling the shared branch. Threads 1–3 own officer/client/Operations callers respectively; Thread 4 owns the root public layout and join page. Shared finance workflow callers belong to Thread 3. The retained role/access modules enforce production authentication and MFA; retired surface guards always deny access. Purely retired UI/provider libraries still need their callers removed before deletion.
 
-- `app/components/pilot-access-denied.tsx` — `app/client/page.tsx`, `app/officer/page.tsx`, `app/officer/psira/page.tsx`, `app/ops/agreements/[id]/page.tsx`, `app/ops/agreements/page.tsx`, `app/ops/identity/page.tsx`, `app/ops/intake/page.tsx`, `app/ops/page.tsx`, `app/ops/psira/page.tsx`, `app/ops/readiness/page.tsx`, `app/ops/security/page.tsx`, `app/ops/service/page.tsx`
+- `app/components/pilot-access-denied.tsx` — `app/client/page.tsx`, `app/ops/agreements/[id]/page.tsx`, `app/ops/agreements/page.tsx`, `app/ops/identity/page.tsx`, `app/ops/intake/page.tsx`, `app/ops/page.tsx`, `app/ops/psira/page.tsx`, `app/ops/readiness/page.tsx`, `app/ops/security/page.tsx`, `app/ops/service/page.tsx`
 - `app/components/pilot-feedback.tsx` — `app/layout.tsx`
 - `app/components/sandbox-command-recovery.tsx` — `app/components/client-enquiry-form.tsx`, `app/join/page.tsx`
 - `app/components/test-agreement-panel.tsx` — `app/components/signup-portal.tsx`
-- `app/components/test-enrolment-panel.tsx` — `app/components/identity-panel.tsx`
-- `app/components/test-surface-context.tsx` — `app/components/officer-presence-panel.tsx`, `app/components/signup-portal.tsx`, `app/components/workspace-shell.tsx`
+- `app/components/test-surface-context.tsx` — `app/components/signup-portal.tsx`, `app/components/workspace-shell.tsx`
 - `app/lib/finance-sandbox-policy.ts` — `app/lib/finance-workflow-accounting.ts`, `app/lib/finance-workflow-request.ts`, `app/lib/finance-workflow-store.ts`, `app/lib/finance-workflows.ts`
 - `app/lib/pilot-access-core.ts` — `app/lib/pilot-page-access.ts`, `app/lib/pilot-runtime.ts`
-- `app/lib/pilot-page-access.ts` — `app/client/page.tsx`, `app/officer/page.tsx`, `app/ops/agreements/[id]/page.tsx`, `app/ops/agreements/page.tsx`, `app/ops/identity/page.tsx`, `app/ops/page.tsx`, `app/ops/readiness/page.tsx`, `app/ops/service/page.tsx`
-- `app/lib/pilot-runtime.ts` — `app/api/agreements/production/route.ts`, `app/api/applications/route.ts`, `app/api/booking-refunds/route.ts`, `app/api/credit-notes/route.ts`, `app/api/enquiries/route.ts`, `app/api/enrolment/route.ts`, `app/api/evidence/route.ts`, `app/api/feedback/route.ts`, `app/api/finance-documents/route.ts`, `app/api/finance-workflows/route.ts`, `app/api/identity/route.ts`, `app/api/onboarding/route.ts`, `app/api/operational-delivery/route.ts`, `app/api/operations/route.ts`, `app/api/operations/security/route.ts`, `app/api/passport/route.ts`, `app/api/passport/verify/route.ts`, `app/api/payment-execution/route.ts`, `app/api/payment-recovery/route.ts`, `app/api/payroll-correction-reviews/route.ts`, `app/api/platform/export/route.ts`, `app/api/platform/route.ts`, `app/api/presence/route.ts`, `app/api/production-identity/route.ts`, `app/api/production-operations/route.ts`, `app/api/psira/route.ts`, `app/api/quotes/route.ts`, `app/api/service-record/route.ts`, `app/api/signup/route.ts`, `app/api/specialist/route.ts`, `app/client/layout.tsx`, `app/client/page.tsx`, `app/lib/applicant-api-access.ts`, `app/lib/onboarding-server.ts`, `app/lib/operational-delivery.ts`, `app/lib/operations-server.ts`, `app/lib/pilot-page-access.ts`, `app/officer/layout.tsx`, `app/officer/page.tsx`, `app/officer/psira/page.tsx`, `app/ops/intake/page.tsx`, `app/ops/layout.tsx`, `app/ops/psira/page.tsx`, `app/ops/security/page.tsx`, `app/verify/page.tsx`
-- `app/lib/pilot-types.ts` — `app/components/client-app.tsx`, `app/components/officer-app.tsx`, `app/components/passport-view.tsx`, `app/components/workspace-view.tsx`, `app/lib/passport-rules.ts`, `app/lib/passport-server.ts`, `app/lib/payroll-statement-server.ts`, `app/lib/pilot-access-core.ts`, `app/lib/pilot-pricing.ts`, `app/lib/specialist-pricing.ts`, `app/lib/use-pilot.ts`
+- `app/lib/pilot-page-access.ts` — `app/client/page.tsx`, `app/ops/agreements/[id]/page.tsx`, `app/ops/agreements/page.tsx`, `app/ops/identity/page.tsx`, `app/ops/page.tsx`, `app/ops/readiness/page.tsx`, `app/ops/service/page.tsx`
+- `app/lib/pilot-runtime.ts` — `app/api/agreements/production/route.ts`, `app/api/booking-refunds/route.ts`, `app/api/credit-notes/route.ts`, `app/api/enquiries/route.ts`, `app/api/evidence/route.ts`, `app/api/feedback/route.ts`, `app/api/finance-documents/route.ts`, `app/api/finance-workflows/route.ts`, `app/api/operational-delivery/route.ts`, `app/api/operations/route.ts`, `app/api/operations/security/route.ts`, `app/api/passport/route.ts`, `app/api/passport/verify/route.ts`, `app/api/payment-execution/route.ts`, `app/api/payment-recovery/route.ts`, `app/api/payroll-correction-reviews/route.ts`, `app/api/platform/export/route.ts`, `app/api/platform/route.ts`, `app/api/production-identity/route.ts`, `app/api/production-operations/route.ts`, `app/api/psira/route.ts`, `app/api/quotes/route.ts`, `app/api/service-record/route.ts`, `app/api/signup/route.ts`, `app/api/specialist/route.ts`, `app/client/layout.tsx`, `app/client/page.tsx`, `app/lib/operational-delivery.ts`, `app/lib/operations-server.ts`, `app/lib/pilot-page-access.ts`, `app/ops/intake/page.tsx`, `app/ops/layout.tsx`, `app/ops/psira/page.tsx`, `app/ops/security/page.tsx`, `app/verify/page.tsx`
+- `app/lib/pilot-types.ts` — `app/components/client-app.tsx`, `app/components/workspace-view.tsx`, `app/lib/passport-rules.ts`, `app/lib/passport-server.ts`, `app/lib/payroll-statement-server.ts`, `app/lib/pilot-access-core.ts`, `app/lib/pilot-pricing.ts`, `app/lib/specialist-pricing.ts`, `app/lib/use-pilot.ts`
 - `app/lib/test-agreements.ts` — `app/components/test-agreement-panel.tsx`
-- `app/lib/test-enrolment.ts` — `app/api/enrolment/route.ts`
-- `app/lib/test-surface-page.ts` — `app/client/layout.tsx`, `app/client/page.tsx`, `app/layout.tsx`, `app/officer/identity/page.tsx`, `app/officer/layout.tsx`, `app/officer/page.tsx`, `app/ops/identity/page.tsx`, `app/ops/layout.tsx`, `app/ops/page.tsx`, `app/signup/page.tsx`, `app/verify/page.tsx`
+- `app/lib/test-surface-page.ts` — `app/client/layout.tsx`, `app/client/page.tsx`, `app/layout.tsx`, `app/ops/identity/page.tsx`, `app/ops/layout.tsx`, `app/ops/page.tsx`, `app/signup/page.tsx`, `app/verify/page.tsx`
 - `app/lib/test-surface-policy.ts` — `app/lib/test-surface-page.ts`
-- `app/lib/test-surface-runtime.ts` — `app/api/applications/route.ts`, `app/api/enrolment/route.ts`, `app/api/evidence/route.ts`, `app/api/feedback/route.ts`, `app/api/finance-workflows/route.ts`, `app/api/finance-workflows/webhook/route.ts`, `app/api/identity/route.ts`, `app/api/onboarding/route.ts`, `app/api/operations/route.ts`, `app/api/passport/route.ts`, `app/api/platform/export/route.ts`, `app/api/platform/route.ts`, `app/api/presence/route.ts`, `app/api/service-record/route.ts`, `app/api/specialist/route.ts`
-- `app/lib/verifynow-adapter.ts` — `app/lib/applicant-identity.ts`
-- `app/lib/verifynow-sandbox-fixtures.json` — `app/lib/verifynow-adapter.ts`
+- `app/lib/test-surface-runtime.ts` — `app/api/evidence/route.ts`, `app/api/feedback/route.ts`, `app/api/finance-workflows/route.ts`, `app/api/finance-workflows/webhook/route.ts`, `app/api/operations/route.ts`, `app/api/platform/export/route.ts`, `app/api/platform/route.ts`, `app/api/service-record/route.ts`, `app/api/specialist/route.ts`
 
 ## Removed files
 
@@ -103,6 +103,7 @@ This list was checked with `git grep` after pulling the shared branch. Threads 1
 - `app/components/sandbox-service-workspace.tsx`
 - `app/components/sandbox-workspace.module.css`
 - `app/components/test-cycle-panel.tsx`
+- `app/components/test-enrolment-panel.tsx`
 - `app/lib/live-surface.ts`
 - `app/lib/paystack-test.ts`
 - `app/lib/provider-acceptance-test.ts`
@@ -122,8 +123,11 @@ This list was checked with `git grep` after pulling the shared branch. Threads 1
 - `app/lib/sandbox-training.ts`
 - `app/lib/sandbox-workforce.ts`
 - `app/lib/test-cycle-types.ts`
+- `app/lib/test-enrolment.ts`
 - `app/lib/test-operating-cycle.ts`
 - `app/lib/test-surface-storage.ts`
+- `app/lib/verifynow-adapter.ts`
+- `app/lib/verifynow-sandbox-fixtures.json`
 - `app/officer/sandbox/page.tsx`
 - `app/officer/test-cycle/page.tsx`
 - `app/ops/payment-test/page.tsx`
@@ -142,7 +146,6 @@ This list was checked with `git grep` after pulling the shared branch. Threads 1
 - `sandbox-migrations/0002_command_journal.sql`
 - `sandbox-migrations/0003_evidence_retention.sql`
 - `sandbox-migrations/0004_no_vat_pricing.sql`
-- `scripts/check-owner-backup-runtime.mjs`
 - `scripts/finance-paystack-test-probe.mjs`
 - `scripts/frontend-action-inventory.mjs`
 - `scripts/init-sandbox-completion.mjs`
@@ -170,7 +173,6 @@ This list was checked with `git grep` after pulling the shared branch. Threads 1
 - `tests/accounts/sandbox-identity.spec.mjs`
 - `tests/accounts/security.spec.mjs`
 - `tests/accounts/signup.spec.mjs`
-- `tests/applicant-identity.test.mjs`
 - `tests/connected-scenario-lifecycle.test.mjs`
 - `tests/evidence-storage.test.mjs`
 - `tests/finance-discovery.test.mjs`

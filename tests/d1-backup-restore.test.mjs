@@ -10,6 +10,7 @@ from pathlib import Path
 spec=importlib.util.spec_from_file_location('restore','scripts/d1-restore-sql.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 db=sqlite3.connect(':memory:')
 for path in sorted(Path('drizzle').glob('*.sql')):db.executescript(path.read_text())
+db.executescript("CREATE TABLE d1_migrations(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT UNIQUE,applied_at TEXT); INSERT INTO d1_migrations(name,applied_at) VALUES('0171_production_data_retention.sql','2026-11-04');")
 db.executescript("CREATE TABLE fixture_parent(id INTEGER PRIMARY KEY); CREATE TABLE fixture_child(id INTEGER REFERENCES fixture_parent(id),body TEXT); CREATE TABLE fixture_audit(id INTEGER); CREATE TRIGGER fixture_insert AFTER INSERT ON fixture_child BEGIN INSERT INTO fixture_audit VALUES(NEW.id); END; INSERT INTO fixture_parent VALUES(7); INSERT INTO fixture_child VALUES(7,'line one'||char(10)||'line two; é');")
 export='\n'.join(db.iterdump());ordered=module.prepare(export)
 restored=sqlite3.connect(':memory:');restored.executescript(ordered)
@@ -17,6 +18,8 @@ assert restored.execute('SELECT count(*) FROM fixture_audit').fetchone()[0]==1
 assert restored.execute('PRAGMA foreign_key_check').fetchall()==[]
 assert restored.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
 assert restored.execute('SELECT body FROM fixture_child').fetchone()[0]=='line one\nline two; é'
+restored.execute("INSERT INTO d1_migrations(name,applied_at) VALUES('next.sql','2026-11-05')")
+assert restored.execute("SELECT id FROM d1_migrations WHERE name='next.sql'").fetchone()[0]==2
 try:module.prepare('CREATE TABLE parent(id PRIMARY KEY); CREATE TABLE child(id REFERENCES parent(id)); INSERT INTO child VALUES(7);')
 except ValueError:pass
 else:raise AssertionError('Dangling foreign key accepted')

@@ -43,7 +43,19 @@ test('application receipt retention advances past already-cleared applications',
  }finally{sql.close();}
 });
 
-test('cleanup targets exact confirmed enquiries, is idempotent and leaves a similar real enquiry',()=>{
+test('retention purges expired presence sessions and request receipts while preserving current ones',async()=>{
+ const sql=migrated();try{
+  for(const [id,deadline] of [['expired','2020-01-01'],['current','2099-01-01']]){
+   sql.prepare("INSERT INTO officer_presence_consents VALUES(?,'live',1,?,1,'2020-01-01')").run(id,id);
+   sql.prepare("INSERT INTO public_officer_presence VALUES(?,?,NULL,'live',-26,28,'2020-01-01','2020-01-01',?,1)").run(id,id,deadline);
+   sql.prepare("INSERT INTO api_idempotency_keys(id,principal_type,principal_id,operation,idempotency_key,request_hash,aggregate_type,aggregate_id,environment,expires_at,created_at) VALUES(?,'officer',?,'submit',?,'hash','application',?,'production',?,'2020-01-01')").run(id,id,id,id,deadline);
+  }
+  const result=await runDataRetention(adapter(sql));assert.equal(result.presenceSessions,1);assert.equal(result.requestReceipts,1);
+  for(const table of ['public_officer_presence','api_idempotency_keys'])assert.deepEqual(sql.prepare('SELECT id FROM '+table).all().map(r=>r.id),['current']);
+ }finally{sql.close();}
+});
+
+test('cleanup targets exact confirmed enquiries, is idempotent and leaves a similar real enquiry',async()=>{
  const sql=migrated(170);try{
   enquiry(sql,'ENQ-E8E621DB','2026-09-27T00:14:26.046Z','2027-09-27T00:14:26.046Z','LOKD SYNTHETIC ZEPTOMAIL ALLOWLIST TEST NOT A CUSTOMER 20260927001425');
   enquiry(sql,'ENQ-4FF55726','2026-09-27T01:04:48.761Z','2027-09-27T01:04:48.761Z','SYNTHETIC SMTP WORKER PATH 1790471088 — NOT A CUSTOMER');
@@ -54,5 +66,20 @@ test('cleanup targets exact confirmed enquiries, is idempotent and leaves a simi
   assert.equal(sql.prepare('SELECT count(*) AS n FROM client_enquiry_receipts').get().n,1);
   assert.equal(sql.prepare('SELECT count(*) AS n FROM operational_delivery_jobs').get().n,2);
   assert.deepEqual(sql.prepare('PRAGMA foreign_key_check').all(),[]);
+  sql.exec(fs.readFileSync(new URL('drizzle/0171_production_data_retention.sql',root),'utf8'));
+  sql.exec(cleanup);
+  enquiry(sql,'expired-after-rerun','2020-01-01','2021-01-01');
+  assert.equal((await runDataRetention(adapter(sql))).enquiries,1);
+ }finally{sql.close();}
+});
+
+test('cleanup preserves a confirmed historical enquiry if it acquired a signup link',()=>{
+ const sql=migrated(170);try{
+  enquiry(sql,'ENQ-E8E621DB','2026-09-27T00:14:26.046Z','2027-09-27T00:14:26.046Z','LOKD SYNTHETIC ZEPTOMAIL ALLOWLIST TEST NOT A CUSTOMER 20260927001425');
+  sql.prepare("INSERT INTO signup_cases VALUES('client','ENQ-E8E621DB','owner','reviewed','Approved','{}',1,'link','2026-09-27')").run();
+  sql.exec(fs.readFileSync(new URL('drizzle/0170_remove_recorded_nonproduction_data.sql',root),'utf8'));
+  assert.equal(sql.prepare('SELECT count(*) AS n FROM client_enquiries').get().n,1);
+  assert.equal(sql.prepare('SELECT count(*) AS n FROM client_enquiry_receipts').get().n,1);
+  assert.equal(sql.prepare('SELECT count(*) AS n FROM operational_delivery_jobs').get().n,2);
  }finally{sql.close();}
 });

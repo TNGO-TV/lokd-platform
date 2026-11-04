@@ -41,7 +41,6 @@ function migratedDatabase() {
   return database;
 }
 
-function run(database, sql, ...values) { return database.prepare(sql).run(...values); }
 function one(database, sql, ...values) { return database.prepare(sql).get(...values); }
 
 test("platform maintenance records controls and dispatches internal outbox events idempotently", async () => {

@@ -148,9 +148,12 @@ test('keyed Officer retries recover one atomic receipt while separate submission
 test('Officer receipt migration preserves existing applications, consent and immutable audit history',async()=>{
  const database=new DatabaseSync(':memory:');
  for(const file of fs.readdirSync(new URL('../drizzle',import.meta.url)).filter(name=>name.endsWith('.sql')&&Number(name.slice(0,4))<86).sort())database.exec(fs.readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8').replaceAll('--> statement-breakpoint',''));
- const db=new D1Adapter(database),{submitOfficerApplication}=await import('../app/api/applications/route.ts');
  try{
-  assert.equal((await submitOfficerApplication(intake('existing@example.test'),db)).status,202);
+  // Historical state must not call today's handler, which requires later outbox migrations.
+  database.exec(`INSERT INTO officer_applications(id,pathway,full_name,mobile_normalized,email_normalized,city,province,psira_status,service_interests,training_interests,over_18_confirmed,eligibility_acknowledged,privacy_notice_version,privacy_acknowledged_at,retention_review_at)
+    VALUES('existing','qualified','Existing applicant','+27825550199','existing@example.test','Johannesburg','Gauteng','active','[]','[]',1,1,'privacy-v1','2026-09-01','2027-09-01');
+    INSERT INTO audit_events(id,actor_type,actor_id,event_type,entity_type,entity_id,detail,created_at)
+    VALUES('existing-audit','applicant','existing','application_submitted','officer_application','existing','Existing consent recorded','2026-09-01');`);
   const snapshot=()=>JSON.stringify(['officer_applications','audit_events','signup_cases'].map(table=>database.prepare('SELECT * FROM '+table).all()));const before=snapshot();
   database.exec(fs.readFileSync(new URL('../drizzle/0086_officer_application_receipts.sql',import.meta.url),'utf8').replaceAll('--> statement-breakpoint',''));
   assert.equal(snapshot(),before);assert.equal(database.prepare('SELECT count(*) n FROM officer_application_receipts').get().n,0);
