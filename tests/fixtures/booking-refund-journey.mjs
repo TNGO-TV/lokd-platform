@@ -13,7 +13,7 @@ export async function bookingRefundJourney({database,db,reviewer,owner,applicant
  const scenario=async fn=>{database.exec('SAVEPOINT refund_scenario');try{await fn();}finally{database.exec('ROLLBACK TO refund_scenario; RELEASE refund_scenario');}};
  const {operateCreditNote,readCreditNotes}=await import('../../app/lib/credit-notes.ts');
  const oldBatch=db.batch;db.batch=async statements=>{database.exec('SAVEPOINT refund_batch');try{const results=statements.map(s=>s.runSync());database.exec('RELEASE refund_batch');return results;}catch(e){database.exec('ROLLBACK TO refund_batch; RELEASE refund_batch');throw e;}};
- const {operateProduction}=await import('../../app/lib/production-operations.ts');
+ const {operateWithProof:operateProduction}=await import('./operations-auth.mjs');
  await operateProduction(db,owner,{action:'grant_operator',email:reviewer.email,role:'finance_approver',limitCents:25000000},headers);
  const invoice=database.prepare('SELECT * FROM credit_note_sources WHERE booking_id=?').get(collection.order_id);
  const prepare=async(net=invoice.subtotal_cents,tax=invoice.tax_cents,suffix='full',externalRefundId)=>{

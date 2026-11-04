@@ -91,7 +91,7 @@ export function operatorControlDecision(input: OperatorControlInput): OperatorCo
   const blockers: string[] = [];
   if (input.accountStatus !== "active") blockers.push("The operator account is not active.");
   if (!input.roles.includes(policy.requiredRole)) blockers.push(`The ${policy.requiredRole.replaceAll("_", " ")} role is required.`);
-  if (input.mfaRequired !== false) {
+  {
     if (input.mfaStatus !== "verified" || !input.mfaVerifiedAt) {
       blockers.push("A verified Operations MFA challenge is required.");
     } else {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {prepareDocumentInvoice,prepareFinanceDocument,decideFinanceDocument} from '../../app/lib/finance-documents.ts';
-import {operateProduction} from '../../app/lib/production-operations.ts';
+import {operateWithProof as operateProduction} from './operations-auth.mjs';
 import {financeDocumentJourney} from './finance-document-journey.mjs';
 export async function invoiceDocumentJourney({database,db,reviewer,owner,applicant,headers,bookingId}){
  for(const [actor,role] of [[reviewer,'payroll_preparer'],[owner,'finance_approver']])await operateProduction(db,owner,{action:'grant_operator',email:actor.email,role,limitCents:100000000},headers);

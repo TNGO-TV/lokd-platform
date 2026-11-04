@@ -1,4 +1,4 @@
-import type { ServiceType } from "./pilot-types";
+import type { ServiceType } from "./production-service-types";
 
 export type SpecialistServiceCode =
   | "standard_unarmed"

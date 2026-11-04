@@ -2,7 +2,7 @@ import {SignupError} from './signup-server';
 import {agreementHash} from './agreement-acceptance';
 import type {SigningActor} from './production-signing';
 import {productionEvidenceKinds,type ProductionEvidenceKind} from './production-evidence-catalogue';
-import {RISK_RULES_VERSION} from './pilot-pricing';
+import {RISK_RULES_VERSION} from './production-pricing';
 const text=(v:unknown,label:string)=>{if(typeof v!=='string'||v.trim().length<2||v.length>1200)throw new SignupError(`Provide ${label}.`);return v.trim();};
 const insert=(db:D1Database,table:string,row:Record<string,string|number|null>)=>db.prepare(`INSERT INTO ${table} (${Object.keys(row).join(',')}) VALUES(${Object.keys(row).map(()=>'?').join(',')})`).bind(...Object.values(row));
 async function revision(db:D1Database){return (await db.prepare('SELECT revision FROM activation_evidence_epoch WHERE singleton=1').first<{revision:number}>())!.revision;}

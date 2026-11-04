@@ -17,7 +17,7 @@ import {
   officerShiftEconomicsForRoster,
   type CalendarCategory,
   type EngagementModel,
-} from "./pilot-pricing";
+} from "./production-pricing";
 import type { LaunchGateInput, WorkforceModel } from "./workforce-core";
 
 export class AssignmentActivationError extends Error {

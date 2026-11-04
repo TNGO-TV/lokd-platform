@@ -1,3 +1,5 @@
+import {env} from 'cloudflare:workers';
+import {runOperationsNotifications,type OperationsMailRuntime} from './production-notifications';
 import { checkSchemaReadiness, schemaMigration } from "./schema-readiness";
 import { operationsMfaRequired } from "./operations-mfa-policy";
 
@@ -121,6 +123,7 @@ export async function runPlatformMaintenance(db: D1Database, options: Maintenanc
     .bind(id, options.trigger, environment, integrityState, startedAt).run();
 
   try {
+    if(environment==='production')await runOperationsNotifications(db,env as OperationsMailRuntime);
     const checks = await checkSchemaReadiness(db);
     if (!checks.schemaComplete) {
       throw new Error("Required current database objects are missing.");

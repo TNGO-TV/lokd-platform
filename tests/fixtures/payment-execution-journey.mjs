@@ -68,7 +68,7 @@ export async function paymentExecutionJourney({kind,database,db,maker,owner,fina
   await assert.rejects(()=>call('approve_live_reconciliation',{reviewId:review.id,payloadHash:review.payload_hash},maker),/maker|Independent/);
   const decisions=await Promise.allSettled([call('approve_live_reconciliation',{reviewId:review.id,payloadHash:review.payload_hash}),call('approve_live_reconciliation',{reviewId:review.id,payloadHash:review.payload_hash})]);assert.equal(decisions.filter(x=>x.status==='fulfilled').length,1);
   assert.equal(financial().financial_state,'paid');assert.equal(financial().paid_receipts,1);
-  const {operateProduction}=await import('../../app/lib/production-operations.ts');
+  const {operateWithProof:operateProduction}=await import('./operations-auth.mjs');
   await operateProduction(db,owner,{action:'grant_operator',email:maker.email,role:'payroll_preparer',limitCents:25000000},headers);
   const {readProductionOperations}=await import('../../app/lib/production-operations.ts');
   const {productionOperationsResponse,matchesWorkspaceContract}=await import('../../app/lib/workspace-response-contracts.ts');

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {manageProductionEvidence} from '../../app/lib/production-evidence.ts';
 import {manageProductionPayrollPolicy} from '../../app/lib/production-payroll-policy.ts';
 import {prepareProductionPayroll,decideProductionPayroll,exportProductionPayrollCsv,readProductionPayroll} from '../../app/lib/production-payroll.ts';
-import {operateProduction} from '../../app/lib/production-operations.ts';
+import {operateWithProof as operateProduction} from './operations-auth.mjs';
 import {ZA_2027_SARS_POLICY_CANDIDATE} from '../../app/lib/payroll-engine.ts';
 export const freshHeaders=actor=>new Headers({'x-lokd-verified-mfa-enrolled':'true','x-lokd-verified-user-id':actor.userId,'x-lokd-verified-second-factor-at':new Date().toISOString()});
 export async function consumeConnectedPayroll({db,database,officerId,shiftId,maker,checker,applicant,client}){

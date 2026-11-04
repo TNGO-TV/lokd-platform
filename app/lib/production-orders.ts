@@ -2,7 +2,7 @@ import {SignupError} from './signup-server';
 import type {SigningActor} from './production-signing';
 import {agreementHash} from './agreement-acceptance';
 import {currentClientReview} from './production-client-review';
-import {quoteBooking,servicePriceBook,purposePriceBook,calendarCategoryForDate,officerShiftEconomicsForRoster,type BookingQuoteRequest} from './pilot-pricing';
+import {quoteBooking,servicePriceBook,purposePriceBook,calendarCategoryForDate,officerShiftEconomicsForRoster,type BookingQuoteRequest} from './production-pricing';
 const field=(v:unknown,label:string,max=200)=>{if(typeof v!=='string'||!v.trim()||v.length>max)throw new SignupError(`Provide ${label}.`);return v.trim();};
 function request(input:Record<string,unknown>){
  const q=input.quoteRequest as BookingQuoteRequest|undefined;

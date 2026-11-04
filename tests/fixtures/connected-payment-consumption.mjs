@@ -2,7 +2,7 @@
 // is synthetic and every payment mutation is rolled back before suspension QA.
 import assert from 'node:assert/strict';
 import {suspendOfficerWorkforce} from '../../app/lib/production-rereview.ts';
-import {operateProduction} from '../../app/lib/production-operations.ts';
+import {operateWithProof as operateProduction} from './operations-auth.mjs';
 import {operatePaymentDestination} from '../../app/lib/payment-destinations.ts';
 import {operateEmployeePayment} from '../../app/lib/employee-payments.ts';
 import {operatePaymentExecution,receiveLiveTransferWebhook} from '../../app/lib/payment-execution.ts';
