@@ -17,7 +17,7 @@ test('enrolment contact request is owned, consented, versioned, audited and repl
   assert.equal((await POST(request('POST',input,'another-account'))).status,404);
   assert.equal((await POST(request('POST',{...input,caseVersion:0}))).status,409);
   const first=await POST(request('POST',input)),repeat=await POST(request('POST',input));assert.equal(first.status,200);assert.deepEqual(await first.json(),await repeat.json());
-  assert.equal(db.sql.prepare('SELECT count(*) AS n FROM officer_enrolment_requests').get().n,1);
+  assert.equal(db.sql.prepare("SELECT count(*) AS n FROM officer_work_notifications WHERE kind='enrolment_request'").get().n,1);
   assert.equal(db.sql.prepare("SELECT count(*) AS n FROM audit_events WHERE event_type='officer_enrolment_requested'").get().n,1);
   assert.equal((await GET(request('GET',reference))).status,200);
   await writeSignup(db,actor,{kind:'officer',id:reference,action:'withdraw',expectedVersion:1});assert.equal((await POST(request('POST',input))).status,404);

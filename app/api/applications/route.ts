@@ -108,10 +108,10 @@ export async function GET(request:Request){
    a.psira_grade AS psiraGrade,a.service_interests AS services,a.purpose_interests AS purposes,
    a.training_interests AS training,a.identity_verification_status AS identityStatus,
    coalesce(c.status,a.status) AS status,coalesce(c.version,0) AS version,a.source,a.created_at AS createdAt,
-   a.updated_at AS updatedAt,er.status AS enrolmentStatus,er.created_at AS enrolmentRequestedAt,n.state AS confirmationEmailStatus,n.last_error AS confirmationEmailError
+   a.updated_at AS updatedAt,CASE WHEN er.id IS NOT NULL THEN 'requested' ELSE NULL END AS enrolmentStatus,er.created_at AS enrolmentRequestedAt,n.state AS confirmationEmailStatus,n.last_error AS confirmationEmailError
    FROM officer_applications a LEFT JOIN signup_cases c ON c.kind='officer' AND c.source_id=a.id
    LEFT JOIN officer_email_outbox n ON n.id='application-confirmation:'||a.id
-   LEFT JOIN officer_enrolment_requests er ON er.application_id=a.id AND er.application_version=c.version AND er.owner_user_id=c.owner_user_id
+   LEFT JOIN officer_work_notifications er ON er.id='enrolment:'||a.id||':'||c.version||':'||c.owner_user_id AND er.kind='enrolment_request'
    WHERE a.environment='prelaunch' AND a.integrity_state='user_submitted'
    ORDER BY a.created_at DESC LIMIT 100`).all<{pathway:string;psiraStatus:string;services:string;purposes:string;training:string}>();
   return response({applications:result.results.map(item=>({...item,services:JSON.parse(item.services),purposes:JSON.parse(item.purposes),training:JSON.parse(item.training),psiraVerificationRequired:applicationPsiraDeclaration(item.pathway,item.psiraStatus)==='registered'}))});
