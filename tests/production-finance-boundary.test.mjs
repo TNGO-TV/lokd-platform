@@ -18,7 +18,7 @@ function fixture(){
 test('production entry rejects test preparation and dispatch before any provider, approval or storage work',async()=>{
  const db={prepare(){throw Error('unexpected storage access');}};
  for(const action of ['prepare_collection','prepare_destination','prepare_partner_destination','dispatch_employee_test','verify_employee_test','dispatch_partner_test','verify_partner_test'])await assert.rejects(()=>operateProduction(db,actor,{action,mode:'test'},new Headers()),e=>e.status===423);
- assert.throws(()=>collectionKey({PAYSTACK_LIVE_SECRET_KEY:'sk_live_fixture'},'live'),e=>e.status===423,'live provider acceptance stays locked');
+ assert.throws(()=>collectionKey({PAYSTACK_LIVE_SECRET_KEY:'sk_live_fixture'},'live'),e=>e.status===503&&/Card payments are unavailable/.test(e.message),'unconfigured card payments return a clear availability error');
 });
 test('saved test-mode records cannot be relabeled through production mutations or replacement references',async()=>{
  const {sql,db,tables}=fixture();try{

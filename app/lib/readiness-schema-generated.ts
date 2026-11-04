@@ -196,6 +196,14 @@ export const readinessSchema = {
     },
     {
       "type": "index",
+      "name": "client_notification_due_idx"
+    },
+    {
+      "type": "index",
+      "name": "client_notification_owner_idx"
+    },
+    {
+      "type": "index",
       "name": "client_quote_order_sequence_idx"
     },
     {
@@ -205,6 +213,14 @@ export const readinessSchema = {
     {
       "type": "index",
       "name": "client_quote_public_number_idx"
+    },
+    {
+      "type": "index",
+      "name": "client_request_owner"
+    },
+    {
+      "type": "index",
+      "name": "client_shift_rating_once"
     },
     {
       "type": "index",
@@ -1409,6 +1425,10 @@ export const readinessSchema = {
     {
       "type": "table",
       "name": "client_invoices"
+    },
+    {
+      "type": "table",
+      "name": "client_notification_jobs"
     },
     {
       "type": "table",
@@ -2744,6 +2764,10 @@ export const readinessSchema = {
     },
     {
       "type": "trigger",
+      "name": "booking_client_version"
+    },
+    {
+      "type": "trigger",
       "name": "booking_collection_audit"
     },
     {
@@ -2772,7 +2796,23 @@ export const readinessSchema = {
     },
     {
       "type": "trigger",
+      "name": "booking_collection_invoice_guard"
+    },
+    {
+      "type": "trigger",
+      "name": "booking_collection_live_insert"
+    },
+    {
+      "type": "trigger",
+      "name": "booking_collection_live_update"
+    },
+    {
+      "type": "trigger",
       "name": "booking_collection_no_delete"
+    },
+    {
+      "type": "trigger",
+      "name": "booking_collection_prepared_audit"
     },
     {
       "type": "trigger",
@@ -3004,6 +3044,26 @@ export const readinessSchema = {
     },
     {
       "type": "trigger",
+      "name": "client_agreement_signed_notice"
+    },
+    {
+      "type": "trigger",
+      "name": "client_assignment_confirmation_email"
+    },
+    {
+      "type": "trigger",
+      "name": "client_booking_cancel_guard"
+    },
+    {
+      "type": "trigger",
+      "name": "client_closed_booking_request_guard"
+    },
+    {
+      "type": "trigger",
+      "name": "client_credit_note_notification"
+    },
+    {
+      "type": "trigger",
       "name": "client_enquiry_delete_guard_v30"
     },
     {
@@ -3028,11 +3088,39 @@ export const readinessSchema = {
     },
     {
       "type": "trigger",
+      "name": "client_notification_content_immutable"
+    },
+    {
+      "type": "trigger",
+      "name": "client_notification_no_delete"
+    },
+    {
+      "type": "trigger",
+      "name": "client_notification_replay_guard"
+    },
+    {
+      "type": "trigger",
+      "name": "client_payment_receipt_notification"
+    },
+    {
+      "type": "trigger",
+      "name": "client_payment_receipt_update_notification"
+    },
+    {
+      "type": "trigger",
       "name": "client_provenance_immutable_v5"
     },
     {
       "type": "trigger",
       "name": "client_provenance_insert_v5"
+    },
+    {
+      "type": "trigger",
+      "name": "client_quote_accept_audit"
+    },
+    {
+      "type": "trigger",
+      "name": "client_quote_cancel_audit"
     },
     {
       "type": "trigger",
@@ -3049,6 +3137,14 @@ export const readinessSchema = {
     {
       "type": "trigger",
       "name": "client_quote_cancellations_no_update"
+    },
+    {
+      "type": "trigger",
+      "name": "client_quote_decline_guard"
+    },
+    {
+      "type": "trigger",
+      "name": "client_quote_issue_audit"
     },
     {
       "type": "trigger",
@@ -3096,6 +3192,22 @@ export const readinessSchema = {
     },
     {
       "type": "trigger",
+      "name": "client_request_mutation_guard"
+    },
+    {
+      "type": "trigger",
+      "name": "client_service_decision_guard"
+    },
+    {
+      "type": "trigger",
+      "name": "client_service_request_review_guard"
+    },
+    {
+      "type": "trigger",
+      "name": "client_shift_feedback_guard"
+    },
+    {
+      "type": "trigger",
       "name": "client_terms_approval_guard"
     },
     {
@@ -3112,6 +3224,10 @@ export const readinessSchema = {
     },
     {
       "type": "trigger",
+      "name": "client_terms_approve_audit"
+    },
+    {
+      "type": "trigger",
       "name": "client_terms_cancel_delivery"
     },
     {
@@ -3121,6 +3237,14 @@ export const readinessSchema = {
     {
       "type": "trigger",
       "name": "client_terms_files_no_update"
+    },
+    {
+      "type": "trigger",
+      "name": "client_terms_upload_audit"
+    },
+    {
+      "type": "trigger",
+      "name": "client_terms_withdraw_audit"
     },
     {
       "type": "trigger",

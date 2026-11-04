@@ -11,7 +11,7 @@ import {fetchRecipient} from '../app/lib/destination-evidence.ts';
 const runtime={PAYSTACK_TEST_SECRET_KEY:'sk_test_offline_body_fixture',PAYSTACK_LIVE_SECRET_KEY:'sk_live_offline_body_fixture'};
 const req=(body,signature='0'.repeat(128))=>new Request('https://example.test/callback',{method:'POST',body,duplex:'half',headers:{'x-paystack-signature':signature}});
 const receivers=[
- ['collection',(r,db)=>receiveBookingCollectionWebhook(r,db,runtime,'test')],
+ ['collection',(r,db)=>receiveBookingCollectionWebhook(r,db,runtime,'live')],
  ['live transfer',(r,db)=>receiveLiveTransferWebhook(r,db,runtime)],
  ['employee',(r,db)=>receiveEmployeeTransferWebhook(r,db,runtime)],
  ['partner',(r,db)=>receivePartnerTransferWebhook(r,db,runtime)],
@@ -37,7 +37,7 @@ test('finance limits count streamed UTF8 bytes and retain original raw HMAC byte
 });
 
 for(const [name,receive] of receivers)test(`${name} still accepts exact chunked signed bytes and rejects altered bytes`,async()=>{
- const mode=name==='live transfer'?'live':'test';
+ const mode=name==='live transfer'||name==='collection'?'live':'test';
  const payload=JSON.stringify({event:name==='collection'?'charge.success':'transfer.success',data:{domain:mode,reference:'unknown-offline',description:'é financier'}});
  const bytes=new TextEncoder().encode(payload),signature=createHmac('sha512',runtime[mode==='live'?'PAYSTACK_LIVE_SECRET_KEY':'PAYSTACK_TEST_SECRET_KEY']).update(bytes).digest('hex');
  let reads=0;

@@ -7,7 +7,7 @@ import {
   defaultRiskInput,
   officerShiftEconomicsForRoster,
   quoteBooking,
-} from "../app/lib/pilot-pricing.ts";
+} from "../app/lib/pricing.ts";
 
 const base = {
   serviceType: "Unarmed",

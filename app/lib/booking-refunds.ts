@@ -9,13 +9,13 @@ import {collectionKey,type CollectionRuntime} from './booking-collections';
 import {refundEvidence} from './booking-refund-evidence';
 import type {SigningActor} from './production-signing';
 export type RefundRuntime=CollectionRuntime&{LOKD_LIVE_REFUNDS_ENABLED?:string;LOKD_LIVE_PAYMENTS_ENABLED?:string};
-type Source={reference:string;order_id:string;mode:'test'|'live';provider_id:string;amount_minor:number;applicant_id:string;source_json:string};
+type Source={reference:string;order_id:string;mode:'live';provider_id:string;amount_minor:number;applicant_id:string;source_json:string};
 type Case={id:string;reference:string;payload_json:string;payload_hash:string;operator_id:string;user_id:string};
 const text=(v:unknown,label:string,max=1200)=>{if(typeof v!=='string'||v.trim().length<3||v.length>max)throw new SignupError(`Provide ${label}.`);return v.trim();};
 const providerRefundId=(v:unknown)=>{if(typeof v!=='string'||!/^[1-9][0-9]{0,39}$/.test(v))throw new SignupError('Use the exact positive numeric provider refund ID.');return v;};
 const digest=(v:unknown)=>{if(typeof v!=='string'||!/^[a-f0-9]{64}$/.test(v))throw new SignupError('Provide the exact SHA-256 evidence digest.');return v;};
 const auth=()=>operationsMfaRequired()?'mfa_verified':'owner_mfa_exception';
-async function source(db:D1Database,reference:unknown){const s=await db.prepare('SELECT * FROM booking_refund_sources WHERE reference=?').bind(text(reference,'the original collection reference',200)).first<Source>();if(!s||!s.provider_id)throw new SignupError('A bound collected transaction is required. Uncertain collection remains held.',409);return s;}
+async function source(db:D1Database,reference:unknown){const s=await db.prepare("SELECT * FROM booking_refund_sources WHERE reference=? AND mode='live'").bind(text(reference,'the original collection reference',200)).first<Source>();if(!s||!s.provider_id)throw new SignupError('A bound collected transaction is required. Uncertain collection remains held.',409);return s;}
 async function authority(db:D1Database,a:SigningActor,h:Headers,s:Source,maker?:string){if(a.userId===s.applicant_id)throw new SignupError('Collection participants cannot resolve their own refund.',403);return productionOperatorControl(db,a,h,'funding.verify',s.amount_minor,maker);}
 async function api(secret:string,path:string,transport:typeof fetch,body?:unknown){try{const response=await fetchWithoutRedirect(transport,'https://api.paystack.co'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+secret,'content-type':'application/json'},signal:AbortSignal.timeout(20000),...(body?{body:JSON.stringify(body)}:{})});const p=await readFinanceProviderJson(response);if(!response.ok||p.status!==true)throw Error('unavailable');return p.data;}catch{throw new SignupError(body?'Refund submission is uncertain. Keep its original claim; do not submit again.':'Provider evidence is unavailable. Keep the original refund held.',503);}}
 async function watermark(db:D1Database,reference:string){return (await db.prepare('SELECT count(*) AS n FROM booking_collection_recoveries WHERE reference=?').bind(reference).first<{n:number}>())!.n;}
@@ -24,14 +24,15 @@ export const refundPageDatasets=['sources','cases','receipts','observations','st
 type RefundDataset=typeof refundPageDatasets[number];
 export type RefundPageOptions={pageSize?:number;dataset?:RefundDataset;cursor?:string;reference?:string;caseId?:string; cursors?:Partial<Record<RefundDataset,string>>};
 const pageCursor=(value:unknown)=>btoa(encodeURIComponent(JSON.stringify(value))).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
-export async function readBookingRefunds(db:D1Database,a:SigningActor,h:Headers,runtime:RefundRuntime={},options:RefundPageOptions={},liveOnly=false){
+export async function readBookingRefunds(db:D1Database,a:SigningActor,h:Headers,runtime:RefundRuntime={},options:RefundPageOptions={},_liveOnly=true){
+ void _liveOnly;
  const account=await productionOperatorControl(db,a,h,'funding.verify',0),size=options.pageSize??50;
  if(!Number.isSafeInteger(size)||size<1||size>100||options.dataset!==undefined&&!refundPageDatasets.includes(options.dataset)||options.cursor!==undefined&&!options.dataset)throw new SignupError('Choose a valid refund page.',400);
  if(options.reference!==undefined&&(typeof options.reference!=='string'||!options.reference||options.reference.length>200))throw new SignupError('Choose a valid collection reference.',400);
  if(options.caseId!==undefined&&(typeof options.caseId!=='string'||!options.caseId||options.caseId.length>200))throw new SignupError('Choose a valid refund case.',400);
  if(options.dataset&&Object.keys(options.cursors??{}).some(key=>key!==options.dataset)||options.cursor!==undefined&&options.dataset&&options.cursors?.[options.dataset]!==undefined)throw new SignupError('Choose one cursor for this refund list.',400);
  const policy=OPERATOR_ACTION_POLICIES.find(p=>p.actionCode==='funding.verify')!;
- const actorHash=await agreementHash(JSON.stringify([a.userId,a.email.toLowerCase(),options.reference??null,options.caseId??null,...(liveOnly?['live']:[])]));
+ const actorHash=await agreementHash(JSON.stringify([a.userId,a.email.toLowerCase(),options.reference??null,options.caseId??null,'live']));
  const after=(dataset:RefundDataset)=>{
   const token=options.dataset===dataset?options.cursor??options.cursors?.[dataset]:options.cursors?.[dataset];
   if(token===undefined)return null;
@@ -60,7 +61,7 @@ export async function readBookingRefunds(db:D1Database,a:SigningActor,h:Headers,
  for(const dataset of options.dataset?[options.dataset]:refundPageDatasets){
   const spec=definitions[dataset],key=after(dataset),values:(string|number)[]=[a.userId,policy.maxAmountCents??Number.MAX_SAFE_INTEGER,account.id,policy.requiredRole];
   let sql=`SELECT ${spec.select},${spec.key} AS __page_key FROM ${spec.from} WHERE ${allowed}`;
-  if(liveOnly)sql+=" AND s.mode='live'";
+  sql+=" AND s.mode='live'";
   if(options.reference!==undefined){sql+=' AND s.reference=?';values.push(options.reference);}
   if(options.caseId!==undefined){sql+=dataset==='sources'||dataset==='states'?' AND EXISTS(SELECT 1 FROM booking_refund_cases lookup WHERE lookup.id=? AND lookup.reference=s.reference)':' AND c.id=?';values.push(options.caseId);}
   if(key!==null){sql+=` AND ${spec.key}${spec.asc?'>':'<'}?`;values.push(key);}

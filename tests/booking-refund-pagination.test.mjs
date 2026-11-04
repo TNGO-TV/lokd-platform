@@ -85,15 +85,15 @@ test('refund GET validates pagination and retains private no-store responses',as
  }finally{if(oldDb===undefined)delete env.DB;else env.DB=oldDb;if(oldAccess===undefined)delete env.LOKD_ROLE_ACCESS_JSON;else env.LOKD_ROLE_ACCESS_JSON=oldAccess;f.close();}
 });
 
-test('production refund pages filter test history before paging and bind cursors to the mode boundary',async()=>{
+test('refund pages always exclude non-production history before paging',async()=>{
  const f=fixture();try{
   for(let i=0;i<130;i++)f.insert('000-test-'+String(i).padStart(4,'0'),100,'other-user','test');
   for(const dataset of Object.keys(keys)){
    const page=await readBookingRefunds(f.db,actor,headers(),{}, {dataset,pageSize:7},true);
    assert.equal(page[keys[dataset]].length,7);assert.equal(JSON.stringify(page).includes('000-test'),false);
-   const historical=await readBookingRefunds(f.db,actor,headers(),{}, {dataset,reference:'000-test-0000'});assert.equal(historical[keys[dataset]].length,1);
+   const historical=await readBookingRefunds(f.db,actor,headers(),{}, {dataset,reference:'000-test-0000'});assert.equal(historical[keys[dataset]].length,0);
    const hidden=await readBookingRefunds(f.db,actor,headers(),{}, {dataset,reference:'000-test-0000'},true);assert.equal(hidden[keys[dataset]].length,0);
-   await assert.rejects(()=>readBookingRefunds(f.db,actor,headers(),{}, {dataset,cursor:page.pagination[dataset].nextCursor}),e=>e.status===400);
+   const next=await readBookingRefunds(f.db,actor,headers(),{}, {dataset,cursor:page.pagination[dataset].nextCursor});assert.equal(JSON.stringify(next).includes('000-test'),false);
   }
   assert.equal(f.database.prepare("SELECT count(*) n FROM booking_refund_sources WHERE mode='test'").get().n,130);
  }finally{f.close();}

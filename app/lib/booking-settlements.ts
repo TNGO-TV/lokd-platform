@@ -19,13 +19,14 @@ async function list(secret:string,path:string,transport:typeof fetch){
  }
  throw new SignupError('Settlement exceeds the review limit.',409);
 }
-export async function readBookingSettlements(db:D1Database,actor:SigningActor,liveOnly=false){
- const rows=await db.prepare(`SELECT s.id,s.reference,s.mode,s.settlement_id,s.payload_hash,s.prepared_at,s.expires_at,d.decision,d.note ${actor.operations?',s.payload_json,s.prepared_by':''} FROM booking_settlement_reviews s LEFT JOIN booking_settlement_decisions d ON d.review_id=s.id JOIN booking_collection_requests r ON r.reference=s.reference WHERE ${liveOnly?"r.mode='live'":"1=1"} ${actor.operations?'':'AND r.applicant_id=?'} ORDER BY s.prepared_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId])).all();
- const recoveries=await db.prepare(`SELECT h.reference,h.source,h.event,h.created_at ${actor.operations?',h.detail':''} FROM booking_collection_recoveries h JOIN booking_collection_requests r ON r.reference=h.reference WHERE ${liveOnly?"r.mode='live'":"1=1"} ${actor.operations?'':'AND r.applicant_id=?'} ORDER BY h.created_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId])).all();return {settlementReviews:rows.results,collectionRecoveries:recoveries.results};
+export async function readBookingSettlements(db:D1Database,actor:SigningActor,_liveOnly=true){
+ void _liveOnly;
+ const rows=await db.prepare(`SELECT s.id,s.reference,s.mode,s.settlement_id,s.payload_hash,s.prepared_at,s.expires_at,d.decision,d.note ${actor.operations?',s.payload_json,s.prepared_by':''} FROM booking_settlement_reviews s LEFT JOIN booking_settlement_decisions d ON d.review_id=s.id JOIN booking_collection_requests r ON r.reference=s.reference WHERE r.mode='live' ${actor.operations?'':'AND r.applicant_id=?'} ORDER BY s.prepared_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId])).all();
+ const recoveries=await db.prepare(`SELECT h.reference,h.source,h.event,h.created_at ${actor.operations?',h.detail':''} FROM booking_collection_recoveries h JOIN booking_collection_requests r ON r.reference=h.reference WHERE r.mode='live' ${actor.operations?'':'AND r.applicant_id=?'} ORDER BY h.created_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId])).all();return {settlementReviews:rows.results,collectionRecoveries:recoveries.results};
 }
 export async function operateBookingSettlement(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,runtime:CollectionRuntime={},transport:typeof fetch=fetch){
  if(!actor.operations)throw new SignupError('Operations access required.',403);
- const reference=text(input.reference,'the collection reference',200),r=await db.prepare('SELECT * FROM booking_collection_requests WHERE reference=?').bind(reference).first<Saved>();if(!r)throw new SignupError('Collection not found.',404);
+ const reference=text(input.reference,'the collection reference',200),r=await db.prepare('SELECT * FROM booking_collection_requests WHERE reference=?').bind(reference).first<Saved>();if(!r||r.mode!=='live')throw new SignupError('Collection not found.',404);
  const op=await productionOperatorControl(db,actor,headers,'funding.verify',r.amount_minor);
  if(actor.userId===r.applicant_id)throw new SignupError('Independent collection review is required.',403);
  const now=new Date().toISOString();
@@ -43,7 +44,7 @@ export async function operateBookingSettlement(db:D1Database,actor:SigningActor,
   await db.prepare("INSERT OR IGNORE INTO booking_collection_recoveries VALUES(?,?,'operations','manual_hold',?,?,?,?)").bind(crypto.randomUUID(),reference,await agreementHash(JSON.stringify({note,actor:actor.userId})),JSON.stringify({note,action:'hold_pending_investigation',moneyMoved:false}),actor.userId,now).run();return {held:true,moneyMoved:false};
  }
  if(input.action==='prepare_settlement'){
-  if(r.revision!==input.revision||!r.provider_id||!['matched_test','matched_live_unsettled'].includes(r.state)||!await currentCollection(db,r))throw new SignupError('Verify the current collection before settlement review.',409);
+  if(r.revision!==input.revision||!r.provider_id||r.state!=='matched_live_unsettled'||!await currentCollection(db,r))throw new SignupError('Verify the current collection before settlement review.',409);
   if(await db.prepare('SELECT id FROM booking_collection_recoveries WHERE reference=? LIMIT 1').bind(reference).first())throw new SignupError('Collection has unresolved recovery evidence. Funding remains held.',409);
   if(input.bankReceiptReviewed!==true)throw new SignupError('Review the actual bank receipt for this full provider settlement.');
   const bankReference=text(input.bankReference,'the bank receipt evidence reference',200),bankNote=text(input.note,'the settlement reconciliation findings');
@@ -56,7 +57,7 @@ export async function operateBookingSettlement(db:D1Database,actor:SigningActor,
   const evidence=settlementEvidence(binding(r),r.provider_id,candidates[0],transactions,input.bankAmountMinor);if(!evidence)throw new SignupError('Settlement, transaction totals, fees or the bank receipt do not agree.',409);
   const verified=collectionTransaction((await api(secret,'/transaction/verify/'+encodeURIComponent(reference),transport)).data);
   const events=(await db.prepare("SELECT event,transaction_json FROM booking_collection_evidence WHERE reference=? AND source='webhook'").bind(reference).all<{event:string;transaction_json:string}>()).results.map(e=>({event:e.event,transaction:JSON.parse(e.transaction_json) as CollectionTransaction|null}));
-  if(collectionEvidenceDecision(binding(r),verified,events,r.provider_id,await currentCollection(db,r))!==(r.mode==='live'?'matched_live_unsettled':'matched_test')||JSON.stringify(verified)!==JSON.stringify(evidence.transaction))throw new SignupError('Current transaction and settlement evidence disagree.',409);
+  if(collectionEvidenceDecision(binding(r),verified,events,r.provider_id,await currentCollection(db,r))!=='matched_live_unsettled'||JSON.stringify(verified)!==JSON.stringify(evidence.transaction))throw new SignupError('Current transaction and settlement evidence disagree.',409);
   const payload=JSON.stringify({binding:binding(r),evidence,bankReference,bankNote,bankReceiptReviewed:true}),hash=await agreementHash(payload),id='SET-'+crypto.randomUUID();
   await db.prepare('INSERT INTO booking_settlement_reviews VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(id,reference,r.revision,r.mode,settlementId,r.provider_id,payload,hash,op.id,now,new Date(Date.now()+30*60000).toISOString()).run();return {settlementReviewId:id,funded:false};
  }
@@ -67,7 +68,7 @@ export async function operateBookingSettlement(db:D1Database,actor:SigningActor,
  if(await db.prepare('SELECT id FROM booking_settlement_decisions WHERE review_id=?').bind(s.id).first())return {alreadyDecided:true};
  const approving=input.action==='approve_settlement',note=text(input.note,'the independent settlement decision');
  if(approving){if(input.evidenceReviewed!==true||s.expires_at<=now||r.revision!==s.collection_revision||!await currentCollection(db,r))throw new SignupError('Review fresh settlement and bank evidence against the current collection.',409);if(r.mode==='live')collectionKey(runtime,r.mode);}
- const decision=approving?r.mode==='live'?'cleared_live':'confirmed_test':'rejected',payload=JSON.parse(s.payload_json) as {evidence:SettlementEvidence};
+ const decision=approving?'cleared_live':'rejected',payload=JSON.parse(s.payload_json) as {evidence:SettlementEvidence};
  const statements=[db.prepare('INSERT INTO booking_settlement_decisions VALUES(?,?,?,?,?,?,?)').bind(crypto.randomUUID(),s.id,decision,actor.userId,op.id,note,now)];
  if(decision==='cleared_live'){
   const e=payload.evidence;

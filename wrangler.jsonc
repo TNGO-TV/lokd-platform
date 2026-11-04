@@ -4,6 +4,14 @@
 // Purpose and provisioning status: docs/production-secrets.md. Values never belong here.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // Client account and delivery secrets (set with wrangler secret; never store values here):
+  // CLERK_SECRET_KEY, RESEND_API_KEY, LOKD_EMAIL_FROM, LOKD_QUOTE_EMAIL_FROM, LOKD_TEAM_EMAIL.
+  // Existing SMTP delivery, when selected with LOKD_EMAIL_PROVIDER: LOKD_SMTP_HOST,
+  // LOKD_SMTP_PORT, LOKD_SMTP_USER, LOKD_SMTP_PASSWORD, LOKD_SMTP_RELAY_URL,
+  // LOKD_SMTP_RELAY_TOKEN. Operations access: LOKD_OPERATIONS_ACCESS_JSON, LOKD_OWNER_ACCESS_JSON.
+  // Client payment configuration remains disconnected: PAYSTACK_LIVE_SECRET_KEY,
+  // LOKD_COLLECTION_LIVE_ENABLED, LOKD_EFT_BANK_NAME, LOKD_EFT_ACCOUNT_NAME,
+  // LOKD_EFT_ACCOUNT_NUMBER, LOKD_EFT_BRANCH_CODE, LOKD_EFT_ACCOUNT_TYPE.
   "name": "lokd-security",
   "account_id": "d7000a5708fdeb67be6e21ee40e9105e",
   "compatibility_date": "2026-09-14",

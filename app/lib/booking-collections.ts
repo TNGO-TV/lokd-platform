@@ -8,14 +8,17 @@ import {currentClientReview} from './production-client-review';
 import type {SigningActor} from './production-signing';
 import {collectionMetadata,collectionTransaction,collectionEvidenceDecision,type CollectionBinding,type CollectionTransaction} from './collection-evidence';
 
-export type CollectionRuntime={PAYSTACK_TEST_SECRET_KEY?:string;PAYSTACK_LIVE_SECRET_KEY?:string;LOKD_COLLECTION_LIVE_ENABLED?:string};
-export type Saved={reference:string;order_id:string;client_id:string;applicant_id:string;case_id:string;case_version:number;source_hash:string;amount_minor:number;currency:'ZAR';mode:'test'|'live';state:string;provider_id:string|null;checkout_url:string|null;prepared_by:string;approved_by:string|null;revision:number};
+export type CollectionRuntime={PAYSTACK_LIVE_SECRET_KEY?:string;LOKD_COLLECTION_LIVE_ENABLED?:string};
+export type Saved={reference:string;order_id:string;client_id:string;applicant_id:string;case_id:string;case_version:number;source_hash:string;amount_minor:number;currency:'ZAR';mode:'live';state:string;provider_id:string|null;checkout_url:string|null;prepared_by:string;approved_by:string|null;revision:number};
 const reference=(v:unknown)=>{if(typeof v!=='string'||!v||v.length>200)throw new SignupError('Choose the saved collection reference.');return v;};
 export const binding=(r:Saved):CollectionBinding=>({reference:r.reference,orderId:r.order_id,clientId:r.client_id,applicantId:r.applicant_id,caseId:r.case_id,caseVersion:r.case_version,sourceHash:r.source_hash,amountMinor:r.amount_minor,currency:r.currency,mode:r.mode});
-export function collectionKey(runtime:CollectionRuntime,mode:'test'|'live',receiving=false){
- const value=mode==='test'?runtime.PAYSTACK_TEST_SECRET_KEY:runtime.PAYSTACK_LIVE_SECRET_KEY;
- if(!receiving&&mode==='live'&&runtime.LOKD_COLLECTION_LIVE_ENABLED!=='true')throw new SignupError('Live booking collection awaits provider and operating acceptance.',423);
- if(!value?.startsWith(mode==='test'?'sk_test_':'sk_live_'))throw new SignupError('This collection mode is not configured.',503);return value;
+export function collectionKey(configuration:object,mode:string,receiving=false){
+ const runtime=configuration as CollectionRuntime;
+ if(mode!=='live')throw new SignupError('Only live payments are supported.',422);
+ const value=runtime.PAYSTACK_LIVE_SECRET_KEY;
+ if(!value?.startsWith('sk_live_'))throw new SignupError('Card payments are unavailable. Please contact LOKD for payment assistance.',503);
+ if(!receiving&&runtime.LOKD_COLLECTION_LIVE_ENABLED!=='true')throw new SignupError('Card payments are unavailable. Please contact LOKD for payment assistance.',503);
+ return value;
 }
 async function orderSource(db:D1Database,id:string){
  return db.prepare(`SELECT p.id,p.client_id,p.case_version,l.owner_user_id,l.case_id,p.request_hash,
@@ -28,8 +31,9 @@ async function orderSource(db:D1Database,id:string){
  AND c.environment='production' AND c.integrity_state='production_verified'`).bind(id).first<{id:string;client_id:string;case_version:number;owner_user_id:string;case_id:string;request_hash:string;client_price_cents:number;funding_status:string;status:string;contact_email:string}>();
 }
 export async function currentCollection(db:D1Database,r:Saved){const s=await orderSource(db,r.order_id);return Boolean(s&&s.client_id===r.client_id&&s.case_version===r.case_version&&s.owner_user_id===r.applicant_id&&s.case_id===r.case_id&&s.request_hash===r.source_hash&&s.client_price_cents===r.amount_minor&&!['cancelled','completed'].includes(s.status)&&await currentClientReview(db,r.client_id));}
-export async function readBookingCollections(db:D1Database,actor:SigningActor,liveOnly=false){
- const rows=await db.prepare(`SELECT r.* FROM booking_collection_requests r WHERE ${liveOnly?"r.mode='live'":"1=1"} ${actor.operations?'':"AND r.applicant_id=? AND EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='client' AND l.entity_id=r.client_id AND l.owner_user_id=?)"} ORDER BY r.created_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId,actor.userId])).all<Saved>();
+export async function readBookingCollections(db:D1Database,actor:SigningActor,_liveOnly=true){
+ void _liveOnly;
+ const rows=await db.prepare(`SELECT r.* FROM booking_collection_requests r WHERE r.mode='live' ${actor.operations?'':"AND r.applicant_id=? AND EXISTS(SELECT 1 FROM production_entity_links l WHERE l.kind='client' AND l.entity_id=r.client_id AND l.owner_user_id=?)"} ORDER BY r.created_at DESC LIMIT 100`).bind(...(actor.operations?[]:[actor.userId,actor.userId])).all<Saved>();
  const collections=[];for(const r of rows.results){const evidence=actor.operations?(await db.prepare('SELECT source,event,payload_hash,transaction_json,recorded_at FROM booking_collection_evidence WHERE reference=? ORDER BY rowid DESC LIMIT 100').bind(r.reference).all()).results:[];
  collections.push({...r,checkout_url:actor.operations?null:r.checkout_url,evidence,current:await currentCollection(db,r)});}
  return {collections,collectionRequiresSettlement:true};
@@ -45,14 +49,14 @@ export async function operateBookingCollection(db:D1Database,actor:SigningActor,
   const s=await orderSource(db,reference(input.orderId));
   if(!s||!await currentClientReview(db,s.client_id)||s.case_version!==input.caseVersion||s.funding_status!=='unfunded'||s.status!=='draft'||!Number.isSafeInteger(s.client_price_cents)||s.client_price_cents<=0)throw new SignupError('Choose a current approved client and an unfunded draft service order.',409);
   if(s.owner_user_id===actor.userId)throw new SignupError('Independent Operations preparation is required.',403);
-  if(input.mode!=='test'&&input.mode!=='live')throw new SignupError('Choose an explicit provider mode.');
+  if(input.mode!=='live')throw new SignupError('Only live payments are supported.');
   const maker=await productionOperatorControl(db,actor,headers,'funding.verify',s.client_price_cents);
   const old=await db.prepare('SELECT reference FROM booking_collection_requests WHERE order_id=? AND mode=?').bind(s.id,input.mode).first();if(old)return {alreadyPrepared:true,funded:false};
   await db.prepare(`INSERT INTO booking_collection_requests(reference,order_id,client_id,applicant_id,case_id,case_version,source_hash,amount_minor,currency,mode,state,prepared_by,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,'ZAR',?,'prepared',?,1,?,?)`).bind('lokd-booking-'+crypto.randomUUID(),s.id,s.client_id,s.owner_user_id,s.case_id,s.case_version,s.request_hash,s.client_price_cents,input.mode,maker.id,now,now).run();
   return {prepared:true,funded:false};
  }
  const r=await db.prepare('SELECT * FROM booking_collection_requests WHERE reference=?').bind(reference(input.reference)).first<Saved>();
- if(!r||!actor.operations&&r.applicant_id!==actor.userId)throw new SignupError('Collection not found for this account.',404);
+ if(!r||r.mode!=='live'||!actor.operations&&r.applicant_id!==actor.userId)throw new SignupError('Collection not found for this account.',404);
  if(input.revision!==r.revision)throw new SignupError('Collection changed. Refresh the saved reference.',409);
  if(action==='approve_collection'){
   const reviewer=await productionOperatorControl(db,actor,headers,'funding.verify',r.amount_minor,r.prepared_by);
@@ -63,7 +67,8 @@ export async function operateBookingCollection(db:D1Database,actor:SigningActor,
  if(action==='initialize_collection'){
   if(actor.operations||actor.userId!==r.applicant_id)throw new SignupError('Only the bound client may open this checkout.',403);
   if(!await currentCollection(db,r))throw new SignupError('The client or service order changed. Operations review is required.',409);
-  if(r.state!=='approved')return {savedReference:r.reference,repeatDispatch:false,funded:false};
+  if(r.state==='awaiting_checkout'&&r.checkout_url)return {savedReference:r.reference,checkoutUrl:r.checkout_url,funded:false};
+  if(r.state!=='approved')throw new SignupError('This payment is being checked. Refresh before trying again.',409);
   const secret=collectionKey(runtime,r.mode);
   // Claim durably before the network request. A crash leaves initializing and can only verify.
   const claim=await db.prepare("UPDATE booking_collection_requests SET state='initializing',revision=revision+1,updated_at=? WHERE reference=? AND revision=? AND state='approved'").bind(now,r.reference,r.revision).run();if(!claim.meta.changes)throw new SignupError('Checkout already started. Refresh.',409);
@@ -74,6 +79,7 @@ export async function operateBookingCollection(db:D1Database,actor:SigningActor,
    await db.prepare("UPDATE booking_collection_requests SET state='awaiting_checkout',checkout_url=?,revision=revision+1,updated_at=? WHERE reference=? AND state='initializing'").bind(url.href,new Date().toISOString(),r.reference).run();
   }catch{
    await db.prepare("UPDATE booking_collection_requests SET state='initialization_unknown',revision=revision+1,updated_at=? WHERE reference=? AND state='initializing'").bind(new Date().toISOString(),r.reference).run();
+   throw new SignupError('We could not confirm checkout. LOKD will check this payment before you try again.',503);
   }
   return {savedReference:r.reference,funded:false};
  }
@@ -93,7 +99,7 @@ export async function operateBookingCollection(db:D1Database,actor:SigningActor,
  return {state:stored!.state,funded:false,settled:false};
 }
 
-export async function receiveBookingCollectionWebhook(request:Request,db:D1Database,runtime:CollectionRuntime,mode:'test'|'live'){
+export async function receiveBookingCollectionWebhook(request:Request,db:D1Database,runtime:object,mode:string){
  const secret=collectionKey(runtime,mode,true),signature=request.headers.get('x-paystack-signature')??'';
  if(!/^[a-f0-9]{128}$/i.test(signature))throw new SignupError('Invalid webhook signature.',401);
  const raw=await readFinanceWebhookBytes(request);

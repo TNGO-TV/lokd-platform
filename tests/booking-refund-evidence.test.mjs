@@ -10,4 +10,5 @@ test('refund evidence binds explicit mode, integer money and exact transaction w
 test('malformed mode, amount, identity, terminal status and bank deduction fail closed',()=>{
  for(const change of [{domain:'test'},{domain:undefined},{amount:0},{amount:12.2},{amount:'12000'},{id:0},{id:Number.MAX_SAFE_INTEGER+1},{transaction:null},{currency:'NGN'},{status:'success'},{merchant_note:undefined},{fully_deducted:'true'},{deducted_amount:12001},{deducted_amount:-1}])assert.equal(refundEvidence({...raw,...change}),null,JSON.stringify(change));
  for(const value of [null,[],12,'processed'])assert.equal(refundEvidence(value),null);
+ assert.equal(refundEvidence({...raw,domain:'test',transaction:{id:99,domain:'test'}}),null);
 });
