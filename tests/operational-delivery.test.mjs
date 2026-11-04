@@ -3,7 +3,6 @@ import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
-import { env } from "cloudflare:workers";
 import {runOperationalDelivery} from '../app/lib/operational-delivery.ts';
 import {configuredEmailProvider} from '../app/lib/operational-provider.ts';
 
