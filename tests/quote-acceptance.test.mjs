@@ -280,7 +280,7 @@ test('mail configuration errors preserve the action and can be retried after con
  } finally {x.database.close();}
 });
 
-test('mail replays reuse the frozen Resend body and key; SMTP uncertainty is never replayed',async()=>{
+test('mail replays reuse the frozen Resend body and key; no other provider can send',async()=>{
  const x=await setup();
  try {
   const {quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),id='quote:issued:client:'+quoteId,requests=[];
@@ -290,12 +290,10 @@ test('mail replays reuse the frozen Resend body and key; SMTP uncertainty is nev
   assert.equal((await deliverClientNotifications(x.db,runtime,options)).pending,1);
   fail=false;assert.equal((await deliverClientNotifications(x.db,runtime,options)).sent,1);
   assert.deepEqual(requests[0],requests[1]);
-  const smtpId='local-smtp-notice';
-  await clientNotificationStatement(x.db,{id:smtpId,sourceId:quoteId,ownerUserId:x.applicant.userId,recipient:'client',subject:'LOKD update',text:'Your account update is saved.'}).run();
-  const smtp={LOKD_EMAIL_PROVIDER:'smtp',LOKD_EMAIL_FROM:'quotes@example.test',LOKD_SMTP_HOST:'mail.example.test',LOKD_SMTP_USER:'fixture-user',LOKD_SMTP_PASSWORD:'in-process-credential',LOKD_SMTP_RELAY_URL:'https://relay.example.test/smtp',LOKD_SMTP_RELAY_TOKEN:'in-process-credential'};
-  let calls=0;const smtpOptions={ids:[smtpId],verifiedEmail:async()=>x.applicant.email,transport:async()=>{calls++;throw Error('lost response');}};
-  assert.equal((await deliverClientNotifications(x.db,smtp,smtpOptions)).uncertain,1);
-  await deliverClientNotifications(x.db,smtp,smtpOptions);assert.equal(calls,1);
+  const other='local-unsupported-provider';
+  await clientNotificationStatement(x.db,{id:other,sourceId:quoteId,ownerUserId:x.applicant.userId,recipient:'client',subject:'LOKD update',text:'Your account update is saved.'}).run();
+  let calls=0;const otherOptions={ids:[other],verifiedEmail:async()=>x.applicant.email,transport:async()=>{calls++;return Response.json({id:'never'});}};
+  assert.equal((await deliverClientNotifications(x.db,{...runtime,LOKD_EMAIL_PROVIDER:'smtp'},otherOptions)).sent,0);assert.equal(calls,0);
  } finally {x.database.close();}
 });
 

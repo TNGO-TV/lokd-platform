@@ -63,9 +63,8 @@ export async function deliverClientNotifications(db: D1Database, runtime: Client
   const filters = `${options.ownerUserId ? ' AND owner_user_id=?' : ''}${ids ? ` AND id IN (${ids.map(() => '?').join(',')})` : ''}`;
   const values = [...options.ownerUserId ? [options.ownerUserId] : [], ...ids ?? []];
   // Resend retries reuse the frozen request within its 24-hour deduplication window.
-  // A lost SMTP worker can have sent the message; SMTP has no safe replay.
   await db.prepare(`UPDATE client_notification_jobs SET state=CASE WHEN attempts>0 AND
-    (json_extract(request_json,'$._lokdProvider')!='resend' OR first_attempt_at<=? OR attempts>=5) THEN 'uncertain' ELSE 'retry_wait' END,
+    (first_attempt_at<=? OR attempts>=5) THEN 'uncertain' ELSE 'retry_wait' END,
     lease_token=NULL,lease_expires_at=NULL,last_error='Email submission was interrupted. Operations must check any submitted message.',updated_at=?
     WHERE state='dispatching' AND lease_expires_at<=?${filters}`).bind(new Date(clock()-23*3600000).toISOString(),now(), now(), ...values).run();
   const jobs = await db.prepare(`SELECT * FROM client_notification_jobs WHERE state IN ('queued','blocked','retry_wait')
@@ -82,11 +81,8 @@ export async function deliverClientNotifications(db: D1Database, runtime: Client
     let attempted = false;
     let provider: string | null = null;
     try {
-      if(runtime.LOKD_EMAIL_PROVIDER==='smtp'||runtime.LOKD_EMAIL_PROVIDER==='cpanel')provider=configuredEmailProvider(runtime);
-      else if(!runtime.LOKD_EMAIL_PROVIDER||runtime.LOKD_EMAIL_PROVIDER==='resend'){
-        if(!runtime.RESEND_API_KEY)throw new DeliveryError('resend_key_not_configured');
-        provider='resend';
-      }else throw new DeliveryError('email_provider_not_configured');
+      if(!runtime.RESEND_API_KEY)throw new DeliveryError('resend_key_not_configured');
+      provider=configuredEmailProvider(runtime);
       const sender = runtime.LOKD_QUOTE_EMAIL_FROM ?? runtime.LOKD_EMAIL_FROM;
       if (!emailValid(sender)) throw new DeliveryError('email_sender_not_configured');
       const recipient = job.recipient_type === 'operations' ? runtime.LOKD_TEAM_EMAIL : await resolveEmail(job.owner_user_id);
@@ -98,7 +94,6 @@ export async function deliverClientNotifications(db: D1Database, runtime: Client
       await db.prepare(`UPDATE client_notification_jobs SET request_json=COALESCE(request_json,?),recipient=COALESCE(recipient,?),
         attempts=attempts+1,first_attempt_at=COALESCE(first_attempt_at,?),updated_at=? WHERE id=? AND lease_token=?`).bind(JSON.stringify(body), recipient, now(),now(), job.id, lease).run();
       attempted = true;
-      // SMTP Message-ID is bounded and stable across process restarts.
       const messageId = 'client-' + Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(job.id))), b => b.toString(16).padStart(2, '0')).join('');
       let providerId:string;
       if(provider==='resend'){

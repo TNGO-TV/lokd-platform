@@ -6,6 +6,7 @@ import handler from "vinext/server/app-router-entry";
 import { runDueAssignmentRevalidations } from "../app/lib/assignment-activation-server";
 import { runDataRetention, runPlatformMaintenance } from "../app/lib/platform-jobs";
 import { runOperationalDelivery } from "../app/lib/operational-delivery";
+import { deliverClientNotifications } from "../app/lib/quote-notifications";
 import type { OperationalRuntime } from "../app/lib/operational-provider";
 import { authenticateRequest } from "./identity";
 import { recordVerifiedIdentity } from "../app/lib/identity-directory";
@@ -85,6 +86,8 @@ const worker = {
     ctx.waitUntil(runDataRetention(env.DB).then(() => undefined));
     ctx.waitUntil(runDueAssignmentRevalidations(env.DB, "system:scheduled-revalidation").then(() => undefined));
     ctx.waitUntil(runOperationalDelivery(env.DB, env).then(() => undefined));
+    // Client emails queued by bookings, quotes, agreements and billing send and retry here.
+    ctx.waitUntil(deliverClientNotifications(env.DB, env).then(() => undefined));
   },
 };
 

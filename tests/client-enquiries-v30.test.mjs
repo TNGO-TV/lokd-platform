@@ -268,7 +268,7 @@ test('an older operations-only receipt never claims a visitor confirmation',asyn
  const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
  try{
   const first=await(await submitClientEnquiry(publicRequest(validEnquiry),db,{runtime:{}})).json();
-  database.prepare("UPDATE operational_delivery_jobs SET state='sent',request_json=?,provider_id='smtp:existing' WHERE source_id=? AND kind='enquiry_email'").run(JSON.stringify({_lokdProvider:'cpanel_smtp',to:['operations@example.test']}),first.reference);
+  database.prepare("UPDATE operational_delivery_jobs SET state='sent',request_json=?,provider_id='resend:existing' WHERE source_id=? AND kind='enquiry_email'").run(JSON.stringify({_lokdProvider:'cpanel_smtp',to:['operations@example.test']}),first.reference);
   const replay=await(await submitClientEnquiry(publicRequest(validEnquiry),db,{runtime:{}})).json();
   assert.equal(replay.reference,first.reference);assert.equal(replay.saved,true);assert.equal(replay.confirmationEmailSent,false);
  }finally{database.close();}
