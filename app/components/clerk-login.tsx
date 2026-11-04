@@ -6,7 +6,7 @@ import { useState } from "react";
 function SignOutAction() {
   const clerk = useClerk();
   const [failed, setFailed] = useState(false);
-  return <><button className="public-button public-button--dark" onClick={() => {
+  return <><button className="public-button public-button--primary" onClick={() => {
     setFailed(false);
     void clerk.signOut({ redirectUrl: "/sign-in" }).catch(() => setFailed(true));
   }}>Sign out</button>{failed && <p role="alert">Sign-out failed. Please try again.</p>}</>;

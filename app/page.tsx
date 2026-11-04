@@ -1,19 +1,20 @@
-import Link from 'next/link';
-import OfficerPresenceMap from './components/officer-presence-map';
-import {headers} from 'next/headers';
-import {redirect} from 'next/navigation';
-import {PublicFooter,PublicHeader,PublicLaunchBar} from './components/public-site-shell';
-import {CLIENT_PORTAL_URL,OFFICER_PORTAL_URL,requestHostname,workspaceRoleForHost} from './lib/public-site';
-export const dynamic='force-dynamic';
-export default async function Home(){
- const role=workspaceRoleForHost(requestHostname((await headers()).get('host')));
- if(role)redirect(role==='operations'?'/ops':`/${role}`);
- return <main className="public-home"><PublicLaunchBar/><PublicHeader active="home"/>
-  <section className="public-hero"><div className="public-hero-copy"><p className="public-kicker">Security services · Officer applications</p><h1>Security for your site.<br/><span>A clear next step.</span></h1><p>Request an assessment for unarmed guarding, armed security or VIP protection in South Africa.</p><div className="public-hero-actions"><Link className="public-button public-button--lime" href="/contact">Request security <b>→</b></Link><Link className="public-button public-button--outline" href="/join">Apply as an officer <b>→</b></Link></div></div>
-  <aside className="public-account-card" aria-labelledby="account-heading"><p className="public-kicker">Your account</p><h2 id="account-heading">Already applied?</h2><p>Sign in with your application email to track your progress and respond to Operations.</p><div className="public-account-actions"><a className="public-button public-button--dark" href={CLIENT_PORTAL_URL}>Client sign in</a><a className="public-button public-button--outline-dark" href={OFFICER_PORTAL_URL}>Officer sign in</a></div><div className="public-account-training"><p>New to security?</p><Link href="/join?path=training">Explore training pathways →</Link></div></aside></section>
+import Image from "next/image";
+import Link from "next/link";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { PublicHeader, PublicFooter, PublicProofPoints, PublicServices, PublicSteps, OfficerRecruitment } from "./components/public-site-shell";
+import { publicMetadata, requestHostname, workspaceRoleForHost } from "./lib/public-site";
 
-  <section className="public-path-section"><div className="public-section-heading"><p className="public-kicker">Choose your path</p><h2>Client enquiry or officer application.</h2><p>Start with the route that matches what you need next.</p></div><div className="public-path-grid"><article className="path-card path-card--qualified"><span className="path-number">01</span><h3>Clients</h3><p>Tell us about your site, hours and security needs. Operations will assess your enquiry and explain the next steps.</p><Link href="/contact">Start a security enquiry →</Link></article><article className="path-card path-card--training"><span className="path-number">02</span><h3>Officers and training applicants</h3><p>Apply with your experience and registration details, or register your interest in training.</p><Link href="/join">Start an application →</Link></article></div><p className="path-disclaimer">Enquiries and applications are open. An application does not guarantee work. Service starts only after terms are agreed and Operations confirms readiness.</p></section>
-  <OfficerPresenceMap/>
-  <PublicFooter/>
- </main>;
+export const dynamic = "force-dynamic";
+export const metadata = publicMetadata("Security on your terms", "Book PSIRA-verified officers for guarding, armed security and VIP protection in Johannesburg. Get a clear quote for a shift, event or ongoing cover.", "/");
+
+export default async function Home() {
+  const role = workspaceRoleForHost(requestHostname((await headers()).get("host")));
+  if (role) redirect(role === "operations" ? "/ops" : "/" + role);
+  return <div className="public-site"><PublicHeader /><main id="main-content" tabIndex={-1}>
+    <section className="public-home-hero"><div className="public-home-copy"><p className="public-kicker">Johannesburg · South Africa</p><h1>Security.<br />On your terms.</h1><p>Book verified security officers for a shift, an event or ongoing cover, with LOKD keeping you connected every step of the way.</p><div className="public-actions"><Link className="public-button public-button--primary" href="/quote">Get a quote <span aria-hidden="true">↗</span></Link><Link className="public-secondary-link" href="/security-services">Explore our services <span aria-hidden="true">→</span></Link></div><p className="public-hero-caption">Unarmed guarding · Armed security · VIP protection</p></div><div className="public-hero-art" aria-hidden="true"><div className="public-orbit public-orbit--outer" /><div className="public-orbit public-orbit--inner" /><Image src="/brand/lokd-mark.svg" width={518} height={521} alt="" unoptimized priority /><span className="public-art-label">People. Protection. Peace of mind.</span></div></section>
+    <section className="public-proof-section" aria-label="The LOKD promise"><PublicProofPoints /></section>
+    <PublicServices /><PublicSteps /><OfficerRecruitment />
+    <section className="public-section public-section--white public-location"><div><p className="public-kicker">Local cover</p><h2>Built for Johannesburg.</h2><p>From workplaces and residential properties to events and personal protection, tell us where you need cover and we will help you plan it.</p></div><Link href="/locations/johannesburg">Security in Johannesburg <span aria-hidden="true">↗</span></Link></section>
+  </main><PublicFooter /></div>;
 }

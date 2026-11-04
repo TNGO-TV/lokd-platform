@@ -3,56 +3,25 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  CLIENT_PORTAL_URL,
-  OFFICER_PORTAL_URL,
-  OPERATIONS_PORTAL_URL,
-  COMPANY_NAME,
-  HEAD_OFFICE_ADDRESS,
-  BOOKINGS_EMAIL,
-  QUOTES_EMAIL,
-  INVOICE_EMAIL,
-} from "../lib/public-site";
+import type { ReactNode } from "react";
+import { COMPANY_NAME, BOOKINGS_EMAIL, QUOTES_EMAIL } from "../lib/public-site";
 
 export type PublicSection = "home" | "services" | "industries" | "clients" | "officers" | "about" | "contact";
-
-const navigation: Array<{ label: string; href: string; section: PublicSection }> = [
-  { label: "Services", href: "/security-services", section: "services" },
-  { label: "Armed security", href: "/armed-security", section: "services" },
-  { label: "VIP protection", href: "/vip-protection", section: "services" },
-  { label: "Industries", href: "/industries", section: "industries" },
-  { label: "For clients", href: "/clients", section: "clients" },
-  { label: "For officers", href: "/officers", section: "officers" },
-  { label: "About", href: "/about", section: "about" },
-];
-
-export function PublicLaunchBar() {
-  return <aside className="team-review-bar" aria-label="Security enquiries">
-    <div><strong>South Africa · Enquiries open</strong><span>Unarmed guarding · Armed security · VIP protection</span></div>
-    <nav><Link href="/contact">Plan a site</Link><a href={CLIENT_PORTAL_URL}>Client portal</a></nav>
-  </aside>;
-}
-
-function SocialLinks() {
-  return <div className="public-social-links" role="group" aria-label="LOKD social media">
-    <a href="https://www.facebook.com/lokdsecurity/" aria-label="LOKD on Facebook" rel="me"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 22v-9h3l.5-3H14V8c0-.9.3-1.5 1.6-1.5H18V3.2c-.4-.1-1.8-.2-3.3-.2C11.5 3 10 4.9 10 8v2H7v3h3v9z"/></svg></a>
-    <a href="https://www.youtube.com/@lokdsecurity" aria-label="LOKD on YouTube" rel="me"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fillRule="evenodd" d="M21.6 6.2c-.2-.8-.8-1.4-1.6-1.6C18.6 4.2 12 4.2 12 4.2s-6.6 0-8 .4c-.8.2-1.4.8-1.6 1.6C2 7.6 2 12 2 12s0 4.4.4 5.8c.2.8.8 1.4 1.6 1.6 1.4.4 8 .4 8 .4s6.6 0 8-.4c.8-.2 1.4-.8 1.6-1.6.4-1.4.4-5.8.4-5.8s0-4.4-.4-5.8ZM10 8.5v7l6-3.5z"/></svg></a>
-    <a href="https://www.instagram.com/lokdsecurity/" aria-label="LOKD on Instagram" rel="me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
-  </div>;
-}
+const navigation = [
+  ["Security services", "/security-services"], ["For clients", "/clients"],
+  ["For officers", "/officers"], ["About", "/about"], ["Contact", "/contact"],
+] as const;
 
 export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
   const pathname = usePathname();
-  return <header className="public-header" data-section={active}>
-    <Link className="public-logo" href="/" aria-label="LOKD home"><Image width={1096} height={333} unoptimized loading="eager" style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" /></Link>
-    <nav aria-label="Main navigation">
-      {navigation.map((item) => <Link aria-current={pathname === item.href ? "page" : undefined} href={item.href} key={item.href}>{item.label}</Link>)}
-    </nav>
-    <details className="public-mobile-menu"><summary>Menu</summary><nav aria-label="Mobile navigation">{navigation.map(item => <Link aria-current={pathname === item.href ? "page" : undefined} href={item.href} key={item.href} onClick={event => event.currentTarget.closest("details")?.removeAttribute("open")}>{item.label}</Link>)}</nav></details>
-    <div className="public-header-actions">
-      <SocialLinks/>
-      <a className="public-login" href={CLIENT_PORTAL_URL}>Client login</a>
-      <Link className="public-button public-button--dark" href="/contact">Get a security plan</Link>
+  const links = navigation.map(([label, href]) => <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} onClick={event => event.currentTarget.closest("details")?.removeAttribute("open")}>{label}</Link>);
+  return <header className="public-header-wrap" data-section={active}>
+    <a className="public-skip" href="#main-content">Skip to content</a>
+    <div className="public-header">
+      <Link className="public-logo" href="/" aria-label="LOKD home"><Image src="/lokd-logo-reverse.svg" width={2192} height={665} unoptimized priority alt="LOKD" /></Link>
+      <nav aria-label="Main navigation">{links}</nav>
+      <div className="public-header-actions"><Link className="public-login" href="/sign-in">Sign in</Link><Link className="public-button public-button--primary" href="/quote">Get a quote</Link></div>
+      <details className="public-mobile-menu"><summary>Menu</summary><nav aria-label="Mobile navigation">{links}<Link href="/sign-in">Sign in</Link><Link href="/quote">Get a quote</Link></nav></details>
     </div>
   </header>;
 }
@@ -60,11 +29,54 @@ export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
 export function PublicFooter() {
   return <footer className="site-footer">
     <div className="site-footer-grid">
-      <div className="site-footer-company"><Link href="/" aria-label="LOKD home"><Image width={1096} height={333} unoptimized style={{height:"auto"}} src="/lokd-logo.png" alt="LOKD" /></Link><strong>{COMPANY_NAME}</strong><address><b>Head Office</b>{HEAD_OFFICE_ADDRESS}</address><SocialLinks /></div>
-      <nav aria-label="Contact LOKD"><h2>Contact</h2><a href={`mailto:${BOOKINGS_EMAIL}`}><span>Bookings &amp; general enquiries</span>{BOOKINGS_EMAIL}</a><a href={`mailto:${QUOTES_EMAIL}`}><span>Quotes</span>{QUOTES_EMAIL}</a><a href={`mailto:${INVOICE_EMAIL}`}><span>Invoices</span>{INVOICE_EMAIL}</a><Link href="/contact">Send an enquiry</Link></nav>
-      <nav aria-label="LOKD services"><h2>Explore</h2><Link href="/security-services">Security services</Link><Link href="/armed-security">Armed security</Link><Link href="/vip-protection">VIP protection</Link><Link href="/about">About LOKD</Link><Link href="/compliance">Compliance</Link><Link href="/training">Training</Link></nav>
-      <nav aria-label="LOKD workspaces"><h2>Portals</h2><a href={CLIENT_PORTAL_URL}>Client portal</a><a href={OFFICER_PORTAL_URL}>Officer portal</a><a href={OPERATIONS_PORTAL_URL}>Operations portal</a><Link href="/join">Officer applications</Link></nav>
+      <div className="site-footer-company"><Link href="/" aria-label="LOKD home"><Image src="/lokd-logo-reverse.svg" width={2192} height={665} unoptimized alt="LOKD" /></Link><p>Security for your shift, event or everyday cover.</p><p>Johannesburg, South Africa</p></div>
+      <nav aria-label="Security services"><h2>Find your cover</h2><Link href="/security-services">Unarmed guarding</Link><Link href="/armed-security">Armed security</Link><Link href="/vip-protection">VIP protection</Link><Link href="/industries">Industries</Link><Link href="/locations/johannesburg">Johannesburg</Link><Link href="/quote">Get a quote</Link></nav>
+      <nav aria-label="About LOKD"><h2>LOKD</h2><Link href="/about">About us</Link><Link href="/compliance">Our checks</Link><Link href="/verify">Verify a Passport</Link><Link href="/officers">For officers</Link><Link href="/training">Training</Link><Link href="/join">Apply as an officer</Link></nav>
+      <nav aria-label="Contact and accounts"><h2>Talk to us</h2><Link href="/contact">Contact LOKD</Link><a href={"mailto:" + QUOTES_EMAIL}>{QUOTES_EMAIL}</a><a href={"mailto:" + BOOKINGS_EMAIL}>{BOOKINGS_EMAIL}</a><Link href="/sign-in?return_to=%2Fclient">Client sign in</Link><Link href="/sign-in?return_to=%2Fofficer">Officer sign in</Link><Link href="/sign-in?return_to=%2Fops">Operations sign in</Link></nav>
     </div>
-    <div className="site-footer-bottom"><small>© {new Date().getFullYear()} {COMPANY_NAME}</small><nav aria-label="Legal"><Link href="/terms-and-conditions">Terms and conditions</Link><Link href="/terms">Terms of use</Link><Link href="/privacy">Privacy notice</Link></nav></div>
+    <div className="site-footer-bottom"><small>© {new Date().getFullYear()} {COMPANY_NAME}</small><nav aria-label="Legal"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms and conditions</Link></nav></div>
   </footer>;
+}
+
+export const publicProofPoints = [
+  ["PSIRA-verified officers", "Registration checked before an officer is approved for work."],
+  ["Identity checks", "The person arriving is matched to their verified officer profile."],
+  ["Live check-in", "Follow attendance and shift updates through your LOKD account."],
+  ["Clear quotes", "Agree the duties, dates and cost before confirming your cover."],
+] as const;
+
+export function PublicProofPoints() {
+  return <ul className="public-proof-grid">{publicProofPoints.map(([title, description]) => <li key={title}><span aria-hidden="true">✓</span><div><h2>{title}</h2><p>{description}</p></div></li>)}</ul>;
+}
+
+export function PublicSteps({ officer = false }: { officer?: boolean }) {
+  const steps = officer ? [
+    ["Apply online", "Share your contact details, location, registration and work interests."],
+    ["Complete your checks", "Follow your application and complete identity and PSIRA checks in your account."],
+    ["Find your shifts", "Once approved, view suitable work, accept shifts and check in through the LOKD app."],
+  ] : [
+    ["Tell us what you need", "Choose a service and share your site, dates, hours and number of officers."],
+    ["Agree your quote", "We review your requirements and send a clear scope and price for you to accept."],
+    ["Stay in the loop", "See your assigned officers, check-ins and service updates in your client account."],
+  ];
+  return <section className="public-section"><div className="public-section-heading"><p className="public-kicker">How it works</p><h2>{officer ? "Your next shift starts here." : "From a request to reliable cover."}</h2></div><ol className="public-three-grid public-steps">{steps.map(([title, description], index) => <li key={title}><span className="public-step-number">0{index + 1}</span><h3>{title}</h3><p>{description}</p></li>)}</ol></section>;
+}
+
+export function PublicServices() {
+  return <section className="public-section public-section--white"><div className="public-section-heading"><p className="public-kicker">Choose your cover</p><h2>The right people for the job.</h2><p>Book for a single shift, an event or ongoing cover in Johannesburg.</p></div><div className="public-three-grid public-service-grid">
+    <article><span className="public-service-icon" aria-hidden="true">01</span><h3>Unarmed guarding</h3><p>Access control, patrols and a visible security presence at your property or event.</p><Link href="/security-services">Explore guarding <span aria-hidden="true">↗</span></Link></article>
+    <article><span className="public-service-icon" aria-hidden="true">02</span><h3>Armed security</h3><p>Armed cover matched to your site, assessed risks and the duties you need.</p><Link href="/armed-security">Explore armed security <span aria-hidden="true">↗</span></Link></article>
+    <article><span className="public-service-icon" aria-hidden="true">03</span><h3>VIP protection</h3><p>Personal protection for your movements, appearances and private engagements.</p><Link href="/vip-protection">Explore VIP protection <span aria-hidden="true">↗</span></Link></article>
+  </div></section>;
+}
+
+export function OfficerRecruitment() {
+  return <section className="public-recruitment"><div><p className="public-kicker">For security officers</p><h2>Your skills. Your next opportunity.</h2><p>Apply to LOKD, complete your verification and find suitable shifts through the app.</p></div><Link className="public-button public-button--primary" href="/join">Apply as an officer <span aria-hidden="true">↗</span></Link></section>;
+}
+
+export function PublicPage({ active, eyebrow, title, promise, officer = false, children }: { active?: PublicSection; eyebrow: string; title: string; promise: string; officer?: boolean; children: ReactNode }) {
+  return <div className="public-site"><PublicHeader active={active} /><main id="main-content" tabIndex={-1}>
+    <section className="public-page-hero"><p className="public-kicker">{eyebrow}</p><h1>{title}</h1><p>{promise}</p><Link className="public-button public-button--primary" href={officer ? "/join" : "/quote"}>{officer ? "Apply as an officer" : "Get a quote"}<span aria-hidden="true">↗</span></Link></section>
+    <section className="public-proof-section" aria-label="The LOKD promise"><PublicProofPoints /></section>{children}
+  </main><PublicFooter /></div>;
 }

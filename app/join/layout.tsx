@@ -1,11 +1,3 @@
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Security Officer Applications and Training",
-  description: "Register interest in the LOKD South Africa officer pathway, security training, Unarmed posts and separately verified Armed or VIP protection work.",
-  alternates: { canonical: "/join" },
-};
-
-export default function JoinLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return children;
-}
+import { publicMetadata } from "../lib/public-site";
+export const metadata = publicMetadata("Apply as a security officer", "Apply to join LOKD in South Africa. Share your details, PSIRA registration and work interests to start your officer application.", "/join");
+export default function JoinLayout({ children }: { children: React.ReactNode }) { return children; }

@@ -1,41 +1,14 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { PublicFooter, PublicHeader, PublicLaunchBar } from "../components/public-site-shell";
+import { PublicPage, PublicSteps, PublicServices, OfficerRecruitment } from "../components/public-site-shell";
+import { publicMetadata } from "../lib/public-site";
 import { ServiceJsonLd } from "../components/seo-json-ld";
-import { indicativeSingleShiftPrice } from "../lib/specialist-pricing";
-
-export const metadata: Metadata = {
-  title: "Security Services in South Africa",
-  description: "Unarmed guarding, armed site and movement protection, and VIP protection services in South Africa with verified readiness and controlled operations.",
-  alternates: { canonical: "/security-services" },
-};
-
-const controls = [
-  ["01", "Assess the site", "We record the risk, access points, operating hours, incidents, people and outcome before defining the post."],
-  ["02", "Approve the post", "Duties, exclusions, escalation contacts, hours, equipment and reporting are agreed in controlled post orders."],
-  ["03", "Build an eligible roster", "Identity, PSiRA status, grade, training, site induction, Passport, rest and schedule evidence must all pass."],
-  ["04", "Operate and prove", "Attendance, relief, incidents, exceptions and client review remain connected to the exact service record."],
-];
-
-function money(cents: number) {
-  return new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR", maximumFractionDigits: 0 }).format(cents / 100);
-}
-
-export default function SecurityServicesPage() {
-  return <main className="public-home marketing-page">
-    <ServiceJsonLd name="LOKD Security Services" description="Unarmed, armed and VIP protection services for approved South Africa assignments." path="/security-services" />
-    <PublicLaunchBar /><PublicHeader active="services" />
-    <section className="marketing-hero marketing-hero--dark"><div><p className="public-kicker"><i /> Security matched to the assessed risk</p><h1>A managed protection service.<br /><span>Not an anonymous guard hour.</span></h1><p>LOKD combines the officer with the controls around the work: a clear risk brief, approved orders, verified role eligibility, Operations supervision, relief planning and evidence of service.</p><div className="public-hero-actions"><Link className="public-button public-button--lime" href="/contact">Request an assessment <b>→</b></Link><Link className="public-button public-button--outline" href="/clients">Read the client guide <b>→</b></Link></div></div><aside className="marketing-control-card"><span>CONTROLLED SERVICE RANGE</span><h2>Unarmed · Armed · VIP</h2><dl><div><dt>Area</dt><dd>Assessed nationwide</dd></div><div><dt>Pricing</dt><dd>Quoted after assessment</dd></div><div><dt>Commercial</dt><dd>Agreed before start</dd></div><div><dt>Control</dt><dd>Operations-managed</dd></div></dl><p>Specialist work remains subject to service-specific regulatory, competency, equipment, partner and operational evidence.</p></aside></section>
-
-    <section className="marketing-section"><header><p className="public-kicker">Service portfolio</p><h2>Three categories. Seven controlled models.</h2><p>Starting figures are planning indications with no VAT charged for an ordinary single shift. Site, risk, calendar, team, movement and supplier inputs determine the final approved quote.</p></header><div className="service-portfolio-grid"><article><span>UNARMED</span><h3>Scheduled fixed-site guarding</h3><p>Access, patrol, observation and reporting against approved post orders.</p><strong>From {money(indicativeSingleShiftPrice("standard_unarmed").totalCents)}</strong><Link href="/clients">Client model →</Link></article><article><span>ARMED</span><h3>Site &amp; movement protection</h3><p>Separate static and movement models with Armed evidence and equipment controls.</p><strong>From {money(indicativeSingleShiftPrice("armed_static").totalCents)}</strong><Link href="/armed-security">Armed services →</Link></article><article><span>VIP</span><h3>Close protection &amp; drivers</h3><p>Unarmed or Armed protection, protective driving and coordinated teams.</p><strong>From {money(indicativeSingleShiftPrice("vip_unarmed").totalCents)}</strong><Link href="/vip-protection">VIP protection →</Link></article></div></section>
-
-    <section className="marketing-section"><header><p className="public-kicker">The operating model</p><h2>Four controls before service becomes a promise.</h2><p>An enquiry can progress only when LOKD can define the job, control the risk and support the roster properly.</p></header><div className="marketing-card-grid">{controls.map(([number,title,text]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{text}</p></article>)}</div></section>
-
-    <section className="marketing-split marketing-split--lime"><div><p className="public-kicker">Scope discipline</p><h2>Clear duties make a stronger service.</h2><p>Every fixed post, movement or protection detail is governed by its approved orders. A client cannot expand duties, change a route or add an Armed requirement informally during a shift.</p></div><div className="marketing-check-list"><p>Defined outcome and exclusions</p><p>Site, route or itinerary controls</p><p>Role-matched officer readiness</p><p>Incident reporting and escalation</p><p>Relief and continuity planning</p><p>Client service evidence</p></div></section>
-
-    <section className="marketing-section marketing-section--dark"><header><p className="public-kicker">Commercial boundary</p><h2>Clear terms. Controlled deployment.</h2><p>An officer offer or deployment is released only after the quotation, service period and readiness checks are confirmed. LOKD activates service against an agreed plan—not an informal request.</p></header><div className="marketing-rule-row"><span>Risk assessed</span><b>→</b><span>Quote accepted</span><b>→</b><span>Terms confirmed</span><b>→</b><span>Roster eligible</span></div></section>
-
-    <section className="marketing-cta"><p className="public-kicker">Start with the site</p><h2>Tell us what must be protected and when.</h2><Link className="public-button public-button--dark" href="/contact">Request a security plan <b>→</b></Link></section>
-    <PublicFooter />
-  </main>;
+export const metadata = publicMetadata("Security services in Johannesburg", "Explore unarmed guarding, armed security and VIP protection in Johannesburg. Book verified officers for a shift, an event or ongoing cover.", "/security-services");
+const cards = [["Access control","A visible presence at entrances, with visitor and vehicle checks based on your site instructions."],["Patrols and observation","Scheduled patrols, attention to agreed areas and reporting of incidents or concerns."],["Events and temporary cover","Plan security around arrival times, access points and the hours you need officers on site."]] as const;
+export default function Page() {
+  return <PublicPage active="services" eyebrow="Security services" title="Cover for the way you live and work." promise="Choose verified security officers for your property, event or personal protection, with a quote built around your requirements.">
+    <ServiceJsonLd name="Security services in Johannesburg" description="Explore unarmed guarding, armed security and VIP protection in Johannesburg. Book verified officers for a shift, an event or ongoing cover." path="/security-services" />
+    <section className="public-section public-section--white"><div className="public-section-heading"><h2>Unarmed guarding that fits your day.</h2></div><div className="public-detail-grid">{cards.map(([title, description]) => <article key={title}><h3>{title}</h3><p>{description}</p></article>)}</div></section>
+    <PublicServices />
+    <PublicSteps />
+    <OfficerRecruitment />
+  </PublicPage>;
 }

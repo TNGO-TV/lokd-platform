@@ -10,6 +10,7 @@ export type OperationalRuntime = {
  LOKD_EMAIL_FROM?:string;
  LOKD_QUOTE_EMAIL_FROM?:string;
  CLERK_SECRET_KEY?:string;
+ RESEND_API_KEY?:string;
  LOKD_SMTP_HOST?:string;
  LOKD_SMTP_PORT?:string;
  LOKD_SMTP_USER?:string;
@@ -35,11 +36,12 @@ export async function providerJson(url:string,init:RequestInit,transport:typeof 
  catch{throw new DeliveryError('provider_response_unknown','retry_wait');}
 }
 // Freeze provider selection inside the immutable request, never in mutable runtime alone.
-// Product email is SMTP (mail.lokd.co.za) or disabled. cpanel is the same SMTP submission.
+// Each saved delivery keeps its selected provider and immutable message.
 function smtpConfigured(runtime:OperationalRuntime){
  return Boolean(runtime.LOKD_SMTP_HOST&&runtime.LOKD_SMTP_USER&&runtime.LOKD_SMTP_PASSWORD&&(runtime.LOKD_SMTP_RELAY_URL?runtime.LOKD_SMTP_RELAY_TOKEN:true));
 }
 export function configuredEmailProvider(runtime:OperationalRuntime){
+ if(runtime.LOKD_EMAIL_PROVIDER==='resend'&&runtime.RESEND_API_KEY)return 'resend';
  if((runtime.LOKD_EMAIL_PROVIDER==='smtp'||runtime.LOKD_EMAIL_PROVIDER==='cpanel')&&smtpConfigured(runtime))return runtime.LOKD_EMAIL_PROVIDER;
  throw new DeliveryError('email_provider_not_configured');
 }
@@ -168,12 +170,40 @@ async function sendSmtpEmail(runtime:OperationalRuntime,id:string,body:Record<st
 export async function sendEmail(runtime:OperationalRuntime,id:string,body:Record<string,unknown>,transport:typeof fetch){
  const provider=configuredEmailProvider(runtime);
  if(body._lokdProvider!==provider)throw new DeliveryError('email_provider_changed');
+ if(provider==='resend'){
+  const ids=[await sendResend(runtime,id,body,transport)];
+  if(body._lokdConfirmation){
+   if(typeof body._lokdConfirmation!=='object'||Array.isArray(body._lokdConfirmation))throw new DeliveryError('email_confirmation_invalid');
+   ids.push(await sendResend(runtime,id+':confirmation',body._lokdConfirmation as Record<string,unknown>,transport));
+  }
+  return 'resend:'+ids.join(':');
+ }
  return sendSmtpEmail(runtime,id,body,transport);
 }
-export async function emailReceipt(runtime:OperationalRuntime,body:Record<string,unknown>,id:string,providerId:string,recipient:string,transport:typeof fetch){
+async function sendResend(runtime:OperationalRuntime,id:string,body:Record<string,unknown>,transport:typeof fetch){
+ if(!runtime.RESEND_API_KEY||!emailValid(body.from)||!Array.isArray(body.to)||body.to.length!==1||!emailValid(body.to[0])||typeof body.subject!=='string'||!body.subject.trim()||body.subject.length>200||/[\r\n]/.test(body.subject)||typeof body.text!=='string'||body.text.length>20000||!id||id.length>200)throw new DeliveryError('email_request_invalid');
+ const result=await providerJson('https://api.resend.com/emails',{method:'POST',headers:{authorization:'Bearer '+runtime.RESEND_API_KEY,'content-type':'application/json','idempotency-key':id},body:JSON.stringify({from:body.from,to:body.to,subject:body.subject,text:body.text})},transport);
+ if(typeof result.id!=='string'||!/^[a-zA-Z0-9_-]{1,100}$/.test(result.id))throw new DeliveryError('email_acceptance_unknown','uncertain');
+ return result.id;
+}
+export async function emailReceipt(runtime:OperationalRuntime,body:Record<string,unknown>,id:string,providerId:string,recipient:string,transport:typeof fetch):Promise<'sent'|'delivered'|'failed'>{
  void id;void recipient;void transport;
  const provider=configuredEmailProvider(runtime);
  if(body._lokdProvider!==provider)throw new DeliveryError('email_provider_changed');
+ if(provider==='resend'){
+  const ids=providerId.split(':');
+  if(ids.shift()!=='resend'||ids.length!==(body._lokdConfirmation?2:1)||ids.some(value=>!/^[a-zA-Z0-9_-]{1,100}$/.test(value)))throw new DeliveryError('email_receipt_mismatch');
+  const messages=[body,...(body._lokdConfirmation?[body._lokdConfirmation as Record<string,unknown>]:[])];
+  let delivered=true;
+  for(let index=0;index<ids.length;index++){
+   const result=await providerJson('https://api.resend.com/emails/'+ids[index],{headers:{authorization:'Bearer '+runtime.RESEND_API_KEY}},transport);
+   const expected=messages[index];
+   if(result.id!==ids[index]||result.from!==expected.from||!Array.isArray(result.to)||JSON.stringify(result.to)!==JSON.stringify(expected.to)||result.subject!==expected.subject)throw new DeliveryError('email_receipt_mismatch');
+   if(['bounced','complained','failed','suppressed'].includes(String(result.last_event)))throw new DeliveryError('email_delivery_failed','failed');
+   delivered=delivered&&['delivered','opened','clicked'].includes(String(result.last_event));
+  }
+  return delivered?'delivered':'sent';
+ }
  // SMTP has no later receipt API. Acceptance ends at SMTP 250 / relay provider id.
  if(typeof providerId!=='string'||!providerId.startsWith('smtp:'))throw new DeliveryError('email_receipt_mismatch');
  return 'sent';

@@ -12,12 +12,11 @@ export default function PrivacyPage() {
   return (
     <LegalDocument
       kicker="Your information"
-      title="Privacy notice."
+      title="Privacy notice"
       lede={`This Privacy Notice explains how ${LEGAL_OPERATOR} processes personal information for LOKD Security, in accordance with the Protection of Personal Information Act 4 of 2013 (POPIA) and other applicable law. It covers lokd.co.za and the related online services described below.`}
-      asideNote="Privacy requests can be sent to the postal address above. This notice is not legal advice."
+      asideNote="Send privacy requests to the postal address above."
       links={[
-        { href: "/terms", label: "Website terms of use" },
-        { href: "/terms-and-conditions", label: "Service terms and conditions" },
+        { href: "/terms", label: "Terms and conditions" },
       ]}
       sections={[
         {
@@ -130,7 +129,7 @@ export default function PrivacyPage() {
           body: (
             <>
               <p>We may update this notice by posting a new version with a new effective date. The date at the top of this page identifies the current notice.</p>
-              <p>Write to {LEGAL_OPERATOR} at <span>{LEGAL_NOTICES_ADDRESS}</span>. Related documents: <Link href="/terms">Terms of Use</Link> and <Link href="/terms-and-conditions">Terms and Conditions</Link>.</p>
+              <p>Write to {LEGAL_OPERATOR} at <span>{LEGAL_NOTICES_ADDRESS}</span>. Related documents: <Link href="/terms">Terms of Use</Link> and <Link href="/terms">Terms and Conditions</Link>.</p>
             </>
           ),
         },

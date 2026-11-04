@@ -27,11 +27,9 @@ test("renders the canonical public LOKD launch identity with real signup entry p
     /^text\/html\b/i,
   );
   const html = await response.text();
-  assert.match(html, /<title>LOKD Security \| Guarding, Armed Security and VIP Protection<\/title>/i);
+  assert.match(html, /<title>Security on your terms \| LOKD<\/title>/i);
   assert.match(html, /<link rel="canonical" href="https:\/\/lokd\.co\.za\/?"\/>/i);
-  assert.match(html, /Sign in with your application email to track your progress/i);
-  assert.match(html, /An application does not guarantee work\./i);
-  assert.match(html, /Service starts only after terms are agreed and Operations confirms readiness\./i);
+  assert.match(html, /Book verified security officers/i);
 
   // Check actual rendered anchors, not labels that could survive with broken
   // destinations or occur only in the serialized React payload.
@@ -40,25 +38,17 @@ test("renders the canonical public LOKD launch identity with real signup entry p
     text: content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(),
   }));
   for (const [href, label] of [
-    ["/contact", "Request security"],
-    ["/join", "Apply as an officer"],
-    ["/contact", "Start a security enquiry"],
-    ["/join", "Start an application"],
-    ["/join?path=training", "Explore training pathways"],
-    ["https://portal.lokd.co.za", "Client sign in"],
-    ["https://officers.lokd.co.za", "Officer sign in"],
-    ["/security-services", "Security services"],
-    ["/armed-security", "Armed security"],
-    ["/vip-protection", "VIP protection"],
-    ["/privacy", "Privacy notice"],
-    ["/terms-and-conditions", "Terms and conditions"],
+    ["/quote", "Get a quote"], ["/join", "Apply as an officer"],
+    ["/security-services", "Explore our services"], ["/armed-security", "Armed security"],
+    ["/vip-protection", "VIP protection"], ["/privacy", "Privacy"], ["/terms", "Terms and conditions"],
+    ["/sign-in?return_to=%2Fclient", "Client sign in"], ["/sign-in?return_to=%2Fofficer", "Officer sign in"],
   ]) {
     assert.ok(links.some((link) => link.href === href && link.text.startsWith(label)), `${label} must link to ${href}`);
   }
   assert.doesNotMatch(html, /<dd>R800<\/dd>|Prototype offer|Passport preview ready/i);
   assert.doesNotMatch(html, /Starter Project/i);
-  assert.doesNotMatch(html, /Verified officers/);
-  assert.match(html, /Security services · Officer applications/);
+  assert.match(html, /PSIRA-verified officers/);
+  assert.match(html, /Johannesburg/);
 });
 
 test('built Worker rejects rehearsal paths and router aliases on production despite forged test host headers',async()=>{

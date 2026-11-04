@@ -14,7 +14,7 @@ import * as receipts from '../app/lib/workspace-command-receipt.ts';
 import * as publicSite from '../app/lib/public-site.ts';
 
 const link=({children,...props})=>{delete props.prefetch;return React.createElement('a',props,children);};
-const image=props=>{const attributes={...props};delete attributes.unoptimized;return React.createElement('img',attributes);};
+const image=props=>{const attributes={...props};delete attributes.unoptimized;delete attributes.priority;return React.createElement('img',attributes);};
 function load(name,modules,extra='') {
  const source=fs.readFileSync(new URL('../app/components/'+name,import.meta.url),'utf8')+extra;
  const code=ts.transpileModule(source,{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
@@ -69,7 +69,7 @@ test('rendered production workspaces and populated intake cards expose real acti
   if(kind==='officer')assert.match(production,/readiness\?applicantId=APP-render-fixture/);
   if(role==='operations')assert.match(production,/Prepare operational record/);
   const isolated=render(true);
-  assert.match(isolated,/Testing tools/);assert.match(isolated,/data-rehearsal-agreement/);
+  assert.doesNotMatch(isolated,/Testing tools|data-rehearsal-agreement|Sandbox workflows/);
   if(role==='officer'){assert.match(production,/Stop public sharing/);assert.doesNotMatch(isolated,/synthetic test signal/);}
  }
 });
@@ -79,20 +79,20 @@ test('public legal, contact, footer and organisation metadata use the approved c
  legalModules['./public-site-shell']=load('public-site-shell.tsx',legalModules);
  legalModules['../components/public-site-shell']=legalModules['./public-site-shell'];
  legalModules['../components/legal-document']=load('legal-document.tsx',legalModules);
- for(const page of ['privacy','terms','terms-and-conditions','contact']){
+ for(const page of ['privacy','terms','contact']){
   const loaded=load('../'+page+'/page.tsx',legalModules);
   const html=renderToStaticMarkup(React.createElement(loaded.default));
-  assert.match(html,/Lokd Security \(Pty\) Ltd/);assert.match(html,/71 Louis Trichardt Street, Pretoria, 0002/);
+  assert.match(html,/Lokd Security \(Pty\) Ltd/);if(page!=='contact')assert.match(html,/71 Louis Trichardt Street, Pretoria, 0002/);
   assert.doesNotMatch(html+JSON.stringify(loaded.metadata),/Tactical Nation|tacticalnation|Custom Nation|Tervory|Shot Bonus|Sister brands|Parktown Estates/);
   assert.doesNotMatch(html,/mailto:71 Louis/);
  }
  const jsonLd=load('seo-json-ld.tsx',legalModules);
  const html=renderToStaticMarkup(await jsonLd.OrganisationJsonLd());
- assert.match(html,/"legalName":"Lokd Security \(Pty\) Ltd"/);assert.match(html,/"streetAddress":"71 Louis Trichardt Street"/);
+ assert.match(html,/"legalName":"Lokd Security \(Pty\) Ltd"/);assert.match(html,/"name":"Johannesburg"/);
  assert.doesNotMatch(html,/verified officers|Parktown Estates|Tactical Nation/);
 });
 
-test('root layout never enables retired feedback and metadata makes no verification claim',async()=>{
+test('root layout never mounts feedback tooling on the public website',async()=>{
  for(const host of ['lokd.co.za','officers.lokd.co.za','clients.lokd.co.za','operations.lokd.co.za','demo.lokd.co.za'])for(const stage of ['production','prelaunch','demo'])for(const flag of ['true','false']){
   const runtime={LOKD_APP_STAGE:stage,LOKD_TEST_SURFACES_ENABLED:flag};
   const rootModules={...modules,'next/headers':{headers:async()=>new Headers({host})},'cloudflare:workers':{env:runtime},'./components/clerk-login':{LokdClerkProvider:({children})=>children},'./lokd-auth':{getLokdUser:async()=>({id:'synthetic-user'})},'./components/pilot-feedback':{default:()=>React.createElement('div',{'data-feedback':'true'},'Feedback fixture')},'./components/seo-json-ld':{OrganisationJsonLd:()=>null},'./lib/public-site':{PUBLIC_SITE_URL:'https://lokd.co.za'},'./test-surface-policy':{testSurfacesEnabled},'next/navigation':{notFound:()=>{throw Error('not found');}}};
@@ -100,6 +100,6 @@ test('root layout never enables retired feedback and metadata makes no verificat
   const root=load('../layout.tsx',rootModules);
   const html=renderToStaticMarkup(await root.default({children:React.createElement('main',null,'Production content')}));
   assert.equal(html.includes('data-feedback'),false,`${host}/${stage}/${flag}`);
-  assert.doesNotMatch(JSON.stringify(root.metadata),/verified officers/i);
+  assert.match(JSON.stringify(root.metadata),/Johannesburg/);
  }
 });

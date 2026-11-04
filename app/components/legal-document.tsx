@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { PublicFooter, PublicHeader, PublicLaunchBar } from "./public-site-shell";
+import { PublicFooter, PublicHeader } from "./public-site-shell";
 
 import { COMPANY_NAME, HEAD_OFFICE_ADDRESS } from "../lib/public-site";
 
@@ -50,21 +50,21 @@ export function LegalDocument({
   sections: Array<{ title: string; body: ReactNode }>;
 }) {
   return (
-    <main className="public-home marketing-page">
-      <PublicLaunchBar />
+    <div className="public-site">
       <PublicHeader active="about" />
+      <main id="main-content" tabIndex={-1}>
       <section className="legal-hero">
         <p className="public-kicker">{kicker}</p>
         <h1>{title}</h1>
         <p>{lede}</p>
-        <span>Effective {LEGAL_EFFECTIVE_LABEL} · Not legal advice</span>
+        <span>Last updated {LEGAL_EFFECTIVE_LABEL}</span>
       </section>
       <section className="legal-content">
         <aside>
           <strong>{LEGAL_OPERATOR}</strong>
-          <p>LOKD Security</p>
-          <address>{LEGAL_NOTICES_ADDRESS}</address>
+                    <address>{LEGAL_NOTICES_ADDRESS}</address>
           <p>{asideNote}</p>
+          <nav aria-label="Contents"><h2>On this page</h2>{sections.map((section, index) => <a href={"#legal-section-" + (index + 1)} key={section.title}>{section.title}</a>)}</nav>
           <nav aria-label="Related legal documents">
             {links.map((link) => (
               <Link key={link.href} href={link.href}>{link.label}</Link>
@@ -73,7 +73,7 @@ export function LegalDocument({
         </aside>
         <div>
           {sections.map((section, index) => (
-            <section key={section.title}>
+            <section key={section.title} id={"legal-section-" + (index + 1)}>
               <span>{String(index + 1).padStart(2, "0")}</span>
               <div>
                 <h2>{section.title}</h2>
@@ -83,7 +83,7 @@ export function LegalDocument({
           ))}
         </div>
       </section>
-      <PublicFooter />
-    </main>
+      </main><PublicFooter />
+    </div>
   );
 }

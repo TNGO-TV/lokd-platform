@@ -1,14 +1,14 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { PublicFooter, PublicHeader, PublicLaunchBar } from "../components/public-site-shell";
+import { PublicPage, PublicSteps, OfficerRecruitment } from "../components/public-site-shell";
+import { publicMetadata } from "../lib/public-site";
 
-export const metadata: Metadata = { title: "About LOKD", description: "Why LOKD is building an employer-led security service around verified readiness, controlled operations and complete proof.", alternates: { canonical: "/about" } };
+export const metadata = publicMetadata("About LOKD Security", "Meet LOKD, the South African platform connecting clients with verified security officers for shifts, events and ongoing cover in Johannesburg.", "/about");
+const cards = [["For clients","Tell us what you need protected. We help you agree the right cover, understand your quote and follow the service from your account."],["For officers","Apply once, complete your verification and manage suitable shifts through the LOKD app."],["For every shift","Clear duties, a known officer and recorded check-ins make it easier to know who is on site and what is happening."]] as const;
+export default function Page() {
+  return <PublicPage active="about" eyebrow="About LOKD" title="Security that keeps people connected." promise="LOKD brings clients, verified officers and service updates together in one place, starting in Johannesburg.">
 
-export default function AboutPage() {
-  return <main className="public-home marketing-page"><PublicLaunchBar /><PublicHeader active="about" />
-    <section className="marketing-hero marketing-hero--dark"><div><p className="public-kicker"><i /> Why LOKD exists</p><h1>Better security starts with <span>a better operating model.</span></h1><p>Client requirements, officer readiness and service records stay connected—so each assignment has clear ownership and accountable oversight.</p></div><aside className="marketing-quote-card marketing-quote-card--dark"><span>OUR STANDARD</span><blockquote>Verified people. Controlled operations. Complete proof.</blockquote><p>Technology supports the operating decision; it does not replace accountable human review.</p></aside></section>
-    <section className="marketing-section"><header><p className="public-kicker">The model</p><h2>Three commitments shape every product decision.</h2></header><div className="marketing-card-grid marketing-card-grid--three"><article><span>01</span><h3>Employ responsibly</h3><p>LOKD owns the employment and payroll route for its direct service. The security client never hires or pays an officer directly.</p></article><article><span>02</span><h3>Match for purpose</h3><p>Grade alone is not enough. Current identity, registration, service readiness, site induction, schedule and rest evidence must fit the post.</p></article><article><span>03</span><h3>Prove delivery</h3><p>The approved plan, roster, attendance, incidents, exceptions and client review form one auditable service record.</p></article></div></section>
-    <section className="marketing-split marketing-split--lime"><div><p className="public-kicker">Our approach</p><h2>Nationwide enquiries. Local assessment.</h2><p>LOKD welcomes enquiries across South Africa for unarmed guarding, armed security and VIP protection. Each location and assignment is assessed before service is confirmed. Specialist work never inherits approval from the base service: its legal, competency, insurance, equipment and assignment controls must pass independently.</p></div><div className="marketing-check-list"><p>One accountable principal</p><p>Direct employment route</p><p>Clear commercial terms</p><p>Evidence-backed roster controls</p><p>Maker/checker financial controls</p><p>Controlled financial operations</p></div></section>
-    <section className="marketing-cta"><p className="public-kicker">Work with LOKD</p><h2>Start as a client, officer or partner.</h2><div className="marketing-cta-actions"><Link className="public-button public-button--dark" href="/contact">Plan a site <b>→</b></Link><Link className="public-button public-button--outline-dark" href="/join">Officer application <b>→</b></Link></div></section><PublicFooter />
-  </main>;
+    <section className="public-section public-section--white"><div className="public-section-heading"><h2>Protection with a personal connection.</h2></div><div className="public-detail-grid">{cards.map(([title, description]) => <article key={title}><h3>{title}</h3><p>{description}</p></article>)}</div></section>
+
+    <PublicSteps />
+    <OfficerRecruitment />
+  </PublicPage>;
 }

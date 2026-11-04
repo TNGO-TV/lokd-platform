@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 export const PUBLIC_SITE_URL = "https://lokd.co.za";
 export const CLIENT_PORTAL_URL = "https://portal.lokd.co.za";
 export const OFFICER_PORTAL_URL = "https://officers.lokd.co.za";
@@ -23,8 +25,18 @@ export const PUBLIC_SITEMAP_PATHS = [
   "/join",
   "/privacy",
   "/terms",
-  "/terms-and-conditions",
+  "/quote",
+  "/signup",
 ] as const;
+
+export function publicMetadata(title: string, description: string, path: string): Metadata {
+  const fullTitle = `${title} | LOKD`;
+  return {
+    title: { absolute: fullTitle }, description, alternates: { canonical: path },
+    openGraph: { title: fullTitle, description, url: canonicalUrl(path), type: "website", locale: "en_ZA", siteName: "LOKD", images: [{ url: "/og.png", width: 1200, height: 630, alt: "LOKD — Security on your terms" }] },
+    twitter: { card: "summary_large_image", title: fullTitle, description, images: ["/og.png"] },
+  };
+}
 
 export function canonicalUrl(path = "") {
   return `${PUBLIC_SITE_URL}${path}`;

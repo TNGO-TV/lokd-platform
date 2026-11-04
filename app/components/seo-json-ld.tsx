@@ -14,12 +14,10 @@ export async function OrganisationJsonLd() {
     name: "LOKD",
     legalName: COMPANY_NAME,
     email: BOOKINGS_EMAIL,
-    address: { "@type": "PostalAddress", streetAddress: "71 Louis Trichardt Street", addressLocality: "Pretoria", postalCode: "0002", addressCountry: "ZA" },
-    sameAs: ["https://www.facebook.com/lokdsecurity/", "https://www.youtube.com/@lokdsecurity", "https://www.instagram.com/lokdsecurity/"],
     url: canonicalUrl(),
-    logo: canonicalUrl("/lokd-logo.png"),
-    description: "South African security services with officer application review, controlled operations and auditable service delivery.",
-    areaServed: { "@type": "Country", name: "South Africa" },
+    logo: canonicalUrl("/lokd-logo.svg"),
+    description: "On-demand security officers for shifts, events and ongoing cover in Johannesburg, South Africa.",
+    areaServed: { "@type": "City", name: "Johannesburg", containedInPlace: { "@type": "Country", name: "South Africa" } },
   }) }} />;
 }
 
@@ -32,8 +30,8 @@ export async function ServiceJsonLd({ name, description, path }: { name: string;
     name,
     description,
     url: canonicalUrl(path),
-    serviceType: name,
-    areaServed: path === "/locations/johannesburg" ? { "@type": "City", name: "Johannesburg" } : { "@type": "Country", name: "South Africa" },
+    serviceType: "SecurityService",
+    areaServed: { "@type": "City", name: "Johannesburg", containedInPlace: { "@type": "Country", name: "South Africa" } },
     provider: { "@id": canonicalUrl("/#organization") },
   }) }} />;
 }

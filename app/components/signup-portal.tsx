@@ -2,7 +2,6 @@
 import {readWorkspaceResponse,workspaceAccessDenied} from './workspace-request';
 import {signupResponse,productionSigningResponse} from '../lib/workspace-response-contracts';
 import {matchesWorkspaceCommand} from '../lib/workspace-command-receipt';
-import {useTestSurface} from './test-surface-context';
 import {useCallback,useEffect,useState,useRef,type FormEvent} from 'react';
 import Link from 'next/link';
 import {useSearchParams} from 'next/navigation';
@@ -10,7 +9,6 @@ import {signupNextStep,signupStatusLabels,type SignupRecord,type SignupKind} fro
 import {applicationPsiraDeclaration} from '../lib/psira-pathway';
 import styles from './signup-portal.module.css';
 import OfficerPresencePanel from './officer-presence-panel';
-import TestAgreementPanel from './test-agreement-panel';
 export type SignupResponse={records:SignupRecord[];hasMore:boolean;email:string};
 const fieldLabels:Record<string,string>={fullName:'Full name',mobile:'Mobile number',city:'City or town',province:'Province',psiraStatus:'PSiRA position',psiraNumber:'PSiRA number',psiraGrade:'PSiRA grade',organisationName:'Organisation',contactName:'Contact name',siteArea:'Site area',message:'Site brief',pathway:'Pathway',siteType:'Site type',requiredStart:'Planning window',serviceType:'Service',services:'Work interests',purposes:'Work environments',training:'Training interests'};
 const options:Record<string,string[]>={pathway:['qualified','training'],province:['Gauteng','Western Cape','Free State','KwaZulu-Natal','Eastern Cape','Mpumalanga','Limpopo','North West','Northern Cape'],psiraStatus:['active','expired','in_training','not_registered'],psiraGrade:['','Grade A','Grade B','Grade C','Grade D','Grade E']};
@@ -41,9 +39,9 @@ function SignupWorkspace({kind,operations}:{kind:SignupKind;operations:boolean})
  }
  return <main className={styles.shell}>
 
-  <section className={styles.heading}><p>{operations?'OPERATIONS':'YOUR LOKD ACCOUNT'}</p><h1>{operations?'Application review':kind==='officer'?'Your officer application':'Your security enquiry'}</h1><p>{operations?'Review real client and officer submissions, request corrections and record the next steps.':'Follow your submission, send corrections and see what Operations needs from you.'}</p>{email&&<small>Signed in as {email}</small>}</section>
+  <section className={styles.heading}><p>{operations?'OPERATIONS':'YOUR LOKD ACCOUNT'}</p><h1>{operations?'Application review':kind==='officer'?'Your officer application':'Your security enquiry'}</h1><p>{operations?'Review client and officer submissions, request corrections and record the next steps.':'Follow your submission, send corrections and see what Operations needs from you.'}</p>{email&&<small>Signed in as {email}</small>}</section>
   {operations&&<nav className={styles.tabs} aria-label="Intake type">{(['officer','client'] as const).map(value=><Link key={value} href={`/ops/intake?kind=${value}`} aria-current={kind===value?'page':undefined} onClick={()=>{if(kind!==value){setOffset(0);setRecords([]);}}}>{value==='officer'?'Officer applications':'Client enquiries'}</Link>)}</nav>}
-  <p className={styles.boundary}>Track your submission and respond to Operations here. Agreements covers quotes and documents. Intake review alone does not confirm employment or deployment.</p>
+  <p className={styles.boundary}>Track your submission and respond to Operations here. Agreements covers quotes and documents. Your account shows when your service or work is confirmed.</p>
   {error&&<div className={styles.error} role="alert">{error} <a href={`/sign-in?return_to=${encodeURIComponent(operations?'/ops/intake?kind='+kind:'/'+kind)}`}>Sign in again</a> <button disabled={busy||loading} onClick={()=>void refresh()}>Refresh</button></div>}
   {notice&&<p role="status">{notice}</p>}
   {loading&&<p role="status">Loading submissions…</p>}
@@ -53,8 +51,20 @@ function SignupWorkspace({kind,operations}:{kind:SignupKind;operations:boolean})
  </main>;
 }
 function RecordCard({record,operations,busy,run,refresh,onUnconfirmed}:{record:SignupRecord;operations:boolean;busy:boolean;run:(body:Record<string,unknown>)=>Promise<boolean>;refresh:()=>Promise<boolean>;onUnconfirmed:(message:string)=>void}) {
- const testTools=useTestSurface();
  const [productionReference,setProductionReference]=useState('');
+ const [deliveryNotice,setDeliveryNotice]=useState(''),[sendingEmail,setSendingEmail]=useState(false);
+ const emailLock=useRef(false);
+ async function retryEnquiryEmail(){
+  if(emailLock.current||busy)return;
+  emailLock.current=true;setSendingEmail(true);setDeliveryNotice('');
+  try{
+   const submitted={action:'retry_email',id:record.id};
+   const response=await fetch('/api/enquiries',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(submitted)});
+   const data=await readWorkspaceResponse<{ok:boolean;notificationStatus:string}>(response,async value=>Boolean(value&&typeof value==='object'&&'ok' in value&&value.ok===true)&&await matchesWorkspaceCommand(value,'client-enquiries',submitted));
+   setDeliveryNotice(data.notificationStatus==='sent'?'The enquiry confirmation and Operations email were sent.':'The enquiry is saved, but email delivery needs attention. Check the email status in the enquiry queue.');
+  }catch(cause){setDeliveryNotice(cause instanceof Error?cause.message:'Email delivery could not be confirmed.');}
+  finally{emailLock.current=false;setSendingEmail(false);}
+ }
  const prepareLock=useRef(false);
  const [preparing,setPreparing]=useState(false);
  async function prepareProduction(){
@@ -81,12 +91,10 @@ function RecordCard({record,operations,busy,run,refresh,onUnconfirmed}:{record:S
  return <article className={styles.card}>
   <header><div><small>{record.id} · Updated {date(record.updatedAt)}</small><h2>{record.details.fullName??record.details.organisationName}</h2><p>{record.email}</p></div><strong className={styles.status}>{signupStatusLabels[record.status]}</strong></header>
   {operations&&record.accountLinked&&record.status==='reviewed'&&<button disabled={busy||preparing} onClick={()=>void prepareProduction()}>{preparing?'Preparing operational record…':'Prepare operational record'}</button>}{productionReference&&<p role="status">{productionReference}</p>}
+  {operations&&record.kind==='client'&&<button disabled={busy||sendingEmail} onClick={()=>void retryEnquiryEmail()}>{sendingEmail?'Checking email delivery…':'Retry enquiry emails'}</button>}{deliveryNotice&&<p role="status">{deliveryNotice}</p>}
   <p>{signupNextStep(record)}</p>{record.note&&<blockquote><strong>Latest update</strong><p>{record.note}</p></blockquote>}
   {record.kind==='officer'&&<div className={styles.requirements}><strong>{registered?(record.verification?.verified?'Registration review current':'Registration and identity checks pending'):'Training / registration guidance'}</strong><p>{registered?'Your PSiRA number must be checked against the official register, and the result must separately be matched to you. The registration result and identity match are reviewed separately.':'This intake does not need a PSiRA lookup. It does not approve paid security work; you can correct your registration position when it changes.'}</p>{registered&&<p>Registration: {valueLabel(record.verification?.registrationStatus??'pending_review')} · Identity match: {valueLabel(record.verification?.identityMatch??'unchecked')}{record.verification?.checkedAt&&<> · Recorded {date(record.verification.checkedAt)}</>}{record.verification?.recheckAt&&<> · Recheck by {date(record.verification.recheckAt)}</>}</p>}{registered&&record.accountLinked&&!operations&&record.status!=='withdrawn'&&<Link href="/officer/psira">Open my PSiRA verification →</Link>}</div>}
-  {record.kind==='officer'&&record.accountLinked&&<Link href={`${operations?'/ops':'/officer'}/readiness?applicantId=${encodeURIComponent(record.id)}`}>Identity, readiness & hold history →</Link>}
-  {testTools&&<details><summary>Testing tools</summary><p>Sandbox only — not identity verification, service confirmation or live payment.</p>{!operations&&record.kind==='officer'&&record.accountLinked&&record.status!=='withdrawn'&&<Link href={`/officer/identity?caseId=${encodeURIComponent(record.id)}`}>Sandbox identity & enrolment →</Link>}
-  {operations&&record.kind==='officer'&&record.accountLinked&&record.status!=='withdrawn'&&<Link href={`/ops/identity?caseId=${encodeURIComponent(record.id)}`}>Review sandbox identity evidence →</Link>}
-  {record.accountLinked&&<TestAgreementPanel kind={record.kind} caseId={record.id} operations={operations}/>}</details>}
+  {record.kind==='officer'&&record.accountLinked&&<Link href={`${operations?'/ops':'/officer'}/readiness?applicantId=${encodeURIComponent(record.id)}`}>Identity, qualifications and account status →</Link>}
   <details><summary>View submitted details</summary><dl className={styles.details}>{Object.entries(record.details).map(([key,value])=><div key={key}><dt>{fieldLabels[key]??key}</dt><dd>{value||'Not provided'}</dd></div>)}</dl></details>
   {!operations&&!record.accountLinked&&record.status!=='withdrawn'&&<button className={styles.primary} disabled={busy} onClick={()=>void send({action:'link'})}>Link to my account</button>}
   {!operations&&record.accountLinked&&record.status!=='withdrawn'&&<div className={styles.actions}><button disabled={busy} onClick={()=>setEditing(!editing)}>{editing?'Cancel editing':'Correct my details'}</button><button disabled={busy} onClick={()=>setConfirmWithdraw(!confirmWithdraw)}>Withdraw submission</button></div>}
