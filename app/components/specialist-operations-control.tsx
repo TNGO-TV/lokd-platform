@@ -20,7 +20,7 @@ export function SpecialistOperationsControl({initialTab="packs"}:{initialTab?:Ta
   const [state,setState]=useState<SpecialistOperationsState|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[tab,setTab]=useState<Tab>(initialTab),[selected,setSelected]=useState("");
   const request=useCallback(async(action?:SpecialistAction,signal?:AbortSignal)=>{
     const response=await fetch('/api/specialist?scope=operations',{cache:'no-store',signal,...(action?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(action)}:{})});
-    const payload=await readWorkspaceResponse<{state?:SpecialistOperationsState}>(response,workspaceAutoContract("specialist-operations-control.tsx/94bf4c570a51"));
+    const payload=await readWorkspaceResponse<{state?:SpecialistOperationsState}>(response,workspaceAutoContract("specialist-operations-control.tsx/e97cb79741bc"));
     const data=payload.state;
     if(!data)throw Error('Specialist records unavailable.');
     return data;
