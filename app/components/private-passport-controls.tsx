@@ -1,5 +1,5 @@
 'use client';
-import {passportDeliveryResponse,workspaceAutoContract} from '../lib/workspace-response-contracts';
+import {passportDeliveryResponse} from '../lib/workspace-response-contracts';
 import {matchesWorkspaceCommand} from '../lib/workspace-command-receipt';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {createPrivatePassportMaterial,type PassportDelivery} from '../lib/production-identity-contract';

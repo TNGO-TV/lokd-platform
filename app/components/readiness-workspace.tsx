@@ -1,7 +1,7 @@
 'use client';
 import {matchesWorkspaceCommand} from '../lib/workspace-command-receipt';
 import {readinessRecordResponse} from '../lib/workspace-response-contracts';
-import {useCallback,useEffect,useEffectEvent,useRef,useState,type FormEvent} from 'react';
+import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
 import Link from 'next/link';
 import {readWorkspaceResponse,WorkspaceRequestError,workspaceFailure,workspaceAccessDenied,WorkspaceAccessLost,WorkspaceResponseError} from './workspace-request';
 import IdentityCasePicker from './identity-case-picker';
@@ -31,6 +31,11 @@ async function readinessPost(body:Record<string,unknown>){
  if(!await matchesWorkspaceCommand(result,'production-identity',body))throw new WorkspaceResponseError('The readiness command is unconfirmed. Refresh its original record before retrying.',response.status);
  return result;
 }
+function EvidenceFields({label,value,onChange}:{label:string;value:string;onChange:(value:string)=>void}){
+ const rows=JSON.parse(value) as Record<string,string>[];
+ return <fieldset><legend>{label}</legend><p>Enter one exact source for every policy requirement. No evidence is prefilled or inferred.</p>{rows.map((row,index)=><fieldset key={index}><legend>Evidence {index+1}</legend>{[['requirement','Policy requirement'],['ownerUserId','Exact evidence owner user reference'],['reference','Protected source reference'],['sha256','SHA-256 digest'],['checkedAt','Checked at (device local time)'],['expiresAt','Expires at (device local time)']].map(([key,text])=><label key={key}>{text}<input aria-label={text+' '+(index+1)} required maxLength={1200} type={key==='checkedAt'||key==='expiresAt'?'datetime-local':'text'} pattern={key==='sha256'?'[a-f0-9]{64}':undefined} value={row[key]??''} onChange={event=>onChange(JSON.stringify(rows.map((item,i)=>i===index?{...item,[key]:event.target.value}:item)))}/></label>)}<button type="button" onClick={()=>onChange(JSON.stringify(rows.filter((_,i)=>i!==index)))}>Remove evidence {index+1}</button></fieldset>)}<button type="button" disabled={rows.length>=30} onClick={()=>onChange(JSON.stringify([...rows,{}]))}>Add evidence source</button></fieldset>;
+}
+
 function ActionForm({title,description,action,fixed,fields,submit,onSaved,onDirty,onAccessLost,disabled=false,choices={}}:{choices?:Record<string,[string,string][]>;title:string;description:string;action:string;fixed:Record<string,unknown>;fields:Field[];submit:string;onSaved:()=>Promise<void>;onDirty:()=>void;onAccessLost:()=>void;disabled?:boolean}){
  const [draft,setDraft]=useState<Record<string,string|boolean>>({}),[busy,setBusy]=useState(false),[error,setError]=useState(''),[receipt,setReceipt]=useState(''),[uncertain,setUncertain]=useState(false);
  const locked=useRef(false);
@@ -78,7 +83,6 @@ function ReadinessWorkspaceState({operations=false,owner=false,applicantId='',of
  const generation=useRef(0),optLock=useRef(false),leaving=useRef(false);
  const invalidate=useCallback(()=>{generation.current++;},[]);
  const loseAccess=useCallback(()=>{generation.current++;setAccessLost(true);setState({});setDirty(false);setErrors({access:'Private readiness access is no longer available. Sign in or ask Operations to check access.'});},[]);
- const base=operations?'/ops':'/officer';
  const load=useCallback(async()=>{
   const token=++generation.current;setLoading(true);
   const tasks:[keyof State,string,string][]=[['identity','identity',opened.identityId],['officer','officer',opened.officerId],['readiness','readiness',opened.officerId],['holds','rereview',opened.applicantId]];

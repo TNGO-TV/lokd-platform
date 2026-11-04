@@ -62,6 +62,7 @@ export default function ClientEnquiryForm({onSubmitted}:{onSubmitted?:(reference
     <div className="enquiry-consents"><label><input name="advanceFundingAcknowledged" type="checkbox" required /><span>I understand that submitting this enquiry does not confirm service, and that Operations must review fit and commercial terms before any commitment.</span></label><label><input name="privacyConsent" type="checkbox" required /><span>I agree that LOKD may store these details and contact me about this enquiry. I have read the <Link href="/privacy">privacy notice</Link>.</span></label></div>
     <label className="join-honeypot" aria-hidden="true">Company<input name="company" tabIndex={-1} autoComplete="off" /></label>
     </fieldset>
+    {error&&!uncertain&&<p role="alert">{error}</p>}
     {uncertain&&<div role="status"><p>Your enquiry outcome is unconfirmed. Keep this tab. Retry the original request to recover its saved reference without creating a second enquiry.</p><button type="button" disabled={busy} onClick={()=>{if(originalPublicBody.current)void sendBody(originalPublicBody.current);}}>Retry original enquiry</button></div>}
     <button className="public-button public-button--lime" disabled={busy||uncertain} type="submit">{busy ? "Saving…" : "Submit site enquiry →"}</button>
   </form>;
