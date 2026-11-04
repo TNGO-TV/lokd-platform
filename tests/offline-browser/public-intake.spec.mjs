@@ -38,153 +38,201 @@ const test = base.extend({
   }, {auto: true}],
 });
 
+// Labels wrap their controls, so a select's accessible name also carries its
+// chosen option and a filled input its value: match on the label prefix.
+const label = text => new RegExp('^' + text.replace(/[?]/g, '\\$&'));
+
 async function fitsViewport(page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 }
 
 test('homepage offers real intake paths, responsive service navigation and privacy', async ({page}) => {
   await page.goto('/');
-  await expect(page).toHaveTitle('LOKD Security | Guarding, Armed Security and VIP Protection');
+  await expect(page).toHaveTitle('Security on your terms | LOKD');
   // Vinext may serialize an origin-only canonical without its implicit slash.
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /^https:\/\/lokd\.co\.za\/?$/);
-  await expect(page.getByRole('link', {name: /^Request security/})).toHaveAttribute('href', '/contact');
-  await expect(page.getByRole('link', {name: /^Apply as an officer/})).toHaveAttribute('href', '/join');
-  await expect(page.getByRole('link', {name: 'Client sign in', exact: true})).toHaveAttribute('href', 'https://portal.lokd.co.za');
-  await expect(page.getByRole('link', {name: 'Officer sign in', exact: true})).toHaveAttribute('href', 'https://officers.lokd.co.za');
-  await expect(page.getByText('An application does not guarantee work.', {exact: false})).toBeVisible();
-  await expect(page.getByRole('status')).toHaveText('No current consented officer presence to display.');
+  const main = page.locator('main');
+  await expect(main.getByRole('heading', {level: 1})).toHaveText('Security.On your terms.');
+  await expect(main.getByRole('link', {name: /^Get a quote/})).toHaveAttribute('href', '/quote');
+  await expect(main.getByRole('link', {name: /^Apply as an officer/})).toHaveAttribute('href', '/join');
+  await expect(main.getByRole('heading', {name: 'PSIRA-verified officers', exact: true})).toBeVisible();
+  const footer = page.locator('footer');
+  await expect(footer.getByRole('link', {name: 'Client sign in', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fclient');
+  await expect(footer.getByRole('link', {name: 'Officer sign in', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fofficer');
+  await expect(footer.getByRole('link', {name: 'Training', exact: true})).toHaveAttribute('href', '/training');
   await fitsViewport(page);
-  const mobile = page.viewportSize().width < 1100;
-  if (mobile) await page.getByText('Menu', {exact: true}).click();
+  const header = page.locator('header');
+  await expect(header.getByRole('link', {name: 'Get a quote', exact: true})).toHaveAttribute('href', '/quote');
+  const mobile = page.viewportSize().width < 900;
+  if (mobile) {
+    await expect(page.getByRole('navigation', {name: 'Main navigation', exact: true})).toBeHidden();
+    await header.getByText('Menu', {exact: true}).click();
+  } else {
+    await expect(header.getByRole('link', {name: 'Sign in', exact: true})).toHaveAttribute('href', '/sign-in');
+    await expect(header.getByText('Menu', {exact: true})).toBeHidden();
+  }
   const navigation = page.getByRole('navigation', {name: mobile ? 'Mobile navigation' : 'Main navigation', exact: true});
   await expect(navigation).toBeVisible();
-  await navigation.getByRole('link', {name: 'Armed security', exact: true}).click();
-  await expect(page).toHaveURL(origin + '/armed-security');
+  if (mobile) await expect(navigation.getByRole('link', {name: 'Sign in', exact: true})).toHaveAttribute('href', '/sign-in');
+  await navigation.getByRole('link', {name: 'Security services', exact: true}).click();
+  await expect(page).toHaveURL(origin + '/security-services');
   await expect(page.locator('h1')).toBeVisible();
-  await page.locator('footer').getByRole('link', {name: 'Privacy notice', exact: true}).click();
+  await fitsViewport(page);
+  await page.locator('footer').getByRole('link', {name: 'Privacy', exact: true}).click();
   await expect(page).toHaveURL(origin + '/privacy');
-  await expect(page.getByRole('heading', {name: 'Privacy notice.', exact: true})).toBeVisible();
+  await expect(page.getByRole('heading', {level: 1, name: 'Privacy notice', exact: true})).toBeVisible();
   await fitsViewport(page);
 });
 
 async function applicantDetails(page, {training = false} = {}) {
-  await page.getByRole('button', {name: /^Continue/}).click();
-  await expect(page.getByRole('heading', {name: 'Tell us about yourself.'})).toBeVisible();
-  await page.getByRole('button', {name: /^Continue/}).click();
+  const submit = page.getByRole('button', {name: 'Submit application', exact: true});
+  await submit.click();
   await expect(page.locator('input[name="fullName"]')).toBeFocused();
-  await page.getByLabel(/^Full name/).fill('Offline Applicant');
-  await page.getByLabel(/^Mobile number/).fill('123');
-  await page.getByLabel(/^Email address/).fill('offline.applicant@example.test');
-  await page.getByLabel(/^City or nearest town/).fill('Pretoria');
-  if (!training) await page.getByLabel(/^PSiRA number/).fill('1234567');
-  await page.getByRole('button', {name: /^Continue/}).click();
-  await expect(page.getByRole('alert')).toContainText('Enter a South African mobile number');
-  await page.getByLabel(/^Mobile number/).fill('082 123 4567');
-  await page.getByRole('button', {name: /^Continue/}).click();
-  await expect(page.getByRole('heading', {name: 'Choose your direction.'})).toBeVisible();
-}
-
-async function applicantConsents(page) {
+  await page.getByLabel(label('Full name')).fill('Offline Applicant');
+  await page.getByLabel(label('Mobile number')).fill('123');
+  await page.getByLabel(label('Email address')).fill('offline.applicant@example.test');
+  await page.getByLabel(label('City or town')).fill('Pretoria');
+  if (training) await expect(page.locator('input[name="psiraNumber"]')).toHaveCount(0);
+  else await page.getByLabel(label('PSIRA number')).fill('1234567');
+  await submit.click();
+  await expect(page.locator('input[name="over18Confirmed"]')).toBeFocused();
   for (const name of ['over18Confirmed', 'eligibilityAcknowledged', 'contactConsent']) await page.locator(`input[name="${name}"]`).check();
+  await submit.click();
+  await expect(page.getByRole('alert')).toHaveText('Enter a South African mobile number, starting with 0 or +27.');
+  await page.getByLabel(label('Mobile number')).fill('082 123 4567');
+  await submit.click();
+  await expect(page.getByRole('alert')).toHaveText('Choose at least one work interest and one work environment.');
+  await page.locator('input[name="services"][value="Unarmed"]').check();
+  await page.locator('input[name="purposes"][value="Retail"]').check();
 }
 
 test('officer application validates locally, preserves rejection and displays full UUID receipt', async ({page, intakeNetwork: offline}) => {
   await page.goto('/');
-  await page.getByRole('link', {name: /^Apply as an officer/}).click();
+  await page.locator('main').getByRole('link', {name: /^Apply as an officer/}).click();
   await expect(page).toHaveURL(origin + '/join');
+  await expect(page).toHaveTitle('Apply as a security officer | LOKD');
+  await expect(page.getByRole('heading', {level: 1})).toHaveText('Apply as an officer.');
+  await expect(page.getByLabel(label('Application pathway'))).toHaveValue('qualified');
+  const submit = page.getByRole('button', {name: 'Submit application', exact: true});
   await applicantDetails(page);
-  await page.getByRole('button', {name: /^Submit officer application/}).click();
   expect(offline.applications).toHaveLength(0);
-  await expect(page.locator('input[name="over18Confirmed"]')).toBeFocused();
-  await applicantConsents(page);
+  await expect(page.locator('form').getByRole('link', {name: 'privacy notice', exact: true})).toHaveAttribute('href', '/privacy');
   offline.applicationResponse = {status: 422, json: {error: 'Offline validation rejection: review your application.'}};
-  await page.getByRole('button', {name: /^Submit officer application/}).click();
+  await submit.click();
   await expect(page.getByRole('alert')).toHaveText('Offline validation rejection: review your application.');
+  await expect(page.getByLabel(label('Full name'))).toHaveValue('Offline Applicant');
+  await expect(page.getByLabel(label('Full name'))).toBeEnabled();
   expect(offline.applications).toHaveLength(1);
   expect(offline.applications[0]).toMatchObject({
-    pathway: 'qualified', email: 'offline.applicant@example.test', mobile: '082 123 4567',
-    over18Confirmed: true, eligibilityAcknowledged: true, contactConsent: true, psiraNumber: '1234567',
+    pathway: 'qualified', email: 'offline.applicant@example.test', mobile: '082 123 4567', city: 'Pretoria', province: 'Gauteng',
+    psiraStatus: 'active', psiraNumber: '1234567', services: ['Unarmed'], purposes: ['Retail'], training: [],
+    over18Confirmed: true, eligibilityAcknowledged: true, contactConsent: true, company: '',
   });
-  offline.applicationResponse={status:202,json:{received:true}};
-  await page.getByRole('button',{name:/^Submit officer application/}).click();
-  await expect(page.getByRole('heading',{name:'Your LOKD journey has started.'})).toHaveCount(0);
+  expect(offline.applications[0].requestKey).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  offline.applicationResponse = {status: 202, json: {received: true}};
+  await submit.click();
+  await expect(page.getByRole('heading', {name: 'Your application is with LOKD.'})).toHaveCount(0);
   await expect(page.locator('input[name="contactConsent"]')).toBeDisabled();
-  await expect(page.getByRole('alert').first()).toContainText('A saved application could not be confirmed');
-  offline.applicationResponse={status:200,json:{}};
-  await page.getByRole('button',{name:'Retry original application'}).click();
-  await expect(page.getByRole('alert').first()).toContainText('A saved application could not be confirmed');
-  offline.applicationResponse={status:202,json:{saved:true,reference:applicationReference}};
-  await page.getByRole('button',{name:'Retry original application'}).click();
-  await expect(page.getByRole('heading', {name: 'Your LOKD journey has started.'})).toBeFocused();
+  await expect(submit).toBeDisabled();
+  await expect(page.getByRole('alert')).toContainText('We could not confirm your application.');
+  const retry = page.getByRole('button', {name: 'Retry original application', exact: true});
+  offline.applicationResponse = {status: 200, json: {}};
+  await retry.click();
+  await expect(page.getByRole('alert')).toContainText('We could not confirm your application.');
+  offline.applicationResponse = {status: 202, json: {saved: true, reference: applicationReference}};
+  await retry.click();
+  await expect(page.getByRole('heading', {name: 'Your application is with LOKD.'})).toBeFocused();
   await expect(page.locator('dd')).toHaveText(applicationReference);
-  await expect(page.getByRole('link', {name: 'Track my application'})).toHaveAttribute('href', 'https://officers.lokd.co.za');
-  await expect(page.getByText('Account linking does not grant work approval.', {exact: false})).toBeVisible();
+  await expect(page.getByRole('link', {name: 'Track your application', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fofficer');
+  await expect(page.getByText('Registration, identity and role checks are completed before you can start work.', {exact: false})).toBeVisible();
   expect(offline.applications).toHaveLength(4);
-  for(const request of offline.applications.slice(1))expect(request).toEqual(offline.applications[0]);
+  for (const request of offline.applications.slice(1)) expect(request).toEqual(offline.applications[0]);
   await fitsViewport(page);
 });
 
 test('training deep link requires training selection and keeps unregistered intake distinct', async ({page, intakeNetwork: offline}) => {
+  await page.goto('/training');
+  await expect(page.getByRole('heading', {level: 1})).toHaveText('Take your next step in security.');
+  await expect(page.locator('main').getByRole('link', {name: /^Apply as an officer/})).toHaveAttribute('href', '/join');
   await page.goto('/join?path=training');
-  await expect(page.getByRole('button', {name: /I need training/})).toHaveClass(/selected/);
+  await expect(page.getByLabel(label('Application pathway'))).toHaveValue('training');
+  await expect(page.getByLabel(label('PSIRA registration status'))).toHaveValue('not_registered');
+  await expect(page.getByRole('group', {name: 'Training interests — choose at least one'})).toBeVisible();
   await applicantDetails(page, {training: true});
-  await applicantConsents(page);
-  await page.getByRole('button', {name: /^Find my training pathway/}).click();
-  await expect(page.getByRole('alert')).toHaveText('Choose at least one training area.');
+  const submit = page.getByRole('button', {name: 'Submit application', exact: true});
+  await submit.click();
+  await expect(page.getByRole('alert')).toHaveText('Choose at least one training interest.');
   expect(offline.applications).toHaveLength(0);
-  await page.getByLabel(/^Entry-level security training/).check();
-  await page.getByRole('button', {name: /^Find my training pathway/}).click();
+  await page.getByLabel(label('Entry-level security training')).check();
+  await submit.click();
+  await expect(page.getByRole('heading', {name: 'Your application is with LOKD.'})).toBeFocused();
   await expect(page.locator('dd')).toHaveText(applicationReference);
   expect(offline.applications).toHaveLength(1);
-  expect(offline.applications[0]).toMatchObject({pathway: 'training', psiraStatus: 'not_registered', psiraNumber: '', training: ['Entry-level security training']});
-  await expect(page.getByText('Your training or registration-guidance intake will not be sent for a PSiRA registration lookup.', {exact: false})).toBeVisible();
+  expect(offline.applications[0]).toMatchObject({pathway: 'training', psiraStatus: 'not_registered', psiraNumber: '', psiraGrade: '', training: ['Entry-level security training']});
   await fitsViewport(page);
 });
 
+function isoDate(daysAhead) {
+  return new Date(Date.now() + 7200000 + daysAhead * 86400000).toISOString().slice(0, 10);
+}
+
 test('security enquiry enforces fields and consent, shows server rejection and links its receipt', async ({page, intakeNetwork: offline}) => {
   await page.goto('/');
-  await page.getByRole('link', {name: /^Request security/}).click();
-  await expect(page).toHaveURL(origin + '/contact');
-  const form = page.locator('form.enquiry-form');
-  await form.getByRole('button', {name: /^Submit site enquiry/}).click();
-  await expect(form.getByLabel('Organisation', {exact: true})).toBeFocused();
+  await page.locator('main').getByRole('link', {name: /^Get a quote/}).click();
+  await expect(page).toHaveURL(origin + '/quote');
+  await expect(page).toHaveTitle('Get a security quote | LOKD');
+  const form = page.locator('form.public-form');
+  const submit = form.getByRole('button', {name: 'Get a quote', exact: true});
+  await submit.click();
+  await expect(form.getByLabel(label('Security service'))).toBeFocused();
   expect(offline.enquiries).toHaveLength(0);
-  await form.getByLabel('Organisation', {exact: true}).fill('Offline Example Organisation');
-  await form.getByLabel('Contact name', {exact: true}).fill('Offline Contact');
-  await form.getByLabel('Email', {exact: true}).fill('offline.contact@example.test');
-  await form.getByLabel('Site area', {exact: true}).fill('Pretoria');
-  await form.getByRole('combobox', {name: 'Site type', exact: true}).selectOption('commercial_property');
-  await form.getByRole('combobox', {name: 'Planning window', exact: true}).selectOption('planning');
-  await form.getByLabel('What must the post achieve?', {exact: true}).fill('Synthetic browser test for weekday entry and reception security.');
+  await form.getByLabel(label('Security service')).selectOption('scheduled_unarmed_fixed_site');
+  await form.getByLabel(label('Site type')).selectOption('commercial_property');
+  await form.getByLabel(label('Suburb or area')).fill('Pretoria');
+  await form.getByLabel(label('Site or venue address')).fill('1 Offline Street, Pretoria');
+  await form.getByLabel(label('Start date')).fill(isoDate(200));
+  await form.getByLabel(label('End date')).fill(isoDate(210));
+  await form.getByLabel(label('Shift starts')).fill('07:00');
+  await form.getByLabel(label('Shift ends')).fill('18:00');
+  await form.getByLabel(label('Officers per shift')).fill('2');
+  await form.getByLabel(label('Schedule')).selectOption('Weekdays in this period');
+  await form.getByLabel(label('What do you need covered?')).fill('Weekday entry control and reception security for an office building.');
+  await form.getByLabel(label('Organisation or household name')).fill('Offline Example Organisation');
+  await form.getByLabel(label('Contact name')).fill('Offline Contact');
+  await form.getByLabel(label('Email address')).fill('offline.contact@example.test');
+  await form.getByLabel(label('Phone number')).fill('082 123 4567');
   await form.locator('input[name="advanceFundingAcknowledged"]').check();
   await expect(form.getByRole('link', {name: 'privacy notice', exact: true})).toHaveAttribute('href', '/privacy');
-  await form.getByRole('button', {name: /^Submit site enquiry/}).click();
+  await submit.click();
   await expect(form.locator('input[name="privacyConsent"]')).toBeFocused();
   expect(offline.enquiries).toHaveLength(0);
   await form.locator('input[name="privacyConsent"]').check();
   offline.enquiryResponse = {status: 422, json: {error: 'Offline validation rejection: review your enquiry.'}};
-  await form.getByRole('button', {name: /^Submit site enquiry/}).click();
+  await submit.click();
   await expect(page.getByRole('alert')).toHaveText('Offline validation rejection: review your enquiry.');
-  await expect(form.getByLabel('Organisation', {exact: true})).toHaveValue('Offline Example Organisation');
+  await expect(form.getByLabel(label('Organisation or household name'))).toHaveValue('Offline Example Organisation');
   expect(offline.enquiries).toHaveLength(1);
-  expect(offline.enquiries[0]).toMatchObject({privacyConsent: true, advanceFundingAcknowledged: true, serviceType: 'scheduled_unarmed_fixed_site', email: 'offline.contact@example.test'});
-  offline.enquiryResponse = {status:202,json:{reference:'LOKD-RECEIVED'}};
-  await form.getByRole('button', {name: /^Submit site enquiry/}).click();
-  await expect(page.getByRole('alert')).toContainText('A saved enquiry could not be confirmed');
-  await expect(page.getByRole('heading',{name:'We have your operating brief.'})).toHaveCount(0);
-  await expect(form.getByLabel('Organisation',{exact:true})).toBeDisabled();
-  offline.enquiryResponse={status:200,json:{}};
-  await form.getByRole('button',{name:'Retry original enquiry'}).click();
-  await expect(page.getByRole('alert')).toContainText('A saved enquiry could not be confirmed');
-  offline.enquiryResponse = {status: 202, json: {saved:true,reference: enquiryReference}};
-  await form.getByRole('button',{name:'Retry original enquiry'}).click();
-  await expect(page.getByRole('heading', {name: 'We have your operating brief.'})).toBeFocused();
+  expect(offline.enquiries[0]).toMatchObject({
+    privacyConsent: true, advanceFundingAcknowledged: true, serviceType: 'scheduled_unarmed_fixed_site', siteType: 'commercial_property',
+    requiredStart: 'planning', officers: 2, schedule: 'Weekdays in this period', email: 'offline.contact@example.test', company: '',
+  });
+  offline.enquiryResponse = {status: 202, json: {reference: 'LOKD-RECEIVED'}};
+  await submit.click();
+  await expect(page.getByRole('alert')).toContainText('We could not confirm your enquiry.');
+  await expect(page.getByRole('heading', {name: 'Your enquiry is with LOKD.'})).toHaveCount(0);
+  await expect(form.getByLabel(label('Organisation or household name'))).toBeDisabled();
+  const retry = form.getByRole('button', {name: 'Retry original enquiry', exact: true});
+  offline.enquiryResponse = {status: 200, json: {}};
+  await retry.click();
+  await expect(page.getByRole('alert')).toContainText('We could not confirm your enquiry.');
+  offline.enquiryResponse = {status: 202, json: {saved: true, reference: enquiryReference, confirmationEmailSent: true}};
+  await retry.click();
+  await expect(page.getByRole('heading', {name: 'Your enquiry is with LOKD.'})).toBeFocused();
   await expect(page.locator('dd')).toHaveText(enquiryReference);
-  await expect(page.getByText('Live agreement signing is not open yet', {exact:false})).toHaveCount(0);
-  await expect(page.getByText('Operations must prepare approved terms and a service order', {exact:false})).toBeVisible();
-  await expect(page.getByRole('link', {name: /^Track my enquiry/})).toHaveAttribute('href', 'https://portal.lokd.co.za');
-  await expect(page.getByText('Do not pay against this enquiry reference.', {exact: false})).toBeVisible();
+  await expect(page.getByText('A confirmation has been sent to your email address.')).toBeVisible();
+  await expect(page.getByRole('link', {name: 'Track your enquiry', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fclient');
+  await expect(page.getByText('Your cover is confirmed after you agree the quote and service terms.', {exact: false})).toBeVisible();
   expect(offline.enquiries).toHaveLength(4);
-  for(const enquiry of offline.enquiries.slice(1))expect(enquiry).toEqual(offline.enquiries[0]);
+  for (const enquiry of offline.enquiries.slice(1)) expect(enquiry).toEqual(offline.enquiries[0]);
   await fitsViewport(page);
 });
