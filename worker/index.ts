@@ -7,9 +7,10 @@ import { runDueAssignmentRevalidations } from "../app/lib/assignment-activation-
 import { runDataRetention, runPlatformMaintenance } from "../app/lib/platform-jobs";
 import { runOperationalDelivery } from "../app/lib/operational-delivery";
 import type { OperationalRuntime } from "../app/lib/operational-provider";
-import { authenticateClerkRequest, type ClerkEnv } from "./clerk-auth";
+import { authenticateRequest } from "./identity";
+import { recordVerifiedIdentity } from "../app/lib/identity-directory";
 
-interface Env extends ClerkEnv, BackupEnv, OperationalRuntime {
+interface Env extends BackupEnv, OperationalRuntime {
   ASSETS: Fetcher;
   DB: D1Database;
   BUCKET: R2Bucket;
@@ -52,13 +53,16 @@ const worker = {
 
     let auth;
     try {
-      auth = await authenticateClerkRequest(request, env);
+      auth = await authenticateRequest(request);
     } catch {
       return new Response("Sign-in is temporarily unavailable. Please try again.", {
         status: 503, headers: { "cache-control": "private, no-store", "content-type": "text/plain; charset=utf-8" },
       });
     }
     if (auth.response) return auth.response;
+    if (env.DB && auth.request.headers.has("x-lokd-verified-user-id")) {
+      ctx.waitUntil(recordVerifiedIdentity(env.DB, auth.request.headers).catch(() => undefined));
+    }
     const response = await handler.fetch(auth.request, env, ctx);
     const forwarded = new Response(response.body, response);
     auth.headers.forEach((value, key) => forwarded.headers.append(key, value));

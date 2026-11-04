@@ -1,4 +1,4 @@
-// Local component browser tests: no Clerk accounts, provider calls, D1 or checkout fixtures.
+// Local component browser tests: no accounts, provider calls, D1 or checkout fixtures.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';

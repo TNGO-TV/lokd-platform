@@ -11,7 +11,7 @@ const siteInput = () => ({ action: 'save_site', requestId: crypto.randomUUID(), 
 const coverInput = siteId => ({ action: 'request_cover', requestId: crypto.randomUUID(), siteId, serviceType: 'Unarmed', startDate: '2090-01-01', endDate: '2090-01-02', shiftStart: '06:00', shiftEnd: '18:00', headcount: 2, note: 'Control entry at the main gate.' });
 const count = (db, table) => db.sql.prepare(`SELECT count(*) AS n FROM ${table}`).get().n;
 
-test('registration links the Clerk account atomically and preserves consent, audit and email outbox on replay', async () => {
+test('registration links the signed-in account atomically and preserves consent, audit and email outbox on replay', async () => {
   const db = new ClientDatabase();
   try {
     const input = registration();

@@ -1,7 +1,4 @@
-import { headers } from "next/headers";
 import type { Metadata, Viewport } from "next";
-import { env } from "cloudflare:workers";
-import { LokdClerkProvider } from "./components/clerk-login";
 import { OrganisationJsonLd } from "./components/seo-json-ld";
 import { PUBLIC_SITE_URL } from "./lib/public-site";
 import "./globals.css";
@@ -38,13 +35,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "rgb(52, 71, 83)", width: "device-width", initialScale: 1 };
 
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const nonce = (await headers()).get("x-lokd-script-nonce") ?? undefined;
-  const runtime = env as unknown as Record<string, string | undefined>;
-  const publishableKey = runtime.CLERK_PUBLISHABLE_KEY || runtime.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body><LokdClerkProvider publishableKey={publishableKey} nonce={nonce}>{children}<OrganisationJsonLd /></LokdClerkProvider></body>
+      <body>{children}<OrganisationJsonLd /></body>
     </html>
   );
 }

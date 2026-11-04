@@ -11,19 +11,16 @@ import { POST } from '../app/api/paystack/transfers/live/webhook/route.ts';
 // Mount the actual Worker fetch path, replacing only framework/browser services.
 // The forwarded callback executes the real route and HMAC receiver.
 const result=await build({entryPoints:[fileURLToPath(new URL('../worker/index.ts',import.meta.url))],bundle:true,write:false,format:'esm',platform:'node',packages:'external',plugins:[{name:'worker-fixture',setup(b){
-  // The fixture loads its bundle from a data URL; external SDK imports need an
-  // absolute module URL. The SDK is not invoked by these callback-routing tests.
-  b.onResolve({filter:/^@clerk\/backend$/},()=>({path:import.meta.resolve('@clerk/backend'),external:true}));
-  b.onResolve({filter:/^(vinext\/server\/|\.\/clerk-auth$)/},args=>({path:args.path,namespace:'fixture'}));
-  b.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='./clerk-auth'
-    ? 'export async function authenticateClerkRequest(){return globalThis.__lokdRoutingAuth();}'
+  b.onResolve({filter:/^(vinext\/server\/|\.\/identity$)/},args=>({path:args.path,namespace:'fixture'}));
+  b.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='./identity'
+    ? 'export async function authenticateRequest(){return globalThis.__lokdRoutingAuth();}'
     : args.path.includes('image-optimization')
       ? 'export const DEFAULT_DEVICE_SIZES=[],DEFAULT_IMAGE_SIZES=[];export function handleImageOptimization(){throw Error("unexpected image");}'
       : 'export default {fetch(...args){return globalThis.__lokdRoutingHandler(...args);}};',loader:'js'}));
 }}]});
 const worker=(await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'))).default;
 
-test('live transfer HMAC callback is independent of Clerk failure and handshake',async()=>{
+test('live transfer HMAC callback is independent of sign-in failure and redirects',async()=>{
   let lookups=0,authCalls=0;
   env.DB={prepare:()=>({bind:()=>({first:async()=>{lookups++;return null;}})})};
   env.PAYSTACK_LIVE_SECRET_KEY='sk_live_isolated_fixture';
@@ -33,7 +30,7 @@ test('live transfer HMAC callback is independent of Clerk failure and handshake'
   const request=signature=>new Request('https://lokd.example/api/paystack/transfers/live/webhook',{method:'POST',headers:{'x-paystack-signature':signature},body:raw});
   try{
     for(const mode of ['throw','handshake']){
-      globalThis.__lokdRoutingAuth=()=>{authCalls++;if(mode==='throw')throw Error('Clerk unavailable');return {response:new Response(null,{status:307,headers:{location:'/sign-in'}})};};
+      globalThis.__lokdRoutingAuth=()=>{authCalls++;if(mode==='throw')throw Error('Sign-in unavailable');return {response:new Response(null,{status:307,headers:{location:'/sign-in'}})};};
       const accepted=await worker.fetch(request(signature),{},{});
       assert.equal(accepted.status,200);
       assert.equal(accepted.headers.get("x-frame-options"),"DENY");
@@ -48,7 +45,7 @@ test('live transfer HMAC callback is independent of Clerk failure and handshake'
       assert.equal((await worker.fetch(new Request('https://lokd.example/api/production-operations'),{},{})).status,mode==='throw'?503:307);
     }
     assert.equal(lookups,2,'invalid signatures never reach storage');
-    assert.equal(authCalls,2,'only ordinary application requests invoke Clerk');
+    assert.equal(authCalls,2,'only ordinary application requests invoke sign-in');
   }finally{delete env.DB;delete env.PAYSTACK_LIVE_SECRET_KEY;delete globalThis.__lokdRoutingAuth;delete globalThis.__lokdRoutingHandler;}
 });
 

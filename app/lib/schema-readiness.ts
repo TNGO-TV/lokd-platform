@@ -10,7 +10,6 @@ const operationsObjects: SchemaObject[] = [
   {type: 'trigger', name: 'production_eft_receipts_retain'},
   {type: 'trigger', name: 'production_eft_decisions_immutable'},
   {type: 'trigger', name: 'production_eft_decisions_retain'},
-  {type: 'trigger', name: 'operations_accounting_payload_immutable'},
   {type: 'table', name: 'production_notifications'},
   {type: 'index', name: 'production_notifications_due'},
   {type: 'trigger', name: 'production_notifications_immutable'},

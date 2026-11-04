@@ -31,10 +31,3 @@ export function cleanIdentityHeaders(request: Request): Headers {
   return headers;
 }
 
-export function verifiedPrimaryEmail(user: {
-  primaryEmailAddressId: string | null;
-  emailAddresses: Array<{ id: string; emailAddress: string; verification: { status: string } | null }>;
-}): string | null {
-  const email = user.emailAddresses.find((entry) => entry.id === user.primaryEmailAddressId);
-  return email?.verification?.status === "verified" ? email.emailAddress : null;
-}

@@ -27,7 +27,7 @@ test('real client and officer signup links, review requests, corrections and wit
   let r=await current(db,kind);assert.equal(r.accountLinked,false);assert.equal(r.status,'received');
   await writeSignup(db,ops,{kind,id,expectedVersion:0,action:'review',status:'needs_information',note:'Please correct your mobile number before review.'});
   await writeSignup(db,actor,{kind,id,expectedVersion:1,action:'link'});r=await current(db,kind);assert.equal(r.version,2);assert.equal(r.accountLinked,true);assert.match(r.note,/correct your mobile/);
-  const linked=await readSignupRecords(db,{...actor,email:'changed@example.test'},kind);assert.equal(linked.records.length,1,'stable Clerk user owns link after email change');
+  const linked=await readSignupRecords(db,{...actor,email:'changed@example.test'},kind);assert.equal(linked.records.length,1,'stable account user owns link after email change');
   const different=await readSignupRecords(db,{...actor,userId:'other'},kind);assert.equal(different.records.length,0,'email reuse cannot take existing binding');
   await assert.rejects(()=>writeSignup(db,{...actor,userId:'other'}, {kind,id,expectedVersion:2,action:'correct',changes:{mobile:'0821234568'}}),/not found/);
   await writeSignup(db,actor,{kind,id,expectedVersion:2,action:'correct',changes:{mobile:'0821234568'}});r=await current(db,kind);assert.equal(r.status,'awaiting_review');assert.equal(r.details.mobile,'+27821234568');

@@ -1,8 +1,7 @@
 import {CLIENT_PORTAL_URL,OFFICER_PORTAL_URL,OPERATIONS_PORTAL_URL} from './public-site';
 import {currentQuote} from './quote-acceptance';
 import {PilotAccessError} from './pilot-runtime';
-import {createClerkClient} from '@clerk/backend';
-import {verifiedPrimaryEmail} from './clerk-access';
+import {directoryEmail} from './identity-directory';
 import {agreementHash,canonicalAgreementContext} from './agreement-acceptance';
 import {activationAgreementContext,type ActivationAgreementRole} from './agreement-activation';
 import {evaluateAssignmentActivation} from './assignment-activation-server';
@@ -98,11 +97,7 @@ export async function reconcileUnsubmittedNotice(db:D1Database,runtime:Operation
 export async function runOperationalDelivery(db:D1Database,runtime:OperationalRuntime,options:Options={}){
  const clock=options.now??Date.now,transport=options.transport??fetch;
  if(runtime.LOKD_OPERATIONAL_DELIVERY_ENABLED!=='true')return {enabled:false,processed:0};
- const resolveEmail=options.verifiedEmail??(async(id:string)=>{
-  if(!runtime.CLERK_SECRET_KEY)throw new DeliveryError('signer_directory_unavailable');
-  const user=await createClerkClient({secretKey:runtime.CLERK_SECRET_KEY}).users.getUser(id);
-  return user.banned||user.locked?null:verifiedPrimaryEmail(user);
- });
+ const resolveEmail=options.verifiedEmail??((id:string)=>directoryEmail(db,id));
  // A lost worker may have submitted successfully. Reuse the SAME claim only
  // inside the provider deduplication window; afterwards require investigation.
  if(!options.receiptsOnly)await db.prepare(`UPDATE operational_delivery_jobs SET state=CASE WHEN attempts>=5 OR

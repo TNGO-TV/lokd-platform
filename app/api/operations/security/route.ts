@@ -1,5 +1,4 @@
 import {env} from 'cloudflare:workers';
-import {reverificationError} from '@clerk/backend/internal';
 import {operationsRequest} from '../../../lib/operations-access';
 import {operationsMfaStatus} from '../../../lib/operations-mfa';
 import {SignupError} from '../../../lib/signup-server';
@@ -13,7 +12,7 @@ export async function GET(request:Request) {
   const state={...operationsMfaStatus(request.headers),required:true};
   if(new URL(request.url).searchParams.get('verify')==='1'&&!state.fresh){
    if(!state.enrolled)return reply({error:'Enrol an authenticator in Account security first.',...state},403);
-   return reply(reverificationError({level:'second_factor',afterMinutes:4}),403);
+   return reply({error:'Verify your second factor with your sign-in provider, then check again.',...state},403);
   }
   return reply(state);
  }catch(error){return reply({error:error instanceof SignupError?error.message:'Security status is unavailable.'},error instanceof SignupError?error.status:503);}

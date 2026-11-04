@@ -47,14 +47,4 @@ CREATE TRIGGER production_eft_receipts_retain BEFORE DELETE ON production_eft_re
 CREATE TRIGGER production_eft_decisions_immutable BEFORE UPDATE ON production_eft_decisions BEGIN SELECT RAISE(ABORT,'EFT decisions are immutable'); END;
 --> statement-breakpoint
 CREATE TRIGGER production_eft_decisions_retain BEFORE DELETE ON production_eft_decisions BEGIN SELECT RAISE(ABORT,'EFT decision history is required'); END;
--- Accounting jobs use the existing provider and operation ledger.
---> statement-breakpoint
-ALTER TABLE integration_operations ADD COLUMN request_json TEXT;
---> statement-breakpoint
-ALTER TABLE integration_operations ADD COLUMN lease_token TEXT;
---> statement-breakpoint
-ALTER TABLE integration_operations ADD COLUMN lease_expires_at TEXT;
---> statement-breakpoint
-CREATE TRIGGER operations_accounting_payload_immutable BEFORE UPDATE OF request_json ON integration_operations
- WHEN OLD.request_json IS NOT NULL AND NEW.request_json IS NOT OLD.request_json
- BEGIN SELECT RAISE(ABORT,'Accounting payload is immutable'); END;
+

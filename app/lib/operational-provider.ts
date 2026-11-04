@@ -9,7 +9,6 @@ export type OperationalRuntime = {
  LOKD_EMAIL_PROVIDER?:string;
  LOKD_EMAIL_FROM?:string;
  LOKD_QUOTE_EMAIL_FROM?:string;
- CLERK_SECRET_KEY?:string;
  RESEND_API_KEY?:string;
  LOKD_SMTP_HOST?:string;
  LOKD_SMTP_PORT?:string;

@@ -1,5 +1,4 @@
-import { createClerkClient } from '@clerk/backend';
-import { verifiedPrimaryEmail } from './clerk-access';
+import { directoryEmail } from './identity-directory';
 import { configuredEmailProvider, DeliveryError, emailValid, providerJson, sendEmail, type OperationalRuntime } from './operational-provider';
 
 export type ClientNotificationRuntime = OperationalRuntime & { RESEND_API_KEY?: string };
@@ -73,11 +72,7 @@ export async function deliverClientNotifications(db: D1Database, runtime: Client
     ${ids ? '' : 'AND next_attempt_at<=?'}${filters} ORDER BY created_at,id LIMIT ?`)
     .bind(...ids ? [] : [now()], ...values, limit).all<Job>();
   const result = { sent: 0, blocked: 0, uncertain: 0, failed: 0, pending: 0, errors: [] as string[] };
-  const resolveEmail = options.verifiedEmail ?? (async (userId: string) => {
-    if (!runtime.CLERK_SECRET_KEY) throw new DeliveryError('signer_directory_unavailable');
-    const user = await createClerkClient({ secretKey: runtime.CLERK_SECRET_KEY }).users.getUser(userId);
-    return user.banned || user.locked ? null : verifiedPrimaryEmail(user);
-  });
+  const resolveEmail = options.verifiedEmail ?? ((userId: string) => directoryEmail(db, userId));
   for (const job of jobs.results) {
     const lease = crypto.randomUUID();
     const claimed = await db.prepare(`UPDATE client_notification_jobs SET state='dispatching',lease_token=?,lease_expires_at=?,updated_at=?

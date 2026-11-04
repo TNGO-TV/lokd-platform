@@ -63,8 +63,8 @@ test('unsupported schemas and oversized snapshots fail without partial success',
  db.close();
 });
 test('object version changes are rejected and runtime is private',async()=>{
- const env={...config(),CLERK_SECRET_KEY:'fixture',PLATFORM_INTERNAL:'must-not-export',BUCKET:{get:async()=>({body:new ReadableStream(),version:'new'})}};
+ const env={...config(),VERIFYNOW_API_KEY:'fixture',PLATFORM_INTERNAL:'must-not-export',BUCKET:{get:async()=>({body:new ReadableStream(),version:'new'})}};
  assert.equal((await ownerBackup(req({action:'object',key:'x',etag:'x',version:'old'}),env)).status,412);
  const response=await ownerBackup(req({action:'runtime'}),env);assert.match(response.headers.get('cache-control'),/no-store/);
- assert.equal((await response.json()).values.CLERK_SECRET_KEY,'fixture');
+ assert.equal((await response.json()).values.VERIFYNOW_API_KEY,'fixture');
 });

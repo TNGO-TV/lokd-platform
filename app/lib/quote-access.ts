@@ -12,7 +12,7 @@ function listed(raw: string | undefined, email: string) {
   } catch { return false; }
 }
 
-// The Worker strips incoming identity headers and sets these after verifying Clerk.
+// The Worker strips incoming identity headers and sets these after verifying the sign-in.
 export function quoteActor(request: Request, runtime: AccessRuntime): SigningActor {
   const userId = request.headers.get('x-lokd-verified-user-id');
   const email = request.headers.get('x-lokd-verified-email')?.trim().toLowerCase();

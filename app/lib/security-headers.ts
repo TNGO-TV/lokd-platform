@@ -2,15 +2,15 @@
 // the Worker; caller-supplied CSP and nonce headers must never select the value.
 export function contentSecurityPolicy(nonce?: string, development = false) {
   if (nonce && !/^[A-Za-z0-9+/=_-]{20,100}$/.test(nonce)) throw new Error('Invalid script nonce.');
-  const clerkOrigin = development ? 'https://awake-gorilla-7447.clerk.accounts.dev' : 'https://clerk.lokd.co.za';
+  void development;
   return [
     "default-src 'self'", "base-uri 'self'", "form-action 'self'",
     "frame-ancestors 'none'", "object-src 'none'",
-    `script-src 'self' ${nonce ? `'nonce-${nonce}' ` : ''}${clerkOrigin} https://challenges.cloudflare.com https://*.protect.clerk.com`,
-    "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob: https://img.clerk.com https://lokd.co.za",
+    `script-src 'self' ${nonce ? `'nonce-${nonce}' ` : ''}https://challenges.cloudflare.com`,
+    "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob: https://lokd.co.za",
     "font-src 'self' data:",
-    `connect-src 'self' ${clerkOrigin} https://*.protect.clerk.com:* https://clerk-telemetry.com https://*.clerk-telemetry.com`,
-    "frame-src 'self' https://challenges.cloudflare.com https://*.protect.clerk.com",
+    "connect-src 'self'",
+    "frame-src 'self' https://challenges.cloudflare.com",
     "worker-src 'self' blob:",
   ].join('; ');
 }

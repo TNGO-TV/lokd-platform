@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 node --import ./tests/register-cloudflare.mjs --test \
-  tests/clerk-access.test.mjs tests/operations-mfa.test.mjs \
+  tests/identity-access.test.mjs tests/operations-mfa.test.mjs \
   tests/psira-verification.test.mjs tests/application-network-flow.test.mjs \
   tests/agreement-acceptance.test.mjs tests/platform-maintenance.test.mjs tests/production-retention.test.mjs
 node --import ./tests/register-cloudflare.mjs --test --test-name-pattern='signed agreement gate|agreement revocation during commit' tests/assignment-activation-db.test.mjs
