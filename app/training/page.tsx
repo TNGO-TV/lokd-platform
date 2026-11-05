@@ -10,6 +10,6 @@ export default function Page() {
     <section className="public-section public-section--white"><div className="public-section-heading"><h2>Start with the skills you need.</h2></div><div className="public-detail-grid">{cards.map(([title, description]) => <article key={title}><h3>{title}</h3><p>{description}</p></article>)}</div><p className="public-note">Applications are reviewed individually. Submitting an application does not guarantee work or a training place.</p></section>
 
     <PublicSteps officer />
-    <section className="public-section public-section--white"><h2>Already applied?</h2><p>Sign in with the email you used to apply and follow your next steps.</p><Link className="public-text-link" href="/sign-in?return_to=%2Fofficer">Open your officer account →</Link></section>
+    <section className="public-section public-section--white"><h2>Already applied?</h2><p>Open the Officer Zone with the email you used to apply to follow your next steps.</p><Link className="public-text-link" href="/sign-in?return_to=%2Fofficer">Open the Officer Zone →</Link></section>
   </PublicPage>;
 }

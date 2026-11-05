@@ -10,8 +10,8 @@ test('linked terms, unchecked acceptance, exact submission and receipt work on m
  await page.getByText('Full quote details',{exact:true}).click();
  await expect(page.getByText('Internal reference QUOTE-fixture',{exact:true})).toBeVisible();
  await expect(page.getByText('Invoice number INV-LOKD260901',{exact:true})).toBeVisible();
- await expect(page.getByRole('link',{name:'quotes@lokd.co.za',exact:true})).toHaveAttribute('href','mailto:quotes@lokd.co.za');
- await expect(page.getByRole('link',{name:'invoice@lokd.co.za',exact:true})).toHaveAttribute('href','mailto:invoice@lokd.co.za');
+ await expect(page.getByRole('link',{name:'sales@lokd.co.za',exact:true})).toHaveAttribute('href','mailto:sales@lokd.co.za');
+ await expect(page.getByRole('link',{name:'support@lokd.co.za',exact:true})).toHaveAttribute('href','mailto:support@lokd.co.za');
  const checkbox=page.getByRole('checkbox');await expect(checkbox).not.toBeChecked();
  await expect(checkbox).toBeVisible();const checkboxBox=await checkbox.boundingBox();expect(checkboxBox.width).toBeLessThanOrEqual(24);expect(checkboxBox.height).toBeLessThanOrEqual(24);
  await expect(page.getByRole('button',{name:'Accept quote',exact:true})).toBeDisabled();

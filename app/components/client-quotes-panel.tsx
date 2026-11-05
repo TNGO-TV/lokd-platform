@@ -124,7 +124,7 @@ function ClientQuotesPanelState({operations=false,focusId}:{operations?:boolean;
  }
  return <section className={styles.shell} aria-busy={busy}>
   <Link href={operations?'/ops':'/client'}>Back to account</Link><header className={styles.heading}><div><h1>Quotes</h1><p>Review your cover, price and terms.</p></div><button disabled={busy} onClick={()=>void load()}>Refresh quotes</button></header>
-  {!operations&&<p>Quote queries: <a href={'mailto:'+QUOTES_EMAIL}>{QUOTES_EMAIL}</a><br/>Billing queries: <a href={'mailto:'+INVOICE_EMAIL}>{INVOICE_EMAIL}</a></p>}
+  {!operations&&<p>Quote queries: <a href={'mailto:'+QUOTES_EMAIL}>{QUOTES_EMAIL}</a><br/>Accounts and support: <a href={'mailto:'+INVOICE_EMAIL}>{INVOICE_EMAIL}</a></p>}
   {busy&&<p role="status">Loading or saving…</p>}{error&&<p role="alert" className={styles.error}>{error}</p>}{notice&&<p role="status" className={styles.status}>{notice}</p>}
   {stale&&data&&<p role="status">Your saved quotes are shown below. Refresh before making changes.</p>}
   {operations&&data&&<>

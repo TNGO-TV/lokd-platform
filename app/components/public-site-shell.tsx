@@ -41,7 +41,7 @@ export function PublicFooter() {
 export const publicProofPoints = [
   ["PSIRA-verified officers", "Registration checked before an officer is approved for work."],
   ["Identity checks", "The person arriving is matched to their verified officer profile."],
-  ["Live check-in", "Follow attendance and shift updates through your LOKD account."],
+  ["Live check-in", "Follow attendance and shift updates in the LOKD Zone."],
   ["Clear quotes", "Agree the duties, dates and cost before confirming your cover."],
 ] as const;
 
@@ -57,7 +57,7 @@ export function PublicSteps({ officer = false }: { officer?: boolean }) {
   ] : [
     ["Tell us what you need", "Choose a service and share your site, dates, hours and number of officers."],
     ["Agree your quote", "We review your requirements and send a clear scope and price for you to accept."],
-    ["Stay in the loop", "See your assigned officers, check-ins and service updates in your client account."],
+    ["Stay in the loop", "See your assigned officers, check-ins and service updates in the Client Zone."],
   ];
   return <section className="public-section"><div className="public-section-heading"><p className="public-kicker">How it works</p><h2>{officer ? "Your next shift starts here." : "From a request to reliable cover."}</h2></div><ol className="public-three-grid public-steps">{steps.map(([title, description], index) => <li key={title}><span className="public-step-number">0{index + 1}</span><h3>{title}</h3><p>{description}</p></li>)}</ol></section>;
 }
