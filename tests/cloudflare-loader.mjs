@@ -7,7 +7,7 @@ export async function resolve(specifier, context, nextResolve) {
   }
   if (specifier === "cloudflare:sockets") {
     return {
-      url: "data:text/javascript,export%20function%20connect()%7Bthrow%20new%20Error(%27sockets_unavailable_in_tests%27)%3B%7D",
+      url: "data:text/javascript,export%20function%20connect%28...args%29%7Bif%28typeof%20globalThis.__lokdTestSmtpConnect%3D%3D%3D%27function%27%29return%20globalThis.__lokdTestSmtpConnect%28...args%29%3Bthrow%20new%20Error%28%27sockets_unavailable_in_tests%27%29%3B%7D",
       shortCircuit: true,
     };
   }

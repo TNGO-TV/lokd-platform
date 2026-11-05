@@ -18,7 +18,7 @@ Secrets and settings: [docs/production-secrets.md](docs/production-secrets.md).
 
 ## Email
 
-All email is sent through Resend (`RESEND_API_KEY`). Enquiry, booking and client notices are queued in D1 and sent by the scheduled Worker.
+All email is sent through the lokd.co.za mailbox over authenticated SMTP (`LOKD_SMTP_HOST`, `LOKD_SMTP_PORT`, `LOKD_SMTP_USER`, secret `LOKD_SMTP_PASSWORD`), or through Resend (`RESEND_API_KEY`) as an alternative. Enquiry, booking and client notices are queued in D1 and sent by the scheduled Worker. Setup: [docs/production-secrets.md](docs/production-secrets.md#email).
 
 ## Payments
 

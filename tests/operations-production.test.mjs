@@ -52,6 +52,22 @@ test('email delivery reports missing configuration and retries Resend with one s
  await runOperationsNotifications(db,{RESEND_API_KEY:'local-fixture',LOKD_EMAIL_FROM:'service@example.test'},transport);assert.equal(calls,1);assert.equal(sqlite.prepare('SELECT state FROM production_notifications').get().state,'sent');
  }finally{sqlite.close();}
 });
+test('operations email sends through the SMTP mailbox and an interrupted SMTP send is not retried',async()=>{
+ const {sqlite,db}=operationsDatabase();const {installSmtpServer,smtpRuntime}=await import('./fixtures/smtp-server.mjs');
+ let lost=false;const server=installSmtpServer({mode:()=>lost?'lost':'accept'});
+ const runtime={...smtpRuntime,LOKD_EMAIL_FROM:'notices@example.test'},transport=async url=>{assert.fail('No HTTP provider request expected: '+url);};
+ try{
+  const now=new Date().toISOString();
+  for(const id of ['notice:smtp-1','notice:smtp-2'])sqlite.prepare("INSERT INTO production_notifications(id,recipient,subject,body,next_attempt_at,created_at,updated_at) VALUES(?,'officer@example.test','LOKD application update','Sign in to your account.',?,?,?)").run(id,now,now,now);
+  sqlite.prepare("UPDATE production_notifications SET next_attempt_at=? WHERE id='notice:smtp-2'").run(new Date(Date.now()+3600000).toISOString());
+  assert.equal((await runOperationsNotifications(db,runtime,transport)).sent,1);
+  assert.equal(server.messages()[0].to,'officer@example.test');assert.match(sqlite.prepare("SELECT provider_id FROM production_notifications WHERE id='notice:smtp-1'").get().provider_id,/^smtp:/);
+  lost=true;sqlite.prepare("UPDATE production_notifications SET next_attempt_at=? WHERE id='notice:smtp-2'").run(now);
+  await runOperationsNotifications(db,runtime,transport);
+  assert.equal(sqlite.prepare("SELECT state FROM production_notifications WHERE id='notice:smtp-2'").get().state,'uncertain');
+  lost=false;await runOperationsNotifications(db,runtime,transport);assert.equal(server.messages().length,2);
+ }finally{server.uninstall();sqlite.close();}
+});
 test('bank statements are stored privately, independently verified and downloadable only with finance access',async()=>{
  const {POST,GET,PATCH}=await import('../app/api/evidence/route.ts');
  const {sqlite,db}=operationsDatabase(),previousDb=env.DB,previousBucket=env.BUCKET;

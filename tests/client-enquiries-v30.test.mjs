@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 import { env } from "cloudflare:workers";
+import { installSmtpServer, smtpRuntime } from "./fixtures/smtp-server.mjs";
 
 class Prepared {
   constructor(owner, sql, values = []) { this.owner = owner; this.sql = sql; this.values = values; }
@@ -245,6 +246,36 @@ test('public schedule and both Resend messages persist with exactly one saved re
   assert.equal(database.prepare("SELECT state FROM operational_delivery_jobs WHERE kind='enquiry_email'").get().state,'sent');
   assert.equal((await submitClientEnquiry(publicRequest({...input,officers:3}),db,{runtime,transport})).status,409);
  }finally{database.close();}
+});
+
+test('the SMTP mailbox sends the team notice and visitor confirmation once, with no provider setting',async()=>{
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
+ const server=installSmtpServer();
+ const runtime={...smtpRuntime,LOKD_EMAIL_FROM:'notices@example.test',LOKD_TEAM_EMAIL:'operations@example.test'};
+ const transport=async url=>{assert.fail('No HTTP provider request expected: '+url);};
+ try{
+  const saved=await(await submitClientEnquiry(publicRequest(validEnquiry),db,{runtime,transport})).json();
+  assert.equal(saved.confirmationEmailSent,true);assert.equal(saved.opsEmailSent,true);
+  const messages=server.messages();assert.equal(messages.length,2);
+  assert.equal(messages[0].to,'operations@example.test');assert.equal(messages[1].to,validEnquiry.email);assert.equal(messages[1].from,'notices@example.test');
+  const job=database.prepare("SELECT state,provider_id,request_json FROM operational_delivery_jobs WHERE kind='enquiry_email'").get();
+  assert.equal(job.state,'sent');assert.match(job.provider_id,/^smtp:/);assert.equal(JSON.parse(job.request_json)._lokdProvider,'smtp');
+  const replay=await(await submitClientEnquiry(publicRequest(validEnquiry),db,{runtime,transport})).json();
+  assert.equal(replay.reference,saved.reference);assert.equal(replay.confirmationEmailSent,true);assert.equal(server.messages().length,2);
+ }finally{server.uninstall();database.close();}
+});
+
+test('a lost SMTP reply leaves the enquiry email uncertain and is never resent',async()=>{
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
+ const server=installSmtpServer({mode:session=>session===2?'lost':'accept'});
+ const runtime={...smtpRuntime,LOKD_EMAIL_FROM:'notices@example.test',LOKD_TEAM_EMAIL:'operations@example.test'};
+ try{
+  const first=await(await submitClientEnquiry(publicRequest(validEnquiry),db,{runtime})).json();
+  assert.equal(first.saved,true);assert.equal(first.confirmationEmailSent,false);assert.equal(server.messages().length,2);
+  assert.equal(database.prepare("SELECT state FROM operational_delivery_jobs WHERE kind='enquiry_email'").get().state,'uncertain');
+  const replay=await(await submitClientEnquiry(publicRequest(validEnquiry),db,{runtime})).json();
+  assert.equal(replay.reference,first.reference);assert.equal(replay.confirmationEmailSent,false);assert.equal(server.messages().length,2);
+ }finally{server.uninstall();database.close();}
 });
 
 test('lost email acknowledgement retries frozen messages and never reports false email success',async()=>{
