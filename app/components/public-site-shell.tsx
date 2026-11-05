@@ -20,8 +20,8 @@ export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
     <div className="public-header">
       <Link className="public-logo" href="/" aria-label="LOKD home"><Image src="/lokd-logo-reverse.svg" width={2192} height={665} unoptimized priority alt="LOKD" /></Link>
       <nav aria-label="Main navigation">{links}</nav>
-      <div className="public-header-actions"><Link className="public-login" href="/sign-in">Sign in</Link><Link className="public-button public-button--primary" href="/quote">Get a quote</Link></div>
-      <details className="public-mobile-menu"><summary>Menu</summary><nav aria-label="Mobile navigation">{links}<Link href="/sign-in">Sign in</Link><Link href="/quote">Get a quote</Link></nav></details>
+      <div className="public-header-actions"><Link className="public-login" href="/sign-in">Zone</Link><Link className="public-button public-button--primary" href="/quote">Get a quote</Link></div>
+      <details className="public-mobile-menu"><summary>Menu</summary><nav aria-label="Mobile navigation">{links}<Link href="/sign-in">Zone</Link><Link href="/quote">Get a quote</Link></nav></details>
     </div>
   </header>;
 }
@@ -32,7 +32,7 @@ export function PublicFooter() {
       <div className="site-footer-company"><Link href="/" aria-label="LOKD home"><Image src="/lokd-logo-reverse.svg" width={2192} height={665} unoptimized alt="LOKD" /></Link><p>Security for your shift, event or everyday cover.</p><p>Johannesburg, South Africa</p></div>
       <nav aria-label="Security services"><h2>Find your cover</h2><Link href="/security-services">Unarmed guarding</Link><Link href="/armed-security">Armed security</Link><Link href="/vip-protection">VIP protection</Link><Link href="/industries">Industries</Link><Link href="/locations/johannesburg">Johannesburg</Link><Link href="/quote">Get a quote</Link></nav>
       <nav aria-label="About LOKD"><h2>LOKD</h2><Link href="/about">About us</Link><Link href="/compliance">Our checks</Link><Link href="/verify">Verify a Passport</Link><Link href="/officers">For officers</Link><Link href="/training">Training</Link><Link href="/join">Apply as an officer</Link></nav>
-      <nav aria-label="Contact and accounts"><h2>Talk to us</h2><Link href="/contact">Contact LOKD</Link><a href={"mailto:" + QUOTES_EMAIL}>{QUOTES_EMAIL}</a><a href={"mailto:" + BOOKINGS_EMAIL}>{BOOKINGS_EMAIL}</a><Link href="/sign-in?return_to=%2Fclient">Client sign in</Link><Link href="/sign-in?return_to=%2Fofficer">Officer sign in</Link><Link href="/sign-in?return_to=%2Fops">Operations sign in</Link></nav>
+      <nav aria-label="Contact and accounts"><h2>Talk to us</h2><Link href="/contact">Contact LOKD</Link><a href={"mailto:" + QUOTES_EMAIL}>{QUOTES_EMAIL}</a><a href={"mailto:" + BOOKINGS_EMAIL}>{BOOKINGS_EMAIL}</a><Link href="/sign-in?return_to=%2Fclient">Client Zone</Link><Link href="/sign-in?return_to=%2Fofficer">Officer Zone</Link><Link href="/sign-in?return_to=%2Fops">Operations Zone</Link></nav>
     </div>
     <div className="site-footer-bottom"><small>© {new Date().getFullYear()} {COMPANY_NAME}</small><nav aria-label="Legal"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms and conditions</Link></nav></div>
   </footer>;

@@ -74,7 +74,7 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
     {receipt.confirmationEmailSent === true && <p>A confirmation has been sent to your email address.</p>}
     {receipt.confirmationEmailSent === false && <div className="public-retry"><p>Your enquiry is saved, but its emails have not been confirmed. You can retry delivery without submitting another enquiry.</p><button type="button" disabled={busy} onClick={() => { if (original.current) void send(original.current.body); }}>{busy ? "Checking delivery…" : "Retry email confirmation"}</button>{error && <p role="alert">{error}</p>}</div>}
     <dl><dt>Enquiry reference</dt><dd>{receipt.reference}</dd></dl>
-    <p>Sign in with the same email to follow your enquiry. Your cover is confirmed after you agree the quote and service terms.</p>
+    <p>Use the same email in the Client Zone to follow your enquiry. Your cover is confirmed after you agree the quote and service terms.</p>
     <Link className="public-button public-button--primary" href="/sign-in?return_to=%2Fclient">Track your enquiry</Link>
   </section>;
 

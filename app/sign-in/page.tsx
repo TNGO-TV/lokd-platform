@@ -11,7 +11,7 @@ import { operationsEmailAllowed } from "../lib/signup-access";
 import { publicMetadata, requestHostname, workspaceRoleForHost, workspaceRedirectForHost, type WorkspaceRole } from "../lib/public-site";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { ...publicMetadata("Sign in to your account", "Sign in securely to your LOKD client, officer or operations account.", "/sign-in"), robots: { index: false, follow: false } };
+export const metadata: Metadata = { ...publicMetadata("LOKD Zone", "The LOKD Zone for clients, officers and operations.", "/sign-in"), robots: { index: false, follow: false } };
 
 async function Login({ searchParams }: { searchParams: Promise<{ return_to?: string }> }) {
   const requestHeaders = await headers();
@@ -36,10 +36,10 @@ async function Login({ searchParams }: { searchParams: Promise<{ return_to?: str
     redirect(host ? new URL(target, host).toString() : target);
   }
   const label = hostRole === "operations" ? "Operations" : hostRole === "officer" ? "Officer" : hostRole === "client" ? "Client" : "LOKD";
-  return <div className="public-site"><PublicHeader /><main id="main-content" className="public-auth" tabIndex={-1}><section className="public-auth-card"><p className="public-kicker">Your account</p><h1>{label} sign in</h1><p>Use the email linked to your LOKD application or booking.</p>
+  return <div className="public-site"><PublicHeader /><main id="main-content" className="public-auth" tabIndex={-1}><section className="public-auth-card"><p className="public-kicker">LOKD Zone</p><h1>{label === "LOKD" ? "LOKD Zone" : `${label} Zone`}</h1><p>Use the email linked to your LOKD application or booking.</p>
     {/* The sign-in form for the connected identity provider renders here (see worker/identity.ts). */}
-    <p role="status">Account sign-in isn&apos;t available yet. To book cover or apply as an officer, use the forms on this site or <Link href="/contact">contact LOKD</Link>.</p>
-    {!hostRole && <nav aria-label="Choose your account"><Link href="/sign-in?return_to=%2Fclient">Client account</Link><Link href="/sign-in?return_to=%2Fofficer">Officer account</Link><Link href="/sign-in?return_to=%2Fops">Operations account</Link></nav>}
+    <p role="status">The LOKD Zone is not yet open. To request cover or apply as an officer, use the forms on this site or <Link href="/contact">contact LOKD</Link>.</p>
+    {!hostRole && <nav aria-label="Choose your Zone"><Link href="/sign-in?return_to=%2Fclient">Client Zone</Link><Link href="/sign-in?return_to=%2Fofficer">Officer Zone</Link><Link href="/sign-in?return_to=%2Fops">Operations Zone</Link></nav>}
   </section></main><PublicFooter /></div>;
 }
 export default function SignInPage(props: { searchParams: Promise<{ return_to?: string }> }) { return <Login {...props} />; }

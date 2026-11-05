@@ -57,8 +57,8 @@ test('homepage offers real intake paths, responsive service navigation and priva
   await expect(main.getByRole('link', {name: /^Apply as an officer/})).toHaveAttribute('href', '/join');
   await expect(main.getByRole('heading', {name: 'PSIRA-verified officers', exact: true})).toBeVisible();
   const footer = page.locator('footer');
-  await expect(footer.getByRole('link', {name: 'Client sign in', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fclient');
-  await expect(footer.getByRole('link', {name: 'Officer sign in', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fofficer');
+  await expect(footer.getByRole('link', {name: 'Client Zone', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fclient');
+  await expect(footer.getByRole('link', {name: 'Officer Zone', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fofficer');
   await expect(footer.getByRole('link', {name: 'Training', exact: true})).toHaveAttribute('href', '/training');
   await fitsViewport(page);
   const header = page.locator('header');
@@ -68,12 +68,12 @@ test('homepage offers real intake paths, responsive service navigation and priva
     await expect(page.getByRole('navigation', {name: 'Main navigation', exact: true})).toBeHidden();
     await header.getByText('Menu', {exact: true}).click();
   } else {
-    await expect(header.getByRole('link', {name: 'Sign in', exact: true})).toHaveAttribute('href', '/sign-in');
+    await expect(header.getByRole('link', {name: 'Zone', exact: true})).toHaveAttribute('href', '/sign-in');
     await expect(header.getByText('Menu', {exact: true})).toBeHidden();
   }
   const navigation = page.getByRole('navigation', {name: mobile ? 'Mobile navigation' : 'Main navigation', exact: true});
   await expect(navigation).toBeVisible();
-  if (mobile) await expect(navigation.getByRole('link', {name: 'Sign in', exact: true})).toHaveAttribute('href', '/sign-in');
+  if (mobile) await expect(navigation.getByRole('link', {name: 'Zone', exact: true})).toHaveAttribute('href', '/sign-in');
   await navigation.getByRole('link', {name: 'Security services', exact: true}).click();
   await expect(page).toHaveURL(origin + '/security-services');
   await expect(page.locator('h1')).toBeVisible();

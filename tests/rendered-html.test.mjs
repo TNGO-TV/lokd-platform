@@ -41,7 +41,7 @@ test("renders the canonical public LOKD launch identity with real signup entry p
     ["/quote", "Get a quote"], ["/join", "Apply as an officer"],
     ["/security-services", "Explore our services"], ["/armed-security", "Armed security"],
     ["/vip-protection", "VIP protection"], ["/privacy", "Privacy"], ["/terms", "Terms and conditions"],
-    ["/sign-in?return_to=%2Fclient", "Client sign in"], ["/sign-in?return_to=%2Fofficer", "Officer sign in"],
+    ["/sign-in?return_to=%2Fclient", "Client Zone"], ["/sign-in?return_to=%2Fofficer", "Officer Zone"],
   ]) {
     assert.ok(links.some((link) => link.href === href && link.text.startsWith(label)), `${label} must link to ${href}`);
   }
