@@ -91,7 +91,6 @@
   ],
   "secrets": {
     "required": [
-      "RESEND_API_KEY",
       "LOKD_ROLE_ACCESS_JSON",
       "LOKD_OPERATIONS_ACCESS_JSON",
       "LOKD_OWNER_ACCESS_JSON"
