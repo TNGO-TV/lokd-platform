@@ -1,7 +1,7 @@
 import { directoryEmail } from './identity-directory';
-import { configuredEmailProvider, DeliveryError, emailValid, providerJson, sendEmail, type OperationalRuntime } from './operational-provider';
+import { configuredEmailProvider, DeliveryError, emailValid, providerJson, sameEmailProvider, sendEmail, type EmailProvider, type OperationalRuntime } from './operational-provider';
 
-export type ClientNotificationRuntime = OperationalRuntime & { RESEND_API_KEY?: string };
+export type ClientNotificationRuntime = OperationalRuntime;
 export type ClientNotification = {
   id: string;
   sourceId: string;
@@ -44,7 +44,6 @@ export async function readClientNotificationFailures(db:D1Database,ownerUserId:s
 function readableError(error: unknown) {
   if (!(error instanceof DeliveryError)) return 'Email delivery is temporarily unavailable.';
   if (error.code === 'email_provider_not_configured') return 'Email is not configured. Contact LOKD Operations.';
-  if (error.code === 'resend_key_not_configured') return 'Email is unavailable because RESEND_API_KEY is not configured. Contact LOKD Operations.';
   if (error.code === 'email_sender_not_configured') return 'The LOKD sender address is not configured.';
   if (error.code === 'email_recipient_unavailable') return 'A verified recipient email address is required.';
   if (error.code === 'signer_directory_unavailable') return 'The account email service is not configured.';
@@ -63,8 +62,9 @@ export async function deliverClientNotifications(db: D1Database, runtime: Client
   const filters = `${options.ownerUserId ? ' AND owner_user_id=?' : ''}${ids ? ` AND id IN (${ids.map(() => '?').join(',')})` : ''}`;
   const values = [...options.ownerUserId ? [options.ownerUserId] : [], ...ids ?? []];
   // Resend retries reuse the frozen request within its 24-hour deduplication window.
+  // A lost SMTP worker can have sent the message; SMTP has no safe replay.
   await db.prepare(`UPDATE client_notification_jobs SET state=CASE WHEN attempts>0 AND
-    (first_attempt_at<=? OR attempts>=5) THEN 'uncertain' ELSE 'retry_wait' END,
+    (json_extract(request_json,'$._lokdProvider')!='resend' OR first_attempt_at<=? OR attempts>=5) THEN 'uncertain' ELSE 'retry_wait' END,
     lease_token=NULL,lease_expires_at=NULL,last_error='Email submission was interrupted. Operations must check any submitted message.',updated_at=?
     WHERE state='dispatching' AND lease_expires_at<=?${filters}`).bind(new Date(clock()-23*3600000).toISOString(),now(), now(), ...values).run();
   const jobs = await db.prepare(`SELECT * FROM client_notification_jobs WHERE state IN ('queued','blocked','retry_wait')
@@ -79,9 +79,8 @@ export async function deliverClientNotifications(db: D1Database, runtime: Client
       .bind(lease, new Date(clock() + 120000).toISOString(), now(), job.id).run();
     if (!claimed.meta.changes) continue;
     let attempted = false;
-    let provider: string | null = null;
+    let provider: EmailProvider | null = null;
     try {
-      if(!runtime.RESEND_API_KEY)throw new DeliveryError('resend_key_not_configured');
       provider=configuredEmailProvider(runtime);
       const sender = runtime.LOKD_QUOTE_EMAIL_FROM ?? runtime.LOKD_EMAIL_FROM;
       if (!emailValid(sender)) throw new DeliveryError('email_sender_not_configured');
@@ -89,11 +88,12 @@ export async function deliverClientNotifications(db: D1Database, runtime: Client
       if (!emailValid(recipient)) throw new DeliveryError('email_recipient_unavailable');
       if (job.recipient && recipient.toLowerCase() !== job.recipient.toLowerCase()) throw new DeliveryError('email_recipient_changed');
       const body: Record<string, unknown> = job.request_json ? JSON.parse(job.request_json) : { from: sender, to: [recipient], subject: job.subject, text: job.message_text, _lokdProvider: provider };
-      if (body._lokdProvider !== provider) throw new DeliveryError('email_provider_changed');
+      if (!sameEmailProvider(body._lokdProvider, provider)) throw new DeliveryError('email_provider_changed');
       if(job.attempts>=5||job.first_attempt_at&&clock()-Date.parse(job.first_attempt_at)>=23*3600000)throw new DeliveryError('email_retry_window_expired','uncertain');
       await db.prepare(`UPDATE client_notification_jobs SET request_json=COALESCE(request_json,?),recipient=COALESCE(recipient,?),
         attempts=attempts+1,first_attempt_at=COALESCE(first_attempt_at,?),updated_at=? WHERE id=? AND lease_token=?`).bind(JSON.stringify(body), recipient, now(),now(), job.id, lease).run();
       attempted = true;
+      // SMTP Message-ID is bounded and stable across process restarts.
       const messageId = 'client-' + Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(job.id))), b => b.toString(16).padStart(2, '0')).join('');
       let providerId:string;
       if(provider==='resend'){

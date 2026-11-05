@@ -4,7 +4,7 @@ import {directoryEmail} from './identity-directory';
 import {agreementHash,canonicalAgreementContext} from './agreement-acceptance';
 import {activationAgreementContext,type ActivationAgreementRole} from './agreement-activation';
 import {evaluateAssignmentActivation} from './assignment-activation-server';
-import {DeliveryError,emailValid,configuredEmailProvider,emailReceipt,sendEmail,type OperationalRuntime} from './operational-provider';
+import {DeliveryError,emailValid,configuredEmailProvider,emailReceipt,isSmtpProvider,sameEmailProvider,sendEmail,type OperationalRuntime} from './operational-provider';
 import {requireCrmCompanion} from './crm-companion';
 
 type Job={id:string;kind:string;source_id:string;environment:string;state:string;attempts:number;request_json:string|null;recipient:string|null;provider_id:string|null;first_attempt_at:string|null;created_at:string};
@@ -48,7 +48,7 @@ async function requestFor(db:D1Database,job:Job,runtime:OperationalRuntime,resol
  const provider=configuredEmailProvider(runtime);
  const sender=job.kind==='contract_email'&&job.source_id.startsWith('QUOTE-')?(runtime.LOKD_QUOTE_EMAIL_FROM??runtime.LOKD_EMAIL_FROM):runtime.LOKD_EMAIL_FROM;
  if(!emailValid(sender))throw new DeliveryError('email_sender_not_configured');
- if(job.request_json&&JSON.parse(job.request_json)._lokdProvider!==provider)throw new DeliveryError('email_provider_changed');
+ if(job.request_json&&!sameEmailProvider(JSON.parse(job.request_json)._lokdProvider,provider))throw new DeliveryError('email_provider_changed');
  let recipient:string|null=runtime.LOKD_TEAM_EMAIL??null,subject:string,text:string;
  if(job.kind==='contract_email'){
   const envelope=await currentEnvelopeRecipient(db,job.source_id,clock);
@@ -75,8 +75,10 @@ export async function runOperationalDelivery(db:D1Database,runtime:OperationalRu
  if(runtime.LOKD_OPERATIONAL_DELIVERY_ENABLED==='false')return {enabled:false,processed:0};
  const resolveEmail=options.verifiedEmail??((id:string)=>directoryEmail(db,id));
  // A lost worker may have submitted successfully. Reuse the SAME claim only
- // inside the provider deduplication window; afterwards require investigation.
+ // inside the Resend deduplication window; afterwards require investigation.
+ // SMTP has no idempotent replay, so any interrupted SMTP attempt needs review.
  if(!options.receiptsOnly)await db.prepare(`UPDATE operational_delivery_jobs SET state=CASE WHEN attempts>=5 OR
+  (kind!='enquiry_crm' AND attempts>0 AND json_extract(request_json,'$._lokdProvider') IN ('smtp','cpanel')) OR
   (kind!='enquiry_crm' AND first_attempt_at IS NOT NULL AND first_attempt_at<=?) THEN 'uncertain' ELSE 'retry_wait' END,
   lease_token=NULL,lease_expires_at=NULL,last_error='dispatch_lease_expired',updated_at=?
   WHERE state='dispatching' AND lease_expires_at<=?`).bind(iso(clock()-23*3600000),iso(clock()),iso(clock())).run();
@@ -97,7 +99,11 @@ export async function runOperationalDelivery(db:D1Database,runtime:OperationalRu
    await db.prepare(`UPDATE operational_delivery_jobs SET state='sent',provider_id=?,last_error=NULL,lease_token=NULL,lease_expires_at=NULL,next_attempt_at=?,updated_at=? WHERE id=? AND lease_token=?`).bind(providerId,iso(clock()+60000),iso(clock()),job.id,lease).run();processed++;
   }catch(cause){
    const error=cause instanceof DeliveryError?cause:new DeliveryError('delivery_check_unavailable','retry_wait');
-   const state=error.disposition==='retry_wait'&&job.attempts>=5?'uncertain':error.disposition;
+   // After an SMTP attempt, an unknown outcome is never retried automatically.
+   const frozen=job.request_json?JSON.parse(job.request_json)._lokdProvider:null;
+   let current:string|null=null;try{current=configuredEmailProvider(runtime);}catch{current=null;}
+   const smtpUncertain=job.kind!=='enquiry_crm'&&job.attempts>0&&(isSmtpProvider(frozen)||!frozen&&current==='smtp');
+   const state=error.disposition==='retry_wait'&&(job.attempts>=5||smtpUncertain)?'uncertain':error.disposition;
    await db.prepare(`UPDATE operational_delivery_jobs SET state=?,last_error=?,lease_token=NULL,lease_expires_at=NULL,next_attempt_at=?,updated_at=? WHERE id=? AND lease_token=?`).bind(state,error.code,iso(clock()+(state==='blocked'?900000:Math.min(3600000,30000*2**job.attempts))),iso(clock()),job.id,lease).run();
   }
  }

@@ -272,7 +272,7 @@ test('mail configuration errors preserve the action and can be retried after con
  try {
   const {quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),id='quote:issued:client:'+quoteId;
   const blocked=await deliverClientNotifications(x.db,{}, {ids:[id]});
-  assert.equal(blocked.blocked,1);assert.match(blocked.errors[0],/RESEND_API_KEY/);
+  assert.equal(blocked.blocked,1);assert.match(blocked.errors[0],/Email is not configured/);
   assert.equal(x.database.prepare('SELECT attempts FROM client_notification_jobs WHERE id=?').get(id).attempts,0);
   assert.equal((await readClientNotificationFailures(x.db,x.applicant.userId)).length,1);
   assert.equal((await readClientNotificationFailures(x.db,'unrelated')).length,0);
@@ -295,6 +295,27 @@ test('mail replays reuse the frozen Resend body and key; no other provider can s
   let calls=0;const otherOptions={ids:[other],verifiedEmail:async()=>x.applicant.email,transport:async()=>{calls++;return Response.json({id:'never'});}};
   assert.equal((await deliverClientNotifications(x.db,{...runtime,LOKD_EMAIL_PROVIDER:'smtp'},otherOptions)).sent,0);assert.equal(calls,0);
  } finally {x.database.close();}
+});
+
+test('client notices send through the SMTP mailbox and a lost SMTP reply is never resent',async()=>{
+ const x=await setup();
+ const {installSmtpServer,smtpRuntime}=await import('./fixtures/smtp-server.mjs');
+ let lost=false;const server=installSmtpServer({mode:()=>lost?'lost':'accept'});
+ try {
+  const {quoteId}=await issueQuote(x.db,x.bucket,x.reviewer,x.issue),id='quote:issued:client:'+quoteId;
+  const runtime={...smtpRuntime,LOKD_EMAIL_FROM:'notices@example.test',LOKD_QUOTE_EMAIL_FROM:'notices@example.test'};
+  const options={ids:[id],verifiedEmail:async()=>x.applicant.email,transport:async url=>{assert.fail('No HTTP provider request expected: '+url);}};
+  assert.equal((await deliverClientNotifications(x.db,runtime,options)).sent,1);
+  const [mail]=server.messages();assert.equal(mail.to,x.applicant.email);assert.equal(mail.from,'notices@example.test');
+  const row=x.database.prepare('SELECT state,provider_id,request_json FROM client_notification_jobs WHERE id=?').get(id);
+  assert.equal(row.state,'sent');assert.match(row.provider_id,/^smtp:client-[a-f0-9]{64}:250/);assert.equal(JSON.parse(row.request_json)._lokdProvider,'smtp');
+  const other='local-smtp-lost';lost=true;
+  await clientNotificationStatement(x.db,{id:other,sourceId:quoteId,ownerUserId:x.applicant.userId,recipient:'client',subject:'LOKD update',text:'Your account update is saved.'}).run();
+  assert.equal((await deliverClientNotifications(x.db,runtime,{...options,ids:[other]})).uncertain,1);
+  lost=false;assert.equal((await deliverClientNotifications(x.db,runtime,{...options,ids:[other]})).sent,0);
+  assert.equal(server.messages().length,2);
+  assert.equal(x.database.prepare('SELECT state FROM client_notification_jobs WHERE id=?').get(other).state,'uncertain');
+ } finally {server.uninstall();x.database.close();}
 });
 
 test('pending client service agreements remain visible and cannot be signed through another account or role',async()=>{

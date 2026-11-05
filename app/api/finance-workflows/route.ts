@@ -2,7 +2,7 @@ import {env} from 'cloudflare:workers';
 import {operationsRequest,requireOperationsJson,requireOperationsRole} from '../../lib/operations-access';
 import {readEft,operateEft} from '../../lib/production-eft';
 import {runOperationsNotifications,reconcileOperationsNotification,type OperationsMailRuntime} from '../../lib/production-notifications';
-import {DeliveryError,emailValid} from '../../lib/operational-provider';
+import {configuredEmailProvider,DeliveryError,emailValid} from '../../lib/operational-provider';
 import {SignupError} from '../../lib/signup-server';
 import {readRequestText,RequestBodyError} from '../../lib/request-body';
 export const dynamic='force-dynamic';
@@ -14,7 +14,8 @@ export async function GET(request:Request){try{
  const [receipts,notifications,invoices]=await Promise.all([readEft(env.DB),env.DB.prepare('SELECT id,subject,state,attempts,last_error,created_at FROM production_notifications ORDER BY created_at DESC LIMIT 100').all(),env.DB.prepare("SELECT id,invoice_number,total_cents,status,booking_id FROM client_invoices WHERE environment='production' ORDER BY created_at DESC LIMIT 100").all()]);
  const mail=env as OperationsMailRuntime;
  const configurationWarnings=[];
- if(!mail.RESEND_API_KEY||!emailValid(mail.LOKD_EMAIL_FROM))configurationWarnings.push('Email delivery requires the RESEND_API_KEY secret and a verified LOKD_EMAIL_FROM sender. Notifications are retained until delivery can be confirmed.');
+ let mailReady=true;try{configuredEmailProvider(mail);}catch{mailReady=false;}
+ if(!mailReady||!emailValid(mail.LOKD_EMAIL_FROM))configurationWarnings.push('Email delivery requires the SMTP mailbox settings (LOKD_SMTP_HOST, LOKD_SMTP_USER, LOKD_SMTP_PASSWORD) or RESEND_API_KEY, and the LOKD_EMAIL_FROM sender. Notifications are retained until delivery can be confirmed.');
  return reply({receipts,notifications:notifications.results,invoices:invoices.results,configurationWarnings});
 }catch(e){return failure(e);}}
 export async function POST(request:Request){try{

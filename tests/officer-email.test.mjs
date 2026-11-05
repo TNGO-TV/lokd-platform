@@ -3,6 +3,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {enqueueOfficerEmail,deliverOfficerEmail} from '../app/lib/officer-email.ts';
+import {installSmtpServer,smtpRuntime} from './fixtures/smtp-server.mjs';
 class D1{
  constructor(){this.sql=new DatabaseSync(':memory:');for(const f of fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())this.sql.exec(fs.readFileSync('drizzle/'+f,'utf8'));}
  prepare(sql){const stmt=this.sql.prepare(sql);const make=(args=[])=>({bind:(...v)=>make(v),first:async()=>stmt.get(...args)??null,all:async()=>({results:stmt.all(...args)}),run:async()=>({meta:{changes:Number(stmt.run(...args).changes)}})});return make();}
@@ -27,4 +28,17 @@ test('uncertain officer email does not replay after Resend idempotency retention
  const db=new D1();await enqueueOfficerEmail(db,message);db.sql.prepare("UPDATE officer_email_outbox SET state='uncertain',created_at=?").run(new Date(Date.now()-86400000).toISOString());
  let calls=0;const result=await deliverOfficerEmail(db,{RESEND_API_KEY:'fixture',LOKD_EMAIL_FROM:'team@example.test'},message.id,async()=>{calls++;return Response.json({id:'later'});});
  assert.equal(result.sent,false);assert.equal(calls,0);assert.match(result.error,/Review/);
+});
+test('officer email sends through the SMTP mailbox and never replays an unconfirmed SMTP submission',async()=>{
+ const db=new D1();await enqueueOfficerEmail(db,message);let lost=false;const server=installSmtpServer({mode:()=>lost?'lost':'accept'});
+ const runtime={...smtpRuntime,LOKD_EMAIL_FROM:'notices@example.test'},transport=async url=>{assert.fail('No HTTP provider request expected: '+url);};
+ try{
+  assert.equal((await deliverOfficerEmail(db,runtime,message.id,transport)).sent,true);
+  assert.equal(server.messages()[0].to,message.recipient);assert.match(db.sql.prepare('SELECT provider_id FROM officer_email_outbox').get().provider_id,/^smtp:/);
+  const second={...message,id:'confirmation:two'};await enqueueOfficerEmail(db,second);lost=true;
+  assert.equal((await deliverOfficerEmail(db,runtime,second.id,transport)).sent,false);
+  assert.equal(db.sql.prepare('SELECT state FROM officer_email_outbox WHERE id=?').get(second.id).state,'uncertain');
+  lost=false;const retry=await deliverOfficerEmail(db,runtime,second.id,transport);
+  assert.equal(retry.sent,false);assert.match(retry.error,/sent mailbox/);assert.equal(server.messages().length,2);
+ }finally{server.uninstall();}
 });

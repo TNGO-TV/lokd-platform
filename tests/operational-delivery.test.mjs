@@ -5,6 +5,7 @@ import test from "node:test";
 
 import {runOperationalDelivery} from '../app/lib/operational-delivery.ts';
 import {configuredEmailProvider} from '../app/lib/operational-provider.ts';
+import {installSmtpServer,smtpRuntime} from './fixtures/smtp-server.mjs';
 
 class Prepared {
   constructor(owner, sql, values = []) { this.owner = owner; this.sql = sql; this.values = values; }
@@ -101,9 +102,62 @@ test('operators can pause sending without losing queued notices',async()=>{
  }finally{x.database.close();}
 });
 
-test('only Resend is accepted as the email provider',()=>{
+test('email provider selection prefers a configured SMTP mailbox and keeps Resend as an alternative',()=>{
  assert.equal(configuredEmailProvider(runtime),'resend');
  assert.equal(configuredEmailProvider({...runtime,LOKD_EMAIL_PROVIDER:undefined}),'resend');
- for(const provider of ['smtp','foreign-mail','disabled'])assert.throws(()=>configuredEmailProvider({...runtime,LOKD_EMAIL_PROVIDER:provider}),/email_provider_not_configured/);
+ assert.equal(configuredEmailProvider({...smtpRuntime}),'smtp');
+ assert.equal(configuredEmailProvider({...smtpRuntime,RESEND_API_KEY:'re_local_fixture'}),'smtp','configured SMTP wins when no provider is named');
+ for(const provider of ['smtp','cpanel','SMTP'])assert.equal(configuredEmailProvider({...smtpRuntime,LOKD_EMAIL_PROVIDER:provider}),'smtp');
+ assert.equal(configuredEmailProvider({...smtpRuntime,RESEND_API_KEY:'re_local_fixture',LOKD_EMAIL_PROVIDER:'resend'}),'resend');
+ for(const provider of ['smtp','cpanel'])assert.throws(()=>configuredEmailProvider({...runtime,LOKD_EMAIL_PROVIDER:provider}),/email_provider_not_configured/);
+ for(const missing of ['LOKD_SMTP_HOST','LOKD_SMTP_USER','LOKD_SMTP_PASSWORD'])assert.throws(()=>configuredEmailProvider({...smtpRuntime,[missing]:undefined}),/email_provider_not_configured/);
+ for(const provider of ['foreign-mail','disabled'])assert.throws(()=>configuredEmailProvider({...runtime,...smtpRuntime,LOKD_EMAIL_PROVIDER:provider}),/email_provider_not_configured/);
  assert.throws(()=>configuredEmailProvider({...runtime,RESEND_API_KEY:undefined}),/email_provider_not_configured/);
+ assert.throws(()=>configuredEmailProvider({}),/email_provider_not_configured/);
+});
+
+const smtp={LOKD_TEAM_EMAIL:'team@example.test',LOKD_EMAIL_FROM:'notices@example.test',...smtpRuntime};
+const noFetch=async url=>{throw Error('no HTTP provider request expected: '+url);};
+
+test('the team enquiry notice is sent once through the SMTP mailbox with no receipt polling',async()=>{
+ const x=await fixture(),server=installSmtpServer();let now=Date.now()+1000;try{
+  await runOperationalDelivery(x.db,smtp,{transport:noFetch,now:()=>now});
+  const [mail]=server.messages();assert.equal(server.messages().length,1);
+  assert.equal(server.sessions[0].address.hostname,'mail.example.test');assert.equal(server.sessions[0].address.port,465);assert.equal(server.sessions[0].options.secureTransport,'on');
+  assert.equal(mail.from,'notices@example.test');assert.equal(mail.to,'team@example.test');assert.equal(mail.subject,'New LOKD service enquiry');
+  assert.equal(mail.rcpt,'RCPT TO:<team@example.test>\r\n');assert.match(mail.data,/\r\nDate: /);
+  assert.equal(job(x,'enquiry_email').state,'sent');assert.match(job(x,'enquiry_email').provider_id,/^smtp:/);
+  assert.equal(JSON.parse(job(x,'enquiry_email').request_json)._lokdProvider,'smtp');
+  assert.equal(job(x,'enquiry_crm').state,'cancelled');
+  now+=3600001;await runOperationalDelivery(x.db,smtp,{transport:noFetch,now:()=>now});
+  await runOperationalDelivery(x.db,smtp,{transport:noFetch,now:()=>now,receiptsOnly:true});
+  assert.equal(server.messages().length,1,'a sent notice is never resent');assert.equal(job(x,'enquiry_email').state,'sent');
+ }finally{server.uninstall();x.database.close();}
+});
+
+test('a lost SMTP reply is uncertain and is never resent automatically',async()=>{
+ const x=await fixture(),server=installSmtpServer({mode:()=>'lost'});let now=Date.now()+1000;try{
+  await runOperationalDelivery(x.db,smtp,{transport:noFetch,now:()=>now});
+  assert.equal(server.messages().length,1);assert.equal(job(x,'enquiry_email').state,'uncertain');assert.equal(job(x,'enquiry_email').attempts,1);
+  now+=3600001;await runOperationalDelivery(x.db,smtp,{transport:noFetch,now:()=>now});
+  assert.equal(server.messages().length,1);assert.equal(job(x,'enquiry_email').state,'uncertain');
+ }finally{server.uninstall();x.database.close();}
+});
+
+test('an interrupted SMTP dispatch becomes uncertain instead of being retried',async()=>{
+ const x=await fixture(),server=installSmtpServer();const now=Date.now()+1000;try{
+  x.database.prepare("UPDATE operational_delivery_jobs SET state='dispatching',request_json=?,attempts=1,first_attempt_at=?,lease_expires_at=? WHERE kind='enquiry_email'")
+   .run(JSON.stringify({_lokdProvider:'smtp',from:'notices@example.test',to:['team@example.test'],subject:'New LOKD service enquiry',text:'Saved notice'}),new Date(now-1000).toISOString(),new Date(now-1).toISOString());
+  await runOperationalDelivery(x.db,smtp,{transport:noFetch,now:()=>now});
+  assert.equal(job(x,'enquiry_email').state,'uncertain');assert.equal(server.sessions.length,0);
+ }finally{server.uninstall();x.database.close();}
+});
+
+test('a saved Resend notice is not sent through SMTP after the provider changes',async()=>{
+ const x=await fixture(),server=installSmtpServer(),calls=[];let now=Date.now()+1000;try{
+  await runOperationalDelivery(x.db,runtime,{transport:resend(calls,{fail:true}),now:()=>now});
+  assert.equal(job(x,'enquiry_email').state,'retry_wait');
+  now+=3600000;await runOperationalDelivery(x.db,smtp,{transport:noFetch,now:()=>now});
+  assert.equal(server.sessions.length,0);assert.equal(job(x,'enquiry_email').last_error,'email_provider_changed');
+ }finally{server.uninstall();x.database.close();}
 });
