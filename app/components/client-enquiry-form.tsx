@@ -54,7 +54,9 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
     previousStep.current = step;
   }, [step]);
 
-  function advance() {
+  function advance(event?: { preventDefault(): void }) {
+    // Continue becomes the submit button when this update reveals step three.
+    event?.preventDefault();
     const fields = formRef.current?.querySelectorAll(`fieldset[data-booking-step="${step}"] input, fieldset[data-booking-step="${step}"] select, fieldset[data-booking-step="${step}"] textarea`);
     if (fields) for (const field of fields) if ("reportValidity" in field && typeof field.reportValidity === "function" && !field.reportValidity()) return;
     setError(""); setStep(Math.min(3, step + 1));

@@ -325,6 +325,13 @@ test('Flex request keeps the single-shift intent and retains details across Back
   await form.getByLabel(/^Phone number/).fill('0821234567');
   await form.locator('input[name="advanceFundingAcknowledged"]').check();
   await form.locator('input[name="privacyConsent"]').check();
+  await form.getByRole('button', {name: 'Back', exact: true}).click();
+  await expect(form.getByRole('heading', {name: 'Service and site', exact: true})).toBeFocused();
+  await form.getByRole('button', {name: 'Continue', exact: true}).click();
+  await expect(form.getByRole('heading', {name: 'Your details', exact: true})).toBeFocused();
+  await expect(form.getByLabel(/^Email address/)).toHaveValue('booking@example.test');
+  await expect(form.locator('input[name="privacyConsent"]')).toBeChecked();
+  expect(offline.enquiries).toHaveLength(0);
   await form.getByRole('button', {name: 'Request cover', exact: true}).click();
   expect(offline.enquiries).toHaveLength(1);
   expect(offline.enquiries[0].booking).toEqual({coverType:'date',startDate:isoDate(5),shift:'night',officers:2,term:'single',rosterPattern:'daily'});
