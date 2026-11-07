@@ -52,7 +52,7 @@ test('homepage offers real intake paths, responsive service navigation and priva
   // Vinext may serialize an origin-only canonical without its implicit slash.
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /^https:\/\/lokd\.co\.za\/?$/);
   const main = page.locator('main');
-  await expect(main.getByRole('heading', {level: 1})).toHaveText('Security.On your terms.');
+  await expect(main.getByRole('heading', {level: 1})).toHaveText('Security.On demand.');
   await expect(main.getByRole('link', {name: /^Get a quote/})).toHaveAttribute('href', '/quote');
   await expect(main.getByRole('link', {name: /^Apply as an officer/})).toHaveAttribute('href', '/join');
   await expect(main.getByRole('heading', {name: 'PSIRA-verified officers', exact: true})).toBeVisible();

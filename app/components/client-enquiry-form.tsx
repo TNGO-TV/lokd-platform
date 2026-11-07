@@ -17,6 +17,16 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
   const inFlight = useRef(false);
   const success = useRef<HTMLHeadingElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    // Booking shortcuts from the homepage prefill the service and start date.
+    const params = new URLSearchParams(window.location.search);
+    const service = params.get("service");
+    const select = formRef.current?.elements.namedItem("serviceType");
+    if (service && select instanceof HTMLSelectElement && [...select.options].some(option => option.value === service)) select.value = service;
+    const when = params.get("when");
+    if (when === "today" || when === "tomorrow") setStartDate(new Date(Date.now() + 7200000 + (when === "tomorrow" ? 86400000 : 0)).toISOString().slice(0, 10));
+  }, []);
   useEffect(() => { if (receipt) success.current?.focus(); }, [receipt]);
   useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
 
@@ -78,7 +88,7 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
     <Link className="public-button public-button--primary" href="/sign-in?return_to=%2Fclient">Track your enquiry</Link>
   </section>;
 
-  return <form className="public-form" onSubmit={submit} aria-busy={busy}>
+  return <form ref={formRef} className="public-form" onSubmit={submit} aria-busy={busy}>
     <div><h2>Your security requirements</h2><p>All fields are required unless marked optional. Times are in South Africa time.</p></div>
     <fieldset disabled={busy || uncertain}><legend>1. Service and site</legend><div className="public-form-grid">
       <label className="public-field-full">Security service<select name="serviceType" required defaultValue=""><option value="" disabled>Select a service</option><option value="scheduled_unarmed_fixed_site">Unarmed guarding</option><option value="armed_static">Armed site security</option><option value="armed_movement">Armed movement protection</option><option value="vip_unarmed">VIP protection — unarmed</option><option value="vip_armed">VIP protection — armed</option><option value="vip_protective_driver">Protective driver</option><option value="vip_team">VIP protection team</option></select></label>
