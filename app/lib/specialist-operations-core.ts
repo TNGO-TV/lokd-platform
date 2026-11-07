@@ -1,6 +1,6 @@
 import { calendarPriceBook } from "./production-pricing";
 import { indicativeSingleShiftPrice, SPECIALIST_PRICING_VERSION, specialistProfiles, type SpecialistServiceCode } from "./specialist-pricing";
-import type { SpecialistBooking, SpecialistPackContent, SpecialistPartner } from "./specialist-operations-types";
+import type { SpecialistBooking, SpecialistPackContent } from "./specialist-operations-types";
 
 export const SPECIALIST_TERMS_VERSION = "LOKD-SPECIALIST-TERMS-2026.09-v1";
 export const SPECIALIST_SERVICE_CODES = Object.keys(specialistProfiles).filter(code => code !== "standard_unarmed") as SpecialistServiceCode[];
@@ -13,13 +13,13 @@ export const specialistTerms = {
   planning: "Minimum planning is included in the cost-floor calculation, once per booking. The quote uses the higher of the adjusted list price and cost floor plus minimum margin; planning must not be charged twice.",
   extension: "Additional time, operators, routes or scope require a separate amended quotation, client acceptance, cleared additional funding and a fresh readiness check. Never extend an officer's duty automatically. Apply actual overtime and rest obligations through the payroll and roster engines; the 12-hour block is not permission to exceed working-time limits.",
   cancellation: "Record notice time, work already delivered, evidenced unrecoverable commitments and mitigation or resale. Operations proposes a reasonable charge for review, capped at the remaining agreed service price; no blanket forfeiture or automatic refund. Apply any statutory waiver, including qualifying death or hospitalisation, and obtain legal review where required.",
-  exclusion: "Armed response, cash-in-transit, offensive operations, unapproved cross-border work and guarantees of safety are excluded. Armoured vehicles require a verified partner quotation and remain blocked under the current pricing policy.",
+  exclusion: "Armed response, cash-in-transit, offensive operations, unapproved cross-border work and guarantees of safety are excluded. Armoured vehicles are outside the current service scope. LOKD supplies its officers directly.",
   assumptions: [
     "Officer remuneration is the offered commercial amount, subject to applicable payroll minima, overtime, allowances and employment terms.",
     "The 11.5% payroll burden is a planning reserve, not a complete statutory payroll calculation; employer-specific costs must be approved.",
-    "Travel allowance: R9/km per service day. Standard SUV reserve: R2,200 per day. Neither is a confirmed supplier price.",
+    "Travel allowance: R9/km per service day. Standard SUV reserve: R2,200 per day. Actual LOKD operating costs require review.",
     "Overnight allowance: R1,800 per operator per night, subject to accommodation and subsistence evidence.",
-    "Armoured-partner reserve: R15,000/day, blocked pending a supported verified-price amendment.",
+    "Any LOKD-provided vehicle requires independently reviewed fleet authority and readiness.",
     "Risk and notice premiums affect the quote. Calendar premiums are LOKD commercial multipliers; payroll still applies the relevant employment rules.",
   ],
   sources: [
@@ -55,11 +55,12 @@ export function requiredSpecialistChecks(booking: Pick<SpecialistBooking,"servic
     { code: "post_orders", label: code === "armed_static" ? "Approved site instructions and post orders" : "Approved itinerary, journey and handover plan" },
     { code: "insurance", label: "Specialist insurance and scope of cover" },
     { code: "command_relief", label: "Command contact, communications, relief and fatigue plan" },
-    { code: "cost_evidence", label: "Approved actual labour, employer, equipment and supplier costs within the quote floor" },
+    { code: "cost_evidence", label: "Approved actual LOKD labour, employment, equipment and operating costs within the quote floor" },
   ];
-  if (armed) result.push({ code:"armed_authority", label:"Provider firearm authority, lawful issue and custody controls" });
+  if (armed) result.push({ code:"armed_authority", label:"LOKD firearm authority, lawful issue and custody controls" });
   if (vip) result.push({ code:"principal_consent", label:"Principal consent and controlled itinerary access" });
-  if (config.vehicleClass && config.vehicleClass !== "none") result.push({ code:"vehicle", label:"Vehicle, insurance, roadworthiness and supplier quote" });
+  if (config.vehicleClass && config.vehicleClass !== "none") result.push({ code:"vehicle", label:"Vehicle authority, insurance and roadworthiness" });
+  if(config.vehicleClass === 'standard_suv')result.push({code:'lokd_vehicle_authority',label:'Current LOKD fleet ownership and operating authority'});
   if (config.overnightDays) result.push({ code:"overnight", label:"Accommodation, subsistence and working-time plan" });
   for (const id of officerIds) {
     for (const [kind,label] of [["onboarding","Identity, banking and employment onboarding"],["psira","Current PSiRA grade"],["induction","Assignment induction and accepted terms"],["readiness","Current specialist readiness"]])
@@ -77,12 +78,12 @@ export function isCurrentEvidence(from: string, until: string, startsAt: string 
 }
 
 export function evaluateSpecialistPack(booking: SpecialistBooking, content: SpecialistPackContent, options: {
-  commercialCurrent: boolean; partner?: SpecialistPartner; quoteSnapshot?: string; now?: Date;
+  commercialCurrent: boolean; quoteSnapshot?: string; now?: Date;
 }) {
   const blockers: string[]=[];
   const now=options.now ?? new Date();
   if (!options.commercialCurrent) blockers.push("Commercial rate card and terms need a current independent approval.");
-  if (booking.pricingVersion !== SPECIALIST_PRICING_VERSION || booking.pricingValid !== 1 || booking.pricingStatus !== "authoritative") blockers.push("The specialist quotation is invalid or still requires a partner-price review.");
+  if (booking.pricingVersion !== SPECIALIST_PRICING_VERSION || booking.pricingValid !== 1 || booking.pricingStatus !== "authoritative") blockers.push("The specialist quotation is invalid or requires a current commercial review.");
   if (!booking.startsAt || !booking.endsAt || Date.parse(booking.endsAt) <= now.getTime()) blockers.push("A current roster with a final end time is required.");
   if (booking.planCurrent !== 1) blockers.push("Current risk and post-order records must cover the full roster.");
   if (booking.authorityCurrent !== 1) blockers.push("Specialist authority, insurance and board approval must cover the full roster.");
@@ -91,10 +92,7 @@ export function evaluateSpecialistPack(booking: SpecialistBooking, content: Spec
   if (!content.commandOwner.trim() || !content.clientBrief.trim() || !content.officerBrief.trim()) blockers.push("A command owner, client scope and officer instructions are required.");
   if (new Set(content.officerIds).size !== content.officerIds.length || content.officerIds.length < booking.headcount) blockers.push(`Name at least ${booking.headcount} distinct officers, including any required relief.`);
   const config=JSON.parse(booking.configuration) as {vehicleClass?: string};
-  if (config.vehicleClass === "standard_suv" || config.vehicleClass === "armoured_partner" || content.partnerId) {
-    const p=options.partner;
-    if (!p || p.status !== "approved" || !p.serviceCodes.includes(booking.serviceCode) || !isCurrentEvidence(p.validFrom,p.expiresAt,booking.startsAt,booking.endsAt,now)) blockers.push("An approved partner with current scope and evidence is required.");
-  }
+  if (config.vehicleClass === 'standard_suv' && !content.checks.some(e=>e.code==='lokd_vehicle_authority' && e.reference.trim() && isCurrentEvidence(e.validFrom,e.expiresAt,booking.startsAt,booking.endsAt,now))) blockers.push('Current LOKD fleet authority is required for the vehicle.');
   for (const required of requiredSpecialistChecks(booking,content.officerIds)) {
     const evidence=content.checks.find(x=>x.code===required.code);
     if (!evidence?.reference.trim() || !isCurrentEvidence(evidence.validFrom,evidence.expiresAt,booking.startsAt,booking.endsAt,now)) blockers.push(`${required.label}: missing or expired evidence.`);

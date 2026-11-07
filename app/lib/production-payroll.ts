@@ -43,7 +43,7 @@ export async function prepareProductionPayroll(db:D1Database,actor:SigningActor,
  const sources=(await db.prepare("SELECT t.*,EXISTS(SELECT 1 FROM pay_item_sources s WHERE s.active_key=t.id) AS consumed FROM shift_timesheets t WHERE t.employer_id=? AND t.service_date BETWEEN ? AND ? AND t.environment='production' AND t.integrity_state='production_verified' AND t.active_key=t.shift_id ORDER BY t.officer_id,t.id LIMIT 2001").bind(employerId,start,end).all<Source>()).results;
  if(!sources.length||sources.length>2000)throw new SignupError('Choose a period with 1–2000 reviewed service records.');
  if(sources.some(s=>s.operations_status!=='approved_for_backend'||s.client_evidence_status!=='confirmed'||s.payable_minutes===null||s.consumed))throw new SignupError('All period service records must be confirmed, pay-reviewed and unallocated to another payroll.',409);
- if(sources.some(s=>!['direct_flex','managed'].includes(s.workforce_model)))throw new SignupError('Partner-company service belongs in partner payables, not employee payroll.',409);
+ if(sources.some(s=>!['direct_flex','managed'].includes(s.workforce_model)))throw new SignupError('Only directly employed LOKD officers can enter payroll.',409);
  if(!Array.isArray(input.officerInputs)||input.officerInputs.length>100)throw new SignupError('Provide reviewed payroll inputs for each officer, up to 100 per period.');
  const annual=integer(input.employerAnnualPayrollCents,'projected annual employer payroll'),officerIds=[...new Set(sources.map(s=>s.officer_id))];
  if(input.officerInputs.length!==officerIds.length||new Set(input.officerInputs.map(x=>x?.officerId)).size!==officerIds.length)throw new SignupError('Provide exactly one payroll input record for each officer in the period.');

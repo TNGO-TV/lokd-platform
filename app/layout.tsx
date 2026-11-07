@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { OrganisationJsonLd } from "./components/seo-json-ld";
 import { PUBLIC_SITE_URL } from "./lib/public-site";
 import "./globals.css";
+import "./styles/zone.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(PUBLIC_SITE_URL),

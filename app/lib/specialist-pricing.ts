@@ -12,8 +12,7 @@ export type SpecialistServiceCode =
 export type SpecialistVehicleClass =
   | "none"
   | "client_vehicle"
-  | "standard_suv"
-  | "armoured_partner";
+  | "standard_suv";
 
 export type SpecialistConfiguration = {
   serviceCode: SpecialistServiceCode;
@@ -49,7 +48,7 @@ export type SpecialistPricingDecision = {
   commandAndSupervisionCents: number;
   planningCents: number;
   travelCents: number;
-  vehicleAndPartnerCents: number;
+  vehicleCents: number;
   overnightCents: number;
   costFloorCents: number;
   requiredRevenueCents: number;
@@ -58,7 +57,7 @@ export type SpecialistPricingDecision = {
   totalCents: number;
   marginCents: number;
   marginBasisPoints: number;
-  pricingStatus: "authoritative" | "partner_review_required";
+  pricingStatus: "authoritative" | "review_required";
   reviewReasons: string[];
 };
 
@@ -143,8 +142,8 @@ export const specialistProfiles: Record<SpecialistServiceCode, SpecialistProfile
     readinessCostPerShiftCents: 75_000,
     commandCostPerServiceDayCents: 85_000,
     minimumMarginBasisPoints: 3_200,
-    allowedVehicles: ["client_vehicle", "standard_suv", "armoured_partner"],
-    requiredControls: ["Armed service authority", "Current firearm competency", "Route and handover plan", "Vehicle and partner evidence"],
+    allowedVehicles: ["client_vehicle", "standard_suv"],
+    requiredControls: ["Armed service authority", "Current firearm competency", "Route and handover plan", "LOKD fleet authority and readiness evidence"],
   },
   vip_unarmed: {
     code: "vip_unarmed",
@@ -161,7 +160,7 @@ export const specialistProfiles: Record<SpecialistServiceCode, SpecialistProfile
     readinessCostPerShiftCents: 70_000,
     commandCostPerServiceDayCents: 120_000,
     minimumMarginBasisPoints: 3_500,
-    allowedVehicles: ["none", "client_vehicle", "standard_suv", "armoured_partner"],
+    allowedVehicles: ["none", "client_vehicle", "standard_suv"],
     requiredControls: ["Protective Operations qualification", "Current first aid", "Threat and movement plan", "Principal consent and itinerary control"],
   },
   vip_armed: {
@@ -179,7 +178,7 @@ export const specialistProfiles: Record<SpecialistServiceCode, SpecialistProfile
     readinessCostPerShiftCents: 120_000,
     commandCostPerServiceDayCents: 150_000,
     minimumMarginBasisPoints: 3_700,
-    allowedVehicles: ["none", "client_vehicle", "standard_suv", "armoured_partner"],
+    allowedVehicles: ["none", "client_vehicle", "standard_suv"],
     requiredControls: ["Protective Operations qualification", "Armed service authority", "Current firearm competency", "Threat and movement plan"],
   },
   vip_protective_driver: {
@@ -197,7 +196,7 @@ export const specialistProfiles: Record<SpecialistServiceCode, SpecialistProfile
     readinessCostPerShiftCents: 90_000,
     commandCostPerServiceDayCents: 130_000,
     minimumMarginBasisPoints: 3_600,
-    allowedVehicles: ["client_vehicle", "standard_suv", "armoured_partner"],
+    allowedVehicles: ["client_vehicle", "standard_suv"],
     requiredControls: ["Protective driving qualification", "Licence and vehicle class verified", "Route and fatigue plan", "Vehicle handover evidence"],
   },
   vip_team: {
@@ -217,7 +216,7 @@ export const specialistProfiles: Record<SpecialistServiceCode, SpecialistProfile
     readinessCostPerShiftCents: 80_000,
     commandCostPerServiceDayCents: 180_000,
     minimumMarginBasisPoints: 3_800,
-    allowedVehicles: ["none", "client_vehicle", "standard_suv", "armoured_partner"],
+    allowedVehicles: ["none", "client_vehicle", "standard_suv"],
     requiredControls: ["Named team leader", "Role-specific Protective Operations evidence", "Threat and movement plan", "Communications and relief plan"],
   },
 };
@@ -270,7 +269,7 @@ function ceilDivide(numerator: number, denominator: number) {
 /**
  * Internal quote floor. Statutory percentages are policy inputs, while readiness,
  * command, travel and vehicle amounts are LOKD planning assumptions and must be
- * re-approved when supplier or insurance evidence changes.
+ * re-approved when LOKD operating cost or insurance evidence changes.
  */
 export function priceSpecialistCostFloor(input: SpecialistCostInput): SpecialistPricingDecision {
   const profile = specialistProfiles[input.serviceCode];
@@ -296,20 +295,19 @@ export function priceSpecialistCostFloor(input: SpecialistCostInput): Specialist
     none: 0,
     client_vehicle: 0,
     standard_suv: 220_000,
-    armoured_partner: 1_500_000,
   };
-  const vehicleAndPartnerCents = vehicleDailyCents[configuration.vehicleClass] * input.serviceDayCount;
+  const vehicleCents = vehicleDailyCents[configuration.vehicleClass] * input.serviceDayCount;
   const overnightCents = configuration.overnightDays * configuration.teamSize * 180_000;
   const costFloorCents = input.officerTotalCents + payrollBurdenCents + readinessAndEquipmentCents
-    + commandAndSupervisionCents + planningCents + travelCents + vehicleAndPartnerCents + overnightCents;
+    + commandAndSupervisionCents + planningCents + travelCents + vehicleCents + overnightCents;
   const requiredRevenueCents = ceilDivide(costFloorCents * 10_000, 10_000 - profile.minimumMarginBasisPoints);
   const subtotalCents = Math.max(input.calendarAdjustedListSubtotalCents, requiredRevenueCents);
   const vatCents = Math.round(subtotalCents * LOKD_VAT_RATE_BASIS_POINTS / 10_000);
   const marginCents = subtotalCents - costFloorCents;
   const marginBasisPoints = subtotalCents > 0 ? Math.floor(marginCents * 10_000 / subtotalCents) : 0;
-  const partnerReviewRequired = configuration.vehicleClass === "armoured_partner";
+  const commercialReviewRequired = false;
   const reviewReasons = [
-    ...(partnerReviewRequired ? ["An independently verified armoured-vehicle partner quote must replace the conservative reserve before payment."] : []),
+    ...(commercialReviewRequired ? ["Current LOKD commercial approval is required."] : []),
     ...(configuration.overnightDays ? ["Accommodation, subsistence and working-time plan require Operations review."] : []),
   ];
 
@@ -324,7 +322,7 @@ export function priceSpecialistCostFloor(input: SpecialistCostInput): Specialist
     commandAndSupervisionCents,
     planningCents,
     travelCents,
-    vehicleAndPartnerCents,
+    vehicleCents,
     overnightCents,
     costFloorCents,
     requiredRevenueCents,
@@ -333,7 +331,7 @@ export function priceSpecialistCostFloor(input: SpecialistCostInput): Specialist
     totalCents: subtotalCents + vatCents,
     marginCents,
     marginBasisPoints,
-    pricingStatus: partnerReviewRequired ? "partner_review_required" : "authoritative",
+    pricingStatus: commercialReviewRequired ? "review_required" : "authoritative",
     reviewReasons,
   };
 }

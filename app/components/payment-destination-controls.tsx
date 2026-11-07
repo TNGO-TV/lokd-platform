@@ -8,7 +8,7 @@ export default function PaymentDestinationControls({data,busy,send}:{data:Destin
  const [requestKey,setRequestKey]=useState('');
  if(!data.destinationAccess)return null;
  data={...data,destinationReviews:data.destinationReviews.filter(row=>row.mode==='live')};
- return <section><h2>Employee payment destinations</h2><p>Review the employee’s bank ownership evidence, salary mandate and provider account capability. Verification lasts up to 30 minutes and does not send a payment. Partner-company recipients require a separate payable workflow.</p>
+ return <section><h2>Employee payment destinations</h2><p>Review the employee’s bank ownership evidence, salary mandate and provider account capability. Verification lasts up to 30 minutes and does not send a payment.</p>
  <details><summary>Prepare a destination review</summary><form className={styles.form} onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget),key=requestKey||crypto.randomUUID();setRequestKey(key);void send({action:'prepare_destination',requestKey:key,...Object.fromEntries(f.entries()),expiresAt:new Date(String(f.get('expiresAt'))).toISOString(),documentsReviewed:f.get('documentsReviewed')==='on',capabilityReviewed:f.get('capabilityReviewed')==='on'});}}>
  <label>Employee payroll profile<select name="profileId" required><option value="">Choose current profile</option>{data.destinationCandidates.map(c=>{const s=JSON.parse(c.source_json);return <option key={c.profile_id} value={c.profile_id}>{c.officer_id} · {s.employerId} · {s.engagementId} · {c.profile_id}</option>;})}</select></label>
  <input name="mode" type="hidden" value="live"/><p>Verify the live recipient against the current ownership, mandate and provider evidence.</p>

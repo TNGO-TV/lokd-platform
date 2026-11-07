@@ -3,9 +3,6 @@ import {auditOperationsCommand} from './operations-audit';
 import {operationsAccess,requireOperationsRole} from './operations-access';
 import {requireLiveFinanceCommand} from './production-finance-boundary';
 import {operatorApprovalLimit} from './operator-approval-limit';
-import {readPartnerPayments,operatePartnerPayment} from './partner-payments';
-import {readPartnerDestinations,operatePartnerDestination} from './partner-destinations';
-import {readPartnerPayables,operatePartnerPayable} from './partner-payables';
 import {readEmployeePayments,operateEmployeePayment} from './employee-payments';
 import {readPaymentDestinations,operatePaymentDestination} from './payment-destinations';
 import {readBookingSettlements,operateBookingSettlement} from './booking-settlements';
@@ -32,13 +29,13 @@ export async function readProductionOperations(db:D1Database,actor:SigningActor)
  // Independent read-only groups overlap, with at most four reader chains.
  // Each reader retains its own live entitlement and ownership checks. Do not
  // cache grants or move mutation/approval commands into these groups.
- const [partner,collections,workforce,evidence]=await Promise.all([
-  (async()=>({...await readPartnerPayments(db,actor),...await readPartnerDestinations(db,actor),...await readPartnerPayables(db,actor),...await readEmployeePayments(db,actor)}))(),
+ const [employees,collections,workforce,evidence]=await Promise.all([
+  (async()=>({...await readEmployeePayments(db,actor)}))(),
   (async()=>({...await readPaymentDestinations(db,actor),...await readBookingSettlements(db,actor,true),...await readBookingCollections(db,actor,true),...await readProductionPayroll(db,actor)}))(),
   (async()=>({...await readProductionPayrollPolicies(db,actor),...await readProductionSchedule(db,actor),...await readProductionService(db,actor)}))(),
   (async()=>({...await readProductionEvidence(db,actor),...await readClientReviews(db,actor),...await readProductionOrders(db,actor)}))(),
  ]);
- return {rosterCandidates:actor.operations?await readRosterCandidates(db):[],...partner,...collections,...workforce,...evidence,rosters:rosters.results,approvals:approvals.results,shifts:shifts.results,operators:operators.results,owner:actor.owner};
+ return {rosterCandidates:actor.operations?await readRosterCandidates(db):[],...employees,...collections,...workforce,...evidence,rosters:rosters.results,approvals:approvals.results,shifts:shifts.results,operators:operators.results,owner:actor.owner};
 }
 async function performProduction(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,liveCheckInEnabled=false,collectionRuntime:CollectionRuntime={}){
  if(actor.operations){
@@ -51,10 +48,7 @@ async function performProduction(db:D1Database,actor:SigningActor,input:Record<s
  if(input.action==='change_assignment')return changeProductionAssignment(db,headers,input);
  await requireLiveFinanceCommand(db,input);
  const now=new Date().toISOString();
- if(['prepare_partner_payable','approve_partner_payable','reject_partner_payable','hold_partner_payable','export_partner_payable'].includes(String(input.action)))return operatePartnerPayable(db,actor,input,headers);
  if(['prepare_employee_payment','approve_employee_payment','cancel_employee_payment'].includes(String(input.action)))return operateEmployeePayment(db,actor,input,headers);
- if(['prepare_partner_payment','approve_partner_payment','cancel_partner_payment'].includes(String(input.action)))return operatePartnerPayment(db,actor,input,headers);
- if(['prepare_partner_destination','approve_partner_destination','reject_partner_destination','hold_partner_destination','recheck_partner_destination'].includes(String(input.action)))return operatePartnerDestination(db,actor,input,headers,collectionRuntime);
  if(['prepare_destination','approve_destination','reject_destination','hold_destination','recheck_destination'].includes(String(input.action)))return operatePaymentDestination(db,actor,input,headers,collectionRuntime);
  if(['prepare_settlement','approve_settlement','reject_settlement','hold_collection','apply_booking_funding'].includes(String(input.action)))return operateBookingSettlement(db,actor,input,headers,collectionRuntime);
  if(['prepare_collection','approve_collection','initialize_collection','verify_collection'].includes(String(input.action)))return operateBookingCollection(db,actor,input,headers,collectionRuntime);

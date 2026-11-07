@@ -2,9 +2,9 @@ import {acceptedOrderQuote} from './quote-acceptance';
 import { agreementHash, canonicalAgreementContext, type AgreementContext } from './agreement-acceptance';
 import type { AssignmentActivationFacts } from './assignment-activation-core';
 import {NONPRODUCTION_REFERENCE_PREFIX} from './stored-identifiers';
-export type ActivationAgreementRole = 'CLIENT_MSA' | 'SERVICE_ORDER' | 'OFFICER_EMPLOYMENT' | 'PARTNER_SERVICE';
-export function requiredActivationAgreements(facts: AssignmentActivationFacts): ActivationAgreementRole[] {
-  return ['CLIENT_MSA','SERVICE_ORDER',facts.workforce.model==='partner'?'PARTNER_SERVICE':'OFFICER_EMPLOYMENT'];
+export type ActivationAgreementRole = 'CLIENT_MSA' | 'SERVICE_ORDER' | 'OFFICER_EMPLOYMENT';
+export function requiredActivationAgreements(): ActivationAgreementRole[] {
+  return ['CLIENT_MSA','SERVICE_ORDER','OFFICER_EMPLOYMENT'];
 }
 export function activationAgreementContext(facts: AssignmentActivationFacts, role: ActivationAgreementRole): AgreementContext {
   const client = role==='CLIENT_MSA' || role==='SERVICE_ORDER';
@@ -27,7 +27,7 @@ export async function readActivationAgreements(db: D1Database, facts: Assignment
   const receipts: Array<{id:string;hash:string;documentId:string;documentVersion:string;contextHash:string}> = [];
   const missing: string[] = [];
   const quote=facts.environment==='production'?await acceptedOrderQuote(db,facts.shift.bookingId):{exists:false,receipt:null};
-  for(const role of requiredActivationAgreements(facts)) {
+  for(const role of requiredActivationAgreements()) {
     if(quote.exists&&(role==='CLIENT_MSA'||role==='SERVICE_ORDER')){if(quote.receipt){if(role==='CLIENT_MSA')receipts.push(quote.receipt);}else missing.push(role);continue;}
     const context=activationAgreementContext(facts,role),contextHash=await agreementHash(canonicalAgreementContext(context));
     const candidates=await db.prepare(`SELECT r.id,r.receipt_json,r.receipt_hash FROM agreement_acceptance_receipts r
@@ -45,10 +45,10 @@ export async function readActivationAgreements(db: D1Database, facts: Assignment
         const receipt=JSON.parse(row.receipt_json);
         const client=role==='CLIENT_MSA'||role==='SERVICE_ORDER';
         const expectedEntity=client?facts.client.contractingEntityId:facts.workforce.employer.id;
-        const expectedPurpose=client?'client_service':role==='PARTNER_SERVICE'?'partner_service':'officer_employment';
+        const expectedPurpose=client?'client_service':'officer_employment';
         if(!expectedEntity || receipt.entityId!==expectedEntity || receipt.purpose!==expectedPurpose
           || receipt.action!=='agree' || !receipt.actorUserId || !receipt.identityEvidence
-          || (client||role==='PARTNER_SERVICE')&&!receipt.authorityEvidence
+          || client&&!receipt.authorityEvidence
           || receipt.contextHash!==contextHash || canonicalAgreementContext(receipt.context)!==canonicalAgreementContext(context)
           || !receipt.locale || !receipt.wording || await agreementHash(receipt.wording)!==receipt.contentHash
           || !Number.isFinite(Date.parse(receipt.acceptedAt)) || Date.parse(receipt.acceptedAt)>Date.parse(facts.evaluatedAt))continue;

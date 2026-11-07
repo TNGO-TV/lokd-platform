@@ -43,12 +43,14 @@ export default function PrivacyPage() {
                 rows={[
                   ["Client and enquirer", "Name, company, role, email, phone, Site address, and service requirements"],
                   ["Contract and billing", "Quotes, schedules, invoices, and payment references"],
+                  ["Optional live location", "With the officer’s explicit permission: precise current location, accuracy and capture time. Sharing lasts three minutes and can be stopped immediately. Dispatch can view shared points; a client can view only their assigned officer’s route when the officer selects that audience. Expired points are removed by scheduled maintenance, normally within one minute. Attendance evidence has separate retention rules."],
                   ["Site operations", "Post orders, incident reports, shift logs, and emergency contacts you provide"],
                   ["Monitoring data", "If in scope: CCTV or access logs, only as agreed in writing"],
                   ["Technical", "IP address, device, cookies, and Platform logs"],
                   ["Personnel", "Handled under separate employment or contractor notices where applicable"],
                 ]}
               />
+              <p>Zone maps use OpenStreetMap basemap tiles through our server. Your device does not send its precise officer coordinates, account cookies or credentials to the tile provider. Tile requests identify the public map area.</p>
               <p>We avoid collecting special personal information unless it is strictly necessary and lawful, for example limited health information for an occupational incident.</p>
             </>
           ),
@@ -74,7 +76,7 @@ export default function PrivacyPage() {
             <>
               <LegalList
                 items={[
-                  "Personnel and subcontractors bound to confidentiality and, where applicable, POPIA operator duties",
+                  "LOKD personnel bound to confidentiality and, where applicable, POPIA operator duties",
                   "Providers that host systems we operate, and providers of email, authentication, and payments",
                   "Emergency services and authorities when required for safety or law",
                   "Professional advisers",

@@ -30,13 +30,13 @@ async function records(db:D1Database,i:Instruction){
  return (await db.prepare(`SELECT id,rowid AS sequence,source,event,transfer_json,webhook_count,created_at FROM ${i.kind}_transfer_observations WHERE reference=? ORDER BY rowid LIMIT 501`).bind(i.reference).all<{id:string;sequence:number;source:ReconciliationObservation['source'];event:string;transfer_json:string;webhook_count:number|null;created_at:string}>()).results.map(r=>({id:r.id,sequence:r.sequence,source:r.source,event:r.event,transfer:JSON.parse(r.transfer_json),webhookCount:r.webhook_count,observedAt:r.created_at}));
 }
 async function instruction(db:D1Database,input:Record<string,unknown>){
- if(input.kind!=='employee'&&input.kind!=='partner')throw new SignupError('Choose employee or partner payments.');
+ if(input.kind!=='employee')throw new SignupError('Choose employee payments.');
  const i=await db.prepare("SELECT * FROM payment_instruction_records WHERE kind=? AND reference=? AND mode='live'").bind(input.kind,text(input.reference,'the original reference')).first<Instruction>();
  if(!i)throw new SignupError('Payment instruction not found.',404);
  if(input.sourceHash!==i.source_hash||await agreementHash(i.source_json)!==i.source_hash)throw new SignupError('Refresh the exact saved instruction.',409);
  return i;
 }
-async function finance(db:D1Database,a:SigningActor,h:Headers,amount:number,maker?:string,kind:PaymentKind='employee'){return productionOperatorControl(db,a,h,kind==='partner'?'partner_payment.approve':'payment.approve',amount,maker);}
+async function finance(db:D1Database,a:SigningActor,h:Headers,amount:number,maker?:string,kind:PaymentKind='employee'){if(kind!=='employee')throw new SignupError('Only employee payments are supported.');return productionOperatorControl(db,a,h,'payment.approve',amount,maker);}
 export async function operatePaymentExecution(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers,runtime:PaymentExecutionRuntime={},transport:typeof fetch=fetch){
  if(!actor.operations)throw new SignupError('Operations access required.',403);
  const action=String(input.action),now=new Date().toISOString(),note=action==='verify_live_payment'?'Same-reference provider verification.':text(input.note,'the independent finance findings');
@@ -61,7 +61,7 @@ export async function operatePaymentExecution(db:D1Database,actor:SigningActor,i
  const op=await finance(db,actor,headers,i.amount_cents,action==='prepare_live_release'||action==='prepare_live_reconciliation'?undefined:i.prepared_by,i.kind);
  if(action==='prepare_live_release'){
   const fee=integer(input.feeCeilingCents,'the reviewed maximum provider fee',0,100000);await finance(db,actor,headers,i.amount_cents+fee,undefined,i.kind);
-  const mandate=await db.prepare(`SELECT payload_json FROM ${i.kind==='employee'?'payment':'partner'}_destination_reviews WHERE id=?`).bind(i.destination_id).first<{payload_json:string}>();if(!mandate)throw new SignupError('Current destination mandate not found.',409);
+  const mandate=await db.prepare(`SELECT payload_json FROM payment_destination_reviews WHERE id=?`).bind(i.destination_id).first<{payload_json:string}>();if(!mandate)throw new SignupError('Current destination mandate not found.',409);
   const reserveId=text(input.reserveId,'the independently approved funds reserve'),payload=JSON.stringify({kind:i.kind,reference:i.reference,sourceHash:i.source_hash,reserveId,feeCeilingCents:fee,mandateHash:hash(JSON.parse(mandate.payload_json).mandateHash,'the accepted payout mandate'),acceptanceReference:text(input.acceptanceReference,'the finance release acceptance',200),note});
   const payloadHash=await agreementHash(payload),key=text(input.requestKey,'a unique request key',200),prior=await db.prepare('SELECT id,payload_hash FROM payment_live_releases WHERE request_key=?').bind(key).first<{id:string;payload_hash:string}>();
   if(prior){if(prior.payload_hash!==payloadHash)throw new SignupError('Request key belongs to different release evidence.',409);return {releaseId:prior.id,alreadyPrepared:true,paymentReleased:false};}
@@ -78,7 +78,7 @@ export async function operatePaymentExecution(db:D1Database,actor:SigningActor,i
   if(i.version!==input.version||i.status!=='approved')throw new SignupError('A claimed or changed instruction cannot be resubmitted.',409);
   const releaseId=text(input.releaseId,'the independent live release'),r=await db.prepare('SELECT fee_ceiling_cents FROM payment_live_release_available WHERE id=? AND kind=? AND reference=?').bind(releaseId,i.kind,i.reference).first<{fee_ceiling_cents:number}>();if(!r)throw new SignupError('Current independent release and reserved funds are required.',409);
   await finance(db,actor,headers,i.amount_cents+r.fee_ceiling_cents,i.prepared_by,i.kind);
-  const secret=destinationKey(runtime,'live'),snapshot=JSON.parse(i.source_json),recipient=await fetchRecipient(secret,snapshot.recipient.code,'live',transport),destination=await db.prepare(`SELECT payload_json FROM ${i.kind==='employee'?'payment':'partner'}_destination_reviews WHERE id=?`).bind(i.destination_id).first<{payload_json:string}>();
+  const secret=destinationKey(runtime,'live'),snapshot=JSON.parse(i.source_json),recipient=await fetchRecipient(secret,snapshot.recipient.code,'live',transport),destination=await db.prepare(`SELECT payload_json FROM payment_destination_reviews WHERE id=?`).bind(i.destination_id).first<{payload_json:string}>();
   const recipientHash=recipient?await agreementHash(JSON.stringify(recipient)):null;
   if(!recipientHash||!destination||recipientHash!==JSON.parse(destination.payload_json).providerHash)throw new SignupError('Current recipient and approved destination disagree. Submission remains blocked.',409);
   const balances=await provider(secret,'/balance',transport),zar=Array.isArray(balances)?balances.filter(b=>b?.currency==='ZAR'):[];
@@ -89,7 +89,7 @@ export async function operatePaymentExecution(db:D1Database,actor:SigningActor,i
    db.prepare(`INSERT INTO ${i.kind}_payment_commands VALUES(?,?,?,?,?,?,?,?,?,?,?)`).bind(crypto.randomUUID(),i.reference,i.version,'dispatch_live',op.id,actor.userId,i.source_hash,recipientHash,note,auth(),at),
    db.prepare(`UPDATE ${i.kind}_payment_instructions SET status='dispatch_claimed',version=version+1,updated_at=? WHERE reference=? AND version=?`).bind(at,i.reference,i.version),
   ]);
-  const raw=await provider(secret,'/transfer',transport,{source:'balance',amount:i.amount_cents,currency:'ZAR',recipient:snapshot.recipient.code,reference:i.reference,reason:i.kind==='employee'?'LOKD employee payment':'LOKD partner invoice payment'});
+  const raw=await provider(secret,'/transfer',transport,{source:'balance',amount:i.amount_cents,currency:'ZAR',recipient:snapshot.recipient.code,reference:i.reference,reason:'LOKD employee payment'});
   await observation(db,i,'initiate','transfer.initiate',raw);return {reference:i.reference,status:'dispatch_claimed',submissionClaimed:true,liabilityPaid:false,reconciliationRequired:true};
  }
  if(action==='verify_live_payment'){
@@ -122,7 +122,7 @@ export async function receiveLiveTransferWebhook(request:Request,db:D1Database,r
  if(!await crypto.subtle.verify('HMAC',key,Uint8Array.from(signature.match(/../g)!,v=>parseInt(v,16)),raw))throw new SignupError('Invalid webhook signature.',401);
  let p;try{p=JSON.parse(new TextDecoder().decode(raw));}catch{throw new SignupError('Invalid event.');}
  if(p?.data?.domain!=='live'||typeof p.event!=='string'||!p.event.startsWith('transfer.')||p.event.length>100||typeof p.data.reference!=='string')throw new SignupError('Only explicit live transfer events are accepted.',422);
- const kind=p.data.reference.startsWith('lokd-partner-pay-')?'partner':'employee';
+ const kind='employee';
  const i=await db.prepare("SELECT * FROM payment_instruction_records WHERE kind=? AND reference=? AND mode='live'").bind(kind,p.data.reference).first<Instruction>();if(!i)return {received:true,matched:false};
  await observation(db,i,'webhook',p.event,p.data);return {received:true,matched:true};
 }
@@ -130,8 +130,8 @@ export async function readPaymentExecution(db:D1Database,actor:SigningActor,head
  await finance(db,actor,headers,0);
  return {liveDispatchEnabled:runtime.LOKD_LIVE_PAYMENTS_ENABLED==='true'&&!!await db.prepare('SELECT id FROM payment_live_control WHERE id=1 AND enabled=1').first(),
  reserves:(await db.prepare('SELECT r.*,d.decision,c.remaining_cents FROM payment_live_reserves r LEFT JOIN payment_live_reserve_decisions d ON d.reserve_id=r.id LEFT JOIN payment_live_reserve_current c ON c.id=r.id ORDER BY r.created_at DESC LIMIT 100').all()).results,
- releases:(await db.prepare('SELECT r.*,d.decision,EXISTS(SELECT 1 FROM payment_live_release_reviewable c WHERE c.id=r.id) AS current FROM payment_live_releases r LEFT JOIN payment_live_release_decisions d ON d.release_id=r.id ORDER BY r.created_at DESC LIMIT 100').all()).results,
- reconciliations:(await db.prepare('SELECT r.*,d.decision,EXISTS(SELECT 1 FROM payment_live_reconciliation_reviewable c WHERE c.id=r.id) AS current FROM payment_live_reconciliation_reviews r LEFT JOIN payment_live_reconciliation_decisions d ON d.review_id=r.id ORDER BY r.created_at DESC LIMIT 100').all()).results};
+ releases:(await db.prepare(`SELECT r.*,d.decision,EXISTS(SELECT 1 FROM payment_live_release_reviewable c WHERE c.id=r.id) AS current FROM payment_live_releases r LEFT JOIN payment_live_release_decisions d ON d.release_id=r.id WHERE r.kind='employee' ORDER BY r.created_at DESC LIMIT 100`).all()).results,
+ reconciliations:(await db.prepare(`SELECT r.*,d.decision,EXISTS(SELECT 1 FROM payment_live_reconciliation_reviewable c WHERE c.id=r.id) AS current FROM payment_live_reconciliation_reviews r LEFT JOIN payment_live_reconciliation_decisions d ON d.review_id=r.id WHERE r.kind='employee' ORDER BY r.created_at DESC LIMIT 100`).all()).results};
 }
 
 export async function readPaymentEvidenceAssessment(db:D1Database,kind:PaymentKind,reference:string){

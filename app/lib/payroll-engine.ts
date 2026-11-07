@@ -5,7 +5,7 @@ export type PayrollTaxBracket = {
 
 export type PolicyReviewStatus = "pending_review" | "approved" | "rejected";
 export type AnnualPsiraFeePolicy = {
-  payer: "company" | "officer" | "partner" | null;
+  payer: "company" | "officer" | null;
   amountCents: number | null;
   reviewStatus: PolicyReviewStatus;
 };
@@ -240,7 +240,7 @@ export function assertPayrollPolicy(policy: PayrollPolicy) {
   if (policy.psiraFees) {
     for (const fee of [policy.psiraFees.companyAnnual, policy.psiraFees.officerAnnual]) {
       if (!fee || !reviewStatuses.includes(fee.reviewStatus)
-        || ![null, "company", "officer", "partner"].includes(fee.payer)) {
+        || ![null, "company", "officer"].includes(fee.payer)) {
         throw new Error("The annual PSiRA fee review or payer is invalid.");
       }
       if (fee.amountCents !== null) safeNonNegativeInteger(fee.amountCents, "Annual PSiRA fee");

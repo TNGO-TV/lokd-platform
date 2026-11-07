@@ -13,10 +13,7 @@ test('transfer bindings match only the exact live reference amount recipient and
  assert.equal(transferMatches(b,t),true);assert.equal(transferMatches(b,null),false);
  for(const patch of [{amount:1},{mode:'test'},{recipientId:'999'},{integration:'999'},{reference:'different'},{currency:'NGN'}])assert.equal(transferMatches(b,{...t,...patch}),false,JSON.stringify(patch));
 });
-test('company transfers require their own reference namespace and preserve exact reconciliation bindings',()=>{
- const partner={...raw,reference:raw.reference.replace('lokd-pay-','lokd-partner-pay-')};
- assert.equal(employeeTransfer(partner),null);assert.equal(employeeTransfer(raw,'partner'),null);
- const normalized=employeeTransfer(partner,'partner');assert.ok(normalized);
- assert.equal(transferMatches({...b,reference:partner.reference},normalized),true);
- assert.equal(transferMatches(b,normalized),false);
+test('retired company transfers never enter employee reconciliation',()=>{
+ const external={...raw,reference:raw.reference.replace('lokd-pay-','lokd-partner-pay-')};
+ assert.equal(employeeTransfer(external),null);assert.equal(employeeTransfer(raw,'partner'),null);assert.equal(employeeTransfer(external,'partner'),null);
 });

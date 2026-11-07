@@ -76,28 +76,14 @@ test("VIP role, team and movement inputs change the controlled cost floor", () =
       overnightDays: 1,
     }),
   });
-  assert.equal(configured.vehicleAndPartnerCents, 440_000);
+  assert.equal(configured.vehicleCents, 440_000);
   assert.equal(configured.travelCents, 216_000);
   assert.equal(configured.overnightCents, 180_000);
   assert.ok(configured.marginBasisPoints >= 3_600);
 });
 
-test("armoured partner estimates cannot become authoritative prices", () => {
-  const configuration = normalizeSpecialistConfiguration("VIP", {
-    ...defaultSpecialistConfiguration.VIP,
-    serviceCode: "vip_unarmed",
-    vehicleClass: "armoured_partner",
-  });
-  const result = priceSpecialistCostFloor({
-    serviceCode: "vip_unarmed",
-    serviceDayCount: 1,
-    shiftCount: 1,
-    officerTotalCents: 450_000,
-    calendarAdjustedListSubtotalCents: 1_150_000,
-    configuration,
-  });
-  assert.equal(result.pricingStatus, "partner_review_required");
-  assert.match(result.reviewReasons.join(" "), /verified armoured-vehicle partner quote/i);
+test("armoured firm supply is excluded from current specialist options",()=>{
+ assert.throws(()=>normalizeSpecialistConfiguration('VIP',{...defaultSpecialistConfiguration.VIP,serviceCode:'vip_unarmed',vehicleClass:'armoured_partner'}),/does not support/);
 });
 
 test("configuration rejects cross-service, undersized-team and unsupported-vehicle inputs", () => {

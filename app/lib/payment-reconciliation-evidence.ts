@@ -4,7 +4,7 @@ import {employeeTransfer,transferMatches,type EmployeeTransfer,type EmployeeTran
 /** FI-02 design contract. Consumes server-loaded, append-only records; this is
  * neither an authentication boundary nor a live payment/paid-state command. */
 export type ReconciliationBinding = EmployeeTransferBinding & {
- kind: 'employee' | 'partner';
+ kind: 'employee';
  liabilityId: string;
  sourceHash: string;
 };
@@ -58,12 +58,12 @@ export const PAYMENT_EVIDENCE_LIMIT = 500;
 const text=(v:unknown)=>typeof v==='string'&&v.trim().length>0&&v.length<=200;
 const digest=(v:unknown)=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
 const timestamp=(v:unknown)=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString()===v;
-function normalized(t:EmployeeTransfer,kind:'employee'|'partner'){
+function normalized(t:EmployeeTransfer,kind:'employee'){
  // Reuse the provider parser to reject malformed stored shapes and namespaces.
  return employeeTransfer({id:t.id,transfer_code:t.code,reference:t.reference,domain:t.mode,amount:t.amount,currency:t.currency,recipient:t.recipientId,integration:t.integration,source:'balance',status:t.status},kind);
 }
 function validBinding(b:ReconciliationBinding){
- if(!b||!['employee','partner'].includes(b.kind)||!text(b.liabilityId)||!digest(b.sourceHash)||b.currency!=='ZAR')return false;
+ if(!b||!['employee'].includes(b.kind)||!text(b.liabilityId)||!digest(b.sourceHash)||b.currency!=='ZAR')return false;
  return !!normalized({...b,id:'1',code:'TRF_bindingcheck',status:'pending'},b.kind);
 }
 function copySnapshot(b:ReconciliationBinding,c:SubmissionClaim,observations:readonly ReconciliationObservation[],last:ReconciliationObservation):ReviewablePaymentSnapshot{

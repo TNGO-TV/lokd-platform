@@ -357,26 +357,22 @@ export function evaluateAssignmentActivation(facts: AssignmentActivationFacts) {
   if (!bookingRoute.ready && bookingRoute.code && bookingRoute.detail) {
     add(bookingRoute.code, "workforce", bookingRoute.detail);
   }
-  const workforceModelValid = ["direct_flex", "managed", "partner"].includes(workforce.model ?? "");
+  const workforceModelValid = ["direct_flex", "managed"].includes(workforce.model ?? "");
   if (!workforce.engagementId || !workforceModelValid || workforce.status !== "active" || workforce.environment !== expectedDataEnvironment) {
     add("WORKFORCE_ROUTE_MISSING", "workforce", "Verified Network membership alone cannot receive paid work; no active workforce route exists.");
   } else {
     if (!Number.isFinite(parsedTime(workforce.reviewDueAt)) || parsedTime(workforce.reviewDueAt) < evidenceDeadline) add("ENGAGEMENT_REVIEW_EXPIRES", "workforce", "The workforce engagement review date is missing, invalid or expires before shift end or evaluation time.");
     if (!evidencePasses(workforce.terms, facts.shift.endsAt, ["accepted"], facts.evaluatedAt, facts.environment, true)
-      || String(workforce.terms.version ?? "") !== workforce.termsVersion) add("TERMS_NOT_ACCEPTED", "workforce", "Current employment or partner terms have not been evidenced at the engagement's accepted version through shift end.");
+      || String(workforce.terms.version ?? "") !== workforce.termsVersion) add("TERMS_NOT_ACCEPTED", "workforce", "Current LOKD employment terms have not been evidenced at the engagement's accepted version through shift end.");
     if (workforce.model === "direct_flex" || workforce.model === "managed") {
       if (workforce.payrollStatus !== "ready") add("PAYROLL_ROUTE_NOT_READY", "workforce", "The LOKD payroll route is not ready.");
       if (workforce.benefitsStatus !== "ready") add("STATUTORY_BENEFITS_NOT_READY", "workforce", "UIF, COIDA and statutory-benefit treatment is not ready.");
     }
-    if (workforce.model === "partner") {
-      if (workforce.payrollStatus !== "partner_confirmed") add("PARTNER_PAYROLL_NOT_CONFIRMED", "workforce", "The partner has not confirmed payroll responsibility.");
-      if (workforce.benefitsStatus !== "partner_confirmed") add("PARTNER_BENEFITS_NOT_CONFIRMED", "workforce", "The partner has not confirmed statutory-benefit responsibility.");
-    }
+
   }
   const employer = workforce.employer;
   if (!employer.id || employer.status !== "current" || employer.environment !== expectedDataEnvironment) add("EMPLOYER_NOT_CURRENT", "workforce", "The employer of record is not approved for this activation environment.");
   if ((workforce.model === "direct_flex" || workforce.model === "managed") && employer.employerType !== "lokd_employer") add("LOKD_EMPLOYER_REQUIRED", "workforce", "Direct Flex and Managed work require LOKD as employer of record.");
-  if (workforce.model === "partner" && employer.employerType !== "partner_company") add("PARTNER_EMPLOYER_REQUIRED", "workforce", "Partner-supplied work requires an approved partner employer of record.");
   if (!Number.isFinite(parsedTime(employer.reviewDueAt)) || parsedTime(employer.reviewDueAt) < evidenceDeadline) add("EMPLOYER_REVIEW_EXPIRES", "workforce", "The employer compliance review date is missing, invalid or expires before shift end or evaluation time.");
   for (const control of REQUIRED_EMPLOYER_EVIDENCE) {
     const evidence = employer.evidence.filter((item) => item.id?.endsWith(`:${control}`) || item.version === control);

@@ -131,7 +131,7 @@ test("new specialist records reject anonymous fallback, unassigned users, wrong 
   }finally{db.close();}
 });
 
-test("commercial and partner approvals require a distinct operator and reject stale versions",async()=>{
+test("commercial approval stays independent while removed supplier actions are rejected",async()=>{
   const db=await setup();try{
     let s=await call({action:"submit_commercial",version:0,evidenceReference:"document:review",expiresAt:future(60)});
     const cr=s.commercialReview;
@@ -139,17 +139,16 @@ test("commercial and partner approvals require a distinct operator and reject st
     await call({action:"approve_commercial",id:cr.id,version:999},"checker@lokd.example",409);
     s=await call({action:"approve_commercial",id:cr.id,version:cr.version},"checker@lokd.example");assert.equal(s.commercialReview.status,"approved");
     assert.throws(()=>db.prepare("UPDATE specialist_commercial_reviews SET evidence_reference='tampered',version=version+1 WHERE id=?").run(cr.id),/specialist_independent_review_required/);
-    s=await call({action:"add_partner",name:"Fixture transport",serviceCodes:["armed_movement"],evidenceReference:"document:partner",validFrom:future(-1),expiresAt:future(60)});
-    const partner=s.partners[0];await call({action:"approve_partner",id:partner.id,version:partner.version},"maker@lokd.example",403);
-    s=await call({action:"approve_partner",id:partner.id,version:partner.version},"checker@lokd.example");assert.equal(s.partners[0].status,"approved");
-    assert.ok(db.prepare("SELECT COUNT(*) n FROM audit_events WHERE event_type='specialist_revision'").get().n>=2);
+    await call({action:"add_partner",name:"Removed supplier"},"maker@lokd.example",400);
+    await call({action:"approve_partner",id:"removed",version:1},"checker@lokd.example",400);
+    assert.ok(db.prepare("SELECT COUNT(*) n FROM audit_events WHERE event_type='specialist_revision'").get().n>=1);
   }finally{db.close();}
 });
 
 test("complete pack approval, scoped downloads, revocation and stale commercial snapshots",async()=>{
   const db=await setup();try{
     await commercial();const b=await createArmed(db);
-    const content={commandOwner:"Command owner",clientBrief:"Client-visible scope",officerBrief:"Officer-only instructions",officerIds:["OFF-LOCAL-1"],partnerId:"",checks:[]};
+    const content={commandOwner:"Command owner",clientBrief:"Client-visible scope",officerBrief:"Officer-only instructions",officerIds:["OFF-LOCAL-1"],checks:[]};
     let s=await call({action:"save_pack",bookingId:b.id,version:0,content});let p=s.packs[0];
     await call({action:"submit_pack",id:p.id,version:p.version},"maker@lokd.example",409);
     content.checks=requiredSpecialistChecks(b,content.officerIds).map(c=>({code:c.code,reference:`document:${c.code}`,validFrom:future(-1),expiresAt:future(60)}));
@@ -179,7 +178,7 @@ test("complete pack approval, scoped downloads, revocation and stale commercial 
 test("one expired required reference blocks independent approval at the database boundary",async()=>{
   const db=await setup();try{
     await commercial();const b=await createArmed(db);
-    const content={commandOwner:"Command",clientBrief:"Scope",officerBrief:"Instructions",officerIds:["OFF-LOCAL-1"],partnerId:"",checks:[]};
+    const content={commandOwner:"Command",clientBrief:"Scope",officerBrief:"Instructions",officerIds:["OFF-LOCAL-1"],checks:[]};
     content.checks=requiredSpecialistChecks(b,content.officerIds).map(c=>({code:c.code,reference:`document:${c.code}`,validFrom:future(-2),expiresAt:future(60)}));
     content.checks[0].expiresAt=future(-1);
     const s=await call({action:"save_pack",bookingId:b.id,version:0,content});const p=s.packs[0];

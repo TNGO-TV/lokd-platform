@@ -101,7 +101,7 @@ test('pricing identifies the existing 2% reserve as provisional without changing
     amountCents:1600,
   });
   assert.equal(q.payrollBurdenCents,9200);
-  assert.equal(q.costFloorCents,80000+q.payrollBurdenCents+q.readinessAndEquipmentCents+q.commandAndSupervisionCents+q.planningCents+q.travelCents+q.vehicleAndPartnerCents+q.overnightCents);
+  assert.equal(q.costFloorCents,80000+q.payrollBurdenCents+q.readinessAndEquipmentCents+q.commandAndSupervisionCents+q.planningCents+q.travelCents+q.vehicleCents+q.overnightCents);
 });
 
 test('legal terms scope SAPS certification to firearms training and share the conversion contract', () => {
@@ -160,7 +160,7 @@ test('night-pay database guard rejects changed attendance before the calculation
 });
 
 test('owned production modules do not expose non-production execution switches or barred integrations',()=>{
-  for(const name of ['workforce-core','assignment-activation-core','payroll-engine','production-payroll','production-payroll-policy','partner-payables','specialist-pricing','production-evidence','production-evidence-catalogue']) {
+  for(const name of ['workforce-core','assignment-activation-core','payroll-engine','production-payroll','production-payroll-policy','specialist-pricing','production-evidence','production-evidence-catalogue']) {
     const source=fs.readFileSync(`app/lib/${name}.ts`,'utf8');
     assert.doesNotMatch(source,/SANDBOX_ENABLED|DEMO_MODE|TEST_MODE|prelaunch|Clerk|Odoo|R350/,name);
     assert.doesNotMatch(source,/environment\s*===\s*['"](?:sandbox|demo|test)['"]/,name);

@@ -16,7 +16,7 @@ function opsRequest(body, actor = operator, mfa = true) {
 async function seed(db) {
   const registration = await operateClientWorkspace(db, client, { action: 'register_account', requestId: crypto.randomUUID(), organisationName: 'Queue fixture organisation', contactName: 'Queue fixture contact', mobile: '0821234567', siteArea: 'Cape Town', siteType: 'commercial_property', message: 'Cover requested for our main office building.', privacyConsent: true });
   const site = await operateClientWorkspace(db, client, { action: 'save_site', requestId: crypto.randomUUID(), name: 'Main office', area: 'Cape Town', address: '12 Main Road, Cape Town' });
-  const cover = await operateClientWorkspace(db, client, { action: 'request_cover', requestId: crypto.randomUUID(), siteId: site.id, serviceType: 'Armed', startDate: '2090-01-01', endDate: '2090-01-02', shiftStart: '06:00', shiftEnd: '18:00', headcount: 2, note: 'Control access to the office gate.' });
+  const cover = await operateClientWorkspace(db, client, { action: 'request_cover', requestId: crypto.randomUUID(), siteId: site.id, coverType:'fixed', engagementModel:'fixed', serviceCode:'armed_static', contractMonths:3, durationWeeks:0, shift:'day', rosterPattern:'daily', serviceType: 'Armed', startDate: '2090-01-01', endDate: '2090-01-02', shiftStart: '06:00', shiftEnd: '18:00', headcount: 2, note: 'Control access to the office gate.' });
   return { registration, site, cover };
 }
 const command = (id, expectedVersion = 1, status = 'triaged') => ({ action: 'review_request', id, expectedVersion, status, note: 'We are reviewing your requirements and will send a quote.' });

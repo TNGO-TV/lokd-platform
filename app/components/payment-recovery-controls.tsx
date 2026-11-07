@@ -6,7 +6,7 @@ export type RecoveryPayment={reference:string;mode:string;status:string;version:
  proposals:{id:string;instruction_version:number;evidence_id:string;disposition:string;note:string;operator_id:string;approval_id:string|null;approved_by:string|null}[];
  replacements:{reference:string;predecessor:string;approval_id:string|null}[];held:boolean;
 }};
-export default function PaymentRecoveryControls({payment:i,kind,busy,send}:{payment:RecoveryPayment;kind:'employee'|'partner';busy:boolean;send:(input:Record<string,unknown>)=>Promise<void>}){
+export default function PaymentRecoveryControls({payment:i,kind,busy,send}:{payment:RecoveryPayment;kind:'employee';busy:boolean;send:(input:Record<string,unknown>)=>Promise<void>}){
  const [note,setNote]=useState('');const r=i.recovery;if(!r)return null;
  const replaced=r.replacements.some(link=>link.predecessor===i.reference),terminal=r.terminal;
  const exact={kind,reference:i.reference,version:i.version,sourceHash:i.source_hash};

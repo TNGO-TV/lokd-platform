@@ -1,4 +1,5 @@
 'use client';
+import {scheduleLabel} from '../lib/booking-schedule';
 import {useState,useEffect,useCallback,useRef,type FormEvent} from 'react';
 import Link from 'next/link';
 import {clientQuotesResponse} from '../lib/workspace-response-contracts';
@@ -19,8 +20,8 @@ function Scope({json}:{json:string}){
  return <><dl className={styles.details}>
   <div><dt>Client</dt><dd>{s.clientName}</dd></div><div><dt>Contact</dt><dd>{s.contactName}</dd></div>
   <div><dt>Site</dt><dd>{s.siteName}<br/>{s.address}, {s.siteArea}</dd></div><div><dt>Service</dt><dd>{s.serviceType} · {s.purposeLabel}</dd></div>
-  <div><dt>Dates</dt><dd>{s.startDate} to {s.endDate}</dd></div><div><dt>Times (SAST)</dt><dd>{s.shiftStart}–{s.shiftEnd}</dd></div>
-  <div><dt>Cover</dt><dd>{s.headcount} officer(s) · {s.shiftCount} shifts · {s.rosterPattern.replaceAll('_',' ')}</dd></div><div><dt>Minimum grade</dt><dd>{s.minimumGrade}</dd></div>
+  <div><dt>Dates</dt><dd>{s.startDate} to {s.endDate}</dd></div><div><dt>Times (SAST)</dt><dd>{s.coverageShifts===2?'24 Hours · 2 Shifts · Day and night':s.shiftStart+'–'+s.shiftEnd}</dd></div>
+  <div><dt>Cover</dt><dd>{s.headcount} officer(s) · {s.shiftCount} shifts · {scheduleLabel(s.rosterPattern)}{s.includePublicHolidays?' · Public holidays included':''}</dd></div><div><dt>Minimum grade</dt><dd>{s.minimumGrade}</dd></div>
  </dl><p><strong>{s.postName}</strong><br/>{s.instructions}</p>
  <div className={styles.tableWrap}><table><caption>Price for your cover</caption><thead><tr><th scope="col">Item</th><th scope="col">Amount</th></tr></thead><tbody>
   <tr><td>{s.serviceType} cover<br/><small>{s.shiftCount} shifts at {s.siteName}</small></td><td>{money(s.subtotalCents)}</td></tr>

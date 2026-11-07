@@ -56,7 +56,7 @@ function insertSpecialistBooking(database, id, quote, overrides = {}) {
     commandAndSupervisionCents: quote.pricingDecision.commandAndSupervisionCents,
     planningCents: quote.pricingDecision.planningCents,
     travelCents: quote.pricingDecision.travelCents,
-    vehicleAndPartnerCents: quote.pricingDecision.vehicleAndPartnerCents,
+    [database.prepare("SELECT sql FROM sqlite_master WHERE name='specialist_pricing_validation_v33'").get().sql.includes('$.vehicleCents')?'vehicleCents':'vehicleAndPartnerCents']: quote.pricingDecision.vehicleCents,
     overnightCents: quote.pricingDecision.overnightCents,
   };
   const record = {
@@ -207,28 +207,8 @@ test("Armed progress requires its plan and exact cleared VAT-inclusive funding, 
   }
 });
 
-test("a partner-review quote cannot advance to a payment request", () => {
-  const database = migratedDatabase();
-  try {
-    run(database, `INSERT INTO clients
-      (id,organisation_name,contact_name,contact_email,approval_status,environment,integrity_state)
-      VALUES ('CL-V33','V33 Client','Client','client-v33@example.test','approved','demo','synthetic')`);
-    const quote = quoteBooking({
-      serviceType: "VIP", engagementModel: "flex", term: "single", purposeCode: "executive_protection",
-      startDate: "2039-12-27", shift: "day", rosterPattern: "daily", riskInput: defaultRiskInput,
-      specialistConfiguration: { serviceCode: "vip_unarmed", teamSize: 1, vehicleClass: "armoured_partner",
-        travelKmPerServiceDay: 0, planningHours: 2, overnightDays: 0 },
-      now: new Date("2039-12-01T00:00:00.000Z"),
-    });
-    insertSpecialistBooking(database, "BK-V33-PARTNER", quote, {
-      service_type: "VIP", purpose_code: "executive_protection", purpose_label: "Executive protection",
-    });
-    assert.equal(quote.pricingStatus, "partner_review_required");
-    assert.throws(() => run(database, `UPDATE bookings SET status='awaiting_payment',funding_status='awaiting_payment'
-      WHERE id='BK-V33-PARTNER'`), /specialist_partner_or_pricing_review_required/);
-  } finally {
-    database.close();
-  }
+test("removed armoured-firm supply cannot create a specialist quotation",()=>{
+ assert.throws(()=>quoteBooking({serviceType:'VIP',engagementModel:'bolt',term:'single',purposeCode:'executive_protection',startDate:'2039-12-27',shift:'day',rosterPattern:'daily',riskInput:defaultRiskInput,specialistConfiguration:{serviceCode:'vip_unarmed',teamSize:1,vehicleClass:'armoured_partner',travelKmPerServiceDay:0,planningHours:2,overnightDays:0}}),/does not support/);
 });
 
 

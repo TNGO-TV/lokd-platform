@@ -1,5 +1,15 @@
 import {createRoot} from 'react-dom/client';
+import ClientApp from '../../app/components/client-app';
+import ClientShell from '../../app/client/client-shell';
+import ZoneTraining from '../../app/components/zone-training';
+import ZoneOperations from '../../app/components/zone-operations';
+import OfficerApp from '../../app/components/officer-app';
+import OfficerZoneShell from '../../app/components/officer-zone-shell';
+import OperationsNavigation from '../../app/components/operations-navigation';
 import ClientEnquiryForm from '../../app/components/client-enquiry-form';
 import '../../app/globals.css';
+import '../../app/styles/zone.css';
 import '../../app/styles/booking.css';
-createRoot(document.getElementById('root')!).render(<main><h1>Contact LOKD</h1><ClientEnquiryForm/></main>);
+const path=window.location.pathname;
+const zone=path.startsWith('/client')?<ClientShell name="Client"><ClientApp/></ClientShell>:path.startsWith('/officer')?<OfficerZoneShell>{path.includes('/training')?<ZoneTraining/>:<OfficerApp/>}</OfficerZoneShell>:path.startsWith('/ops')?<div className="operations-layout"><OperationsNavigation/><div className="operations-content"><header className="operations-topbar">LOKD Security · Operations</header>{path.includes('/training')?<ZoneTraining scope="operations"/>:<ZoneOperations view={path.includes('/contracts')?'contracts':'dispatch'}/>}</div></div>:<main><h1>Contact LOKD</h1><ClientEnquiryForm/></main>;
+createRoot(document.getElementById('root')!).render(zone);
