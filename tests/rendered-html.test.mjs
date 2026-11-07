@@ -114,3 +114,27 @@ test("built Worker HTML nonces every executable bootstrap script and replaces at
   assert.match(html,/Symbol\.for\("vinext\.navigationRuntime"\)/);
   assert.match(html,/\.bootstrap\.rsc/);
 });
+
+test("public booking page renders Flex and Fixed with no internal prices", async () => {
+  const {default: worker} = await import(new URL("../dist/server/index.js", import.meta.url).href);
+  const response = await worker.fetch(new Request("http://localhost/book"), {ASSETS:{fetch:async()=>new Response("Not found",{status:404})}}, {waitUntil(){},passThroughOnException(){}});
+  assert.equal(response.status,200);
+  const html = await response.text();
+  assert.match(html, /Request security cover \| LOKD/);
+  assert.match(html, /Today \/ tomorrow/);
+  assert.match(html, /A specific date/);
+  assert.match(html, /Ongoing cover/);
+  assert.doesNotMatch(html, /internalDraftPrice|clientShiftCents|officerRateCents|R\s*\d+[,.]\d{2}|prelaunch/i);
+});
+
+
+test("legacy quote requests redirect permanently and preserve homepage prefills", async () => {
+  const {default: worker} = await import(new URL("../dist/server/index.js", import.meta.url).href);
+  for (const method of ["GET", "HEAD"]) {
+    const response = await worker.fetch(new Request("http://localhost/quote?service=armed_static&when=tomorrow", {method}), {ASSETS:{fetch:async()=>new Response("Not found",{status:404})}}, {waitUntil(){},passThroughOnException(){}});
+    assert.equal(response.status,308);
+    const destination = new URL(response.headers.get("location"), "http://localhost");
+    assert.equal(destination.pathname,"/book");
+    assert.equal(destination.search,"?service=armed_static&when=tomorrow");
+  }
+});

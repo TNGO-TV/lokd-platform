@@ -28,6 +28,7 @@ function load(name,modules,extra='') {
 const modules={react:React,'react/jsx-runtime':jsx,'next/link':{default:link},'next/image':{default:image},'next/navigation':{usePathname:()=>'/officer',useSearchParams:()=>new URLSearchParams()},'../lib/signup-types':signup,'../lib/psira-pathway':psira};
 modules['../lib/workspace-response-contracts']=contracts;modules['../lib/workspace-command-receipt']=receipts;modules['./workspace-request']=load('workspace-request.tsx',modules);
 modules['./officer-presence-panel']=load('officer-presence-panel.tsx',modules);
+modules['./booking-enquiry-detail']=load('booking-enquiry-detail.tsx',modules);
 const Shell=load('workspace-shell.tsx',modules).default;
 const Card=load('signup-portal.tsx',modules,'\nexport {RecordCard};').RecordCard;
 
@@ -65,6 +66,8 @@ test('rendered production workspaces and populated intake cards expose real acti
   assert.doesNotMatch(production,/Testing tools|test-cycle|payment-test|identity\?caseId/);
   if(kind==='officer')assert.match(production,/readiness\?applicantId=APP-render-fixture/);
   if(role==='operations')assert.match(production,/Prepare operational record/);
+  if(role==='operations'&&kind==='client')assert.match(production,/View booking request and internal draft/);
+  if(role!=='operations')assert.doesNotMatch(production,/internal draft/i);
   if(role==='officer')assert.match(production,/Stop public sharing/);
  }
 });

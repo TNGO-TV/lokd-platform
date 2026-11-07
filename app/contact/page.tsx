@@ -4,6 +4,8 @@ import { Icon, type IconName } from "../components/icons";
 import { PublicPage } from "../components/public-site-shell";
 import { publicMetadata, BOOKINGS_EMAIL, QUOTES_EMAIL, INVOICE_EMAIL, TRAINING_EMAIL, VERIFICATION_EMAIL } from "../lib/public-site";
 
+import "../styles/booking.css";
+
 export const metadata = publicMetadata("Contact LOKD Security", "Contact LOKD about on-demand security, ongoing contract cover or certified training. Share your Johannesburg requirements with the right team.", "/contact");
 const channels: [IconName, string, string][] = [
   ["messageSquare","Quotes and sales",QUOTES_EMAIL], ["calendar","Bookings",BOOKINGS_EMAIL],

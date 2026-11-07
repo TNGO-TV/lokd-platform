@@ -21,9 +21,10 @@ test("public sitemap uses one canonical host and includes the launch search page
   assert.equal(entries.length, PUBLIC_SITEMAP_PATHS.length);
   assert.equal(new Set(entries.map((entry) => entry.url)).size, entries.length);
   for (const entry of entries) assert.equal(new URL(entry.url).origin, PUBLIC_SITE_URL);
-  for (const path of ["/security-services", "/armed-security", "/vip-protection", "/industries", "/locations/johannesburg", "/clients", "/officers", "/contact"]) {
+  for (const path of ["/security-services", "/armed-security", "/vip-protection", "/industries", "/locations/johannesburg", "/clients", "/officers", "/contact", "/book"]) {
     assert.ok(entries.some((entry) => entry.url === canonicalUrl(path)), `${path} should be in the public sitemap`);
   }
+  assert.ok(!entries.some(entry => new URL(entry.url).pathname === "/quote"));
 });
 
 test("robots keeps public client and officer content crawlable while excluding private surfaces", () => {
@@ -33,7 +34,7 @@ test("robots keeps public client and officer content crawlable while excluding p
   assert.ok(Array.isArray(disallow));
   const blocked = path => disallow.some(rule => rule.endsWith("$") ? path === rule.slice(0,-1) : path.startsWith(rule));
   for (const path of ["/api/enquiries", "/ops", "/officer", "/officer/readiness", "/client", "/client/agreements", "/portal"]) assert.equal(blocked(path), true, path);
-  for (const path of ["/officers", "/clients", "/quote", "/join"]) assert.equal(blocked(path), false, path);
+  for (const path of ["/officers", "/clients", "/book", "/join"]) assert.equal(blocked(path), false, path);
   assert.equal(disallow.includes("/client"), false, "blocking /client also blocks the public /clients prefix");
   assert.equal(disallow.includes("/officer"), false, "blocking /officer also blocks the public /officers prefix");
 });

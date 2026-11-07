@@ -23,19 +23,20 @@ export async function deliverEnquiryEmails(db: D1Database, runtime: OperationalR
   }
   let provider: EmailProvider;
   try { provider = configuredEmailProvider(runtime); } catch { return blocked("Configure the email mailbox (LOKD_SMTP_HOST, LOKD_SMTP_USER, LOKD_SMTP_PASSWORD) or RESEND_API_KEY, plus LOKD_EMAIL_FROM and LOKD_TEAM_EMAIL."); }
-  if (!emailValid(runtime.LOKD_EMAIL_FROM) || !emailValid(runtime.LOKD_TEAM_EMAIL)) return blocked("Configure LOKD_EMAIL_FROM and LOKD_TEAM_EMAIL.");
+  if (!emailValid(runtime.LOKD_EMAIL_FROM)) return blocked("Configure LOKD_EMAIL_FROM and LOKD_TEAM_EMAIL.");
   // SMTP has no idempotent replay: after any SMTP attempt, Operations checks the sent mailbox.
   if (job.attempts > 0 && (isSmtpProvider(storedBody?._lokdProvider) || !storedBody && provider === "smtp")) return outcome(false);
   // Preserve the provider's 24-hour deduplication window after a lost response.
   if (job.attempts >= 5 || job.first_attempt_at && clock - Date.parse(job.first_attempt_at) >= 23 * 3600000) return blocked("Review the original email delivery before sending again; the retry window has ended.");
-  const enquiry = await db.prepare("SELECT contact_name,email_normalized,organisation_name,service_type,site_area,message FROM client_enquiries WHERE id=? AND integrity_state='user_submitted'").bind(enquiryId).first<{ contact_name: string; email_normalized: string; organisation_name: string; service_type: string; site_area: string; message: string }>();
+  const enquiry = await db.prepare("SELECT contact_name,email_normalized,organisation_name,service_type,site_area,message,engagement_model FROM client_enquiries WHERE id=? AND integrity_state='user_submitted'").bind(enquiryId).first<{ contact_name: string; email_normalized: string; organisation_name: string; service_type: string; site_area: string; message: string; engagement_model: string | null }>();
   if (!enquiry || !emailValid(enquiry.email_normalized)) return blocked("The enquiry recipient could not be confirmed.");
-  const from = runtime.LOKD_EMAIL_FROM, to = runtime.LOKD_TEAM_EMAIL;
+  const from = runtime.LOKD_EMAIL_FROM, to = enquiry.engagement_model ? "bookings@lokd.co.za" : runtime.LOKD_TEAM_EMAIL;
+  if (!emailValid(to)) return blocked("Configure LOKD_TEAM_EMAIL.");
   const body: Record<string, unknown> = storedBody ?? {
-    _lokdProvider: provider, from, to: [to], subject: "New LOKD security enquiry",
+    _lokdProvider: provider, from, to: [to], subject: enquiry.engagement_model ? "New LOKD booking request" : "New LOKD security enquiry",
     text: "A security enquiry is ready for review.\n\nReference: " + enquiryId + "\nOrganisation: " + enquiry.organisation_name + "\nContact: " + enquiry.contact_name + "\nEmail: " + enquiry.email_normalized + "\nArea: " + enquiry.site_area + "\nService: " + enquiry.service_type.replaceAll("_", " ") + "\n\n" + enquiry.message + "\n\nReview and follow up in Operations:\nhttps://operations.lokd.co.za/ops/intake?kind=client\n\nLOKD Security",
     _lokdConfirmation: { from, to: [enquiry.email_normalized], subject: "We have your LOKD enquiry",
-      text: "Hello " + enquiry.contact_name + ",\n\nThank you for contacting LOKD. We have saved your security requirements and will contact you about your quote.\n\nYour reference: " + enquiryId + "\n\nSign in using this email to follow your enquiry:\nhttps://portal.lokd.co.za\n\nYour cover is confirmed after the quote and service terms are agreed. For questions, reply to " + to + ".\n\nLOKD Security\nSecurity on your terms.\nhttps://lokd.co.za" },
+      text: "Hello " + enquiry.contact_name + ",\n\nThank you for contacting LOKD. We have saved your booking request. LOKD Operations will confirm the officers and the price with you. Your request does not confirm cover.\n\nYour reference: " + enquiryId + "\n\nOpen the Client Zone using this email to follow your request:\nhttps://portal.lokd.co.za\n\nCover is confirmed only after you and LOKD agree the service details and price. For questions, reply to " + to + ".\n\nLOKD Security\nSecurity on your terms.\nhttps://lokd.co.za" },
   };
   if (!sameEmailProvider(body._lokdProvider, provider) || !body._lokdConfirmation) return blocked("This delivery uses a different saved provider or message. Review the original delivery.");
   const lease = crypto.randomUUID();
