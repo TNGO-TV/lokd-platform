@@ -3,6 +3,13 @@ export type PayrollTaxBracket = {
   rateBasisPoints: number;
 };
 
+export type PolicyReviewStatus = "pending_review" | "approved" | "rejected";
+export type AnnualPsiraFeePolicy = {
+  payer: "company" | "officer" | "partner" | null;
+  amountCents: number | null;
+  reviewStatus: PolicyReviewStatus;
+};
+
 export type PayrollPolicy = {
   version: string;
   jurisdiction: "ZA";
@@ -42,6 +49,13 @@ export type PayrollPolicy = {
     employerRateBasisPoints: number;
     earningsCapPerPeriodCents: number;
     classificationCode: string | null;
+    classificationReviewStatus?: PolicyReviewStatus;
+  };
+  // Annual regulatory obligations are not automatic employee deductions or
+  // per-assignment charges. Allocation requires a separately approved basis.
+  psiraFees?: {
+    companyAnnual: AnnualPsiraFeePolicy;
+    officerAnnual: AnnualPsiraFeePolicy;
   };
   leave?: {
     hoursWorkedDivisor: number;
@@ -52,6 +66,7 @@ export type PayrollPolicy = {
     sundayOrdinaryBasisPoints: number;
     sundayOccasionalBasisPoints: number;
     publicHolidayBasisPoints: number;
+    nightBasisPoints?: number | null;
   };
   privateSecuritySector?: {
     council: "NBCPSS";
@@ -103,6 +118,7 @@ export type PayrollCalculationInput = {
   employeeHealthCoverCents?: number;
   otherLawfulDeductionCents?: number;
   lawfulDeductionEvidenceConfirmed?: boolean;
+  nightWork?: { minutes: number; grossBasisCents: number };
 };
 
 export type PayrollCalculation = {
@@ -142,6 +158,19 @@ function safeNonNegativeInteger(value: number, label: string) {
 
 function perPeriodFromMonthly(monthlyCents: number, payPeriodsPerYear: number) {
   return Math.round((monthlyCents * 12) / payPeriodsPerYear);
+}
+
+/** Conservative fields for new drafts; approved historical JSON stays immutable. */
+export function payrollPolicyWithReviewDefaults(policy: PayrollPolicy): PayrollPolicy {
+  return {
+    ...policy,
+    wageRules: policy.wageRules ? { ...policy.wageRules, nightBasisPoints: policy.wageRules.nightBasisPoints ?? null } : undefined,
+    coida: policy.coida ? { ...policy.coida, classificationReviewStatus: policy.coida.classificationReviewStatus ?? "pending_review" } : undefined,
+    psiraFees: policy.psiraFees ?? {
+      companyAnnual: { payer: null, amountCents: null, reviewStatus: "pending_review" },
+      officerAnnual: { payer: null, amountCents: null, reviewStatus: "pending_review" },
+    },
+  };
 }
 
 export function assertPayrollPolicy(policy: PayrollPolicy) {
@@ -191,6 +220,7 @@ export function assertPayrollPolicy(policy: PayrollPolicy) {
     policy.wageRules?.sundayOrdinaryBasisPoints ?? 10_000,
     policy.wageRules?.sundayOccasionalBasisPoints ?? 10_000,
     policy.wageRules?.publicHolidayBasisPoints ?? 10_000,
+    policy.wageRules?.nightBasisPoints ?? 10_000,
   ];
   if (rates.some((value) => !integerInRange(value, 0, 100_000))) throw new Error("A payroll rate is outside the permitted range.");
   if (policy.leave && (!Number.isInteger(policy.leave.hoursWorkedDivisor) || policy.leave.hoursWorkedDivisor < 1 || policy.leave.hoursWorkedDivisor > 366)) {
@@ -198,6 +228,26 @@ export function assertPayrollPolicy(policy: PayrollPolicy) {
   }
   if (policy.coida?.enabled && (!policy.coida.classificationCode?.trim() || policy.coida.earningsCapPerPeriodCents < 1)) {
     throw new Error("An enabled COIDA rule requires a classification and positive earnings cap.");
+  }
+  if (policy.wageRules?.nightBasisPoints !== undefined && policy.wageRules.nightBasisPoints !== null
+    && policy.wageRules.nightBasisPoints < 10_000) {
+    throw new Error("The night-work multiplier cannot reduce ordinary remuneration.");
+  }
+  const reviewStatuses = ["pending_review", "approved", "rejected"];
+  if (policy.coida?.classificationReviewStatus !== undefined && !reviewStatuses.includes(policy.coida.classificationReviewStatus)) {
+    throw new Error("The COIDA classification review status is invalid.");
+  }
+  if (policy.psiraFees) {
+    for (const fee of [policy.psiraFees.companyAnnual, policy.psiraFees.officerAnnual]) {
+      if (!fee || !reviewStatuses.includes(fee.reviewStatus)
+        || ![null, "company", "officer", "partner"].includes(fee.payer)) {
+        throw new Error("The annual PSiRA fee review or payer is invalid.");
+      }
+      if (fee.amountCents !== null) safeNonNegativeInteger(fee.amountCents, "Annual PSiRA fee");
+      if (fee.reviewStatus === "approved" && (fee.payer === null || fee.amountCents === null)) {
+        throw new Error("An approved annual PSiRA fee requires an amount and responsible payer.");
+      }
+    }
   }
   if (policy.sourceReferences && (policy.sourceReferences.length > 20 || policy.sourceReferences.some((value) => !/^https:\/\//.test(value)))) {
     throw new Error("Payroll policy source references must be bounded HTTPS URLs.");
@@ -286,6 +336,35 @@ export function earningLineAmount(input: PayrollEarningInput) {
   return Math.round(numerator / (60 * 10_000));
 }
 
+/** Paid night attendance in Johannesburg, whose UTC offset is always +02:00. */
+export function nightWorkAllocation(input: { startsAt: string; endsAt: string; paidMinutes: number; grossCents: number }) {
+  const start = Date.parse(input.startsAt), end = Date.parse(input.endsAt);
+  safeNonNegativeInteger(input.paidMinutes, "Paid minutes");
+  safeNonNegativeInteger(input.grossCents, "Reviewed service gross");
+  if (!/(Z|[+-]\d{2}:\d{2})$/i.test(input.startsAt) || !/(Z|[+-]\d{2}:\d{2})$/i.test(input.endsAt)
+    || !Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > 366 * 86_400_000) {
+    throw new Error("Night-work pay requires a valid, bounded attendance interval with a time-zone offset.");
+  }
+  const recordedMinutes = Math.floor((end - start) / 60_000);
+  if (input.paidMinutes !== recordedMinutes) {
+    throw new Error("Night-work pay requires an independently reviewed allocation when payable minutes differ from recorded attendance.");
+  }
+  const offset = 2 * 3_600_000, day = 86_400_000;
+  let cursor = start + offset, nightMilliseconds = 0;
+  const localEnd = end + offset;
+  while (cursor < localEnd) {
+    const midnight = Math.floor(cursor / day) * day, next = Math.min(localEnd, midnight + day);
+    nightMilliseconds += Math.max(0, Math.min(next, midnight + 6 * 3_600_000) - cursor);
+    nightMilliseconds += Math.max(0, next - Math.max(cursor, midnight + 18 * 3_600_000));
+    cursor = next;
+  }
+  const minutes = Math.floor(nightMilliseconds / 60_000);
+  const grossBasisCents = recordedMinutes === 0 ? 0 : Number(
+    (BigInt(input.grossCents) * BigInt(minutes) + BigInt(Math.floor(recordedMinutes / 2))) / BigInt(recordedMinutes),
+  );
+  return { minutes, grossBasisCents };
+}
+
 export function calculatePayrollStatement(input: PayrollCalculationInput, policy: PayrollPolicy): PayrollCalculation {
   assertPayrollPolicy(policy);
   if (!isIsoDate(input.serviceDate)) throw new Error("The service date must use YYYY-MM-DD.");
@@ -312,7 +391,29 @@ export function calculatePayrollStatement(input: PayrollCalculationInput, policy
     safeNonNegativeInteger(input.employerProjectedAnnualPayrollCents, "Projected annual employer payroll");
   }
 
-  const earnings = input.earnings.map((line) => ({ ...line, amountCents: earningLineAmount(line) }));
+  const nightMultiplier = policy.wageRules?.nightBasisPoints ?? 10_000;
+  const earnings = input.earnings.map((line) => {
+    const earning = line.code === "NIGHT" ? { ...line, multiplierBasisPoints: nightMultiplier } : line;
+    return { ...earning, amountCents: earningLineAmount(earning) };
+  });
+  if (input.nightWork) {
+    safeNonNegativeInteger(input.nightWork.minutes, "Night-work minutes");
+    safeNonNegativeInteger(input.nightWork.grossBasisCents, "Night-work gross basis");
+    const ordinaryMinutes = earnings.reduce((sum, line) => sum + line.minutes, 0);
+    const ordinaryGross = earnings.reduce((sum, line) => sum + line.amountCents, 0);
+    if (input.nightWork.minutes > ordinaryMinutes || input.nightWork.grossBasisCents > ordinaryGross
+      || input.nightWork.minutes === 0 && input.nightWork.grossBasisCents !== 0
+      || earnings.some(line => line.code === "NIGHT")) {
+      throw new Error("The night-work allocation must be part of the reviewed ordinary earnings and must not duplicate a NIGHT earning.");
+    }
+    if (nightMultiplier > 10_000 && input.nightWork.minutes > 0) {
+      earnings.push({
+        code: "NIGHT_PREMIUM", description: "Policy-approved night-work premium (18:00–06:00)",
+        minutes: 0, baseHourlyRateCents: 0, multiplierBasisPoints: nightMultiplier - 10_000,
+        amountCents: basisPoints(input.nightWork.grossBasisCents, nightMultiplier - 10_000),
+      });
+    }
+  }
   const grossCents = earnings.reduce((total, line) => total + line.amountCents, input.taxableAllowanceCents ?? 0);
   safeNonNegativeInteger(grossCents, "Gross pay");
   const deductibleRetirementContributionCents = input.deductibleRetirementContributionCents ?? 0;
@@ -352,7 +453,7 @@ export function calculatePayrollStatement(input: PayrollCalculationInput, policy
     ? basisPoints(grossCents, policy.skillsDevelopmentLevy.employerRateBasisPoints)
     : 0;
   const coidaBaseCents = Math.min(grossCents, policy.coida?.earningsCapPerPeriodCents ?? grossCents);
-  const coidaProvisionCents = policy.coida?.enabled
+  const coidaProvisionCents = policy.coida?.enabled && policy.coida.classificationReviewStatus === "approved"
     ? basisPoints(coidaBaseCents, policy.coida.employerRateBasisPoints)
     : 0;
   const totalEmployeeDeductionsCents = payeCents + employeeUifCents + employeeProvidentFundCents
@@ -445,6 +546,11 @@ export const ZA_2027_SARS_POLICY_CANDIDATE: PayrollPolicy = {
     employerRateBasisPoints: 0,
     earningsCapPerPeriodCents: 0,
     classificationCode: null,
+    classificationReviewStatus: "pending_review",
+  },
+  psiraFees: {
+    companyAnnual: { payer: null, amountCents: null, reviewStatus: "pending_review" },
+    officerAnnual: { payer: null, amountCents: null, reviewStatus: "pending_review" },
   },
   leave: { hoursWorkedDivisor: 17 },
   wageRules: {
@@ -453,6 +559,7 @@ export const ZA_2027_SARS_POLICY_CANDIDATE: PayrollPolicy = {
     sundayOrdinaryBasisPoints: 15_000,
     sundayOccasionalBasisPoints: 20_000,
     publicHolidayBasisPoints: 20_000,
+    nightBasisPoints: null,
   },
   privateSecuritySector: {
     council: "NBCPSS",

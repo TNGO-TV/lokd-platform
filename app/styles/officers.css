@@ -1,0 +1,59 @@
+.officers-site { color: var(--lokd-slate); }
+.officers-container { width: min(1280px, calc(100% - 2 * clamp(20px, 5.55vw, 80px))); margin-inline: auto; }
+.officers-hero { padding-block: clamp(48px, 6vw, 88px); }
+.officers-hero h1 { max-width: 960px; margin: 16px 0 24px; font-size: clamp(38px, 5vw, 72px); line-height: 1.06; letter-spacing: -.045em; }
+.officers-site h2, .officers-ops h1 { letter-spacing: -.035em; line-height: 1.15; }
+.officers-site h2 { margin: 12px 0 24px; font-size: clamp(28px, 3vw, 42px); }
+.officers-site h3 { margin: 16px 0 12px; font-size: 22px; line-height: 1.3; }
+.officers-site p { line-height: 1.65; }
+.officers-lead { max-width: 860px; font-size: 18px; }
+.officers-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-block: 40px 28px; }
+.officers-option { display: flex; flex-direction: column; align-items: flex-start; padding: clamp(24px, 3vw, 40px); border: 1px solid var(--lokd-line); border-radius: 16px; color: var(--lokd-slate); background: var(--lokd-white); text-decoration: none; }
+.officers-option > svg, .officers-card > svg { color: var(--lokd-blue-strong); }
+.officers-option h2 { font-size: clamp(25px, 2.5vw, 32px); }
+.officers-option p { flex: 1; margin: 0 0 24px; }
+.officers-option-action { display: inline-flex; gap: 16px; align-items: center; padding: 14px 24px; border-radius: 8px; background: var(--lokd-red-strong); color: var(--lokd-white); font-weight: 650; }
+.officers-option:hover { border-color: var(--lokd-blue-strong); }
+.officers-section { padding-block: clamp(48px, 6vw, 80px); }
+.officers-section--white { background: var(--lokd-white); }
+.officers-three-grid, .officers-course-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-block: 32px; }
+.officers-card, .officers-course { padding: 28px; border-radius: 12px; background: var(--lokd-canvas); min-width: 0; }
+.officers-section:not(.officers-section--white) .officers-card { background: var(--lokd-white); }
+.officers-split { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 48px; align-items: start; }
+.officers-note { font-size: 14px; max-width: 860px; }
+.officers-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; list-style: none; margin: 40px 0; padding: 0; }
+.officers-steps li { padding: 24px; border: 1px solid var(--lokd-line); border-radius: 12px; }
+.officers-step-number { color: var(--lokd-blue-strong); font-size: 24px; font-weight: 700; }
+.officers-pathway { padding: 24px; border-radius: 12px; background: var(--lokd-canvas); }
+.officers-pathway ol { display: grid; gap: 16px; padding-left: 24px; }
+.officers-pathway li span { display: block; margin-top: 4px; line-height: 1.6; }
+.officers-course { display: flex; flex-direction: column; border: 1px solid var(--lokd-line); background: var(--lokd-white); }
+.officers-course h3 { margin-top: 0; }
+.officers-course dl { flex: 1; margin: 0 0 24px; }
+.officers-course dt { font-weight: 650; margin-top: 20px; }
+.officers-course dd { margin: 6px 0 0; line-height: 1.6; }
+.officers-course .public-button { align-self: flex-start; }
+.officers-booking { scroll-margin-top: 120px; }
+.officers-booking .public-form { max-width: 920px; }
+.officers-site :where(input, select, textarea, button) { max-width: 100%; }
+.officers-site .public-form :where(input, select) { min-height: 48px; }
+.officers-site .public-form input[type=checkbox] { min-height: 20px; }
+.officers-site .public-form-success dd, .officers-ops :where(p, dd) { overflow-wrap: anywhere; }
+.officers-ops { max-width: 1200px; margin: 0 auto; padding: 32px; }
+.officers-ops article { background: var(--lokd-white); border: 1px solid var(--lokd-line); border-radius: 12px; padding: 24px; margin-block: 24px; }
+.officers-ops dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 12px 24px; }
+.officers-ops dd { margin: 0; }
+.officers-ops dt { font-weight: 650; }
+@media (max-width: 900px) {
+  .officers-three-grid, .officers-course-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .officers-split { gap: 24px; }
+}
+@media (max-width: 620px) {
+  .officers-options, .officers-three-grid, .officers-course-grid, .officers-steps, .officers-split { grid-template-columns: minmax(0, 1fr); }
+  .officers-options { margin-top: 28px; }
+  .officers-card, .officers-course { padding: 24px; }
+  .officers-option-action { width: 100%; justify-content: space-between; }
+  .officers-ops { padding: 20px; }
+  .officers-ops dl { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .officers-ops dd { margin-bottom: 12px; }
+}

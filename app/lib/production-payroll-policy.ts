@@ -1,4 +1,4 @@
-import {assertPayrollPolicy,type PayrollPolicy} from './payroll-engine';
+import {assertPayrollPolicy,payrollPolicyWithReviewDefaults,type PayrollPolicy} from './payroll-engine';
 import {agreementHash} from './agreement-acceptance';
 import {productionOperatorControl} from './production-operator-control';
 import {SignupError} from './signup-server';
@@ -10,7 +10,7 @@ export async function manageProductionPayrollPolicy(db:D1Database,actor:SigningA
  const now=new Date().toISOString();
  if(input.action==='prepare_payroll_policy'){
   const maker=await productionOperatorControl(db,actor,headers,'payroll.calculate',0);
-  let policy:PayrollPolicy;try{policy=typeof input.rules==='string'?JSON.parse(input.rules):input.rules as PayrollPolicy;assertPayrollPolicy(policy);}catch{throw new SignupError('Provide a valid South African payroll policy using the documented policy structure.');}
+  let policy:PayrollPolicy;try{policy=payrollPolicyWithReviewDefaults(typeof input.rules==='string'?JSON.parse(input.rules):input.rules as PayrollPolicy);assertPayrollPolicy(policy);}catch{throw new SignupError('Provide a valid South African payroll policy using the documented policy structure.');}
   if(NONPRODUCTION_POLICY_VERSION_PATTERN.test(policy.version)||!policy.sourceReferences?.length||policy.sourceReferences.some(r=>typeof r!=='string'||!r.startsWith('https://')||/example\.(invalid|test)/i.test(r)))throw new SignupError('Production payroll policy requires actual source references and its own reviewed version.');
   if(input.sourcesReviewed!==true)throw new SignupError('Confirm review of the actual statutory and employment sources.');
   const source=text(input.sourceReference,'the source-review record'),rules=JSON.stringify(policy);if(rules.length>16000)throw new SignupError('Payroll policy is too large.');const id='POL-'+crypto.randomUUID(),hash=await agreementHash(rules);

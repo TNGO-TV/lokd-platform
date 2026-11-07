@@ -9,7 +9,7 @@ const zeroFindings = { total: 0, info: 0, low: 0, moderate: 0, high: 0, critical
 const passingAudit = () => ({ npmExit: 0, report: { auditReportVersion: 2, metadata: { vulnerabilities: { ...zeroFindings } }, vulnerabilities: {} },
   assessment: { ok: true, blocked: [], dispositions: [], raw: { ...zeroFindings }, severityDifferences: [] } });
 const passingBoundary = () => ({ checkedPackages: ['braces', 'micromatch', 'fast-glob'], moduleCount: 1, moduleGraphSha256: 'a'.repeat(64) });
-const passingBrowser = (expected=14) => ({stats:{expected,unexpected:0,flaky:0,skipped:0},errors:[]});
+const passingBrowser = (expected=34) => ({stats:{expected,unexpected:0,flaky:0,skipped:0},errors:[]});
 
 function fixture(t) {
   const root = mkdtempSync(path.join(os.tmpdir(), 'lokd-release-'));
@@ -51,7 +51,7 @@ test('candidate records exact source, lock, native assets and validation evidenc
   assert.match(receipt.source.commit, /^[a-f0-9]{40}$/); assert.match(receipt.source.tree, /^[a-f0-9]{40}$/);
   assert.equal(receipt.artifacts.length, 3); assert.equal(receipt.validations.length, 5);
   assert.ok(receipt.validations.some(file=>file.path==='test-results/integrated-browser/browser.json'));
-  assert.equal(f.run('verify').status, 0); assert.match(receipt.migrationRequirement, /through 0171 before deploying/);
+  assert.equal(f.run('verify').status, 0); assert.match(receipt.migrationRequirement, /through 0187 before deploying/);
 });
 
 test('CI summary exposes only validated boundary fields, source commit, config key names and artifact count', (t) => {
@@ -256,6 +256,15 @@ test('failing gate stops deployment and removes stale candidate; modified build 
   assert.equal(existsSync(path.join(f.root, '.sites-runtime/deploy-calls')), false);
 });
 
+
+test('isolated browser evidence requires all 34 checks including officer, training and booking flows',t=>{
+ for(const stats of [{expected:14},{expected:26},{expected:33},{expected:35},{unexpected:1},{flaky:1},{skipped:1}]){
+  const f=fixture(t);assert.equal(f.run('begin').status,0);f.outputs();
+  f.put('test-results/offline-browser/results.json',JSON.stringify({...passingBrowser(),stats:{...passingBrowser().stats,...stats}}));
+  assert.notEqual(f.run('seal').status,0,JSON.stringify(stats));
+  assert.equal(existsSync(path.join(f.root,'.sites-runtime/release/candidate.json')),false);
+ }
+});
 
 test('integrated browser evidence is mandatory and failing, incomplete or malformed reports cannot seal',t=>{
  for(const replacement of [null,'not JSON','null',JSON.stringify({}),

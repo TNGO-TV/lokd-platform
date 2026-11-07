@@ -25,7 +25,7 @@ export const PUBLIC_SITEMAP_PATHS = [
   "/join",
   "/privacy",
   "/terms",
-  "/quote",
+  "/book",
   "/signup",
 ] as const;
 

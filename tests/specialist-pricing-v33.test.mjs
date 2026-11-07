@@ -144,8 +144,10 @@ test("public specialist routes and database fail-closed controls ship together",
   assert.match(armed, /Movement protection/);
   assert.match(vip, /Personal protection/);
   assert.match(vip, /The right team/);
-  assert.match(form, /value="vip_protective_driver"/);
-  assert.match(form, /value="vip_team"/);
+  for (const service of ["scheduled_unarmed_fixed_site", "armed_static", "vip_unarmed"]) assert.ok(form.includes(`value="${service}"`));
+  const enquiryApi = fs.readFileSync(new URL("../app/api/enquiries/route.ts", import.meta.url), "utf8");
+  assert.match(enquiryApi, /"vip_protective_driver"/);
+  assert.match(enquiryApi, /"vip_team"/);
   assert.match(migration, /specialist_pricing_floor_invalid/);
   assert.match(migration, /S1_ARMED_SERVICE_AUTHORITY/);
   assert.match(migration, /S2_VIP_SERVICE_AUTHORITY/);

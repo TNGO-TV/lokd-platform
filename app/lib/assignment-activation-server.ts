@@ -157,7 +157,7 @@ async function readActivationEvidenceRevision(db: D1Database) {
 function evidencePayloads(facts: AssignmentActivationFacts) {
   return {
     funding: JSON.stringify(facts.funding),
-    site: JSON.stringify({ client: facts.client, site: facts.site, post: facts.post, induction: facts.induction, agreements: facts.agreements }),
+    site: JSON.stringify({ bookingModel: facts.shift.bookingModel, client: facts.client, site: facts.site, post: facts.post, induction: facts.induction, agreements: facts.agreements }),
     launch: JSON.stringify(facts.launchGates),
     officer: JSON.stringify(facts.officer),
     employer: JSON.stringify(facts.workforce),
@@ -413,6 +413,7 @@ async function loadAssignmentActivationFacts(
     shift: {
       rosterSlotId: candidate.rosterSlotId,
       bookingId: candidate.bookingId,
+      bookingModel: candidate.engagementModel,
       siteId: candidate.siteId,
       postId: candidate.postId,
       officerId: request.officerId,
@@ -607,6 +608,7 @@ async function requestHash(request: AssignmentActivationRequest) {
 
 function commitFailureBlocker(message: string) {
   const rules: Array<[RegExp, string, ActivationBlocker["category"], string]> = [
+    [/booking_workforce_route_mismatch/i, "BOOKING_WORKFORCE_ROUTE_MISMATCH", "workforce", "The booking model or workforce route changed: Flex requires Direct Flex or partner; Fixed requires Managed or partner."],
     [/required_launch_gate/i, "LAUNCH_CHANGED_DURING_ACTIVATION", "launch", "A required launch gate changed before the atomic commit completed."],
     [/cleared_reconciled_funding|funding/i, "FUNDING_CHANGED_DURING_ACTIVATION", "funding", "Cleared and reconciled funding no longer passed the database guard."],
     [/officer_work_rest|officer_work_overlap|UNIQUE constraint failed: roster_assignments\.active_key/i, "SLOT_OR_REST_CONFLICT", "concurrency", "The slot or officer rest window was claimed by another committed transaction."],

@@ -29,6 +29,7 @@ export const FIXTURE_ENGINE_POLICY = {
     employerRateBasisPoints: 50,
     earningsCapPerPeriodCents: 100_000,
     classificationCode: "SYNTHETIC-DEMO",
+    classificationReviewStatus: "approved",
   },
   leave: { hoursWorkedDivisor: 17 },
   wageRules: {

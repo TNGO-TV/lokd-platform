@@ -40,7 +40,7 @@ function validFacts() {
     environment: "production",
     checkpoint: "activation",
     evaluatedAt: "2026-08-28T10:00:00.000Z",
-    shift: { rosterSlotId: "SLOT-1", bookingId: "BK-1", siteId: "SITE-1", postId: "POST-1", officerId: "OFF-1", startsAt: start, endsAt: end, slotVersion: 1, slotStatus: "uncovered" },
+    shift: { rosterSlotId: "SLOT-1", bookingId: "BK-1", bookingModel: "flex", siteId: "SITE-1", postId: "POST-1", officerId: "OFF-1", startsAt: start, endsAt: end, slotVersion: 1, slotStatus: "uncovered" },
     agreements: {ready:true,missing:[],receipts:[]},
     launchGates: gates(),
     funding: { reconciliationId: "FR-1", environment: "production", integrityState: "verified", provider: "bank_api", providerReference: "BANK-SETTLEMENT-1", status: "cleared_reconciled", currency: "ZAR", bookingAmountCents: 140000, expectedAmountCents: 140000, clearedAmountCents: 140000, clearedAt: verifiedAt, reconciledAt: verifiedAt, evidenceReference: "bank:FR-1", verifiedAt, expiresAt: expiry },
@@ -112,6 +112,7 @@ function validFacts() {
 function factsForWorkforceModel(model) {
   const facts = validFacts();
   facts.workforce.model = model;
+  facts.shift.bookingModel = model === 'managed' ? 'fixed' : 'flex';
   if (model === "partner") {
     facts.workforce.payrollStatus = "partner_confirmed";
     facts.workforce.benefitsStatus = "partner_confirmed";
@@ -128,6 +129,23 @@ test("a fully evidenced Direct Flex activation is ready and freezes two ISO-week
     ["2026-09-07", 480],
   ]);
   assert.equal(result.compensation.fundedOfferCents, 80000);
+});
+
+test("activation rejects incompatible or missing booking models and permits partner staffing for either", () => {
+  for (const [booking, route] of [['flex','managed'],['fixed','direct_flex']]) {
+    const facts = factsForWorkforceModel(route);
+    facts.shift.bookingModel = booking;
+    const result = evaluateAssignmentActivation(facts);
+    assert.equal(result.ready, false);
+    assert.ok(result.blockers.some(b => b.code === 'BOOKING_WORKFORCE_ROUTE_MISMATCH'));
+  }
+  const missing = validFacts(); delete missing.shift.bookingModel;
+  assert.ok(evaluateAssignmentActivation(missing).blockers.some(b => b.code === 'BOOKING_MODEL_INVALID'));
+  for (const booking of ['flex','fixed']) {
+    const facts = factsForWorkforceModel('partner'); facts.shift.bookingModel = booking;
+    assert.equal(evaluateAssignmentActivation(facts).ready, true);
+  }
+  assert.equal(evaluateAssignmentActivation(factsForWorkforceModel('managed')).ready, true);
 });
 
 test("Johannesburg Sunday night splits at local Monday midnight", () => {

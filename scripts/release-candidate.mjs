@@ -127,10 +127,10 @@ function validations() {
   const extras = readdirSync('test-results').filter((name) => /^dependency-boundary-.+\.json$/.test(name)).map((name) => `test-results/${name}`);
   const files = [...new Set([...validationFiles, ...extras])].sort().map(regularFile);
   const browser = json('test-results/offline-browser/results.json');
-  requireCondition(browser.stats?.expected === 14 && browser.stats.unexpected === 0
+  requireCondition(browser.stats?.expected === 34 && browser.stats.unexpected === 0
     && browser.stats.flaky === 0 && browser.stats.skipped === 0
     && Array.isArray(browser.errors) && browser.errors.length === 0,
-  'All fourteen isolated desktop/mobile browser checks must pass.');
+  'All 34 isolated desktop/mobile browser checks must pass.');
   const integrated = json('test-results/integrated-browser/browser.json');
   requireCondition(integrated?.stats?.expected === 78 && integrated.stats.unexpected === 0
     && integrated.stats.flaky === 0 && integrated.stats.skipped === 0
@@ -171,7 +171,7 @@ try {
     const receipt = { version: 1, kind: 'validated-native-candidate', source: started.source,
       startedAt: started.startedAt, validatedAt: new Date().toISOString(), command: 'LOKD_NATIVE_CF=1 npm run check:security',
       node: process.version, config, validations: validations(), artifacts: artifacts(),
-      migrationRequirement: 'Apply migrations through 0171 before deploying the production maintenance and retention handlers; preserve receipt protection, consent revocation and linked-record retention holds. Migration execution is a separate authorized operation.' };
+      migrationRequirement: 'Apply migrations through 0187 before deploying officer, training and booking intake; preserve receipt protection, consent revocation and linked-record retention holds. Migration execution is a separate authorized operation.' };
     writeFileSync(candidate, JSON.stringify(receipt, null, 2) + '\n');
     rmSync(pending, { force: true });
     // Reviewable CI summary: selected evidence fields only, never config/vars

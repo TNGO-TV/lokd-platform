@@ -52,27 +52,29 @@ test('homepage offers real intake paths, responsive service navigation and priva
   // Vinext may serialize an origin-only canonical without its implicit slash.
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /^https:\/\/lokd\.co\.za\/?$/);
   const main = page.locator('main');
-  await expect(main.getByRole('heading', {level: 1})).toHaveText('Security.On your terms.');
-  await expect(main.getByRole('link', {name: /^Get a quote/})).toHaveAttribute('href', '/quote');
-  await expect(main.getByRole('link', {name: /^Apply as an officer/})).toHaveAttribute('href', '/join');
-  await expect(main.getByRole('heading', {name: 'PSIRA-verified officers', exact: true})).toBeVisible();
+  await expect(main.getByRole('heading', {level: 1})).toHaveText('Book officers.On your terms.');
+  await expect(main.getByRole('link', {name: 'Book officers', exact: true}).first()).toHaveAttribute('href', '/book');
+  await expect(main.getByRole('link', {name: /^PSIRA Registered or renewal/})).toHaveAttribute('href', '/officers');
+  await expect(main.getByRole('heading', {name: 'LOKD Flex', exact: true})).toBeVisible();
+  await expect(main.getByRole('heading', {name: 'LOKD Fixed', exact: true})).toBeVisible();
   const footer = page.locator('footer');
   await expect(footer.getByRole('link', {name: 'Client Zone', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fclient');
   await expect(footer.getByRole('link', {name: 'Officer Zone', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fofficer');
   await expect(footer.getByRole('link', {name: 'Training', exact: true})).toHaveAttribute('href', '/training');
   await fitsViewport(page);
   const header = page.locator('header');
-  await expect(header.getByRole('link', {name: 'Get a quote', exact: true})).toHaveAttribute('href', '/quote');
   const mobile = page.viewportSize().width < 900;
   if (mobile) {
     await expect(page.getByRole('navigation', {name: 'Main navigation', exact: true})).toBeHidden();
     await header.getByText('Menu', {exact: true}).click();
   } else {
+    await expect(header.getByRole('link', {name: 'Book officers', exact: true})).toHaveAttribute('href', '/book');
     await expect(header.getByRole('link', {name: 'Zone', exact: true})).toHaveAttribute('href', '/sign-in');
     await expect(header.getByText('Menu', {exact: true})).toBeHidden();
   }
   const navigation = page.getByRole('navigation', {name: mobile ? 'Mobile navigation' : 'Main navigation', exact: true});
   await expect(navigation).toBeVisible();
+  await expect(navigation.getByRole('link', {name: 'Book', exact: true})).toHaveAttribute('href', '/book');
   if (mobile) await expect(navigation.getByRole('link', {name: 'Zone', exact: true})).toHaveAttribute('href', '/sign-in');
   await navigation.getByRole('link', {name: 'Security services', exact: true}).click();
   await expect(page).toHaveURL(origin + '/security-services');
@@ -93,7 +95,11 @@ async function applicantDetails(page, {training = false} = {}) {
   await page.getByLabel(label('Email address')).fill('offline.applicant@example.test');
   await page.getByLabel(label('City or town')).fill('Pretoria');
   if (training) await expect(page.locator('input[name="psiraNumber"]')).toHaveCount(0);
-  else await page.getByLabel(label('PSIRA number')).fill('1234567');
+  else {
+    await page.getByLabel(label('PSIRA number')).fill('1234567');
+    await page.getByLabel(label('Highest grade')).selectOption('Grade C');
+    await page.getByLabel('Weekdays', {exact:true}).check();
+  }
   await submit.click();
   await expect(page.locator('input[name="over18Confirmed"]')).toBeFocused();
   for (const name of ['over18Confirmed', 'eligibilityAcknowledged', 'contactConsent']) await page.locator(`input[name="${name}"]`).check();
@@ -107,8 +113,7 @@ async function applicantDetails(page, {training = false} = {}) {
 }
 
 test('officer application validates locally, preserves rejection and displays full UUID receipt', async ({page, intakeNetwork: offline}) => {
-  await page.goto('/');
-  await page.locator('main').getByRole('link', {name: /^Apply as an officer/}).click();
+  await page.goto('/join');
   await expect(page).toHaveURL(origin + '/join');
   await expect(page).toHaveTitle('Apply as a security officer | LOKD');
   await expect(page.getByRole('heading', {level: 1})).toHaveText('Apply as an officer.');
@@ -152,8 +157,8 @@ test('officer application validates locally, preserves rejection and displays fu
 
 test('training deep link requires training selection and keeps unregistered intake distinct', async ({page, intakeNetwork: offline}) => {
   await page.goto('/training');
-  await expect(page.getByRole('heading', {level: 1})).toHaveText('Take your next step in security.');
-  await expect(page.locator('main').getByRole('link', {name: /^Apply as an officer/})).toHaveAttribute('href', '/join');
+  await expect(page.getByRole('heading', {level: 1})).toHaveText('Security training at LOKD.');
+  await expect(page.locator('main').getByRole('link', {name: /^Apply as an officer/})).toHaveAttribute('href', '/join?path=new');
   await page.goto('/join?path=training');
   await expect(page.getByLabel(label('Application pathway'))).toHaveValue('training');
   await expect(page.getByLabel(label('PSIRA registration status'))).toHaveValue('not_registered');
@@ -177,26 +182,31 @@ function isoDate(daysAhead) {
 }
 
 test('security enquiry enforces fields and consent, shows server rejection and links its receipt', async ({page, intakeNetwork: offline}) => {
-  await page.goto('/');
-  await page.locator('main').getByRole('link', {name: /^Get a quote/}).click();
-  await expect(page).toHaveURL(origin + '/quote');
-  await expect(page).toHaveTitle('Get a security quote | LOKD');
+  await page.goto('/book');
+  await expect(page).toHaveURL(origin + '/book');
+  await expect(page).toHaveTitle('Request security cover | LOKD');
   const form = page.locator('form.public-form');
-  const submit = form.getByRole('button', {name: 'Get a quote', exact: true});
-  await submit.click();
-  await expect(form.getByLabel(label('Security service'))).toBeFocused();
+  const next = form.getByRole('button', {name: 'Continue', exact: true});
+  await next.click();
+  await expect(form.getByRole('radio', {name: /Today \/ tomorrow/})).toBeFocused();
   expect(offline.enquiries).toHaveLength(0);
+  await form.getByRole('radio', {name: /Ongoing cover/}).check();
+  await form.getByLabel(label('Start date')).fill(isoDate(200));
+  await form.getByLabel(label('Contract term')).selectOption('3');
+  await form.getByLabel(label('Roster')).selectOption('weekdays');
+  await next.click();
+  await expect(form.getByRole('heading', {name: 'Service and site', exact: true})).toBeFocused();
+  await next.click();
+  await expect(form.getByLabel(label('Security service'))).toBeFocused();
   await form.getByLabel(label('Security service')).selectOption('scheduled_unarmed_fixed_site');
   await form.getByLabel(label('Site type')).selectOption('commercial_property');
   await form.getByLabel(label('Suburb or area')).fill('Pretoria');
   await form.getByLabel(label('Site or venue address')).fill('1 Offline Street, Pretoria');
-  await form.getByLabel(label('Start date')).fill(isoDate(200));
-  await form.getByLabel(label('End date')).fill(isoDate(210));
-  await form.getByLabel(label('Shift starts')).fill('07:00');
-  await form.getByLabel(label('Shift ends')).fill('18:00');
-  await form.getByLabel(label('Officers per shift')).fill('2');
-  await form.getByLabel(label('Schedule')).selectOption('Weekdays in this period');
-  await form.getByLabel(label('What do you need covered?')).fill('Weekday entry control and reception security for an office building.');
+  await form.getByLabel(label('Shift')).selectOption('day');
+  await form.getByLabel(label('Number of officers')).fill('2');
+  await form.getByLabel(label('Site instructions')).fill('Weekday entry control and reception security for an office building.');
+  await next.click();
+  const submit = form.getByRole('button', {name: 'Request cover', exact: true});
   await form.getByLabel(label('Organisation or household name')).fill('Offline Example Organisation');
   await form.getByLabel(label('Contact name')).fill('Offline Contact');
   await form.getByLabel(label('Email address')).fill('offline.contact@example.test');
@@ -214,7 +224,7 @@ test('security enquiry enforces fields and consent, shows server rejection and l
   expect(offline.enquiries).toHaveLength(1);
   expect(offline.enquiries[0]).toMatchObject({
     privacyConsent: true, advanceFundingAcknowledged: true, serviceType: 'scheduled_unarmed_fixed_site', siteType: 'commercial_property',
-    requiredStart: 'planning', officers: 2, schedule: 'Weekdays in this period', email: 'offline.contact@example.test', company: '',
+    booking: {coverType: 'ongoing', startDate: isoDate(200), term: '3', rosterPattern: 'weekdays', shift: 'day', officers: 2}, email: 'offline.contact@example.test', company: '',
   });
   offline.enquiryResponse = {status: 202, json: {reference: 'LOKD-RECEIVED'}};
   await submit.click();
@@ -231,8 +241,59 @@ test('security enquiry enforces fields and consent, shows server rejection and l
   await expect(page.locator('dd')).toHaveText(enquiryReference);
   await expect(page.getByText('A confirmation has been sent to your email address.')).toBeVisible();
   await expect(page.getByRole('link', {name: 'Track your enquiry', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fclient');
-  await expect(page.getByText('Your cover is confirmed after you agree the quote and service terms.', {exact: false})).toBeVisible();
+  await expect(page.getByText('LOKD Operations will confirm the officers and the price with you.', {exact: false})).toBeVisible();
   expect(offline.enquiries).toHaveLength(4);
   for (const enquiry of offline.enquiries.slice(1)) expect(enquiry).toEqual(offline.enquiries[0]);
+  await fitsViewport(page);
+});
+
+for (const when of ['today', 'tomorrow']) test('legacy homepage booking prefill survives the redirect: ' + when, async ({page}) => {
+  await page.goto('/quote?service=armed_static&when=' + when + '#quote-form');
+  await expect(page).toHaveURL(new RegExp('/book\\?service=armed_static&when=' + when + '#quote-form$'));
+  await expect(page.getByRole('radio', {name: /Today \/ tomorrow/})).toBeChecked();
+  await expect(page.getByLabel(/^When do you need cover/)).toHaveValue(when);
+  await page.getByRole('button', {name: 'Continue', exact: true}).click();
+  await expect(page.locator('form.booking-flow').getByLabel(/^Security service/)).toHaveValue('armed_static');
+  await expect(page.getByRole('heading', {name: 'Service and site', exact: true})).toBeFocused();
+  await fitsViewport(page);
+});
+
+test('ongoing cover links prefill the Fixed model and expose every term and roster', async ({page}) => {
+  await page.goto('/book?when=ongoing&service=armed_static');
+  const form = page.locator('form.booking-flow');
+  await expect(form.getByRole('radio', {name: /Ongoing cover/})).toBeChecked();
+  await expect(form.getByLabel(/^Contract term/).locator('option:not([disabled])')).toHaveText(['1 month', '3 months', '6 months', '12 months']);
+  await expect(form.getByLabel(/^Roster/).locator('option:not([disabled])')).toHaveText(['Weekdays (Monday–Friday)', 'Mon–Sat', 'Daily']);
+  await fitsViewport(page);
+});
+
+test('Flex request keeps the single-shift intent and retains details across Back', async ({page, intakeNetwork: offline}) => {
+  await page.goto('/book?service=vip_unarmed');
+  const form = page.locator('form.booking-flow');
+  await form.getByRole('radio', {name: /A specific date/}).check();
+  await form.getByLabel(/^Start date/).fill(isoDate(5));
+  await form.getByRole('button', {name: 'Continue', exact: true}).click();
+  await expect(form.getByLabel(/^Security service/)).toHaveValue('vip_unarmed');
+  await form.getByLabel(/^Shift/).selectOption('night');
+  await form.getByLabel(/^Number of officers/).fill('2');
+  await form.getByLabel(/^Site type/).selectOption('commercial_property');
+  await form.getByLabel(/^Suburb or area/).fill('Sandton');
+  await form.getByLabel(/^Site or venue address/).fill('24 Rivonia Road, Sandton');
+  await form.getByRole('button', {name: 'Continue', exact: true}).click();
+  await form.getByRole('button', {name: 'Back', exact: true}).click();
+  await expect(form.getByLabel(/^Shift/)).toHaveValue('night');
+  await expect(form.getByLabel(/^Site or venue address/)).toHaveValue('24 Rivonia Road, Sandton');
+  await form.getByRole('button', {name: 'Continue', exact: true}).click();
+  await form.getByLabel(/^Organisation or household name/).fill('Private household');
+  await form.getByLabel(/^Contact name/).fill('Booking Contact');
+  await form.getByLabel(/^Email address/).fill('booking@example.test');
+  await form.getByLabel(/^Phone number/).fill('0821234567');
+  await form.locator('input[name="advanceFundingAcknowledged"]').check();
+  await form.locator('input[name="privacyConsent"]').check();
+  await form.getByRole('button', {name: 'Request cover', exact: true}).click();
+  expect(offline.enquiries).toHaveLength(1);
+  expect(offline.enquiries[0].booking).toEqual({coverType:'date',startDate:isoDate(5),shift:'night',officers:2,term:'single',rosterPattern:'daily'});
+  await expect(page.getByRole('heading', {name: 'Your enquiry is with LOKD.'})).toBeVisible();
+  await expect(page.getByText(/Operations will confirm the officers and the price/)).toBeVisible();
   await fitsViewport(page);
 });

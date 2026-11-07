@@ -6,6 +6,7 @@ import {activationAgreementContext,type ActivationAgreementRole} from './agreeme
 import {evaluateAssignmentActivation} from './assignment-activation-server';
 import {DeliveryError,emailValid,configuredEmailProvider,emailReceipt,isSmtpProvider,sameEmailProvider,sendEmail,type OperationalRuntime} from './operational-provider';
 import {requireCrmCompanion} from './crm-companion';
+import {deliverOfficerEmail} from './officer-email';
 
 type Job={id:string;kind:string;source_id:string;environment:string;state:string;attempts:number;request_json:string|null;recipient:string|null;provider_id:string|null;first_attempt_at:string|null;created_at:string};
 type Options={transport?:typeof fetch;verifiedEmail?:(userId:string)=>Promise<string|null>;now?:()=>number;receiptsOnly?:boolean};
@@ -121,6 +122,10 @@ export async function runOperationalDelivery(db:D1Database,runtime:OperationalRu
    }
   }
  }
+ if(!options.receiptsOnly){
+  const training=await db.prepare("SELECT b.id FROM training_bookings b WHERE EXISTS(SELECT 1 FROM officer_email_outbox n WHERE n.id IN ('training-team:'||b.id,'training-confirmation:'||b.id) AND n.state IN ('queued','failed')) ORDER BY b.created_at,b.id LIMIT 5").all<{id:string}>();
+  for(const booking of training.results)await deliverTrainingBookingEmails(db,runtime,booking.id,transport);
+ }
  return {enabled:true,processed};
 }
 
@@ -133,4 +138,14 @@ async function recordCrmEnquiry(runtime:OperationalRuntime,body:Record<string,un
 
 export async function readOperationalDelivery(db:D1Database){
  return (await db.prepare(`SELECT id,kind,source_id AS sourceId,state,attempts,recipient,provider_id AS providerId,last_error AS lastError,updated_at AS updatedAt FROM operational_delivery_jobs ORDER BY created_at DESC LIMIT 100`).all()).results;
+}
+
+// Training notices use the same durable mailbox outbox and SMTP uncertainty
+// rules as officer notices. Replays use the original saved messages only.
+export async function deliverTrainingBookingEmails(db:D1Database,runtime:OperationalRuntime,reference:string,transport:typeof fetch=fetch) {
+ if(runtime.LOKD_OPERATIONAL_DELIVERY_ENABLED==='false')return {teamEmailSent:false,confirmationEmailSent:false};
+ const source=await db.prepare("SELECT id FROM training_bookings WHERE id=? AND environment='production' AND integrity_state='user_submitted'").bind(reference).first();
+ if(!source)return {teamEmailSent:false,confirmationEmailSent:false};
+ const results=await Promise.allSettled(['training-team:','training-confirmation:'].map(prefix=>deliverOfficerEmail(db,runtime,prefix+reference,transport)));
+ return {teamEmailSent:results[0].status==='fulfilled'&&results[0].value.sent,confirmationEmailSent:results[1].status==='fulfilled'&&results[1].value.sent};
 }

@@ -1,14 +1,15 @@
-import { PublicPage, PublicSteps, OfficerRecruitment } from "../components/public-site-shell";
+import { BookingModels, OfficerRecruitment, PublicFeatureGrid, PublicPage } from "../components/public-site-shell";
 import { publicMetadata } from "../lib/public-site";
 
-export const metadata = publicMetadata("About LOKD Security", "Meet LOKD, the South African platform connecting clients with verified security officers for shifts, events and ongoing cover in Johannesburg.", "/about");
-const cards = [["For clients","Tell us what you need protected. We help you agree the right cover, understand your quote and follow the service from your account."],["For officers","Apply once, complete your verification and manage suitable shifts through the LOKD app."],["For every shift","Clear duties, a known officer and recorded check-ins make it easier to know who is on site and what is happening."]] as const;
+export const metadata = publicMetadata("About LOKD Security", "LOKD connects Johannesburg clients with on-demand officers, ongoing contract cover and certified security training.", "/about");
+
 export default function Page() {
-  return <PublicPage active="about" eyebrow="About LOKD" title="Security that keeps people connected." promise="LOKD brings clients, verified officers and service updates together in one place, starting in Johannesburg.">
-
-    <section className="public-section public-section--white"><div className="public-section-heading"><h2>Protection with a personal connection.</h2></div><div className="public-detail-grid">{cards.map(([title, description]) => <article key={title}><h3>{title}</h3><p>{description}</p></article>)}</div></section>
-
-    <PublicSteps />
-    <OfficerRecruitment />
+  return <PublicPage active="about" eyebrow="About LOKD" title="Security that works around people." promise="A simpler way to arrange security in Johannesburg. Book verified officers when you need them, plan ongoing cover or take your next step through training." ctaHref="/book" ctaLabel="Book officers">
+    <PublicFeatureGrid eyebrow="Three ways forward" title="One LOKD. Built around your needs." features={[
+      {icon:"clock",title:"LOKD Flex",description:"On-demand bookings for today, tomorrow, an event or a short-notice gap. Officers are matched to your brief.",detail:"On demand"},
+      {icon:"calendar",title:"LOKD Fixed",description:"Ongoing contract cover with rosters planned around the site, duties and shifts you need.",detail:"Contract cover"},
+      {icon:"graduationCap",title:"LOKD Training",description:"LOKD is a certified training provider. Training is a paid service, from entry-level courses to grade upgrades, firearms and VIP protection.",detail:"Certified training"}
+    ]} />
+    <BookingModels /><OfficerRecruitment />
   </PublicPage>;
 }

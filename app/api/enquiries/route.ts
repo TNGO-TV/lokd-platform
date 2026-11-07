@@ -6,6 +6,7 @@ import { operationsMfaStatus } from "../../lib/operations-mfa";
 import { deliverEnquiryEmails } from "../../lib/signup-enquiry-delivery";
 import { operationsEmailAllowed } from "../../lib/signup-access";
 import { workspaceRoleForHost } from "../../lib/public-site";
+import { BookingRequestError, publicBooking, validateBookingStart } from "../../lib/public-booking";
 import type { OperationalRuntime } from "../../lib/operational-provider";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +58,7 @@ function reply(payload: unknown, status = 200) {
 }
 
 function failure(cause: unknown) {
-  const error = cause instanceof EnquiryError || cause instanceof RequestBodyError
+  const error = cause instanceof EnquiryError || cause instanceof RequestBodyError || cause instanceof BookingRequestError
     ? cause : new EnquiryError("We could not complete that enquiry request.", 500);
   if (cause instanceof Error && cause.message.includes('public_enquiry_rate_limited')) return reply({error:'Too many enquiries. Please wait an hour before sending another request.'},429);
   return reply({ error: error.message }, error.status);
@@ -116,14 +117,19 @@ export async function submitClientEnquiry(request: Request,database?:D1Database,
     const siteArea = clean(input.siteArea, "Site area", 2, 100);
     const siteType = clean(input.siteType, "Site type", 3, 40);
     if (!siteTypes.has(siteType)) throw new EnquiryError("Choose a valid site type.");
-    const requiredStart = clean(input.requiredStart, "Required start", 3, 40);
+    const submittedAt = new Date();
+    const booking = publicBooking(input, submittedAt);
+    const daysUntilStart = booking ? (Date.parse(booking.startsAt) - submittedAt.getTime()) / 86_400_000 : 0;
+    const requiredStart = booking ? daysUntilStart <= 30 ? "within_30_days" : daysUntilStart <= 90 ? "one_to_three_months" : daysUntilStart <= 180 ? "three_to_six_months" : "planning" : clean(input.requiredStart, "Required start", 3, 40);
     if (!startWindows.has(requiredStart)) throw new EnquiryError("Choose a valid planning window.");
     const serviceType = typeof input.serviceType === "string" && input.serviceType
       ? clean(input.serviceType, "Security service", 3, 60)
       : "scheduled_unarmed_fixed_site";
     if (!serviceTypes.has(serviceType)) throw new EnquiryError("Choose a valid security service.");
-    const message = clean(input.message, "Site brief", 20, 2_000);
-    const schedule=scheduleDetails(input);
+    const schedule = booking?.schedule ?? scheduleDetails(input);
+    const message = booking
+      ? clean(`Booking request: LOKD ${booking.engagementModel === "fixed" ? "Fixed" : "Flex"}. Site address: ${booking.schedule.siteAddress}. Dates: ${booking.schedule.startDate} to ${booking.schedule.endDate}. Shift: ${booking.schedule.startTime} to ${booking.schedule.endTime} SAST (12 hours). Officers: ${booking.intent.officers}. Schedule: ${booking.schedule.schedule}. ${typeof input.message === "string" ? input.message : ""}`, "Site brief", 20, 2_000)
+      : clean(input.message, "Site brief", 20, 2_000);
     if(schedule&&!mobileNormalized)throw new EnquiryError("A contact phone number is required.");
     if (input.advanceFundingAcknowledged !== true) throw new EnquiryError("Confirm that you understand submitting an enquiry does not confirm service until Operations reviews fit and commercial terms.");
     if (input.privacyConsent !== true) throw new EnquiryError("Consent is required to save and respond to this enquiry.");
@@ -140,7 +146,7 @@ export async function submitClientEnquiry(request: Request,database?:D1Database,
     if(schedule&&requestKey===undefined)throw new EnquiryError("A submission key is required. Reload the form and try again.");
     if (requestKey !== undefined && (typeof requestKey !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestKey))) throw new EnquiryError('Use a valid enquiry submission key.');
     const keyHash = typeof requestKey === 'string' ? await agreementHash('client-enquiry:' + requestKey.toLowerCase()) : null;
-    const payloadHash = await agreementHash(JSON.stringify({organisationName,contactName,emailNormalized,mobileNormalized,siteArea,siteType,requiredStart,serviceType,message,privacyNoticeVersion,advanceFundingAcknowledged:true,privacyConsent:true,...(schedule?{schedule}: {})}));
+    const payloadHash = await agreementHash(JSON.stringify({organisationName,contactName,emailNormalized,mobileNormalized,siteArea,siteType,requiredStart:booking?"booking":requiredStart,serviceType,message,privacyNoticeVersion,advanceFundingAcknowledged:true,privacyConsent:true,...(schedule?{schedule}: {}),...(booking?{booking:booking.intent}: {})}));
     const recover = async () => {
       if (!keyHash) return null;
       const receipt = await db.prepare('SELECT payload_hash,enquiry_id FROM client_enquiry_receipts WHERE request_key_hash=?').bind(keyHash).first<{payload_hash:string;enquiry_id:string}>();
@@ -150,6 +156,7 @@ export async function submitClientEnquiry(request: Request,database?:D1Database,
     };
     const recovered = await recover();
     if (recovered) return recovered;
+    if (booking) validateBookingStart(booking, submittedAt);
     if (schedule && schedule.startDate < new Date(Date.now() + 7200000).toISOString().slice(0,10)) throw new EnquiryError('Choose a start date from today onwards.');
 
     const now = new Date();
@@ -169,11 +176,13 @@ export async function submitClientEnquiry(request: Request,database?:D1Database,
         (id, organisation_name, contact_name, email_normalized, mobile_normalized, site_area,
          site_type, required_start, message, service_type, funding_model, credit_terms_days,
          privacy_notice_version, privacy_acknowledged_at, status, owner_id, resolution,
-         environment, integrity_state, retention_review_at, created_at, updated_at, version,site_address,start_date,end_date,start_time,end_time,officer_count,schedule)
+         environment, integrity_state, retention_review_at, created_at, updated_at, version,site_address,start_date,end_date,start_time,end_time,officer_count,schedule,
+         engagement_model,notice_window,calendar_type,risk_band,booking_details,internal_draft_price)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'advance_only', 0,
-         ?, ?, 'new', NULL, NULL, 'production', 'user_submitted', ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`)
+         ?, ?, 'new', NULL, NULL, 'production', 'user_submitted', ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
         .bind(id, organisationName, contactName, emailNormalized, mobileNormalized, siteArea,
-          siteType, requiredStart, message, serviceType, privacyNoticeVersion, nowIso, retention.toISOString(), nowIso, nowIso,schedule?.siteAddress??null,schedule?.startDate??null,schedule?.endDate??null,schedule?.startTime??null,schedule?.endTime??null,schedule?.officers??null,schedule?.schedule??null),
+          siteType, requiredStart, message, serviceType, privacyNoticeVersion, nowIso, retention.toISOString(), nowIso, nowIso,schedule?.siteAddress??null,schedule?.startDate??null,schedule?.endDate??null,schedule?.startTime??null,schedule?.endTime??null,schedule?.officers??null,schedule?.schedule??null,
+          booking?.engagementModel??null,booking?.noticeWindow??null,booking?.calendarType??null,booking?.riskBand??null,booking?JSON.stringify(booking.intent):null,booking?JSON.stringify(booking.draftPrice):null),
       db.prepare(`INSERT INTO audit_events
         (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
         VALUES (?, 'client_enquiry', ?, 'public_client_enquiry_submitted', 'client_enquiry', ?,
@@ -198,18 +207,23 @@ export async function POST(request:Request){return submitClientEnquiry(request);
 export async function GET(request: Request) {
   try {
     requireSignedInOperations(request);
-    const result = await getDb().prepare(`SELECT id, organisation_name AS organisationName,
+    const selectedId = new URL(request.url).searchParams.get("id");
+    const enquiryId = selectedId === null ? null : clean(selectedId, "Enquiry reference", 5, 80);
+    const query = getDb().prepare(`SELECT id, organisation_name AS organisationName,
       contact_name AS contactName, email_normalized AS email, mobile_normalized AS mobile,
       site_area AS siteArea, site_type AS siteType, required_start AS requiredStart,
       service_type AS serviceType, message, status, owner_id AS ownerId, resolution, created_at AS createdAt,
       updated_at AS updatedAt, version,site_address AS siteAddress,start_date AS startDate,end_date AS endDate,
       start_time AS startTime,end_time AS endTime,officer_count AS officers,schedule,
+      engagement_model AS engagementModel,notice_window AS noticeWindow,calendar_type AS calendarType,risk_band AS riskBand,
+      booking_details AS bookingDetails,internal_draft_price AS internalDraftPrice,
       (SELECT state FROM operational_delivery_jobs j WHERE j.kind='enquiry_email' AND j.source_id=client_enquiries.id) AS emailStatus,
       (SELECT last_error FROM operational_delivery_jobs j WHERE j.kind='enquiry_email' AND j.source_id=client_enquiries.id) AS emailError
       FROM client_enquiries
       WHERE environment = 'production' AND integrity_state = 'user_submitted'
-      ORDER BY CASE status WHEN 'new' THEN 1 WHEN 'triaged' THEN 2 ELSE 3 END, created_at DESC LIMIT 100`)
-      .all<Record<string, unknown>>();
+      ${enquiryId ? "AND id=?" : ""}
+      ORDER BY CASE status WHEN 'new' THEN 1 WHEN 'triaged' THEN 2 ELSE 3 END, created_at DESC LIMIT 100`);
+    const result = await (enquiryId ? query.bind(enquiryId) : query).all<Record<string, unknown>>();
     return reply({ enquiries: result.results ?? [] });
   } catch (cause) { return failure(cause); }
 }

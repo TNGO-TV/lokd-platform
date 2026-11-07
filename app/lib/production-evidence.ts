@@ -3,6 +3,7 @@ import {agreementHash} from './agreement-acceptance';
 import type {SigningActor} from './production-signing';
 import {productionEvidenceKinds,type ProductionEvidenceKind} from './production-evidence-catalogue';
 import {RISK_RULES_VERSION} from './production-pricing';
+import {workforceReadinessStatuses,type WorkforceModel} from './workforce-core';
 const text=(v:unknown,label:string)=>{if(typeof v!=='string'||v.trim().length<2||v.length>1200)throw new SignupError(`Provide ${label}.`);return v.trim();};
 const insert=(db:D1Database,table:string,row:Record<string,string|number|null>)=>db.prepare(`INSERT INTO ${table} (${Object.keys(row).join(',')}) VALUES(${Object.keys(row).map(()=>'?').join(',')})`).bind(...Object.values(row));
 async function revision(db:D1Database){return (await db.prepare('SELECT revision FROM activation_evidence_epoch WHERE singleton=1').first<{revision:number}>())!.revision;}
@@ -26,7 +27,8 @@ async function plan(db:D1Database,kind:ProductionEvidenceKind,p:Record<string,st
   const officer=await db.prepare("SELECT o.id,l.owner_user_id FROM officers o JOIN production_entity_links l ON l.kind='officer' AND l.entity_id=o.id JOIN signup_cases c ON c.kind=l.kind AND c.source_id=l.case_id AND c.version=l.case_version AND c.status='reviewed' WHERE o.id=?").bind(p.officerId).first<{id:string;owner_user_id:string}>();if(!officer||officer.owner_user_id===actor)throw new SignupError('A different reviewer must approve the current officer intake.',403);
   const cap=Number(p.weeklyHourCap);if(!Number.isSafeInteger(cap)||cap<1||cap>60)throw new SignupError('Enter an approved hour cap from 1 to 60.');
   if(await db.prepare('SELECT id FROM workforce_engagements WHERE id=? OR (officer_id=? AND active_key=officer_id)').bind(p.engagementId,p.officerId).first())throw new SignupError('An engagement already exists. Suspend/review it before preparing a replacement with a new reference.',409);
-  out.push(insert(db,'workforce_engagements',{id:p.engagementId,officer_id:p.officerId,employer_id:p.employerId,model:p.model,environment:'production',status:'active',active_key:p.officerId,engagement_reference:p.engagementReference,terms_version:p.termsVersion,payroll_status:'ready',benefits_status:'ready',weekly_hour_cap:cap,activated_at:now,review_due_at:expires}));
+  const readiness=workforceReadinessStatuses(p.model as WorkforceModel);
+  out.push(insert(db,'workforce_engagements',{id:p.engagementId,officer_id:p.officerId,employer_id:p.employerId,model:p.model,environment:'production',status:'active',active_key:p.officerId,engagement_reference:p.engagementReference,terms_version:p.termsVersion,payroll_status:readiness.payrollStatus,benefits_status:readiness.benefitsStatus,weekly_hour_cap:cap,activated_at:now,review_due_at:expires}));
   // This creates a reviewed workforce route, not the officer's acceptance. The
   // bound officer must separately accept the actual terms through their account.
  }else if(kind==='payroll_profile'){

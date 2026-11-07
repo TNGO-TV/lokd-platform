@@ -324,3 +324,104 @@ test('invalid schedules and cross-origin submissions leave no enquiry behind',as
   assert.equal(database.prepare('SELECT count(*) n FROM client_enquiries').get().n,0);
  }finally{database.close();}
 });
+
+const bookingInput = (overrides = {}) => ({
+ ...validEnquiry,requestKey:crypto.randomUUID(),serviceType:'scheduled_unarmed_fixed_site',siteType:'commercial_property',
+ siteAddress:'24 Rivonia Road, Sandton',message:'Access control at the main entrance.',
+ booking:{coverType:'date',startDate:'2030-01-07',shift:'day',officers:2,term:'single',rosterPattern:'daily'},...overrides,
+});
+
+test('Flex bookings compute every notice boundary from the SAST shift start, never caller prices',async()=>{
+ const {publicBooking}=await import('../app/lib/public-booking.ts');
+ const starts=Date.parse('2030-01-07T06:00:00+02:00');
+ for(const [hours,expected] of [[0.1,'immediate'],[5.999,'immediate'],[6,'urgent'],[23.999,'urgent'],[24,'priority'],[71.999,'priority'],[72,'standard']]){
+  const now=new Date(starts-hours*3600000);
+  const actual=publicBooking(bookingInput({noticeWindow:'standard',engagementModel:'fixed',calendarType:'christmas',riskBand:'Critical',internalDraftPrice:{totalCents:1}}),now);
+  assert.equal(actual.engagementModel,'flex');assert.equal(actual.noticeWindow,expected);assert.equal(actual.riskBand,'Standard');assert.equal(actual.calendarType,'ordinary');assert.ok(actual.draftPrice.totalCents>1);
+ }
+ const night=publicBooking(bookingInput({booking:{coverType:'date',startDate:'2030-01-07',shift:'night',officers:1,term:'single',rosterPattern:'daily'}}),new Date('2030-01-07T10:00:00Z'));
+ assert.equal(night.noticeWindow,'urgent');assert.equal(night.startsAt,'2030-01-07T18:00:00+02:00');
+ assert.equal(night.schedule.endTime,'06:00');assert.equal(night.riskBand,'Enhanced');
+});
+
+test('booking request saves authoritative metadata and sends SMTP to bookings and the client without prices',async(t)=>{
+ t.mock.timers.enable({apis:['Date'],now:new Date('2026-11-07T13:00:00Z')});
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
+ const server=installSmtpServer();const runtime={...smtpRuntime,LOKD_EMAIL_FROM:'notices@example.test'};
+ const input=bookingInput({noticeWindow:'standard',riskBand:'Critical',booking:{coverType:'soon',startDate:'2026-11-07',shift:'night',officers:2,term:'single',rosterPattern:'daily'}});
+ try{
+  const response=await submitClientEnquiry(publicRequest(input),db,{runtime});assert.equal(response.status,202,await response.clone().text());const saved=await response.json();
+  assert.equal(saved.saved,true);assert.equal(saved.confirmationEmailSent,true);assert.equal(saved.opsEmailSent,true);
+  assert.deepEqual(Object.keys(saved).sort(),['confirmationEmailSent','notificationStatus','opsEmailSent','reference','saved']);
+  const row=database.prepare('SELECT * FROM client_enquiries WHERE id=?').get(saved.reference);
+  assert.equal(row.engagement_model,'flex');assert.equal(row.notice_window,'immediate');assert.equal(row.calendar_type,'ordinary');assert.equal(row.risk_band,'Enhanced');
+  assert.equal(row.officer_count,2);assert.equal(row.start_time,'18:00');assert.equal(row.end_time,'06:00');
+  assert.deepEqual(JSON.parse(row.booking_details),input.booking);
+  const draft=JSON.parse(row.internal_draft_price);assert.ok(draft.totalCents>0);assert.equal(draft.assessedOfficers,2);
+  const messages=server.messages();assert.equal(messages.length,2);assert.equal(messages[0].to,'bookings@lokd.co.za');assert.equal(messages[1].to,validEnquiry.email);
+  const client=JSON.parse(database.prepare("SELECT request_json FROM operational_delivery_jobs WHERE kind='enquiry_email'").get().request_json)._lokdConfirmation.text;
+  assert.match(client,/Operations will confirm the officers and the price/);assert.match(client,/Client Zone/);assert.doesNotMatch(client,/Sign in|R\s*\d|\bcents\b|\brate\b|arriv|within \d|\d+ minutes/i);
+  assert.doesNotMatch(client,new RegExp(String(draft.totalCents)));
+  assert.throws(()=>database.prepare('UPDATE client_enquiries SET notice_window=? WHERE id=?').run('standard',saved.reference),/enquiry_booking_immutable/);
+  assert.throws(()=>database.prepare('UPDATE client_enquiries SET internal_draft_price=? WHERE id=?').run('{"totalCents":1}',saved.reference),/enquiry_booking_immutable/);
+  assert.equal(database.prepare('SELECT count(*) n FROM bookings').get().n,0);
+ }finally{server.uninstall();database.close();}
+});
+
+test('all Fixed terms and rosters save their complete price-book schedule and calendar classification',async(t)=>{
+ t.mock.timers.enable({apis:['Date'],now:new Date('2029-12-01T00:00:00Z')});
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
+ const {scheduledServiceDates}=await import('../app/lib/pricing.ts');
+ try{
+  let i=0;
+  for(const term of ['1','3','6','12'])for(const rosterPattern of ['weekdays','monday_saturday','daily']){
+   const input=bookingInput({email:`fixed-${i++}@example.test`,booking:{coverType:'ongoing',startDate:'2030-01-06',shift:'day',officers:2,term,rosterPattern}});
+   const response=await submitClientEnquiry(publicRequest(input),db);assert.equal(response.status,202,await response.clone().text());
+   const row=database.prepare('SELECT * FROM client_enquiries WHERE id=?').get((await response.json()).reference);
+   assert.equal(row.engagement_model,'fixed');assert.equal(row.notice_window,'standard');
+   const dates=scheduledServiceDates('2030-01-06',term,'fixed',rosterPattern),draft=JSON.parse(row.internal_draft_price);
+   assert.equal(draft.serviceDayCount,dates.length);assert.equal(draft.shiftCount,dates.length*2);assert.equal(row.start_date,dates[0]);
+   assert.equal(row.calendar_type,rosterPattern==='daily'?'sunday':'ordinary');
+  }
+ }finally{database.close();}
+});
+
+test('exact booking receipt recovery survives notice boundaries and a shift that has started',async(t)=>{
+ t.mock.timers.enable({apis:['Date'],now:new Date('2026-11-07T08:00:00Z')});
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
+ const input=bookingInput({booking:{coverType:'soon',startDate:'2026-11-07',shift:'night',officers:1,term:'single',rosterPattern:'daily'}});
+ try{
+  const first=await submitClientEnquiry(publicRequest(input),db);assert.equal(first.status,202);const saved=await first.json();
+  const before=database.prepare('SELECT notice_window,internal_draft_price FROM client_enquiries').get();assert.equal(before.notice_window,'urgent');
+  for(const milliseconds of [3*3600000,8*3600000,2*86400000]){
+   t.mock.timers.tick(milliseconds);const retry=await submitClientEnquiry(publicRequest(input),db);assert.equal(retry.status,202,await retry.clone().text());assert.equal((await retry.json()).reference,saved.reference);
+  }
+  assert.deepEqual(database.prepare('SELECT notice_window,internal_draft_price FROM client_enquiries').get(),before);
+  assert.equal(database.prepare('SELECT count(*) n FROM client_enquiries').get().n,1);
+  assert.equal((await submitClientEnquiry(publicRequest({...input,requestKey:crypto.randomUUID()}),db)).status,400);
+  const mismatch=bookingInput({requestKey:input.requestKey,booking:{...input.booking,officers:2}});assert.equal((await submitClientEnquiry(publicRequest(mismatch),db)).status,409);
+ }finally{database.close();}
+});
+
+test('invalid booking intents never create an enquiry or an internal price',async(t)=>{
+ t.mock.timers.enable({apis:['Date'],now:new Date('2026-11-07T13:00:00Z')});
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
+ try{
+  for(const changed of [{coverType:'unknown'},{term:'12'},{shift:'06:00'},{officers:0},{officers:1.5},{officers:7},{startDate:'2030-02-30'},{startDate:'2026-11-06'},{rosterPattern:'weekdays'},{coverType:'ongoing',term:'2'},{coverType:'soon',startDate:'2030-01-07'}]){
+   const input=bookingInput();input.booking={...input.booking,...changed};const response=await submitClientEnquiry(publicRequest(input),db);assert.equal(response.status,400,JSON.stringify(changed)+' '+await response.text());
+  }
+  assert.equal((await submitClientEnquiry(publicRequest(bookingInput({booking:null})),db)).status,400);
+  assert.equal(database.prepare('SELECT count(*) n FROM client_enquiries').get().n,0);
+ }finally{database.close();}
+});
+
+test('only authenticated Operations receives the saved internal draft price',async()=>{
+ const database=migratedDatabase(),db=new D1Adapter(database),enquiries=await import('../app/api/enquiries/route.ts');
+ env.DB=db;env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({owners:['owner@lokd.example']});
+ try{
+  const saved=await enquiries.submitClientEnquiry(publicRequest(bookingInput()),db);assert.equal(saved.status,202);
+  assert.equal((await enquiries.GET(new Request('https://operations.lokd.co.za/api/enquiries'))).status,401);
+  const queue=await enquiries.GET(operationsRequest('GET'));assert.equal(queue.status,200,await queue.clone().text());
+  const row=(await queue.json()).enquiries[0];assert.equal(row.engagementModel,'flex');assert.ok(JSON.parse(row.internalDraftPrice).totalCents>0);
+ }finally{database.close();delete env.DB;delete env.LOKD_ROLE_ACCESS_JSON;}
+});
