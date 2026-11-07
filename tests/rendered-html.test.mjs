@@ -12,7 +12,7 @@ async function renderPublicPage(path = "/") {
   // Streaming SSR sends the loading boundary before the completed page.
   const main = [...html.matchAll(/<main\b[^>]*>([\s\S]*?)<\/main>/gi)].findLast(([, content]) => /<h1\b/.test(content))?.[1] ?? "";
   assert.ok(main, path + " must include the completed server-rendered page");
-  const visible = main.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
+  const visible = main.split(/<script\b/i).map((part, index) => index === 0 ? part : part.replace(/^[\s\S]*?<\/script\s*>/i, "")).join(" ").replace(/<[^>]*>/g, " ").replace(/[<>]/g, " ").replace(/\s+/g, " ");
   const links = [...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)].map(([, attributes, content]) => ({
     href: attributes.match(/\bhref="([^"]*)"/i)?.[1]?.replace(/&amp;/g, "&"),
     text: content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(),
