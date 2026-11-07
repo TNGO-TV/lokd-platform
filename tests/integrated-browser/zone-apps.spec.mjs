@@ -1,7 +1,16 @@
 import { test, expect } from '@playwright/test';
 const reset = async (request, persona) => expect((await request.post('/__fixture/zone-reset?persona=' + persona)).ok()).toBeTruthy();
 const saved = async request => (await request.get('/__fixture/zone-state')).json();
-const fits = async page => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+const fits = async page => {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  const failures = await page.locator('.zone-primary:not(:disabled),.zone-chip,.zone-bottom-nav a[aria-current],.operations-sidebar a[aria-current]').evaluateAll(elements => {
+    const colour = value => { const c = value.match(/[\d.]+/g).map(Number), scale = value.startsWith('color(srgb') ? 1 : 255; return [...c.slice(0, 3).map(v => v / scale), c[3] ?? 1]; };
+    const blend = (fg, bg) => fg.slice(0, 3).map((v, i) => v * fg[3] + bg[i] * (1 - fg[3]));
+    const luminance = p => p.map(c => c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4).reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
+    return elements.filter(e => e.getClientRects().length).flatMap(e => { const ancestors = []; for (let node = e; node; node = node.parentElement) ancestors.unshift(node); const bg = ancestors.reduce((p, n) => blend(colour(getComputedStyle(n).backgroundColor), p), [1, 1, 1]), fg = blend(colour(getComputedStyle(e).color), bg), a = luminance(bg), b = luminance(fg), ratio = (Math.max(a, b) + .05) / (Math.min(a, b) + .05); return ratio >= 4.5 ? [] : [{ text: e.textContent, ratio }]; });
+  });
+  expect(failures).toEqual([]);
+};
 
 test('Client Flex follows intent, six services, review and an actual saved matching request', async ({ page, request }, info) => {
   await reset(request, 'client'); await page.goto('/client?view=request');
@@ -96,6 +105,7 @@ test('Operations Dispatch and Contracts use actual roster gaps and expose existi
   await expect(page.getByRole('heading', { name: 'Dispatch', exact: true })).toBeVisible();
   await expect(page.getByText('No open on-demand requests', { exact: true })).toBeVisible();
   await expect(page.getByText('No current officer locations shared', { exact: true })).toBeVisible();
+  await expect(page.getByText('The basemap could not be loaded.', { exact: false })).toBeVisible();
   await page.getByRole('combobox', { name: 'Choose a roster position', exact: true }).selectOption('SLOT-FIXTURE-A');
   await expect(page.getByText('No verified officers declare availability for this shift.', { exact: true })).toBeVisible();
   await fits(page); await page.screenshot({ path: info.outputPath('operations-dispatch.png'), fullPage: true });
