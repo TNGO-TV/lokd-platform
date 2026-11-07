@@ -3,6 +3,22 @@ import test from "node:test";
 
 const context = { waitUntil() {}, passThroughOnException() {} };
 const environment = { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } };
+function withoutScripts(markup) {
+  // Test-only text extraction from our own rendered HTML: drop everything from each <script to the next </script.
+  const lower = markup.toLowerCase();
+  let text = "";
+  let index = 0;
+  for (;;) {
+    const start = lower.indexOf("<script", index);
+    if (start === -1) return text + markup.slice(index);
+    text += markup.slice(index, start) + " ";
+    const end = lower.indexOf("</script", start);
+    if (end === -1) return text;
+    const close = lower.indexOf(">", end);
+    if (close === -1) return text;
+    index = close + 1;
+  }
+}
 async function renderPublicPage(path = "/") {
   const { default: worker } = await import(new URL("../dist/server/index.js", import.meta.url).href);
   const response = await worker.fetch(new Request("http://localhost" + path, { headers: { accept: "text/html" } }), environment, context);
@@ -12,7 +28,7 @@ async function renderPublicPage(path = "/") {
   // Streaming SSR sends the loading boundary before the completed page.
   const main = [...html.matchAll(/<main\b[^>]*>([\s\S]*?)<\/main>/gi)].findLast(([, content]) => /<h1\b/.test(content))?.[1] ?? "";
   assert.ok(main, path + " must include the completed server-rendered page");
-  const visible = main.split(/<script\b/i).map((part, index) => index === 0 ? part : part.replace(/^[\s\S]*?<\/script\s*>/i, "")).join(" ").replace(/<[^>]*>/g, " ").replace(/[<>]/g, " ").replace(/\s+/g, " ");
+  const visible = withoutScripts(main).replace(/<[^>]*>/g, " ").replace(/[<>]/g, " ").replace(/\s+/g, " ");
   const links = [...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)].map(([, attributes, content]) => ({
     href: attributes.match(/\bhref="([^"]*)"/i)?.[1]?.replace(/&amp;/g, "&"),
     text: content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(),
