@@ -3233,3 +3233,23 @@ export const clientEnquiryReceipts = sqliteTable("client_enquiry_receipts", {
   enquiryId: text("enquiry_id").notNull().unique().references(() => clientEnquiries.id),
   createdAt: text("created_at").notNull(),
 });
+
+export const officerApplicationPreferences = sqliteTable("officer_application_preferences", {
+  applicationId: text("application_id").primaryKey().references(() => officerApplications.id, { onDelete: "cascade" }),
+  availability: text("availability").notNull().default("[]"),
+  renewalStatus: text("renewal_status", { enum: ["not_started", "preparing_documents", "submitted", "refresher_requested"] }),
+  createdAt: text("created_at").notNull(),
+}, table => [check("officer_preferences_availability", sql`json_valid(${table.availability}) AND json_type(${table.availability})='array'`)]);
+
+export const trainingBookings = sqliteTable("training_bookings", {
+  id: text("id").primaryKey(), requestKeyHash: text("request_key_hash").notNull().unique(), payloadHash: text("payload_hash").notNull(),
+  course: text("course", { enum: ["grade-e", "grade-d", "grade-c", "grade-b", "grade-a", "firearms-competency", "armed-readiness", "close-protection"] }).notNull(),
+  preferredIntakeMonth: text("preferred_intake_month").notNull(), fullName: text("full_name").notNull(),
+  mobileNormalized: text("mobile_normalized").notNull(), emailNormalized: text("email_normalized").notNull(),
+  idStatus: text("id_status", { enum: ["available", "replacement_pending", "guidance_needed"] }).notNull(),
+  psiraStatus: text("psira_status", { enum: ["active", "expired", "in_training", "not_registered"] }).notNull(),
+  status: text("status", { enum: ["requested", "contacted", "confirmed", "cancelled"] }).notNull().default("requested"),
+  privacyNoticeVersion: text("privacy_notice_version").notNull(), consentedAt: text("consented_at").notNull(),
+  environment: text("environment").notNull().default("production"), integrityState: text("integrity_state").notNull().default("user_submitted"),
+  retentionReviewAt: text("retention_review_at").notNull(), createdAt: text("created_at").notNull(),
+}, table => [index("training_bookings_intake_idx").on(table.preferredIntakeMonth, table.createdAt), index("training_bookings_status_idx").on(table.status, table.createdAt)]);

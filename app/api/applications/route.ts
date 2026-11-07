@@ -3,7 +3,7 @@ import {officerApiActor,requireOfficerJson,OfficerAccessError} from '../../lib/o
 import {officerEmailStatement,deliverOfficerEmail} from '../../lib/officer-email';
 import {SignupError,writeSignup} from '../../lib/signup-server';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
-import { applicationPsiraDeclaration, psiraIntakeStatus } from '../../lib/psira-pathway';
+import { applicationPsiraDeclaration, officerAvailability, renewalStatuses, psiraIntakeStatus } from '../../lib/psira-pathway';
 import { psiraNumber as validatePsiraNumber } from '../../lib/psira-verification';
 import { env } from "cloudflare:workers";
 
@@ -48,6 +48,9 @@ type ApplicationInput = {
   eligibilityAcknowledged?: unknown;
   contactConsent?: unknown;
   company?: unknown;
+  entryPath?: unknown;
+  availability?: unknown;
+  renewalStatus?: unknown;
 };
 
 function getDb(): D1Database {
@@ -108,13 +111,15 @@ export async function GET(request:Request){
    a.psira_grade AS psiraGrade,a.service_interests AS services,a.purpose_interests AS purposes,
    a.training_interests AS training,a.identity_verification_status AS identityStatus,
    coalesce(c.status,a.status) AS status,coalesce(c.version,0) AS version,a.source,a.created_at AS createdAt,
-   a.updated_at AS updatedAt,CASE WHEN er.id IS NOT NULL THEN 'requested' ELSE NULL END AS enrolmentStatus,er.created_at AS enrolmentRequestedAt,n.state AS confirmationEmailStatus,n.last_error AS confirmationEmailError
+   a.updated_at AS updatedAt,coalesce(p.availability,'[]') AS availability,p.renewal_status AS renewalStatus,
+   CASE WHEN er.id IS NOT NULL THEN 'requested' ELSE NULL END AS enrolmentStatus,er.created_at AS enrolmentRequestedAt,n.state AS confirmationEmailStatus,n.last_error AS confirmationEmailError
    FROM officer_applications a LEFT JOIN signup_cases c ON c.kind='officer' AND c.source_id=a.id
+   LEFT JOIN officer_application_preferences p ON p.application_id=a.id
    LEFT JOIN officer_email_outbox n ON n.id='application-confirmation:'||a.id
    LEFT JOIN officer_work_notifications er ON er.id='enrolment:'||a.id||':'||c.version||':'||c.owner_user_id AND er.kind='enrolment_request'
    WHERE a.environment='production' AND a.integrity_state='user_submitted'
-   ORDER BY a.created_at DESC LIMIT 100`).all<{pathway:string;psiraStatus:string;services:string;purposes:string;training:string}>();
-  return response({applications:result.results.map(item=>({...item,services:JSON.parse(item.services),purposes:JSON.parse(item.purposes),training:JSON.parse(item.training),psiraVerificationRequired:applicationPsiraDeclaration(item.pathway,item.psiraStatus)==='registered'}))});
+   ORDER BY a.created_at DESC LIMIT 100`).all<{pathway:string;psiraStatus:string;services:string;purposes:string;training:string;availability:string}>();
+  return response({applications:result.results.map(item=>({...item,availability:JSON.parse(item.availability),services:JSON.parse(item.services),purposes:JSON.parse(item.purposes),training:JSON.parse(item.training),psiraVerificationRequired:applicationPsiraDeclaration(item.pathway,item.psiraStatus)==='registered'}))});
  }catch(error){return responseError(error);}
 }
 export async function PATCH(request:Request){
@@ -155,6 +160,9 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
     if (!provinces.has(province)) throw new ApplicationError("Choose a valid province.");
     const psiraStatus = cleanText(input.psiraStatus, "PSiRA position", 4, 30);
     if (!psiraStatuses.has(psiraStatus)) throw new ApplicationError("Choose a valid PSiRA position.");
+    const entryPath = input.entryPath;
+    if (entryPath !== undefined && entryPath !== 'registered' && entryPath !== 'new') throw new ApplicationError('Choose a valid application route.');
+    if (entryPath === 'registered' && (pathway !== 'qualified' || !['active','expired'].includes(psiraStatus)) || entryPath === 'new' && (pathway !== 'training' || !['not_registered','in_training'].includes(psiraStatus))) throw new ApplicationError('Choose the registration status that matches your application route.');
     const declaration = applicationPsiraDeclaration(pathway, psiraStatus);
     const psiraRequired = declaration === 'registered';
     let psiraNumber: string | null = null;
@@ -164,6 +172,13 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
     }
     const requestedGrade = typeof input.psiraGrade === 'string' ? input.psiraGrade.trim() : '';
     const psiraGrade = psiraRequired && grades.has(requestedGrade) ? requestedGrade : null;
+    if (entryPath === 'registered' && !psiraGrade) throw new ApplicationError('Choose your highest PSIRA grade, A to E.');
+    const hasPreferences = entryPath !== undefined || input.availability !== undefined || input.renewalStatus !== undefined;
+    const availability = input.availability === undefined || Array.isArray(input.availability) && input.availability.length === 0 ? [] : allowedList(input.availability, new Set<string>(officerAvailability), 'Availability', officerAvailability.length);
+    if (Array.isArray(input.availability) && input.availability.some(value => typeof value !== 'string' || !officerAvailability.includes(value as typeof officerAvailability[number]))) throw new ApplicationError('Choose a valid availability option.');
+    if (entryPath === 'registered' && !availability.length) throw new ApplicationError('Choose at least one availability option.');
+    const renewalStatus = psiraStatus === 'expired' && typeof input.renewalStatus === 'string' ? input.renewalStatus : null;
+    if (renewalStatus && !renewalStatuses.some(([status]) => status === renewalStatus) || entryPath === 'registered' && psiraStatus === 'expired' && !renewalStatus) throw new ApplicationError('Choose your renewal status.');
     const services = allowedList(input.services, serviceOptions, "Work category", 3);
     const purposes = allowedList(input.purposes, purposeOptions, "Work environment", 7);
     const training = pathway === "training" ? allowedList(input.training, trainingOptions, "Training area", 5) : [];
@@ -175,7 +190,7 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
     const requestKey=input.requestKey;
     if(requestKey!==undefined&&(typeof requestKey!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestKey)))throw new ApplicationError('Use a valid application submission key.');
     const keyHash=typeof requestKey==='string'?await agreementHash('officer-application:'+requestKey.toLowerCase()):null;
-    const payloadHash=await agreementHash(JSON.stringify({pathway,fullName,mobile,email,city,province,psiraStatus,psiraNumber,psiraGrade,services,purposes,training,over18Confirmed:true,eligibilityAcknowledged:true,contactConsent:true,privacyNoticeVersion}));
+    const payloadHash=await agreementHash(JSON.stringify({pathway,fullName,mobile,email,city,province,psiraStatus,psiraNumber,psiraGrade,services,purposes,training,over18Confirmed:true,eligibilityAcknowledged:true,contactConsent:true,privacyNoticeVersion,...(hasPreferences?{entryPath,availability,renewalStatus}:{})}));
     const savedReceipt=(reference:string)=>response({saved:true,reference,psiraVerificationRequired:psiraRequired,pathwayStatus:psiraIntakeStatus(declaration)},202);
     const recover=async()=>{
       if(!keyHash)return null;
@@ -214,7 +229,8 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
     const confirmationId='application-confirmation:'+id;
     const writes=[application,audit,officerEmailStatement(db,{id:confirmationId,applicationId:id,recipient:email,
       subject:'We received your LOKD application',
-      text:`Hello ${fullName},\n\nThank you for applying to LOKD. Your application reference is ${id}.\n\nSign in with this email address to follow your application, complete your identity check and submit your PSiRA details:\nhttps://officers.lokd.co.za/officer\n\nOur team will review your application and contact you about the next step.\n\nLOKD Security`})];
+      text:`Hello ${fullName},\n\nThank you for applying to LOKD. Your application reference is ${id}.\n\nOpen the Officer Zone with this email address to follow your application, complete your identity check and submit your PSIRA details:\nhttps://officers.lokd.co.za/officer\n\n${psiraStatus==='expired'?'LOKD can help with PSIRA renewal and refresher training. Your registration must be current and all required checks complete before work is offered.':'Our team will review your application and contact you about the next step.'}\n\nLOKD Security`})];
+    if(hasPreferences)writes.push(db.prepare('INSERT INTO officer_application_preferences(application_id,availability,renewal_status,created_at) VALUES(?,?,?,?)').bind(id,JSON.stringify(availability),renewalStatus,nowIso));
     if(keyHash)writes.push(db.prepare('INSERT INTO officer_application_receipts(request_key_hash,payload_hash,application_id,created_at) VALUES(?,?,?,?)').bind(keyHash,payloadHash,id,nowIso));
     try{await db.batch(writes);}catch(cause){const concurrent=await recover();if(concurrent)return concurrent;throw cause;}
     await deliverOfficerEmail(db,env,confirmationId);

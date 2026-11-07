@@ -95,7 +95,11 @@ async function applicantDetails(page, {training = false} = {}) {
   await page.getByLabel(label('Email address')).fill('offline.applicant@example.test');
   await page.getByLabel(label('City or town')).fill('Pretoria');
   if (training) await expect(page.locator('input[name="psiraNumber"]')).toHaveCount(0);
-  else await page.getByLabel(label('PSIRA number')).fill('1234567');
+  else {
+    await page.getByLabel(label('PSIRA number')).fill('1234567');
+    await page.getByLabel(label('Highest grade')).selectOption('Grade C');
+    await page.getByLabel('Weekdays', {exact:true}).check();
+  }
   await submit.click();
   await expect(page.locator('input[name="over18Confirmed"]')).toBeFocused();
   for (const name of ['over18Confirmed', 'eligibilityAcknowledged', 'contactConsent']) await page.locator(`input[name="${name}"]`).check();
@@ -153,8 +157,8 @@ test('officer application validates locally, preserves rejection and displays fu
 
 test('training deep link requires training selection and keeps unregistered intake distinct', async ({page, intakeNetwork: offline}) => {
   await page.goto('/training');
-  await expect(page.getByRole('heading', {level: 1})).toHaveText('Take your next step in security.');
-  await expect(page.locator('main').getByRole('link', {name: /^Apply as an officer/})).toHaveAttribute('href', '/join');
+  await expect(page.getByRole('heading', {level: 1})).toHaveText('Security training at LOKD.');
+  await expect(page.locator('main').getByRole('link', {name: /^Apply as an officer/})).toHaveAttribute('href', '/join?path=new');
   await page.goto('/join?path=training');
   await expect(page.getByLabel(label('Application pathway'))).toHaveValue('training');
   await expect(page.getByLabel(label('PSIRA registration status'))).toHaveValue('not_registered');
