@@ -9,7 +9,7 @@ const zeroFindings = { total: 0, info: 0, low: 0, moderate: 0, high: 0, critical
 const passingAudit = () => ({ npmExit: 0, report: { auditReportVersion: 2, metadata: { vulnerabilities: { ...zeroFindings } }, vulnerabilities: {} },
   assessment: { ok: true, blocked: [], dispositions: [], raw: { ...zeroFindings }, severityDifferences: [] } });
 const passingBoundary = () => ({ checkedPackages: ['braces', 'micromatch', 'fast-glob'], moduleCount: 1, moduleGraphSha256: 'a'.repeat(64) });
-const passingBrowser = (expected=34) => ({stats:{expected,unexpected:0,flaky:0,skipped:0},errors:[]});
+const passingBrowser = (expected=38) => ({stats:{expected,unexpected:0,flaky:0,skipped:0},errors:[]});
 
 function fixture(t) {
   const root = mkdtempSync(path.join(os.tmpdir(), 'lokd-release-'));
@@ -257,7 +257,7 @@ test('failing gate stops deployment and removes stale candidate; modified build 
 });
 
 
-test('isolated browser evidence requires all 34 checks including officer, training and booking flows',t=>{
+test('isolated browser evidence requires all 38 checks including officer, training and booking flows',t=>{
  for(const stats of [{expected:14},{expected:26},{expected:33},{expected:35},{unexpected:1},{flaky:1},{skipped:1}]){
   const f=fixture(t);assert.equal(f.run('begin').status,0);f.outputs();
   f.put('test-results/offline-browser/results.json',JSON.stringify({...passingBrowser(),stats:{...passingBrowser().stats,...stats}}));

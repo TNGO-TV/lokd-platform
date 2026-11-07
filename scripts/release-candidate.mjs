@@ -127,10 +127,10 @@ function validations() {
   const extras = readdirSync('test-results').filter((name) => /^dependency-boundary-.+\.json$/.test(name)).map((name) => `test-results/${name}`);
   const files = [...new Set([...validationFiles, ...extras])].sort().map(regularFile);
   const browser = json('test-results/offline-browser/results.json');
-  requireCondition(browser.stats?.expected === 34 && browser.stats.unexpected === 0
+  requireCondition(browser.stats?.expected === 38 && browser.stats.unexpected === 0
     && browser.stats.flaky === 0 && browser.stats.skipped === 0
     && Array.isArray(browser.errors) && browser.errors.length === 0,
-  'All 34 isolated desktop/mobile browser checks must pass.');
+  'All 38 isolated desktop/mobile browser checks must pass.');
   const integrated = json('test-results/integrated-browser/browser.json');
   requireCondition(integrated?.stats?.expected === 78 && integrated.stats.unexpected === 0
     && integrated.stats.flaky === 0 && integrated.stats.skipped === 0
