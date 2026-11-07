@@ -86,6 +86,9 @@ test('training sends the team and applicant their original messages through the 
  const x=fixture(),server=installSmtpServer();Object.assign(env,smtp);
  try{const input=booking(),r=await training.submitTrainingBooking(request('training',input),x.db),receipt=await r.json();assert.equal(receipt.teamEmailSent,true);assert.equal(receipt.confirmationEmailSent,true);
  assert.deepEqual(server.messages().map(m=>m.to).sort(),['applicant@example.test','training@lokd.co.za']);assert.ok(server.messages().every(m=>m.from==='notices@example.test'));
+ const confirmation=server.messages().find(message=>message.to==='applicant@example.test');
+ assert.match(confirmation.data,/Your booking is confirmed when the team confirms your course and intake/);
+ assert.doesNotMatch(confirmation.data,/training@lokd\.co\.za/);
  await training.submitTrainingBooking(request('training',input),x.db);await deliverTrainingBookingEmails(x.db,smtp,receipt.reference);assert.equal(server.messages().length,2);
  }finally{for(const key of Object.keys(smtp))delete env[key];server.uninstall();x.close();}
 });
