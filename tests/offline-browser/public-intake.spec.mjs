@@ -46,6 +46,27 @@ async function fitsViewport(page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 }
 
+async function readableContrast(locator) {
+  const contrast = await locator.evaluate(element => {
+    const colour = value => {
+      const channels = value.match(/[\d.]+/g).map(Number);
+      const scale = value.startsWith('color(srgb') ? 1 : 255;
+      return [...channels.slice(0, 3).map(channel => channel / scale), channels[3] ?? 1];
+    };
+    const blend = (foreground, background) => foreground.slice(0, 3).map((channel, index) => channel * foreground[3] + background[index] * (1 - foreground[3]));
+    const ancestors = [];
+    for (let node = element; node; node = node.parentElement) ancestors.unshift(node);
+    const background = ancestors.reduce((paint, node) => blend(colour(getComputedStyle(node).backgroundColor), paint), [1, 1, 1]);
+    const foreground = blend(colour(getComputedStyle(element).color), background);
+    const luminance = paint => paint.map(channel => channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4)
+      .reduce((sum, channel, index) => sum + channel * [.2126, .7152, .0722][index], 0);
+    const light = Math.max(luminance(foreground), luminance(background));
+    const dark = Math.min(luminance(foreground), luminance(background));
+    return (light + .05) / (dark + .05);
+  });
+  expect(contrast).toBeGreaterThanOrEqual(4.5);
+}
+
 test('homepage offers real intake paths, responsive service navigation and privacy', async ({page}) => {
   await page.goto('/');
   await expect(page).toHaveTitle('Security on your terms | LOKD');
@@ -57,6 +78,8 @@ test('homepage offers real intake paths, responsive service navigation and priva
   await expect(main.getByRole('link', {name: /^PSIRA Registered or renewal/})).toHaveAttribute('href', '/officers');
   await expect(main.getByRole('heading', {name: 'LOKD Flex', exact: true})).toBeVisible();
   await expect(main.getByRole('heading', {name: 'LOKD Fixed', exact: true})).toBeVisible();
+  await readableContrast(main.locator('.home-pillars small').first());
+  await readableContrast(main.locator('.site-section-head > p').first());
   const footer = page.locator('footer');
   await expect(footer.getByRole('link', {name: 'Client Zone', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fclient');
   await expect(footer.getByRole('link', {name: 'Officer Zone', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fofficer');
@@ -270,6 +293,7 @@ test('ongoing cover links prefill the Fixed model and expose every term and rost
 test('Flex request keeps the single-shift intent and retains details across Back', async ({page, intakeNetwork: offline}) => {
   await page.goto('/book?service=vip_unarmed');
   const form = page.locator('form.booking-flow');
+  await expect(form.getByRole('heading', {name: 'How you need cover', exact: true})).not.toBeFocused();
   await form.getByRole('radio', {name: /A specific date/}).check();
   await form.getByLabel(/^Start date/).fill(isoDate(5));
   await form.getByRole('button', {name: 'Continue', exact: true}).click();
@@ -281,9 +305,20 @@ test('Flex request keeps the single-shift intent and retains details across Back
   await form.getByLabel(/^Site or venue address/).fill('24 Rivonia Road, Sandton');
   await form.getByRole('button', {name: 'Continue', exact: true}).click();
   await form.getByRole('button', {name: 'Back', exact: true}).click();
+  await expect(form.getByRole('heading', {name: 'Service and site', exact: true})).toBeFocused();
   await expect(form.getByLabel(/^Shift/)).toHaveValue('night');
   await expect(form.getByLabel(/^Site or venue address/)).toHaveValue('24 Rivonia Road, Sandton');
+  await form.getByRole('button', {name: 'Back', exact: true}).click();
+  await expect(form.getByRole('heading', {name: 'How you need cover', exact: true})).toBeFocused();
+  await expect(form.getByRole('radio', {name: /A specific date/})).toBeChecked();
+  await expect(form.getByLabel(/^Start date/)).toHaveValue(isoDate(5));
   await form.getByRole('button', {name: 'Continue', exact: true}).click();
+  await expect(form.getByRole('heading', {name: 'Service and site', exact: true})).toBeFocused();
+  await expect(form.getByLabel(/^Security service/)).toHaveValue('vip_unarmed');
+  await expect(form.getByLabel(/^Number of officers/)).toHaveValue('2');
+  await expect(form.getByLabel(/^Site or venue address/)).toHaveValue('24 Rivonia Road, Sandton');
+  await form.getByRole('button', {name: 'Continue', exact: true}).click();
+  await expect(form.getByRole('heading', {name: 'Your details', exact: true})).toBeFocused();
   await form.getByLabel(/^Organisation or household name/).fill('Private household');
   await form.getByLabel(/^Contact name/).fill('Booking Contact');
   await form.getByLabel(/^Email address/).fill('booking@example.test');

@@ -27,6 +27,7 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
   const success = useRef<HTMLHeadingElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const stepHeading = useRef<HTMLHeadingElement>(null);
+  const previousStep = useRef(step);
   useEffect(() => {
     const timer = setTimeout(() => {
       // Preserve the homepage shortcuts from wip/on-demand-homepage, including SAST dates.
@@ -48,7 +49,10 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
   }, []);
   useEffect(() => { if (receipt) success.current?.focus(); }, [receipt]);
   useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
-  useEffect(() => { if (step > 1) stepHeading.current?.focus(); }, [step]);
+  useEffect(() => {
+    if (previousStep.current !== step) stepHeading.current?.focus();
+    previousStep.current = step;
+  }, [step]);
 
   function advance() {
     const fields = formRef.current?.querySelectorAll(`fieldset[data-booking-step="${step}"] input, fieldset[data-booking-step="${step}"] select, fieldset[data-booking-step="${step}"] textarea`);

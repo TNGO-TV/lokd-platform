@@ -26,7 +26,7 @@
   --lokd-slate: #344753;        /* ink, dark surfaces, nav, footer */
   --lokd-canvas: #f2f2f3;       /* page background */
   --lokd-white: #ffffff;
-  --lokd-slate-70: rgba(52, 71, 83, .72);
+  --lokd-slate-70: rgba(52, 71, 83, .76);
   --lokd-slate-40: rgba(52, 71, 83, .40);
   --lokd-line: rgba(52, 71, 83, .14);
   --lokd-success: #1f7a4d;
