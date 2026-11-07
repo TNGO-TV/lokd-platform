@@ -1,7 +1,7 @@
 import {documentPaymentState,type FinancialRow} from './finance-documents';
 import {PAYROLL_CALENDAR,payrollPeriodDatesValid} from './payroll-calendar';
 import {agreementHash} from './agreement-acceptance';
-import {calculatePayrollStatement,privateSecurityWageFloorDecision,type PayrollPolicy,type PayrollCalculation,type PrivateSecurityGrade,type PrivateSecurityWageArea} from './payroll-engine';
+import {calculatePayrollStatement,nightWorkAllocation,privateSecurityWageFloorDecision,type PayrollPolicy,type PayrollCalculation,type PrivateSecurityGrade,type PrivateSecurityWageArea} from './payroll-engine';
 import {productionOperatorControl} from './production-operator-control';
 import {operationsMfaRequired} from './operations-mfa-policy';
 import {SignupError} from './signup-server';
@@ -10,7 +10,7 @@ import type {SigningActor} from './production-signing';
 const ref=(v:unknown,label:string)=>{if(typeof v!=='string'||v.trim().length<3||v.length>200)throw new SignupError(`Provide ${label}.`);return v.trim();};
 const date=(v:unknown)=>{if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v)||!Number.isFinite(Date.parse(v))||new Date(v).toISOString().slice(0,10)!==v)throw new SignupError('Use a valid calendar date.');return v;};
 const integer=(v:unknown,label:string,max=10000000000)=>{if(typeof v!=='number'||!Number.isSafeInteger(v)||v<0||v>max)throw new SignupError(`Provide valid ${label}.`);return v;};
-type Source={id:string;version:number;officer_id:string;workforce_engagement_id:string;workforce_model:string;gross_wage_cents:number;payable_minutes:number;operations_status:string;client_evidence_status:string;consumed:number};
+type Source={id:string;version:number;officer_id:string;workforce_engagement_id:string;workforce_model:string;gross_wage_cents:number;payable_minutes:number;check_in_at:string|null;check_out_at:string|null;operations_status:string;client_evidence_status:string;consumed:number};
 type Item={id:string;officerId:string;profileId:string;profileVersion:number;engagementId:string;model:string;sources:Source[];calculation:PayrollCalculation;inputs:Record<string,unknown>;profileExpiry:string;sourceReference:string};
 type Snapshot={calendar?:string;requestKey:string;requestHash:string;policyId:string;policyHash:string;periodStart:string;periodEnd:string;payDate:string;employerId:string;items:Item[]};
 type Run={id:string;status:string;version:number;created_by:string;approved_by:string|null;second_approved_by:string|null;net_pay_cents:number;gross_cents:number;employer_id:string;period_start:string;period_end:string;pay_date:string;payload_json:string;payload_hash:string};
@@ -58,8 +58,13 @@ export async function prepareProductionPayroll(db:D1Database,actor:SigningActor,
   const age=integer(raw.ageAtTaxYearEnd,'age at tax-year end',130);if(age<18)throw new SignupError('Review the adult officer payroll identity.');
   const values={ageAtTaxYearEnd:age,medicalSchemeMembers:integer(raw.medicalSchemeMembers,'medical-scheme membership',100),deductibleRetirementContributionCents:integer(raw.deductibleRetirementContributionCents,'deductible retirement contributions'),employeeHealthCoverCents:integer(raw.employeeHealthCoverCents,'health deductions'),otherLawfulDeductionCents:integer(raw.otherLawfulDeductionCents,'other lawful deductions'),employerProjectedAnnualPayrollCents:annual,lawfulDeductionEvidenceConfirmed:raw.lawfulDeductionsReviewed===true};
   const gross=rows.reduce((n,s)=>n+s.gross_wage_cents,0),minutes=rows.reduce((n,s)=>n+s.payable_minutes,0);
-  const calculation=calculatePayrollStatement({...values,serviceDate:end,earnings:[{code:'APPROVED_SERVICE',description:'Reviewed service remuneration for the complete pay period',minutes,baseHourlyRateCents:0,multiplierBasisPoints:10000,approvedServiceGrossCents:gross}]},policy);
-  items.push({id:'PI-'+crypto.randomUUID(),officerId,profileId:profile.id,profileVersion:profile.version,profileExpiry:profile.expires_at,engagementId,model:rows[0].workforce_model,sources:rows,calculation,inputs:{...values,wageArea:area,monthlyBasicCents:monthlyBasic,grade},sourceReference:ref(raw.sourceReference,'the officer payroll input evidence'),});
+  let nightWork: {minutes:number;grossBasisCents:number}|undefined;
+  if((policy.wageRules?.nightBasisPoints??10000)>10000){
+   try{nightWork=rows.reduce((total,s)=>{const n=nightWorkAllocation({startsAt:s.check_in_at??'',endsAt:s.check_out_at??'',paidMinutes:s.payable_minutes,grossCents:s.gross_wage_cents});return {minutes:total.minutes+n.minutes,grossBasisCents:total.grossBasisCents+n.grossBasisCents};},{minutes:0,grossBasisCents:0});}
+   catch(error){throw new SignupError(error instanceof Error?error.message:'Review the night-work attendance allocation.',409);}
+  }
+  const calculation=calculatePayrollStatement({...values,nightWork,serviceDate:end,earnings:[{code:'APPROVED_SERVICE',description:'Reviewed service remuneration for the complete pay period',minutes,baseHourlyRateCents:0,multiplierBasisPoints:10000,approvedServiceGrossCents:gross}]},policy);
+  items.push({id:'PI-'+crypto.randomUUID(),officerId,profileId:profile.id,profileVersion:profile.version,profileExpiry:profile.expires_at,engagementId,model:rows[0].workforce_model,sources:rows,calculation,inputs:{...values,nightWork,wageArea:area,monthlyBasicCents:monthlyBasic,grade},sourceReference:ref(raw.sourceReference,'the officer payroll input evidence'),});
  }
  const snapshot:Snapshot={calendar:PAYROLL_CALENDAR,requestKey,requestHash,policyId:p.id,policyHash:p.policy_hash,periodStart:start,periodEnd:end,payDate,employerId,items},json=JSON.stringify(snapshot),hash=await agreementHash(json);
  const total=(key:keyof PayrollCalculation)=>items.reduce((n,i)=>n+Number(i.calculation[key]),0),gross=total('grossCents'),net=total('netPayCents');await productionOperatorControl(db,actor,headers,'payroll.calculate',gross);

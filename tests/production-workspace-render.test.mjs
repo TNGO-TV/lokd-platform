@@ -11,6 +11,7 @@ import * as psira from '../app/lib/psira-pathway.ts';
 import * as contracts from '../app/lib/workspace-response-contracts.ts';
 import * as receipts from '../app/lib/workspace-command-receipt.ts';
 import * as publicSite from '../app/lib/public-site.ts';
+import * as conversion from '../app/lib/officer-conversion-core.ts';
 
 const link=({children,...props})=>{delete props.prefetch;return React.createElement('a',props,children);};
 const image=props=>{const attributes={...props};delete attributes.unoptimized;delete attributes.priority;return React.createElement('img',attributes);};
@@ -69,7 +70,7 @@ test('rendered production workspaces and populated intake cards expose real acti
 });
 
 test('public legal, contact, footer and organisation metadata use the approved company identity and postal contact',async()=>{
- const legalModules={...modules,'../lib/public-site':publicSite,'next/headers':{headers:async()=>new Headers()},'../components/client-enquiry-form':{default:()=>null}};
+ const legalModules={...modules,'../lib/public-site':publicSite,'../lib/officer-conversion-core':conversion,'next/headers':{headers:async()=>new Headers()},'../components/client-enquiry-form':{default:()=>null}};
  legalModules['./icons']=load('icons.tsx',legalModules);
  legalModules['../components/icons']=legalModules['./icons'];
  legalModules['./public-site-shell']=load('public-site-shell.tsx',legalModules);
@@ -81,6 +82,14 @@ test('public legal, contact, footer and organisation metadata use the approved c
   assert.match(html,/Lokd Security \(Pty\) Ltd/);if(page!=='contact')assert.match(html,/71 Louis Trichardt Street, Pretoria, 0002/);
   assert.doesNotMatch(html+JSON.stringify(loaded.metadata),/Tactical Nation|tacticalnation|Custom Nation|Tervory|Shot Bonus|Sister brands|Parktown Estates/);
   assert.doesNotMatch(html,/mailto:71 Louis/);
+  if(page==='terms'){
+   assert.match(html,/SAPS-certified training provider for firearms competency training/);
+   assert.match(html,/Other courses are delivered by LOKD without claiming SAPS certification/);
+   assert.match(html,/Completing any training does not guarantee employment, an assignment or other work/);
+   assert.match(html,/fee becomes payable only when the offer is accepted or employment starts/);
+   assert.match(html,/six months after the later of the final assignment or introduction/);
+   assert.match(html,/officer never pays the fee/);
+  }
  }
  const jsonLd=load('seo-json-ld.tsx',legalModules);
  const html=renderToStaticMarkup(await jsonLd.OrganisationJsonLd());

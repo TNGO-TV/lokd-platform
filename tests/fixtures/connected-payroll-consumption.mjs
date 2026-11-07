@@ -4,14 +4,14 @@ import {manageProductionEvidence} from '../../app/lib/production-evidence.ts';
 import {manageProductionPayrollPolicy} from '../../app/lib/production-payroll-policy.ts';
 import {prepareProductionPayroll,decideProductionPayroll,exportProductionPayrollCsv,readProductionPayroll} from '../../app/lib/production-payroll.ts';
 import {operateWithProof as operateProduction} from './operations-auth.mjs';
-import {ZA_2027_SARS_POLICY_CANDIDATE} from '../../app/lib/payroll-engine.ts';
+import {ZA_2027_SARS_POLICY_CANDIDATE,nightWorkAllocation} from '../../app/lib/payroll-engine.ts';
 export const freshHeaders=actor=>new Headers({'x-lokd-verified-mfa-enrolled':'true','x-lokd-verified-user-id':actor.userId,'x-lokd-verified-second-factor-at':new Date().toISOString()});
-export async function consumeConnectedPayroll({db,database,officerId,shiftId,maker,checker,applicant,client}){
+export async function consumeConnectedPayroll({db,database,officerId,shiftId,maker,checker,applicant,client,nightBasisPoints=null}){
  const finance={userId:'connected-finance',email:'connected-finance@example.test',operations:true,owner:false};
  for(const [actor,roles] of [[maker,['payroll_preparer','payroll_reviewer']],[checker,['payroll_reviewer']],[finance,['finance_approver']]])for(const role of roles)await operateProduction(db,checker,{action:'grant_operator',email:actor.email,role,limitCents:10000000},freshHeaders(checker));
  const t=database.prepare('SELECT * FROM shift_timesheets WHERE shift_id=?').get(shiftId);
  assert.ok(t.recorded_minutes>0);assert.equal(t.payable_minutes,t.recorded_minutes);
- const rules={...ZA_2027_SARS_POLICY_CANDIDATE,version:'isolated-connected-period-v1',effectiveFrom:t.service_date,effectiveTo:t.service_date,payPeriodsPerYear:365,privateSecuritySector:{...ZA_2027_SARS_POLICY_CANDIDATE.privateSecuritySector,healthCoverTreatmentStatus:'source_verified'}};
+ const rules={...ZA_2027_SARS_POLICY_CANDIDATE,wageRules:{...ZA_2027_SARS_POLICY_CANDIDATE.wageRules,nightBasisPoints},version:'isolated-connected-period-v1',effectiveFrom:t.service_date,effectiveTo:t.service_date,payPeriodsPerYear:365,privateSecuritySector:{...ZA_2027_SARS_POLICY_CANDIDATE.privateSecuritySector,healthCoverTreatmentStatus:'source_verified'}};
  const preparedPolicy=await manageProductionPayrollPolicy(db,maker,{action:'prepare_payroll_policy',rules,sourcesReviewed:true,sourceReference:'Isolated connected fixture only; no live statutory acceptance.'},freshHeaders(maker));
  const policy=()=>database.prepare('SELECT * FROM payroll_policy_versions WHERE id=?').get(preparedPolicy.policyId);
  for(const [actor,action] of [[checker,'review_payroll_policy'],[finance,'activate_payroll_policy']])await manageProductionPayrollPolicy(db,actor,{action,policyId:policy().id,version:policy().version,policyHash:policy().policy_hash,sourcesReviewed:true,reason:'Independent synthetic fixture review, not genuine source acceptance.'},freshHeaders(actor));
@@ -26,7 +26,10 @@ export async function consumeConnectedPayroll({db,database,officerId,shiftId,mak
  assert.equal(source.timesheet_version,t.version);assert.equal(source.active_key,t.id);assert.equal(source.payable_minutes,t.payable_minutes);assert.equal(source.gross_wage_cents,t.gross_wage_cents);
  assert.equal(database.prepare('SELECT count(*) AS n FROM pay_item_sources WHERE timesheet_id=?').get(t.id).n,1);
  const snapshot=database.prepare('SELECT * FROM production_payroll_snapshots WHERE run_id=?').get(prepared.runId),item=JSON.parse(snapshot.payload_json).items[0];
- assert.equal(JSON.parse(snapshot.payload_json).calendar,'Africa/Johannesburg');assert.equal(item.officerId,officerId);assert.equal(item.engagementId,t.workforce_engagement_id);assert.equal(item.sources[0].id,t.id);assert.equal(item.calculation.grossCents,t.gross_wage_cents);assert.equal(item.calculation.earnings[0].minutes,t.payable_minutes);
+ const allocation=nightBasisPoints>10000?nightWorkAllocation({startsAt:t.check_in_at,endsAt:t.check_out_at,paidMinutes:t.payable_minutes,grossCents:t.gross_wage_cents}):null;
+ const premium=allocation?Math.round(allocation.grossBasisCents*(nightBasisPoints-10000)/10000):0;
+ assert.equal(JSON.parse(snapshot.payload_json).calendar,'Africa/Johannesburg');assert.equal(item.officerId,officerId);assert.equal(item.engagementId,t.workforce_engagement_id);assert.equal(item.sources[0].id,t.id);assert.equal(item.calculation.grossCents,t.gross_wage_cents+premium);assert.equal(item.calculation.earnings[0].minutes,t.payable_minutes);
+ if(allocation){assert.ok(premium>0);assert.deepEqual(item.inputs.nightWork,allocation);assert.equal(item.calculation.earnings[1].code,'NIGHT_PREMIUM');assert.equal(item.calculation.earnings[1].amountCents,premium);}
  const {preparePayrollCorrectionReview}=await import('../../app/lib/payroll-correction-reviews.ts');
  await assert.rejects(()=>preparePayrollCorrectionReview(db,maker,{itemId:item.id},freshHeaders(maker)),/exported payroll item/);
  const run=()=>database.prepare('SELECT * FROM payroll_runs WHERE id=?').get(prepared.runId);

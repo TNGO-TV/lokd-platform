@@ -60,7 +60,7 @@ for(const [cause,mutate] of Object.entries(mutations))test(`${cause} change afte
  assert.notEqual(x.database.prepare('SELECT status FROM shifts WHERE id=?').get(activated.shiftId).status,'on_post');x.database.close();
 });
 
-test('completed linked service is consumed by independently approved payroll and preserves history after workforce suspension',async(context)=>{
+for(const nightBasisPoints of [null,12500]) test(`completed linked service is consumed by independently approved payroll${nightBasisPoints?' with approved night premium':''} and preserves history after workforce suspension`,async(context)=>{
  const x=await connected(),clock=installFixtureClock(context,x.database);
  const activated=await activateAssignment(x.db,request('connected:service',x.officerId),'ops-fixture');await passDueScheduledCheckpoints(x.db);
  assert.equal((await revalidateAssignment(x.db,activated.shiftId,'check_in',applicant.userId,true)).ready,true);
@@ -77,7 +77,7 @@ test('completed linked service is consumed by independently approved payroll and
  await operateProduction(x.db,checker,{action:'grant_operator',email:checker.email,role:'payroll_reviewer',limitCents:1000000},headers);
  timesheet=(await readProductionService(x.db,checker)).timesheets[0];
  await recordProductionService(x.db,checker,{action:'review_service_pay',shiftId:activated.shiftId,version:timesheet.version,payableMinutes:timesheet.recorded_minutes,grossCents:80000,payEvidenceReviewed:true,note:'Isolated independent review of completed attendance and contractual pay'},headers);
- const consumed=await consumeConnectedPayroll({...x,shiftId:activated.shiftId,maker,checker,applicant,client});
+ const consumed=await consumeConnectedPayroll({...x,shiftId:activated.shiftId,maker,checker,applicant,client,nightBasisPoints});
  const tables=['assignment_activation_snapshots','assignment_workforce_snapshots','shift_timesheets','production_service_events','payroll_runs','payroll_items','pay_item_sources','production_payroll_snapshots','production_payroll_decisions','finance_document_versions','finance_document_decisions','finance_document_issues'];
  const history=()=>Object.fromEntries(tables.map(t=>[t,x.database.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all()]));const before=history();
  await mutations.workforce(x);assert.deepEqual(history(),before);assert.equal((await consumed.document.read()).documents[0].currentState,'unpaid');

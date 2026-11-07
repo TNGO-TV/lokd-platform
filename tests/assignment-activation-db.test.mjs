@@ -695,6 +695,7 @@ for (const route of ["managed", "partner"]) {
     await seedValid(database);
     if (route === "managed") {
       run(database, `UPDATE workforce_engagements SET model='managed',weekly_hour_cap=NULL WHERE id='WE-1'`);
+      run(database, `UPDATE bookings SET engagement_model='fixed' WHERE id='BK-1'`);
     } else {
       run(database, `UPDATE workforce_engagements SET model='partner',weekly_hour_cap=NULL,
         payroll_status='partner_confirmed',benefits_status='partner_confirmed' WHERE id='WE-1'`);
@@ -709,10 +710,38 @@ for (const route of ["managed", "partner"]) {
     assert.equal(snapshot.model, route);
     assert.equal(snapshot.employer, route === "partner" ? "Approved Partner Security" : "LOKD Security");
     assert.equal(snapshot.statutoryCost, route === "partner" ? 0 : 30000);
+    assert.equal(JSON.parse(database.prepare('SELECT site_evidence FROM assignment_activation_snapshots').get().site_evidence).bookingModel,route==='managed'?'fixed':'flex');
     assert.equal(count(database, "workforce_hour_reservations"), 0);
     database.close();
   });
 }
+
+for (const [bookingModel,workforceModel] of [['flex','managed'],['fixed','direct_flex']]) {
+  test(`${bookingModel} booking cannot activate the ${workforceModel} workforce route`,async()=>{
+    const database=migratedDatabase();
+    try {
+      await seedValid(database);
+      run(database,'UPDATE bookings SET engagement_model=? WHERE id=\'BK-1\'',bookingModel);
+      run(database,'UPDATE workforce_engagements SET model=? WHERE id=\'WE-1\'',workforceModel);
+      await signFixtureAgreements(database);
+      await assert.rejects(()=>activateAssignment(new D1Adapter(database),request('booking-route:'+bookingModel),'ops@example.test'),/LOKD (Flex|Fixed) assignments require/);
+      assert.equal(database.prepare("SELECT COUNT(*) AS count FROM assignment_activation_blockers WHERE code='BOOKING_WORKFORCE_ROUTE_MISMATCH'").get().count,1);
+      for(const table of ['shifts','roster_assignments','assignment_workforce_snapshots','assignment_activation_snapshots'])assert.equal(count(database,table),0,table);
+    } finally {database.close();}
+  });
+}
+
+test('database route guards reject a forged staffing snapshot independently of the activation decision',async()=>{
+  const database=migratedDatabase();
+  try {
+    await seedValid(database);
+    const activated=await activateAssignment(new D1Adapter(database),request('booking-route:database'),'ops@example.test');
+    assert.equal(activated.state,'activated');
+    const original=database.prepare('SELECT * FROM assignment_workforce_snapshots').get();
+    const copy={...original,id:'FORGED-ROUTE',workforce_model:'managed'};
+    assert.throws(()=>database.prepare('INSERT INTO assignment_workforce_snapshots('+Object.keys(copy).join(',')+') VALUES('+Object.keys(copy).map(()=>'?').join(',')+')').run(...Object.values(copy)),/booking_workforce_route_mismatch/);
+  } finally {database.close();}
+});
 
 test("a production candidate command cannot reference synthetic client, booking, site, post or slot records", async () => {
   const database = migratedDatabase();

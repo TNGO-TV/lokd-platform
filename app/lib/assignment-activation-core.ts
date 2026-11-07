@@ -1,11 +1,13 @@
 import { MANUAL_FUNDING_PROVIDER } from "./stored-identifiers";
 import {
   launchGateDecision,
+  bookingWorkforceRouteDecision,
+  type BookingModel,
   type LaunchGateInput,
   type WorkforceModel,
 } from "./workforce-core";
 
-export const ACTIVATION_POLICY_VERSION = "LOKD-ACTIVATION-2026.09-v2";
+export const ACTIVATION_POLICY_VERSION = "LOKD-ACTIVATION-2026.11-v3";
 export const MINIMUM_REST_MINUTES = 8 * 60;
 export const REQUIRED_EMPLOYER_EVIDENCE = [
   "psira",
@@ -53,6 +55,7 @@ export type AssignmentActivationFacts = {
   shift: {
     rosterSlotId: string;
     bookingId: string;
+    bookingModel: BookingModel;
     siteId: string;
     postId: string;
     officerId: string;
@@ -350,6 +353,10 @@ export function evaluateAssignmentActivation(facts: AssignmentActivationFacts) {
   if (!evidencePasses(facts.officer.passport, facts.shift.endsAt, ["active", "expiring"], facts.evaluatedAt, facts.environment, true)) add("PASSPORT_NOT_CURRENT", "officer", "The LOKD Passport is not current through shift end.");
 
   const workforce = facts.workforce;
+  const bookingRoute = bookingWorkforceRouteDecision(facts.shift.bookingModel, workforce.model);
+  if (!bookingRoute.ready && bookingRoute.code && bookingRoute.detail) {
+    add(bookingRoute.code, "workforce", bookingRoute.detail);
+  }
   const workforceModelValid = ["direct_flex", "managed", "partner"].includes(workforce.model ?? "");
   if (!workforce.engagementId || !workforceModelValid || workforce.status !== "active" || workforce.environment !== expectedDataEnvironment) {
     add("WORKFORCE_ROUTE_MISSING", "workforce", "Verified Network membership alone cannot receive paid work; no active workforce route exists.");

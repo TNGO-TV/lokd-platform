@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LegalDefs, LegalDocument, LegalList, LEGAL_NOTICES_ADDRESS, LEGAL_OPERATOR } from "../components/legal-document";
 import { publicMetadata } from "../lib/public-site";
+import { OFFICER_CONVERSION_POLICY, PERMANENT_ENGAGEMENT_CLAUSE } from "../lib/officer-conversion-core";
 export const metadata = publicMetadata("Terms and conditions", "Read the terms for LOKD security services, quotes, website use and account access in South Africa.", "/terms");
 const serviceSections = [
         {
@@ -36,7 +37,7 @@ const serviceSections = [
               <p>3.1 Private security services in South Africa may require registration and compliance under the Private Security Industry Regulation Act and related PSIRA requirements, as well as other applicable laws.</p>
               <p>3.2 We will only provide Services that we are lawfully permitted to provide. These terms do not state a PSIRA registration number. Where a Service requires a licensed security service provider, we will not knowingly perform that Service without appropriate authorisation.</p>
               <p>3.3 You acknowledge that certain functions (for example armed response, cash-in-transit, or specialised categories) may fall outside a given engagement unless expressly included in your schedule and lawfully authorised.</p>
-              <p>3.4 We make no claim in these terms to certifications, accreditations, or registration numbers that have not been confirmed in writing for the relevant engagement.</p>
+              <p>3.4 LOKD is a SAPS-certified training provider for firearms competency training. Other courses are delivered by LOKD without claiming SAPS certification for those courses. Completing any training does not guarantee employment, an assignment or other work.</p>
             </>
           ),
         },
@@ -64,7 +65,7 @@ const serviceSections = [
                   "maintain safe working conditions and not instruct Personnel to break the law;",
                   "provide facilities reasonably required, such as post shelter, power, toilets, and parking, as specified in the schedule;",
                   "pay fees on time;",
-                  "not solicit our Personnel for direct employment to circumvent this Agreement during the term and for six (6) months after, except with our written consent or as mandatory labour law allows.",
+                  `notify LOKD before offering permanent or indirect employment to Personnel introduced or assigned by LOKD, during the assignment and for ${OFFICER_CONVERSION_POLICY.tailMonths} months after the later of the final assignment or introduction, and follow the conversion terms below without restricting the officer’s freedom to accept work;`,
                 ]}
               />
               <p>Failure to provide accurate Site information may delay Services, increase fees, or limit our liability to the extent losses arise from that inaccuracy.</p>
@@ -162,7 +163,11 @@ const serviceSections = [
         {
           title: "Non-solicitation of Personnel",
           body: (
-            <p>During the term and for six (6) months afterwards, you will not knowingly solicit Personnel who materially served your Site to leave us for your direct employ to perform substantially the same duties, without our consent. This does not restrict general public job advertisements. Mandatory labour law prevails if it conflicts with this clause.</p>
+            <>
+              <p>{PERMANENT_ENGAGEMENT_CLAUSE}</p>
+              <p>The Client and related parties must not use indirect engagement to avoid the applicable conversion fee. General public job advertisements are not restricted. Mandatory labour law and the officer’s freedom to accept employment prevail.</p>
+              <p>For an assigned-officer conversion, the applicable grade or specialist minimum is adjusted by completed service: 100% for up to three months, 75% for four to six months, 50% for seven to twelve months and 25% after twelve months. For a private recruitment enquiry, the fee is the greater of the applicable minimum and {OFFICER_CONVERSION_POLICY.directRecruitmentRateBps / 100}% of first-year guaranteed cash remuneration. The applicable fee and basis must be disclosed to the Client before acceptance. The officer never pays the fee.</p>
+            </>
           ),
         },
         {

@@ -39,6 +39,12 @@ export type SpecialistPricingDecision = {
   minimumMarginBasisPoints: number;
   listSubtotalCents: number;
   payrollBurdenCents: number;
+  provisionalCoidaInsuranceReserve: {
+    label: "Provisional COIDA/insurance reserve";
+    status: "provisional";
+    rateBasisPoints: 200;
+    amountCents: number;
+  };
   readinessAndEquipmentCents: number;
   commandAndSupervisionCents: number;
   planningCents: number;
@@ -273,7 +279,14 @@ export function priceSpecialistCostFloor(input: SpecialistCostInput): Specialist
     throw new Error("The specialist roster economics are incomplete.");
   }
 
-  // Employer PSSPF 7.5%, UIF 1%, SDL 1%, plus a 2% provisional COIDA/insurance reserve.
+  // This pricing reserve is not an approved COIDA assessment or payroll rate.
+  // Keep the existing combined cost floor and its rounding unchanged.
+  const provisionalCoidaInsuranceReserve = {
+    label: "Provisional COIDA/insurance reserve" as const,
+    status: "provisional" as const,
+    rateBasisPoints: 200 as const,
+    amountCents: Math.ceil(input.officerTotalCents * 200 / 10_000),
+  };
   const payrollBurdenCents = Math.ceil(input.officerTotalCents * 1_150 / 10_000);
   const readinessAndEquipmentCents = profile.readinessCostPerShiftCents * input.shiftCount;
   const commandAndSupervisionCents = profile.commandCostPerServiceDayCents * input.serviceDayCount;
@@ -306,6 +319,7 @@ export function priceSpecialistCostFloor(input: SpecialistCostInput): Specialist
     minimumMarginBasisPoints: profile.minimumMarginBasisPoints,
     listSubtotalCents: input.calendarAdjustedListSubtotalCents,
     payrollBurdenCents,
+    provisionalCoidaInsuranceReserve,
     readinessAndEquipmentCents,
     commandAndSupervisionCents,
     planningCents,

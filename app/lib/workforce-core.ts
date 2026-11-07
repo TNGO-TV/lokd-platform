@@ -1,4 +1,30 @@
 export type WorkforceModel = "direct_flex" | "partner" | "managed";
+export type BookingModel = "flex" | "fixed";
+
+export const BOOKING_WORKFORCE_ROUTES = {
+  flex: ["direct_flex", "partner"],
+  fixed: ["managed", "partner"],
+} as const;
+
+export function bookingWorkforceRouteDecision(bookingModel: string | null | undefined, route: string | null) {
+  if (bookingModel !== "flex" && bookingModel !== "fixed") {
+    return { ready: false, code: "BOOKING_MODEL_INVALID", detail: "Record a LOKD Flex or LOKD Fixed booking model before activating an assignment." };
+  }
+  const allowed: readonly string[] = BOOKING_WORKFORCE_ROUTES[bookingModel];
+  const ready = route !== null && allowed.includes(route);
+  return {
+    ready,
+    code: ready ? null : "BOOKING_WORKFORCE_ROUTE_MISMATCH",
+    detail: ready ? null : bookingModel === "flex"
+      ? "LOKD Flex assignments require a Direct Flex (direct_flex) or approved partner workforce route."
+      : "LOKD Fixed assignments require a Managed (managed) or approved partner workforce route.",
+  };
+}
+
+export function workforceReadinessStatuses(model: WorkforceModel) {
+  const status = model === "partner" ? "partner_confirmed" : "ready";
+  return { payrollStatus: status, benefitsStatus: status };
+}
 export type LaunchGateStatus = "passed" | "reported" | "pending" | "blocked";
 
 export const REQUIRED_LAUNCH_GATE_CODES = [
@@ -25,6 +51,7 @@ export type LaunchGateInput = {
 };
 
 export type WorkforceActivationInput = {
+  bookingModel: BookingModel | null;
   launchGates: LaunchGateInput[];
   siteActive: boolean;
   bookingFunded: boolean;
@@ -86,6 +113,8 @@ export function launchGateDecision(
 
 export function workforceActivationDecision(input: WorkforceActivationInput) {
   const blockers: string[] = [];
+  const route = bookingWorkforceRouteDecision(input.bookingModel, input.model);
+  if (!route.ready && route.detail) blockers.push(route.detail);
   const launch = launchGateDecision(input.launchGates);
   if (!launch.ready) blockers.push(...launch.blockers.map((code) => `Launch gate ${code} is not passed.`));
   if (!input.siteActive) blockers.push("The operational site is not active.");
