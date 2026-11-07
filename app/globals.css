@@ -282,7 +282,7 @@ button { color: inherit; }
 .public-header-wrap { background:var(--lokd-slate); color:var(--lokd-canvas); }
 .public-header { width:min(1280px,calc(100% - 64px)); min-height:100px; margin:auto; display:flex; align-items:center; justify-content:space-between; gap:28px; padding:20px 0; }
 .public-logo { flex:none; display:flex; min-height:44px; align-items:center; }
-.public-logo img { width:132px; height:auto; display:block; }
+.public-logo img { width:156px; height:auto; display:block; }
 .public-header > nav { display:flex; flex-wrap:wrap; align-items:center; gap:20px; }
 .public-header :is(nav a,.public-login) { display:inline-flex; align-items:center; min-height:44px; color:var(--lokd-canvas); font-size:.875rem; font-weight:600; text-decoration:none; }
 .public-header nav a:hover,.public-header nav a[aria-current=page] { text-decoration:underline; text-decoration-thickness:2px; text-decoration-color:var(--lokd-blue); }
@@ -353,7 +353,7 @@ button { color: inherit; }
 .site-footer { background:var(--lokd-slate); color:var(--lokd-canvas); padding:64px max(32px,calc((100vw - 1280px)/2)) 28px; }
 .site-footer-grid { display:grid; grid-template-columns:1.3fr 1fr 1fr 1.15fr; gap:40px; }
 .site-footer-grid > * { min-width:0; }
-.site-footer-company img { width:144px; height:auto; display:block; margin-bottom:28px; }
+.site-footer-company img { width:176px; height:auto; display:block; margin-bottom:28px; }
 .site-footer-company p { max-width:27ch; color:var(--lokd-canvas); }
 .site-footer nav { display:flex; flex-direction:column; align-items:flex-start; }
 .site-footer nav h2 { font-size:1rem; line-height:1.5; margin-bottom:12px; letter-spacing:0; }
@@ -462,7 +462,7 @@ button { color: inherit; }
 }
 @media(max-width:600px) {
   .public-header { width:calc(100% - 32px); min-height:80px; padding:16px 0; gap:12px; }
-  .public-logo img { width:102px; }
+  .public-logo img { width:120px; }
   .public-header-actions .public-button { font-size:1.1875rem; padding:10px 12px; min-height:48px; }
   .public-mobile-menu summary { font-size:.875rem; }
   .public-home-hero,.public-page-hero,.legal-hero { padding:40px 16px 48px; }

@@ -18,7 +18,7 @@ export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
   return <header className="public-header-wrap" data-section={active}>
     <a className="public-skip" href="#main-content">Skip to content</a>
     <div className="public-header">
-      <Link className="public-logo" href="/" aria-label="LOKD home"><Image src="/lokd-logo-reverse.svg" width={2192} height={665} unoptimized priority alt="LOKD" /></Link>
+      <Link className="public-logo" href="/" aria-label="LOKD home"><Image src="/lokd-logo-reverse.svg" width={2202} height={713} unoptimized priority alt="LOKD" /></Link>
       <nav aria-label="Main navigation">{links}</nav>
       <div className="public-header-actions"><Link className="public-login" href="/sign-in">Zone</Link><Link className="public-button public-button--primary" href="/quote">Get a quote</Link></div>
       <details className="public-mobile-menu"><summary>Menu</summary><nav aria-label="Mobile navigation">{links}<Link href="/sign-in">Zone</Link><Link href="/quote">Get a quote</Link></nav></details>
@@ -29,7 +29,7 @@ export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
 export function PublicFooter() {
   return <footer className="site-footer">
     <div className="site-footer-grid">
-      <div className="site-footer-company"><Link href="/" aria-label="LOKD home"><Image src="/lokd-logo-reverse.svg" width={2192} height={665} unoptimized alt="LOKD" /></Link><p>Security for your shift, event or everyday cover.</p><p>Johannesburg, South Africa</p></div>
+      <div className="site-footer-company"><Link href="/" aria-label="LOKD home"><Image src="/lokd-logo-reverse.svg" width={2202} height={713} unoptimized alt="LOKD" /></Link><p>Security for your shift, event or everyday cover.</p><p>Johannesburg, South Africa</p></div>
       <nav aria-label="Security services"><h2>Find your cover</h2><Link href="/security-services">Unarmed guarding</Link><Link href="/armed-security">Armed security</Link><Link href="/vip-protection">VIP protection</Link><Link href="/industries">Industries</Link><Link href="/locations/johannesburg">Johannesburg</Link><Link href="/quote">Get a quote</Link></nav>
       <nav aria-label="About LOKD"><h2>LOKD</h2><Link href="/about">About us</Link><Link href="/compliance">Our checks</Link><Link href="/verify">Verify a Passport</Link><Link href="/officers">For officers</Link><Link href="/training">Training</Link><Link href="/join">Apply as an officer</Link></nav>
       <nav aria-label="Contact and accounts"><h2>Talk to us</h2><Link href="/contact">Contact LOKD</Link><a href={"mailto:" + QUOTES_EMAIL}>{QUOTES_EMAIL}</a><a href={"mailto:" + BOOKINGS_EMAIL}>{BOOKINGS_EMAIL}</a><Link href="/sign-in?return_to=%2Fclient">Client Zone</Link><Link href="/sign-in?return_to=%2Fofficer">Officer Zone</Link><Link href="/sign-in?return_to=%2Fops">Operations Zone</Link></nav>

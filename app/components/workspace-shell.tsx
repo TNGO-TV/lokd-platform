@@ -21,7 +21,7 @@ export default function WorkspaceShell({ role, children }: { role: WorkspaceRole
   return <div className={styles.workspace}>
     <a className={styles.skip} href="#workspace-content">Skip to page content</a>
     <header className={styles.header}><div className={styles.headerInner}>
-      <div className={styles.brand}><Link href="/" aria-label="LOKD home"><Image width={2192} height={665} unoptimized priority src="/lokd-logo-reverse.svg" alt="LOKD" /></Link><strong>{label} portal</strong><Link prefetch={false} href="/sign-out">Sign out</Link></div>
+      <div className={styles.brand}><Link href="/" aria-label="LOKD home"><Image width={2202} height={713} unoptimized priority src="/lokd-logo-reverse.svg" alt="LOKD" /></Link><strong>{label} portal</strong><Link prefetch={false} href="/sign-out">Sign out</Link></div>
       <nav className={styles.nav} aria-label={label + " navigation"}>{links.map(link => <Link prefetch={false} key={link.href} href={link.href} aria-current={pathname === link.href || link.href !== base && pathname.startsWith(link.href + "/") ? "page" : undefined}>{link.label}</Link>)}</nav>
     </div></header>
     <div id="workspace-content" className={styles.content} tabIndex={-1}>{children}</div>
