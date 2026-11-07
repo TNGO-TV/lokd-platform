@@ -46,6 +46,9 @@ test('Zone requests persist their model and exact service, replay once and stay 
     const requests = (await readClientWorkspace(db, client)).requests;
     assert.equal(requests.length, 1); assert.equal(requests[0].detail.engagementModel, 'bolt'); assert.equal(requests[0].detail.serviceCode, 'standard_unarmed');
     assert.equal((await readClientWorkspace(db, otherClient)).requests.length, 0);
+    const {coverType, engagementModel, serviceCode, ...legacy} = body;
+    assert.ok(coverType && engagementModel && serviceCode);
+    await assert.rejects(() => operateClientWorkspace(db, client, { ...legacy,requestId:crypto.randomUUID(),endDate:legacy.startDate,shiftStart:'06:00',shiftEnd:'18:00' }), /valid security service/);
     await assert.rejects(() => operateClientWorkspace(db, client, { ...body, headcount: 3 }), /reference/);
   } finally { db.sql.close(); }
 });

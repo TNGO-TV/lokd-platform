@@ -90,6 +90,7 @@ test('a delayed Flex order uses only its own saved, matching request as notice e
     const quoteRequest = {serviceType:'Unarmed',engagementModel:'flex',term:'week',durationWeeks:1,purposeCode:'commercial_access',startDate,shift:'day',rosterPattern:'daily',specialistConfiguration:{teamSize:2},riskInput:{assetExposure:'standard',publicAccess:'controlled',incidentHistory:'none',existingControls:'strong',nightOperation:false,vulnerablePeople:false}};
     const base = {action:'quote_order',clientId,quoteRequest};
     await assert.rejects(() => prepareProductionOrder(db,actor,{...base,requestedAt:receivedAt}), /at least 72/);
+    db.sql.prepare("UPDATE service_requests SET updated_at=?,version=version+1 WHERE id='COVER-notice'").run(new Date().toISOString());
     const saved = await prepareProductionOrder(db,actor,{...base,sourceRequestId:'COVER-notice'});
     assert.equal(saved.quote.engagementModel,'flex'); assert.equal(saved.quote.headcount,2);
     await assert.rejects(() => prepareProductionOrder(db,actor,{...base,clientId:'another-client',sourceRequestId:'COVER-notice'}), /does not belong/);

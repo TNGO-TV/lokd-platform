@@ -107,16 +107,7 @@ function siteDetails(input: Record<string, unknown>) {
   return { name: clean(input.name, 'a site name', 2), area: clean(input.area, 'a site area', 2), address: clean(input.address, 'the street address', 5, 500), latitude, longitude };
 }
 export function validateCoverDetails(input: Record<string, unknown>, site: ClientSite, now = Date.now()): ClientCoverDetails {
-  if (input.coverType !== undefined) return { ...validateZoneCover(input, now), siteId: site.id, siteName: site.name, siteArea: site.area, address: site.address, note: clean(input.note, 'service instructions', 10, 2000) };
-  if (!['Unarmed', 'Armed', 'VIP'].includes(String(input.serviceType))) throw new SignupError('Choose unarmed guarding, armed response or VIP protection.');
-  const date = (value: unknown) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
-  const clock = (value: unknown) => typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
-  if (!date(input.startDate) || !date(input.endDate) || !clock(input.shiftStart) || !clock(input.shiftEnd)) throw new SignupError('Choose valid service dates and times.');
-  const startDate = input.startDate as string, endDate = input.endDate as string, shiftStart = input.shiftStart as string, shiftEnd = input.shiftEnd as string;
-  if (Date.parse(startDate + 'T' + shiftStart + ':00+02:00') <= now || endDate < startDate || Date.parse(endDate) - Date.parse(startDate) > 366 * 86400000 || shiftStart === shiftEnd) throw new SignupError('Choose a future start, an end within one year, and different start and end times.');
-  const headcount = input.headcount;
-  if (typeof headcount !== 'number' || !Number.isSafeInteger(headcount) || headcount < 1 || headcount > 500) throw new SignupError('Choose between 1 and 500 officers.');
-  return { siteId: site.id, siteName: site.name, siteArea: site.area, address: site.address, serviceType: input.serviceType as ClientCoverDetails['serviceType'], startDate, endDate, shiftStart, shiftEnd, headcount, engagementModel: startDate === endDate ? 'flex' : 'fixed', note: clean(input.note, 'service instructions', 3, 2000) };
+  return { ...validateZoneCover(input, now), requestedAt: new Date(now).toISOString(), siteId: site.id, siteName: site.name, siteArea: site.area, address: site.address, note: clean(input.note, 'service instructions', 10, 2000) };
 }
 async function insertRequest(db: D1Database, actor: SigningActor, input: { id: string; category: string; summary: string; detail: Record<string, unknown>; bookingId?: string; shiftId?: string; clientId?: string | null; priority?: string; subject: string; message: string }) {
   const detail = JSON.stringify(input.detail), existing = await db.prepare('SELECT requested_by_id,detail,category,client_id,booking_id,shift_id FROM service_requests WHERE id=?').bind(input.id).first<{ requested_by_id: string; detail: string; category: string; client_id: string | null; booking_id: string | null; shift_id: string | null }>();
@@ -159,9 +150,9 @@ export async function operateClientWorkspace(db: D1Database, actor: SigningActor
   if (input.action === 'request_cover' || input.action === 'change_request') {
     const site = (await readClientSites(db, actor)).find(s => s.id === input.siteId);
     if (!site) throw new SignupError('Choose one of your saved sites.', 404);
-    const prior = input.action === 'request_cover' ? await db.prepare("SELECT created_at,requested_by_id FROM service_requests WHERE id=? AND category='booking_request' AND environment='production'").bind('COVER-' + requestKey(input.requestId)).first<{created_at:string;requested_by_id:string}>() : null;
+    const prior = input.action === 'request_cover' ? await db.prepare("SELECT created_at,detail,requested_by_id FROM service_requests WHERE id=? AND category='booking_request' AND environment='production'").bind('COVER-' + requestKey(input.requestId)).first<{created_at:string;detail:string;requested_by_id:string}>() : null;
     if(prior && prior.requested_by_id!==actor.userId)throw new SignupError('This submission reference is already in use.',409);
-    const detail = validateCoverDetails(input, site, prior ? Date.parse(prior.created_at) : Date.now());
+    const detail = validateCoverDetails(input, site, prior ? Date.parse(parsedDetail(prior.detail).requestedAt as string ?? prior.created_at) : Date.now());
     if (input.action === 'change_request') return changeRequest(db, actor, await ownRequest(db, actor, input, 'booking_request'), 'client_cover_changed', detail);
     return insertRequest(db, actor, { id: 'COVER-' + requestKey(input.requestId), category: 'booking_request', summary: `${detail.serviceType} cover at ${site.name}`, detail, clientId: await availableClientId(db, actor), subject: 'Cover requested', message: `We received your request for ${detail.serviceType.toLowerCase()} cover at ${site.name}, starting ${detail.startDate}. Our team will review it and send your quote.` });
   }

@@ -8,7 +8,7 @@ import { POST as feedbackPost } from '../app/api/client-bookings/feedback/route.
 
 const registration = () => ({ action: 'register_account', requestId: crypto.randomUUID(), organisationName: 'Local fixture company', contactName: 'Local fixture contact', mobile: '0821234567', siteArea: 'Cape Town', siteType: 'commercial_property', message: 'Security cover for the main office building.', privacyConsent: true });
 const siteInput = () => ({ action: 'save_site', requestId: crypto.randomUUID(), name: 'Main office', area: 'Cape Town', address: '12 Main Road, Cape Town' });
-const coverInput = siteId => ({ action: 'request_cover', requestId: crypto.randomUUID(), siteId, serviceType: 'Unarmed', startDate: '2090-01-01', endDate: '2090-01-02', shiftStart: '06:00', shiftEnd: '18:00', headcount: 2, note: 'Control entry at the main gate.' });
+const coverInput = siteId => ({ action: 'request_cover', requestId: crypto.randomUUID(), siteId, coverType:'fixed', engagementModel:'fixed', serviceCode:'standard_unarmed', contractMonths:3, durationWeeks:0, shift:'day', rosterPattern:'daily', serviceType: 'Unarmed', startDate: '2090-01-01', endDate: '2090-01-02', shiftStart: '06:00', shiftEnd: '18:00', headcount: 2, note: 'Control entry at the main gate.' });
 const count = (db, table) => db.sql.prepare(`SELECT count(*) AS n FROM ${table}`).get().n;
 
 test('registration links the signed-in account atomically and preserves consent, audit and email outbox on replay', async () => {
@@ -38,7 +38,7 @@ test('sites and all service types are saved without invented coordinates and can
     const workspace = await readClientWorkspace(db, client);
     assert.equal(workspace.sites[0].latitude, null); assert.equal(workspace.sites[0].longitude, null);
     assert.equal((await readClientWorkspace(db, otherClient)).sites.length, 0);
-    for (const serviceType of ['Unarmed', 'Armed', 'VIP']) await operateClientWorkspace(db, client, { ...coverInput(site.id), serviceType });
+    for (const serviceType of ['Unarmed', 'Armed', 'VIP']) await operateClientWorkspace(db, client, { ...coverInput(site.id), serviceType,serviceCode:serviceType==='Armed'?'armed_static':serviceType==='VIP'?'vip_unarmed':'standard_unarmed' });
     assert.equal((await readClientWorkspace(db, client)).requests.length, 3);
     await assert.rejects(() => operateClientWorkspace(db, otherClient, coverInput(site.id)), /saved sites/);
     await assert.rejects(() => operateClientWorkspace(db, otherClient, { ...input, id: site.id, expectedVersion: 1 }), /not found/);
