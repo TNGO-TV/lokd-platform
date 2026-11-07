@@ -13,7 +13,7 @@ export function ZoneHeading({ title, detail, icon = 'shield' }: { title: string;
 export function ZoneNotice({ title, children, urgent = false }: { title: string; children: ReactNode; urgent?: boolean }) {
   return <aside className={'zone-notice' + (urgent ? ' zone-notice-urgent' : '')}><ZoneIcon name={urgent ? 'alert' : 'shield'} tone={urgent ? 'red' : 'blue'} /><div><strong>{title}</strong><div>{children}</div></div></aside>;
 }
-export function ZoneProgress({ step, labels = ['How', 'Details', 'Confirm'] }: { step: number; labels?: string[] }) {
+export function ZoneProgress({ step, labels = ['Service', 'Details', 'Confirm'] }: { step: number; labels?: string[] }) {
   return <ol className="zone-progress" aria-label="Progress">{labels.map((label, index) => <li key={label} aria-current={index + 1 === step ? 'step' : undefined} className={index < step ? 'zone-progress-complete' : undefined}><span>{index + 1}</span> {label}</li>)}</ol>;
 }
 export function InitialsAvatar({ name }: { name: string }) {

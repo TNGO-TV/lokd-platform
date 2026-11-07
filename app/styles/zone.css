@@ -39,3 +39,5 @@
 @media(max-width:760px) { .zone-ops { padding:20px 16px; }.zone-ops-columns { grid-template-columns:1fr; }.zone-metrics { gap:8px; }.zone-metrics section { padding:10px; }.zone-metrics span { font-size:11px; }.zone-ops .zone-row { flex-wrap:wrap; } }
 .zone-ops-columns > .zone-stack { align-content:start; }.zone-map-fallback { margin:0; padding:12px 16px; background:white; font-size:13px; }.zone-app .zone-map-tools button { background:white; color:#344753; padding:0; }.operations-layout .operations-sidebar nav a[aria-current="page"],.zone-ops .operations-panel button,.zone-ops .zone-approval button { background:var(--lokd-red-strong); color:white; }.operations-brand img { display:block; max-width:100%; height:auto; }
 .zone-home-options { grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))!important; }
+
+.zone-schedule-value{white-space:pre-line}.zone-booking-grade{font:600 1.25rem Saira,sans-serif}.zone-facts>div{align-items:start}

@@ -354,9 +354,9 @@ test('booking request saves authoritative metadata and sends SMTP to bookings an
   assert.equal(saved.saved,true);assert.equal(saved.confirmationEmailSent,true);assert.equal(saved.opsEmailSent,true);
   assert.deepEqual(Object.keys(saved).sort(),['confirmationEmailSent','notificationStatus','opsEmailSent','reference','saved']);
   const row=database.prepare('SELECT * FROM client_enquiries WHERE id=?').get(saved.reference);
-  assert.equal(row.engagement_model,'flex');assert.equal(row.booking_model,'bolt');assert.equal(row.booking_model_version,'LOKD-MODELS-2026.11');assert.equal(row.notice_window,'immediate');assert.equal(row.calendar_type,'ordinary');assert.equal(row.risk_band,'Enhanced');
+  assert.equal(row.engagement_model,'flex');assert.equal(row.booking_model,'bolt');assert.equal(row.booking_model_version,'LOKD-MODELS-2026.11.2');assert.equal(row.notice_window,'immediate');assert.equal(row.calendar_type,'ordinary');assert.equal(row.risk_band,'Enhanced');
   assert.equal(row.officer_count,2);assert.equal(row.start_time,'18:00');assert.equal(row.end_time,'06:00');
-  assert.deepEqual(JSON.parse(row.booking_details),{...input.booking,durationWeeks:0});
+  assert.deepEqual(JSON.parse(row.booking_details),{...input.booking,durationWeeks:0,endDate:input.booking.startDate,includePublicHolidays:false,serviceDates:[input.booking.startDate],coverageShifts:1});
   const draft=JSON.parse(row.internal_draft_price);assert.ok(draft.totalCents>0);assert.equal(draft.assessedOfficers,2);
   const messages=server.messages();assert.equal(messages.length,2);assert.equal(messages[0].to,'bookings@lokd.co.za');assert.equal(messages[1].to,validEnquiry.email);
   const client=JSON.parse(database.prepare("SELECT request_json FROM operational_delivery_jobs WHERE kind='enquiry_email'").get().request_json)._lokdConfirmation.text;
@@ -419,9 +419,20 @@ test('only authenticated Operations receives the saved internal draft price',asy
  const database=migratedDatabase(),db=new D1Adapter(database),enquiries=await import('../app/api/enquiries/route.ts');
  env.DB=db;env.LOKD_ROLE_ACCESS_JSON=JSON.stringify({owners:['owner@lokd.example']});
  try{
-  const saved=await enquiries.submitClientEnquiry(publicRequest(bookingInput({booking:{coverType:'flex',startDate:'2030-01-07',shift:'day',officers:2,term:'week',durationWeeks:1,rosterPattern:'daily'}})),db);assert.equal(saved.status,202);
+  const saved=await enquiries.submitClientEnquiry(publicRequest(bookingInput({booking:{coverType:'flex',startDate:'2030-01-07',shift:'day',officers:2,term:'calendar_month',endDate:'2030-01-13',durationWeeks:0,rosterPattern:'daily'}})),db);assert.equal(saved.status,202);
   assert.equal((await enquiries.GET(new Request('https://operations.lokd.co.za/api/enquiries'))).status,401);
   const queue=await enquiries.GET(operationsRequest('GET'));assert.equal(queue.status,200,await queue.clone().text());
   const row=(await queue.json()).enquiries[0];assert.equal(row.engagementModel,'flex');assert.ok(JSON.parse(row.internalDraftPrice).totalCents>0);
  }finally{database.close();delete env.DB;delete env.LOKD_ROLE_ACCESS_JSON;}
+});
+
+test('public Flex accepts two-shift weekend and holiday cover and freezes server-derived dates and counts',async(t)=>{
+ t.mock.timers.enable({apis:['Date'],now:new Date('2029-12-01T00:00:00Z')});
+ const database=migratedDatabase(),db=new D1Adapter(database),{submitClientEnquiry}=await import('../app/api/enquiries/route.ts');
+ try{
+  const input=bookingInput({booking:{coverType:'flex',startDate:'2030-01-01',endDate:'2030-01-31',shift:'both',officers:2,term:'calendar_month',durationWeeks:0,rosterPattern:'weekends',includePublicHolidays:true,coverageShifts:1,serviceDates:['2030-01-02']}});
+  const response=await submitClientEnquiry(publicRequest(input),db);assert.equal(response.status,202,await response.clone().text());const receipt=await response.json();
+  const row=database.prepare('SELECT * FROM client_enquiries WHERE id=?').get(receipt.reference),details=JSON.parse(row.booking_details),price=JSON.parse(row.internal_draft_price);
+  assert.equal(details.coverageShifts,2);assert.ok(details.serviceDates.includes('2030-01-01'));assert.ok(!details.serviceDates.includes('2030-01-02'));assert.equal(details.serviceDates.length,new Set(details.serviceDates).size);assert.equal(price.shiftCount,details.serviceDates.length*4);assert.equal(row.start_time,'06:00');assert.equal(row.end_time,'06:00');assert.equal('internalDraftPrice'in receipt,false);
+ }finally{database.close();}
 });

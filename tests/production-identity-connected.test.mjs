@@ -10,7 +10,9 @@ async function connected({clockFix=true}={}){
  if(!clockFix){
   const original=fs.readFileSync('drizzle/0008_wild_ultimatum.sql','utf8').split('--> statement-breakpoint').find(sql=>sql.includes('CREATE TRIGGER `activation_command_final_hardening_v2`'));
   assert.ok(original,'Historical trigger remains available for regression');
-  database.exec('DROP TRIGGER activation_command_final_hardening_v2;'+original);
+  // The historical trigger calls on-demand work Flex. Map the renamed Bolt rate
+  // in this clock-only fixture so Sunday does not introduce a separate wage mismatch.
+  database.exec('DROP TRIGGER activation_command_final_hardening_v2;'+original.replace("WHEN 'flex' THEN 2.0","WHEN 'bolt' THEN 2.0 WHEN 'flex' THEN 2.0"));
  }
  await seedEnvironment(database);
  const fields={engagementId:'CONNECTED-ENGAGEMENT',officerId:x.officerId,employerId:'EMP-1',model:'direct_flex',termsVersion:'TERMS-v1',engagementReference:'private:isolated-engagement',weeklyHourCap:'24',payrollReference:'private:isolated-payroll',benefitsReference:'private:isolated-benefits'};
@@ -100,7 +102,7 @@ test('fractional approval clock reproduces legacy rejection and additive migrati
  if(reviewed.endsWith('.000Z'))x.database.function('current_timestamp',()=>new Date(Date.parse(reviewed)-1000).toISOString().slice(0,19).replace('T',' '));
  await assert.rejects(activateAssignment(x.db,request('connected:clock-old',x.officerId),'ops-fixture'),/production_officer_evidence_invalid/);
  const before=x.database.prepare("SELECT sql FROM sqlite_master WHERE name='activation_command_final_hardening_v2'").get().sql;
- x.database.exec(fs.readFileSync('drizzle/0066_id_integration_activation_clock.sql','utf8'));
+ x.database.exec(fs.readFileSync('drizzle/0066_id_integration_activation_clock.sql','utf8').replace("WHEN 'flex' THEN 2.0","WHEN 'bolt' THEN 2.0 WHEN 'flex' THEN 2.0"));
  const after=x.database.prepare("SELECT sql FROM sqlite_master WHERE name='activation_command_final_hardening_v2'").get().sql;
  assert.equal(after,before.replaceAll('julianday(CURRENT_TIMESTAMP)',"julianday('now')"));
  const activated=await activateAssignment(x.db,request('connected:clock-fixed',x.officerId),'ops-fixture');assert.equal(activated.state,'activated');

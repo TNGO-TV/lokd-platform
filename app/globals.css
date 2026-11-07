@@ -907,3 +907,5 @@ button { color: inherit; }
   .public-form { padding:24px 20px; }
 }
 @media(min-width:1000px) { .site-model-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }.home-pillars { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+
+.booking-schedule-fields{grid-column:1/-1;display:grid;gap:1rem}.booking-schedule-fields h3{font:600 1.2rem Saira,sans-serif}.booking-holiday-choice{display:flex!important;align-items:flex-start;gap:.75rem}.booking-holiday-choice input{width:auto!important;flex:none;margin-top:.25rem}.booking-holiday-calendar{padding:1rem;border:1px solid #448cca;border-radius:.75rem;background:#edf5fb}.booking-holiday-calendar summary{font-weight:600;cursor:pointer}.booking-holiday-calendar dl{display:grid;gap:.5rem}.booking-holiday-calendar dl>div{display:flex;justify-content:space-between;gap:1rem}.booking-holiday-calendar dd{margin:0;white-space:nowrap}.booking-holiday-calendar h4{margin:1rem 0 .5rem}

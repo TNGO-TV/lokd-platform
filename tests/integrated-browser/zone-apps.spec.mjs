@@ -14,14 +14,14 @@ const fits = async page => {
 
 test('Client Bolt follows intent, six services, review and an actual saved matching request', async ({ page, request }, info) => {
   await reset(request, 'client'); await page.goto('/client?view=request');
-  await expect(page.getByRole('heading', { name: 'How you need cover' })).toBeVisible();
+  await expect(page.getByRole('heading', { name:"Let's Get You Secured" })).toBeVisible();
   await fits(page); await page.screenshot({ path: info.outputPath('client-how-you-need-cover.png'), fullPage: true });
-  await page.getByRole('button', { name: /Urgent cover/ }).click();
+  await page.getByRole('button', { name: /LOKD Bolt/ }).click();
   await expect(page.getByRole('radio')).toHaveCount(6);
   await page.getByRole('radio', { name: 'Armed movement', exact: true }).check();
   await page.getByLabel('Officers per shift').fill('2');
   await page.locator('input[name=startDate]').fill(new Date(Date.now() + 7200000 + 86400000).toISOString().slice(0,10));
-  await page.getByRole('combobox', { name: 'Shift', exact: true }).selectOption('night');
+  await page.getByRole('combobox', { name:'Coverage',exact:true }).selectOption('night');
   await page.getByLabel('Duties and access').fill('Control deliveries at the West Street entrance.');
   await page.getByRole('button', { name: 'Review booking' }).click();
   await expect(page.getByRole('heading', { name: 'Review and confirm' })).toBeVisible();
@@ -32,32 +32,37 @@ test('Client Bolt follows intent, six services, review and an actual saved match
   expect(detail.engagementModel).toBe('bolt'); expect(detail.serviceCode).toBe('armed_movement'); expect(detail.shiftStart).toBe('18:00'); expect(detail.headcount).toBe(2);
   await fits(page);
 });
-test('Client Flex requires advance notice and saves a two-week roster', async ({ page, request }, info) => {
+test('Client Flex saves selected weekends, public holidays and two-shift coverage in one calendar month', async ({ page, request }, info) => {
   await reset(request, 'client'); await page.goto('/client?view=request');
-  await page.getByRole('button', { name: /Weekly cover/ }).click();
+  await page.getByRole('button', { name: /LOKD Flex/ }).click();
   await page.getByLabel('Start date', { exact: true }).fill(new Date(Date.now() + 7200000 + 86400000).toISOString().slice(0,10));
-  await page.getByLabel('Cover duration (weeks)', { exact: true }).fill('2');
-  await page.getByRole('combobox', { name: 'Roster pattern', exact: true }).selectOption('weekdays');
+  const year=new Date().getUTCFullYear(),month=new Date().getUTCMonth()+2,first=new Date(Date.UTC(year,month,1)).toISOString().slice(0,10),last=new Date(Date.UTC(year,month+1,0)).toISOString().slice(0,10);
+  await page.getByLabel('Service End Date',{exact:true}).fill(last);
+  await page.getByRole('combobox',{name:'Coverage',exact:true}).selectOption('both');
+  await page.getByRole('combobox', { name:'Schedule days',exact:true }).selectOption('weekends');
+  await page.getByLabel('Also include all public holidays in this period, including those outside the selected days.').check();
   await page.getByLabel('Duties and access').fill('Staff the reception and deliveries at the West Street offices.');
   await page.getByRole('button', { name: 'Review booking', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('at least 72 hours');
-  const start = new Date(Date.now() + 7200000 + 5 * 86400000).toISOString().slice(0,10);
+  const start=first;
+  await page.getByText('South African public holidays',{exact:true}).click();
+  await expect(page.getByText('Human Rights Day',{exact:true}).first()).toBeVisible();
   await page.getByLabel('Start date', { exact: true }).fill(start);
   await page.getByRole('button', { name: 'Review booking', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Review and confirm' })).toBeVisible();
   await page.getByRole('button', { name: 'Confirm booking', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Finding your officers' })).toBeVisible();
   const detail = JSON.parse((await saved(request)).requests.find(r => r.category === 'booking_request').detail);
-  expect(detail.engagementModel).toBe('flex'); expect(detail.durationWeeks).toBe(2); expect(detail.rosterPattern).toBe('weekdays');
-  expect(Date.parse(detail.endDate) - Date.parse(detail.startDate)).toBe(13 * 86400000);
+  expect(detail.engagementModel).toBe('flex'); expect(detail.durationWeeks).toBe(0);expect(detail.rosterPattern).toBe('weekends');expect(detail.coverageShifts).toBe(2);expect(detail.includePublicHolidays).toBe(true);expect(detail.serviceDates.length).toBeGreaterThanOrEqual(7);expect(new Set(detail.serviceDates).size).toBe(detail.serviceDates.length);
+  expect(detail.startDate.slice(0,7)).toBe(detail.endDate.slice(0,7));
   await fits(page); await page.screenshot({ path: info.outputPath('client-flex-request-saved.png'), fullPage: true });
 });
 test('Client Fixed contract detail sends reviewed roster and officer-change requests', async ({ page, request }, info) => {
   await reset(request, 'client'); await page.goto('/client?view=contracts');
   await page.getByRole('link', { name: 'View contract' }).click();
-  await expect(page.getByRole('heading', { name: 'Contract detail' })).toBeVisible();
-  await expect(page.getByText('West Street Offices', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('Weekdays', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name:'Confirmed Bookings' })).toBeVisible();
+  await expect(page.getByText('WEST STREET OFFICES',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText(/Weekdays · Monday–Friday/)).toBeVisible();
   await fits(page); await page.screenshot({ path: info.outputPath('client-contract-detail.png'), fullPage: true });
   await page.getByRole('button', { name: 'Swap an officer' }).click();
   await page.getByLabel('What would you like to change?').fill('Please review a different officer for the main entrance.');
@@ -67,16 +72,16 @@ test('Client Fixed contract detail sends reviewed roster and officer-change requ
 });
 test('Client Fixed saves term and roster pattern without displaying an unconfirmed price', async ({ page, request }) => {
   await reset(request, 'client'); await page.goto('/client?view=request');
-  await page.getByRole('button', { name: /Full-time cover/ }).click();
+  await page.getByRole('button', { name: /LOKD Fixed/ }).click();
   await page.getByLabel('Start date').fill('2090-01-01');
   await page.getByRole('combobox', { name: 'Contract term', exact: true }).selectOption('3');
-  await page.getByRole('combobox', { name: 'Roster pattern', exact: true }).selectOption('monday_saturday');
+  await page.getByRole('combobox', { name:'Schedule days',exact:true }).selectOption('saturdays');
   await page.getByLabel('Duties and access').fill('Staff the West Street office entrance and delivery gate.');
   await page.getByRole('button', { name: 'Review contract', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm roster request', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Roster request received' })).toBeVisible();
   const detail = JSON.parse((await saved(request)).requests.find(r => r.category === 'booking_request').detail);
-  expect(detail.engagementModel).toBe('fixed'); expect(detail.contractMonths).toBe(3); expect(detail.rosterPattern).toBe('monday_saturday');
+  expect(detail.engagementModel).toBe('fixed'); expect(detail.contractMonths).toBe(3); expect(detail.rosterPattern).toBe('saturdays');
   await page.goto('/client?view=bookings'); await expect(page.getByRole('heading', { name: 'West Street Offices', exact: true })).toBeVisible();
   await expect(page.getByText('Confirmed total', { exact: true })).toHaveCount(0);
 });

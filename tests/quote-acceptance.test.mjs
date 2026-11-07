@@ -18,7 +18,7 @@ class Bucket {
  async put(key,bytes){this.objects.set(key,new Uint8Array(bytes));}
  async get(key){const b=this.objects.get(key);return b?{size:b.length,arrayBuffer:async()=>b.slice().buffer}:null;}
 }
-async function setup(){
+async function setup(quoteChanges={}){
  const {prepareProductionEntity}=await import('../app/lib/production-intake.ts');const {POST:enquire}=await import('../app/api/enquiries/route.ts');const {writeSignup}=await import('../app/lib/signup-server.ts');const {env}=await import('cloudflare:workers');
  const db=new D1(),database=db.database;env.DB=db;
  const applicant={userId:'intake-user',email:'intake-fixture@example.test',operations:false},ops={userId:'intake-ops',email:'intake-ops@example.test',operations:true};
@@ -48,7 +48,7 @@ async function setup(){
  assert.equal(database.prepare('SELECT approval_status FROM clients WHERE id=?').get(prepared.entityId).approval_status,'approved');
  assert.equal((await reviewProductionClient(db,owner,decision)).alreadyRecorded,true);
  const {prepareProductionOrder}=await import('../app/lib/production-orders.ts');
- const quoteRequest={serviceType:'Unarmed',engagementModel:'flex',term:'week',durationWeeks:1,purposeCode:'commercial_access',startDate:new Date(Date.now()+7*86400000).toISOString().slice(0,10),shift:'day',rosterPattern:'daily',riskInput:{assetExposure:'standard',publicAccess:'controlled',incidentHistory:'none',existingControls:'strong',nightOperation:false,vulnerablePeople:false}};
+ const quoteRequest={serviceType:'Unarmed',engagementModel:'flex',term:'calendar_month',endDate:'2090-01-07',durationWeeks:0,purposeCode:'commercial_access',startDate:'2090-01-01',shift:'day',rosterPattern:'daily',riskInput:{assetExposure:'standard',publicAccess:'controlled',incidentHistory:'none',existingControls:'strong',nightOperation:false,vulnerablePeople:false},...quoteChanges};
  const quoted=await prepareProductionOrder(db,reviewer,{action:'quote_order',quoteRequest});
  const order={action:'prepare_order',orderReference:'isolated-client-review-order',clientId:prepared.entityId,caseVersion:4,quoteRequest,quoteHash:quoted.quoteHash,siteName:'Fixture Site',siteArea:'Sandton',address:'Fixture address',postName:'Gate',instructions:'Fixture post orders awaiting review.',latitude:-26.1,longitude:28.05,contractingEntityId:'FIXTURE-ENTITY'};
  await assert.rejects(()=>prepareProductionOrder(db,{...applicant,owner:false},order),/Operations/);
@@ -340,5 +340,21 @@ test('pending client service agreements remain visible and cannot be signed thro
   const response=await GET(new Request('https://portal.lokd.co.za/api/client-agreements',{headers}));
   assert.equal(response.status,200);assert.equal((await response.json()).agreements.length,1);
   assert.equal((await POST(new Request('https://portal.lokd.co.za/api/client-agreements',{method:'POST',headers:{...headers,'content-type':'application/json',origin:'https://evil.example'},body:JSON.stringify(input)}))).status,403);
+ }finally{x.database.close();}
+});
+
+test('calendar schedules bind accepted quotes and generate two separate guarded twelve-hour shifts per officer',async()=>{
+ const x=await setup({startDate:'2090-01-01',endDate:'2090-01-31',shift:'both',rosterPattern:'weekends',includePublicHolidays:true,specialistConfiguration:{teamSize:2}});
+ try{
+  const {prepareProductionOrder}=await import('../app/lib/production-orders.ts');
+  let result;do{result=await prepareProductionOrder(x.db,x.reviewer,{action:'prepare_roster',orderId:x.orderId});}while(result.preparedSlots<result.totalSlots);
+  const slots=x.database.prepare('SELECT service_date,starts_at,ends_at,position_index,officer_offer_cents FROM roster_slots WHERE booking_id=? ORDER BY starts_at,position_index').all(x.orderId);
+  const booking=x.database.prepare('SELECT * FROM bookings WHERE id=?').get(x.orderId),dates=JSON.parse(booking.service_dates);
+  assert.throws(()=>x.database.prepare('UPDATE roster_slots SET ends_at=? WHERE booking_id=?').run('2090-02-01T16:00:00Z',x.orderId),/roster_calendar_shift_invalid/);
+  assert.equal(slots.length,dates.length*4);assert.ok(slots.every(s=>Date.parse(s.ends_at)-Date.parse(s.starts_at)===12*3600000));
+  for(const date of dates)assert.deepEqual(slots.filter(s=>s.service_date===date).map(s=>new Date(Date.parse(s.starts_at)+7200000).toISOString().slice(11,16)).sort(),['06:00','06:00','18:00','18:00']);
+  assert.equal(x.database.prepare('SELECT valid FROM specialist_pricing_validation_v33 WHERE id=?').get(x.orderId).valid,1);
+  const source=JSON.parse(x.database.prepare('SELECT source_json FROM client_quote_sources WHERE order_id=?').get(x.orderId).source_json);assert.equal(source.coverageShifts,2);assert.deepEqual(source.serviceDates,dates);assert.equal(source.includePublicHolidays,true);
+  assert.throws(()=>x.database.prepare('UPDATE bookings SET coverage_shifts=1 WHERE id=?').run(x.orderId),/immutable/);
  }finally{x.database.close();}
 });

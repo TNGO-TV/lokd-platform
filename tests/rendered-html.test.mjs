@@ -40,7 +40,7 @@ function hasLink(links, href, label) {
 }
 function professionalCopy(visible) {
   assert.doesNotMatch(visible, /\b(?:demo|sample|placeholder|prelaunch|pilot|coming soon|lorem ipsum)\b/i);
-  assert.doesNotMatch(visible, /\b(?:R\s?\d[\d,.]*|ZAR\s?\d|arrives? in \d+|within \d+ minutes?|\d+\s*(?:min|minutes?|hours?) (?:away|notice))\b/i);
+  assert.doesNotMatch(visible, /\b(?:R\s?\d[\d,.]*|ZAR\s?\d|arrives? in \d+|within \d+ minutes?|\d+\s*(?:min|minutes?|hours?) away)\b/i);
   assert.doesNotMatch(visible, /Thabo Mokoena|Rosebank office park|31 Mar 2027|contracted rate|dispatch premium/i);
 }
 
@@ -137,9 +137,9 @@ test("public booking page renders Bolt, Flex and Fixed with no internal prices",
   assert.equal(response.status,200);
   const html = await response.text();
   assert.match(html, /Request security cover \| LOKD/);
-  assert.match(html, /Urgent cover/);
-  assert.match(html, /Weekly cover/);
-  assert.match(html, /Full-time cover/);
+  assert.match(html, /Immediate \/ Emergency Service/);
+  assert.match(html, /Temporary \/ Flexible Service/);
+  assert.match(html, /Full time deployment/);
   assert.doesNotMatch(html, /internalDraftPrice|clientShiftCents|officerRateCents|R\s*\d+[,.]\d{2}|prelaunch/i);
 });
 

@@ -1,3 +1,4 @@
+import { scheduleLabel } from './booking-schedule';
 export const zoneServices = [
   { code: 'standard_unarmed', label: 'Unarmed guarding', serviceType: 'Unarmed', icon: 'shield' },
   { code: 'armed_static', label: 'Armed site security', serviceType: 'Armed', icon: 'shield' },
@@ -9,13 +10,13 @@ export const zoneServices = [
 export type ZoneServiceCode = typeof zoneServices[number]['code'];
 export type ZoneCoverType = 'bolt' | 'flex' | 'fixed';
 export const zoneCoverOptions = [
-  { value: 'bolt', label: 'Urgent cover', model: 'LOKD Bolt', detail: 'Less than 72 hours’ notice.', icon: 'clock' },
-  { value: 'flex', label: 'Weekly cover', model: 'LOKD Flex', detail: 'Seven days or more of cover with at least 72 hours’ notice.', icon: 'calendar' },
-  { value: 'fixed', label: 'Full-time cover', model: 'LOKD Fixed', detail: 'A planned full-time roster for 3, 6 or 12 months.', icon: 'people' },
+  { value: 'bolt', label: 'Immediate / Emergency Service', model: 'LOKD Bolt', detail: 'Less than 72 Hours Notice', icon: 'clock' },
+  { value: 'flex', label: 'Temporary / Flexible Service', model: 'LOKD Flex', detail: '7+ Days in a calendar month', icon: 'calendar' },
+  { value: 'fixed', label: 'Full time deployment', model: 'LOKD Fixed', detail: '3 Months +', icon: 'people' },
 ] as const;
 export function sastDate(now = new Date()) { return new Date(now.getTime() + 7_200_000).toISOString().slice(0, 10); }
 export function zoneService(code: unknown) { return zoneServices.find(item => item.code === code); }
-export function rosterLabel(value: string) { return value === 'weekdays' ? 'Weekdays' : value === 'monday_saturday' ? 'Mon–Sat' : value === 'daily' ? 'Daily' : 'Roster to be confirmed'; }
+export const rosterLabel = scheduleLabel;
 export function bookingStage(status: string) {
   if (status === 'in_progress') return 'On site';
   if (status === 'confirmed') return 'Officers confirmed';

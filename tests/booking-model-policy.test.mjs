@@ -13,16 +13,18 @@ import { workforceReadinessStatuses } from '../app/lib/workforce-core.ts';
 import { prepareProductionOrder } from '../app/lib/production-orders.ts';
 import { prepareFinanceDocument } from '../app/lib/finance-documents.ts';
 const start = '2026-11-16', instant = Date.parse(start + 'T06:00:00+02:00');
-const input = (model, patch = {}) => ({ model, startDate: start, shift: 'day', durationWeeks: model === 'flex' ? 1 : 0, contractMonths: model === 'fixed' ? 3 : 0, ...patch });
+const input = (model, patch = {}) => ({ model, startDate: start, shift: 'day', durationWeeks:0,endDate:model==='flex'?'2026-11-29':undefined, contractMonths: model === 'fixed' ? 3 : 0, ...patch });
 test('Bolt is strictly below 72 hours, while Flex includes the exact 72-hour boundary', () => {
   assert.equal(schedule(input('bolt'), instant - 72 * 3600000 + 1).model, 'bolt');
   assert.throws(() => schedule(input('bolt'), instant - 72 * 3600000), /less than 72/);
   assert.equal(schedule(input('flex'), instant - 72 * 3600000).model, 'flex');
   assert.throws(() => schedule(input('flex'), instant - 72 * 3600000 + 1), /at least 72/);
 });
-test('Flex measures a week as seven calendar days and Fixed starts at three months', () => {
-  for (const weeks of [1, 2, 12, 52]) { const s = schedule(input('flex', { durationWeeks: weeks }), instant - 100 * 3600000); assert.equal(Date.parse(s.endDate) - Date.parse(s.startDate), (weeks * 7 - 1) * 86400000); }
-  for (const durationWeeks of [0, -1, 1.5, 53, '1']) assert.throws(() => schedule(input('flex', { durationWeeks }), instant - 100 * 3600000), /seven days/);
+test('Flex counts scheduled days within a calendar month and Fixed starts at three months', () => {
+  assert.equal(schedule(input('flex',{endDate:'2026-11-22'}),instant-100*3600000).serviceDates.length,7);
+  assert.throws(()=>schedule(input('flex',{endDate:'2026-11-21'}),instant-100*3600000),/seven/);
+  assert.throws(()=>schedule(input('flex',{endDate:'2026-12-01'}),instant-100*3600000),/calendar month/);
+  assert.throws(()=>schedule(input('flex',{durationWeeks:1}),instant-100*3600000),/calendar month/);
   for (const contractMonths of [0, 1, 2, 4, '3']) assert.throws(() => schedule(input('fixed', { contractMonths }), instant - 100 * 3600000), /three months/);
   assert.equal(schedule(input('fixed'), instant - 24 * 3600000).endDate, '2027-02-15');
 });
@@ -33,7 +35,7 @@ test('notice uses the SAST shift instant across midnight and current Bolt cover 
   assert.throws(() => schedule(input('bolt'), instant + 12 * 3600000, true), /future shift/);
 });
 test('public intent keeps the authoritative model, weeks and rate snapshot private', () => {
-  const now = new Date(instant - 72 * 3600000), base = { siteType: 'commercial_property', siteAddress: '135 West Street, Sandton', serviceType: 'scheduled_unarmed_fixed_site', booking: { coverType: 'flex', startDate: start, shift: 'day', officers: 2, term: 'week', durationWeeks: 2, rosterPattern: 'weekdays' } };
+  const now = new Date(instant - 72 * 3600000), base = { siteType: 'commercial_property', siteAddress: '135 West Street, Sandton', serviceType: 'scheduled_unarmed_fixed_site', booking: { coverType: 'flex', startDate: start, shift:'day',officers:2,term:'calendar_month',durationWeeks:0,endDate:'2026-11-29', rosterPattern: 'weekdays' } };
   const b = publicBooking(base, now); validateBookingStart(b, now);
   assert.equal(b.engagementModel, 'flex'); assert.equal(b.modelVersion, BOOKING_MODEL_VERSION); assert.equal(b.schedule.endDate, '2026-11-29'); assert.equal(b.draftPrice.serviceDayCount, 10);
   assert.throws(() => validateBookingStart(b, new Date(now.getTime() + 1)), /at least 72/);
@@ -41,15 +43,16 @@ test('public intent keeps the authoritative model, weeks and rate snapshot priva
   assert.throws(() => publicBooking({ ...base, booking: { ...base.booking, coverType: 'fixed', term: '1' } }, now), /three months/);
 });
 function insertProduct(db, model, patch = {}) {
-  const now = new Date(), date = dateAfterDays(sastDate(now), model === 'bolt' ? 1 : 4), s = schedule({ model, startDate: date, shift: 'day', durationWeeks: model === 'flex' ? 1 : 0, contractMonths: model === 'fixed' ? 3 : 0 }, now.getTime()), row = { id: crypto.randomUUID(), client_id: 'CLIENT-FIXTURE-A', site_name: 'Sandton offices', site_area: 'Sandton', post_name: 'Gate', service_type: 'Unarmed', minimum_grade: 'Grade C', contract_months: s.contractMonths, start_date: s.startDate, end_date: s.endDate, shift_start: '06:00', shift_end: '18:00', client_price_cents: 100000, officer_rate_cents: 50000, release_cadence: 'Weekly', status: 'draft', environment: 'production', integrity_state: 'production_verified', engagement_model: model, model_version: BOOKING_MODEL_VERSION, requested_at: now.toISOString(), duration_weeks: s.durationWeeks, ...patch };
-  db.sql.prepare(`INSERT INTO bookings(${Object.keys(row).join(',')}) VALUES(${Object.keys(row).map(() => '?').join(',')})`).run(...Object.values(row)); return row.id;
+  const now=new Date(),date=model==='flex'?new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth()+1,1)).toISOString().slice(0,10):dateAfterDays(sastDate(now),1),s=schedule({model,startDate:date,endDate:model==='flex'?dateAfterDays(date,13):undefined,shift:'day',durationWeeks:0,contractMonths:model==='fixed'?3:0},now.getTime());
+  const row={id:crypto.randomUUID(),client_id:'CLIENT-FIXTURE-A',site_name:'Sandton offices',site_area:'Sandton',post_name:'Gate',service_type:'Unarmed',minimum_grade:'Grade C',contract_months:s.contractMonths,start_date:s.startDate,end_date:s.endDate,shift_start:'06:00',shift_end:'18:00',client_price_cents:100000,officer_rate_cents:50000,release_cadence:'Weekly',status:'draft',environment:'production',integrity_state:'production_verified',engagement_model:model,model_version:BOOKING_MODEL_VERSION,requested_at:now.toISOString(),duration_weeks:0,roster_pattern:'daily',coverage_shifts:1,include_public_holidays:0,service_dates:JSON.stringify(s.serviceDates),service_day_count:s.serviceDates.length,shift_count:s.serviceDates.length,headcount:1,...patch};
+  db.sql.prepare(`INSERT INTO bookings(${Object.keys(row).join(',')}) VALUES(${Object.keys(row).map(()=>'?').join(',')})`).run(...Object.values(row));return row.id;
 }
 test('storage rechecks product terms and freezes the original notice evidence', () => {
   const db = new ClientDatabase(); try {
     seedClient(db); const bolt = insertProduct(db, 'bolt'); insertProduct(db, 'flex'); insertProduct(db, 'fixed');
-    assert.throws(() => insertProduct(db, 'fixed', { contract_months: 1 }), /booking_product_model_invalid/);
-    assert.throws(() => insertProduct(db, 'flex', { duration_weeks: 0 }), /booking_product_model_invalid/);
-    assert.throws(() => insertProduct(db, 'bolt', { start_date: '2090-01-01', end_date: '2090-01-01' }), /booking_product_model_invalid/);
+    assert.throws(() => insertProduct(db, 'fixed', { contract_months: 1 }), /booking_calendar_schedule_invalid/);
+    assert.throws(() => insertProduct(db,'flex',{duration_weeks:1}), /booking_calendar_schedule_invalid/);
+    assert.throws(() => insertProduct(db, 'bolt', { start_date: '2090-01-01', end_date: '2090-01-01' }), /booking_calendar_schedule_invalid/);
     assert.throws(() => db.sql.prepare('UPDATE bookings SET requested_at=? WHERE id=?').run(new Date().toISOString() + 'changed', bolt), /immutable/);
   } finally { db.sql.close(); }
 });
@@ -84,17 +87,17 @@ test('a delayed Flex order uses only its own saved, matching request as notice e
   const db = new ClientDatabase(), actor = { userId: 'operator', email: 'operator@example.test', operations: true };
   try {
     const clientId = seedClient(db), startDate = dateAfterDays(sastDate(), 1), receivedAt = new Date(Date.parse(startDate+'T06:00:00+02:00')-100*3600000).toISOString();
-    const detail = {modelVersion:BOOKING_MODEL_VERSION,engagementModel:'flex',startDate,shift:'day',durationWeeks:1,contractMonths:0,rosterPattern:'daily',headcount:2,serviceCode:'standard_unarmed'};
+    const detail = {modelVersion:BOOKING_MODEL_VERSION,engagementModel:'flex',startDate,shift:'day',endDate:dateAfterDays(startDate,6),durationWeeks:0,contractMonths:0,rosterPattern:'daily',headcount:2,serviceCode:'standard_unarmed'};
     const owner = db.sql.prepare('SELECT owner_user_id FROM production_entity_links WHERE entity_id=?').get(clientId).owner_user_id;
     db.sql.prepare("INSERT INTO service_requests(id,client_id,requested_by_role,requested_by_id,category,summary,detail,status,environment,integrity_state,created_at,updated_at) VALUES('COVER-notice',?,'client',?,'booking_request','Weekly cover',?,'open','production','production_verified',?,?)").run(clientId,owner,JSON.stringify(detail),receivedAt,receivedAt);
-    const quoteRequest = {serviceType:'Unarmed',engagementModel:'flex',term:'week',durationWeeks:1,purposeCode:'commercial_access',startDate,shift:'day',rosterPattern:'daily',specialistConfiguration:{teamSize:2},riskInput:{assetExposure:'standard',publicAccess:'controlled',incidentHistory:'none',existingControls:'strong',nightOperation:false,vulnerablePeople:false}};
+    const quoteRequest = {serviceType:'Unarmed',engagementModel:'flex',term:'calendar_month',endDate:dateAfterDays(startDate,6),durationWeeks:0,purposeCode:'commercial_access',startDate,shift:'day',rosterPattern:'daily',specialistConfiguration:{teamSize:2},riskInput:{assetExposure:'standard',publicAccess:'controlled',incidentHistory:'none',existingControls:'strong',nightOperation:false,vulnerablePeople:false}};
     const base = {action:'quote_order',clientId,quoteRequest};
     await assert.rejects(() => prepareProductionOrder(db,actor,{...base,requestedAt:receivedAt}), /at least 72/);
     db.sql.prepare("UPDATE service_requests SET updated_at=?,version=version+1 WHERE id='COVER-notice'").run(new Date().toISOString());
     const saved = await prepareProductionOrder(db,actor,{...base,sourceRequestId:'COVER-notice'});
     assert.equal(saved.quote.engagementModel,'flex'); assert.equal(saved.quote.headcount,2);
     await assert.rejects(() => prepareProductionOrder(db,actor,{...base,clientId:'another-client',sourceRequestId:'COVER-notice'}), /does not belong/);
-    await assert.rejects(() => prepareProductionOrder(db,actor,{...base,sourceRequestId:'COVER-notice',quoteRequest:{...quoteRequest,durationWeeks:2}}), /exact saved request scope/);
+    await assert.rejects(() => prepareProductionOrder(db,actor,{...base,sourceRequestId:'COVER-notice',quoteRequest:{...quoteRequest,endDate:dateAfterDays(startDate,7)}}), /exact saved request scope/);
     await assert.rejects(() => prepareProductionOrder(db,actor,{...base,sourceRequestId:'COVER-notice',quoteRequest:{...quoteRequest,term:'single'}}), /term and roster/);
     db.sql.prepare("UPDATE service_requests SET status='cancelled' WHERE id='COVER-notice'").run();
     await assert.rejects(() => prepareProductionOrder(db,actor,{...base,sourceRequestId:'COVER-notice'}), /does not belong/);

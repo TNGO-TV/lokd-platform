@@ -15,10 +15,10 @@ test('on-demand intent accepts a current shift without promising arrival and rej
   assert.equal(validateZoneCover({ ...intent, shift: 'night' }, Date.parse('2026-11-07T23:00:00+02:00')).shiftEnd, '06:00');
   assert.equal('eta' in value, false); assert.equal('price' in value, false);
 });
-test('Bolt uses the exact SAST notice window; weekly Flex keeps seven days of planned cover', () => {
+test('Bolt uses the exact SAST notice window; Flex counts seven selected days in one calendar month', () => {
  assert.equal(sastDate(new Date('2026-11-07T23:30:00Z')), '2026-11-08');
  assert.throws(()=>validateZoneCover({...intent,startDate:'2026-11-11'},now),/72 hours/);
- const value=validateZoneCover({...intent,coverType:'flex',engagementModel:'flex',durationWeeks:1,startDate:'2026-11-11'},now);
+ const value=validateZoneCover({...intent,coverType:'flex',engagementModel:'flex',durationWeeks:0,startDate:'2026-11-11',endDate:'2026-11-17'},now);
  assert.equal(value.engagementModel,'flex');assert.equal(value.endDate,'2026-11-17');
  assert.throws(()=>validateZoneCover({...intent,startDate:'2026-02-30'},now),/valid/);
 });
