@@ -3,13 +3,13 @@ import {agreementHash} from './agreement-acceptance';
 import {productionOperatorControl} from './production-operator-control';
 import {operationsMfaRequired} from './operations-mfa-policy';
 import type {SigningActor} from './production-signing';
-export type PaymentKind = 'employee' | 'partner';
+export type PaymentKind = 'employee';
 const text=(v:unknown,label:string)=>{if(typeof v!=='string'||v.trim().length<3||v.length>1200)throw new SignupError(`Provide ${label}.`);return v.trim();};
 const auth=()=>operationsMfaRequired()?'mfa_verified':'owner_mfa_exception';
 // Table names are selected by this closed union, never supplied SQL identifiers.
 export async function operatePaymentRecovery(db:D1Database,actor:SigningActor,input:Record<string,unknown>,headers:Headers){
  if(!actor.operations)throw new SignupError('Operations access required.',403);
- if(input.kind!=='employee'&&input.kind!=='partner')throw new SignupError('Choose employee or partner recovery.');
+ if(input.kind!=='employee')throw new SignupError('Choose employee recovery.');
  const kind=input.kind,reference=text(input.reference,'the original saved reference');
  const i=await db.prepare(`SELECT * FROM ${kind}_payment_instructions WHERE reference=? AND mode='live'`).bind(reference).first<{mode:string;status:string;version:number;source_hash:string;source_json:string;prepared_by:string;prepared_user:string;amount_cents:number}>();
  if(!i)throw new SignupError('Payment instruction not found.',404);
@@ -20,7 +20,7 @@ export async function operatePaymentRecovery(db:D1Database,actor:SigningActor,in
  if(!propose&&input.action!=='approve_live_disposition')throw new SignupError('Choose a supported recovery action.');
  const note=text(input.note,'the terminal evidence review findings');
  if(input.evidenceReviewed!==true)throw new SignupError('Review the exact authoritative terminal evidence.');
- const prefix=kind==='employee'?'payment':'partner_payment';
+ const prefix='payment';
  const op=await productionOperatorControl(db,actor,headers,propose?`${prefix}.prepare`:`${prefix}.approve`,i.amount_cents,propose?undefined:i.prepared_by);
  const now=new Date().toISOString(),id=crypto.randomUUID();
  if(propose){

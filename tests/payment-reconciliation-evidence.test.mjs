@@ -10,7 +10,7 @@ function fixture(kind='employee',mode='live',status='success'){
  const event=(sequence,source,value=status)=>({id:'event-'+sequence,sequence,source,event:source==='webhook'?'transfer.'+value:source==='verify'?'transfer.verify':'transfer.initiate',transfer:{...transfer,status:value},webhookCount:source==='verify'?1:null,observedAt:at});
  return {binding,claim,observations:[event(1,'initiate','pending'),event(2,'webhook'),event(3,'verify')],event};
 }
-for(const kind of ['employee','partner'])test(`${kind} live: exact final evidence yields a review snapshot, never payment or replacement authority`,async()=>{
+for(const kind of ['employee'])test(`${kind} live: exact final evidence yields a review snapshot, never payment or replacement authority`,async()=>{
  for(const status of ['success','failed','reversed']){
   const f=fixture(kind,'live',status),decision=assess(f,now);
   assert.equal(decision.state,'provider_'+status);assert.equal(decision.canMarkPaid,false);assert.equal(decision.canReplace,false);

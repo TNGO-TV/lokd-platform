@@ -7,11 +7,11 @@ export const zoneServices = [
   { code: 'event_cover', label: 'Event cover', serviceType: 'Unarmed', icon: 'people' },
 ] as const;
 export type ZoneServiceCode = typeof zoneServices[number]['code'];
-export type ZoneCoverType = 'soon' | 'date' | 'ongoing';
+export type ZoneCoverType = 'bolt' | 'flex' | 'fixed';
 export const zoneCoverOptions = [
-  { value: 'soon', label: 'Today / tomorrow', model: 'LOKD Flex', detail: 'Short-notice cover for a single shift.', icon: 'clock' },
-  { value: 'date', label: 'A specific date', model: 'LOKD Flex', detail: 'Plan a single shift for a date that suits you.', icon: 'calendar' },
-  { value: 'ongoing', label: 'Ongoing cover', model: 'LOKD Fixed', detail: 'A planned roster for 1, 3, 6 or 12 months.', icon: 'people' },
+  { value: 'bolt', label: 'Urgent cover', model: 'LOKD Bolt', detail: 'Less than 72 hours’ notice.', icon: 'clock' },
+  { value: 'flex', label: 'Weekly cover', model: 'LOKD Flex', detail: 'Seven days or more of cover with at least 72 hours’ notice.', icon: 'calendar' },
+  { value: 'fixed', label: 'Full-time cover', model: 'LOKD Fixed', detail: 'A planned full-time roster for 3, 6 or 12 months.', icon: 'people' },
 ] as const;
 export function sastDate(now = new Date()) { return new Date(now.getTime() + 7_200_000).toISOString().slice(0, 10); }
 export function zoneService(code: unknown) { return zoneServices.find(item => item.code === code); }

@@ -177,12 +177,12 @@ export async function submitClientEnquiry(request: Request,database?:D1Database,
          site_type, required_start, message, service_type, funding_model, credit_terms_days,
          privacy_notice_version, privacy_acknowledged_at, status, owner_id, resolution,
          environment, integrity_state, retention_review_at, created_at, updated_at, version,site_address,start_date,end_date,start_time,end_time,officer_count,schedule,
-         engagement_model,notice_window,calendar_type,risk_band,booking_details,internal_draft_price)
+         engagement_model,notice_window,calendar_type,risk_band,booking_details,internal_draft_price,booking_model,booking_model_version)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'advance_only', 0,
-         ?, ?, 'new', NULL, NULL, 'production', 'user_submitted', ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+         ?, ?, 'new', NULL, NULL, 'production', 'user_submitted', ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
         .bind(id, organisationName, contactName, emailNormalized, mobileNormalized, siteArea,
           siteType, requiredStart, message, serviceType, privacyNoticeVersion, nowIso, retention.toISOString(), nowIso, nowIso,schedule?.siteAddress??null,schedule?.startDate??null,schedule?.endDate??null,schedule?.startTime??null,schedule?.endTime??null,schedule?.officers??null,schedule?.schedule??null,
-          booking?.engagementModel??null,booking?.noticeWindow??null,booking?.calendarType??null,booking?.riskBand??null,booking?JSON.stringify(booking.intent):null,booking?JSON.stringify(booking.draftPrice):null),
+          booking?(booking.engagementModel==='fixed'?'fixed':'flex'):null,booking?.noticeWindow??null,booking?.calendarType??null,booking?.riskBand??null,booking?JSON.stringify(booking.intent):null,booking?JSON.stringify(booking.draftPrice):null,booking?.engagementModel??null,booking?.modelVersion??null),
       db.prepare(`INSERT INTO audit_events
         (id, actor_type, actor_id, event_type, entity_type, entity_id, detail, created_at)
         VALUES (?, 'client_enquiry', ?, 'public_client_enquiry_submitted', 'client_enquiry', ?,
@@ -215,7 +215,7 @@ export async function GET(request: Request) {
       service_type AS serviceType, message, status, owner_id AS ownerId, resolution, created_at AS createdAt,
       updated_at AS updatedAt, version,site_address AS siteAddress,start_date AS startDate,end_date AS endDate,
       start_time AS startTime,end_time AS endTime,officer_count AS officers,schedule,
-      engagement_model AS engagementModel,notice_window AS noticeWindow,calendar_type AS calendarType,risk_band AS riskBand,
+      COALESCE(booking_model,engagement_model) AS engagementModel,notice_window AS noticeWindow,calendar_type AS calendarType,risk_band AS riskBand,
       booking_details AS bookingDetails,internal_draft_price AS internalDraftPrice,
       (SELECT state FROM operational_delivery_jobs j WHERE j.kind='enquiry_email' AND j.source_id=client_enquiries.id) AS emailStatus,
       (SELECT last_error FROM operational_delivery_jobs j WHERE j.kind='enquiry_email' AND j.source_id=client_enquiries.id) AS emailError

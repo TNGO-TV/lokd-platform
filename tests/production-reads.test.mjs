@@ -27,8 +27,9 @@ test('Operations reads overlap while ungranted finance and owner records remain 
   const result=await readProductionOperations(f.db,{userId:'ungranted',email:'ungranted@example.invalid',operations:true,owner:false});
   assert.equal(productionOperationsResponse(result),true,'actual Operations read satisfies its consumer contract');
   assert.ok(f.observed.max>1,'independent readers should overlap');assert.ok(f.observed.max<=4);
-  for(const key of ['partnerPaymentAccess','partnerDestinationAccess','partnerPayableAccess','employeePaymentAccess','destinationAccess'])assert.equal(result[key],false,key);
+  for(const key of ['employeePaymentAccess','destinationAccess'])assert.equal(result[key],false,key);
   for(const key of ['operators','payrollRuns','payrollItems','payrollCandidates','rosters','shifts','serviceOrders'])assert.deepEqual(result[key],[],key);
+  assert.equal(Object.keys(result).some(key=>/partner/i.test(key)),false);
   assert.equal(f.observed.queries.some(({query})=>/FROM (employee_payment_instructions|partner_payment_instructions|payment_destination_current|partner_destination_current|production_partner_payable_current)/.test(query)),false);
  }finally{f.sql.close();}
 });

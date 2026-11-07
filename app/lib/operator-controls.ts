@@ -10,12 +10,6 @@ export type OperatorRole =
 export type OperatorActionCode =
   | "specialist.prepare"
   | "specialist.review"
-  | "partner_payment.prepare"
-  | "partner_payment.approve"
-  | "partner_payment.cancel"
-  | "partner.prepare"
-  | "partner.approve"
-  | "partner.export"
   | "payment.prepare"
   | "payment.approve"
   | "payment.cancel"
@@ -40,13 +34,7 @@ export type OperatorActionPolicy = {
 export const OPERATOR_ACTION_POLICIES: OperatorActionPolicy[] = [
   { actionCode: "specialist.prepare", label: "Prepare specialist deployment evidence", requiredRole: "operations_controller", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
   { actionCode: "specialist.review", label: "Independently review specialist deployment evidence", requiredRole: "compliance_reviewer", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
-  { actionCode: "partner_payment.prepare", label: "Prepare partner company payment instruction", requiredRole: "operations_controller", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
-  { actionCode: "partner_payment.approve", label: "Approve partner company payment instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
-  { actionCode: "partner_payment.cancel", label: "Cancel an unsent partner company instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: false },
 
-  { actionCode: "partner.prepare", label: "Prepare partner invoice payable", requiredRole: "operations_controller", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
-  { actionCode: "partner.approve", label: "Review or suspend partner payable", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
-  { actionCode: "partner.export", label: "Export approved partner payable", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: false },
   { actionCode: "payment.prepare", label: "Prepare employee payment instruction", requiredRole: "payroll_preparer", mfaMaxAgeMinutes: 15, maxAmountCents: 25_000_000, secondApprovalRequired: true },
   { actionCode: "payment.approve", label: "Approve employee payment instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: true },
   { actionCode: "payment.cancel", label: "Cancel an unsent employee instruction", requiredRole: "finance_approver", mfaMaxAgeMinutes: 5, maxAmountCents: 25_000_000, secondApprovalRequired: false },

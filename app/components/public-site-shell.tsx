@@ -68,21 +68,12 @@ export function PublicSteps({ officer = false }: { officer?: boolean }) {
 }
 
 export function BookingModels() {
-  return <section className="site-section" id="booking-models" aria-labelledby="booking-models-title">
-    <div className="site-section-head"><div><p className="public-kicker">How booking works</p><h2 id="booking-models-title">One shift or a full roster.<br />You choose.</h2></div><p>On-demand bookings and ongoing contract cover, with verified officers matched to your requirements.</p></div>
-    <div className="site-model-grid">
-      <article className="site-model"><div className="site-panel-top"><span className="site-icon site-icon--red"><Icon name="clock" /></span><span className="site-tag">On demand</span></div><h3>LOKD Flex</h3><p>Today, tomorrow or short notice. Book for a shift, an event or a temporary gap in your cover.</p>
-        <div className="site-date-options" aria-label="Choose when you need officers"><Link href="/book?when=today"><Icon name="clock" />Today</Link><Link href="/book?when=tomorrow"><Icon name="calendar" />Tomorrow</Link><Link href="/book"><Icon name="calendar" />Choose a date</Link></div>
-        <div className="site-model-flow"><span><Icon name="mapPin" size={18} />Your location</span><span><Icon name="users" size={18} />Your officers</span><span><Icon name="clipboard" size={18} />Your brief</span></div>
-        <Link className="site-card-link" href="/book">Book on demand<Icon name="arrowUpRight" size={20} /></Link>
-      </article>
-      <article className="site-model site-model--fixed"><div className="site-panel-top"><span className="site-icon"><Icon name="calendar" /></span><span className="site-tag">Ongoing contract cover</span></div><h3>LOKD Fixed</h3><p>Build a planned roster around your site. Agree the duties, shift pattern and officer requirements for ongoing cover.</p>
-        <div className="site-roster" aria-label="Plan your ongoing roster"><div><Icon name="building" size={20} /><strong>Your site. Your schedule.</strong></div><div className="site-roster-days" aria-hidden="true">{["M", "T", "W", "T", "F", "S", "S"].map((day, index) => <span key={index}>{day}<i /></span>)}</div><div className="site-roster-labels"><span><Icon name="clock" size={16} />Day or night shifts</span><span><Icon name="users" size={16} />Planned team cover</span></div></div>
-        <Link className="site-card-link" href="/book?when=ongoing">Plan ongoing cover<Icon name="arrowUpRight" size={20} /></Link>
-      </article>
-    </div>
-    <p className="site-dispatch-note"><Icon name="route" size={19} />Officers are dispatched from the closest available pool. Arrival time depends on your location and availability.</p>
-  </section>;
+ const models = [
+  {model:'bolt',name:'LOKD Bolt',tag:'Urgent cover',icon:'clock' as const,detail:'Less than 72 hours’ notice. Request verified officers for urgent security cover, subject to availability.',link:'Book urgent cover'},
+  {model:'flex',name:'LOKD Flex',tag:'Weekly cover',icon:'calendar' as const,detail:'Seven days or more of cover with at least 72 hours’ notice. Plan the duties, officers and shift pattern for your site.',link:'Plan weekly cover'},
+  {model:'fixed',name:'LOKD Fixed',tag:'Full-time cover',icon:'users' as const,detail:'Full-time security cover for three months or more. Build an agreed roster for 3, 6 or 12 months.',link:'Plan full-time cover'},
+ ];
+ return <section className="public-section" id="booking-models"><div className="site-section-head"><p className="public-kicker">Three ways to book</p><h2>Security around your schedule.</h2><p>LOKD supplies verified officers directly. Choose urgent, weekly or full-time cover.</p></div><div className="site-model-grid">{models.map(m=><article className={'site-model site-model--'+m.model} key={m.model}><div className="site-panel-top"><span className={'site-icon'+(m.model==='bolt'?' site-icon--red':'')}><Icon name={m.icon}/></span><span className="site-tag">{m.tag}</span></div><h3>{m.name}</h3><p>{m.detail}</p><div className="site-model-details"><span><Icon name="mapPin" size={18}/>Johannesburg</span><span><Icon name="users" size={18}/>LOKD officers</span><span><Icon name="clipboard" size={18}/>Your brief</span></div><Link className="site-card-link" href={'/book?model='+m.model}>{m.link}<Icon name="arrowUpRight" size={20}/></Link></article>)}</div><p className="site-dispatch-note"><Icon name="route" size={19}/>Officer confirmation depends on verified availability. Arrival time depends on your location and the route.</p></section>;
 }
 
 const services: [IconName, string, string, string, string][] = [

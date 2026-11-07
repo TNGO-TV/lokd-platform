@@ -3,7 +3,7 @@ import {paymentFinanceResponse} from '../lib/workspace-response-contracts';
 import {readWorkspaceResponse,workspaceAccessDenied} from './workspace-request';
 import {useEffect,useMemo,useState,type ReactNode} from 'react';
 import styles from './signup-portal.module.css';
-type Payment={kind:'employee'|'partner';reference:string;mode:string;status:string;version:number;source_hash:string;amount_cents:number;source_json:string};
+type Payment={kind:'employee';reference:string;mode:string;status:string;version:number;source_hash:string;amount_cents:number;source_json:string};
 type Review={id:string;kind?:string;reference?:string;amount_cents?:number;source_hash?:string;payload_hash:string;payload_json:string;decision:string|null;note:string;operator_id:string;expires_at:string;disposition?:string;remaining_cents?:number|null;current?:number};
 type Finance={liveDispatchEnabled:boolean;reserves:Review[];releases:Review[];reconciliations:Review[]};
 function ReviewForm({title,busy,children,submit}:{title:string;busy:boolean;children:ReactNode;submit:(data:FormData,requestKey:string)=>void}){

@@ -76,6 +76,7 @@ test('homepage offers real intake paths, responsive service navigation and priva
   await expect(main.getByRole('heading', {level: 1})).toHaveText('Book officers.On your terms.');
   await expect(main.getByRole('link', {name: 'Book officers', exact: true}).first()).toHaveAttribute('href', '/book');
   await expect(main.getByRole('link', {name: /^PSIRA Registered or renewal/})).toHaveAttribute('href', '/officers');
+  await expect(main.getByRole('heading', {name: 'LOKD Bolt', exact: true})).toBeVisible();
   await expect(main.getByRole('heading', {name: 'LOKD Flex', exact: true})).toBeVisible();
   await expect(main.getByRole('heading', {name: 'LOKD Fixed', exact: true})).toBeVisible();
   await readableContrast(main.locator('.home-pillars small').first());
@@ -211,9 +212,9 @@ test('security enquiry enforces fields and consent, shows server rejection and l
   const form = page.locator('form.public-form');
   const next = form.getByRole('button', {name: 'Continue', exact: true});
   await next.click();
-  await expect(form.getByRole('radio', {name: /Today \/ tomorrow/})).toBeFocused();
+  await expect(form.getByRole('radio', {name: /Urgent cover/})).toBeFocused();
   expect(offline.enquiries).toHaveLength(0);
-  await form.getByRole('radio', {name: /Ongoing cover/}).check();
+  await form.getByRole('radio', {name: /Full-time cover/}).check();
   await form.getByLabel(label('Start date')).fill(isoDate(200));
   await form.getByLabel(label('Contract term')).selectOption('3');
   await form.getByLabel(label('Roster')).selectOption('weekdays');
@@ -247,7 +248,7 @@ test('security enquiry enforces fields and consent, shows server rejection and l
   expect(offline.enquiries).toHaveLength(1);
   expect(offline.enquiries[0]).toMatchObject({
     privacyConsent: true, advanceFundingAcknowledged: true, serviceType: 'scheduled_unarmed_fixed_site', siteType: 'commercial_property',
-    booking: {coverType: 'ongoing', startDate: isoDate(200), term: '3', rosterPattern: 'weekdays', shift: 'day', officers: 2}, email: 'offline.contact@example.test', company: '',
+    booking: {coverType: 'fixed', startDate: isoDate(200), term: '3', rosterPattern: 'weekdays', shift: 'day', officers: 2}, email: 'offline.contact@example.test', company: '',
   });
   offline.enquiryResponse = {status: 202, json: {reference: 'LOKD-RECEIVED'}};
   await submit.click();
@@ -273,8 +274,8 @@ test('security enquiry enforces fields and consent, shows server rejection and l
 for (const when of ['today', 'tomorrow']) test('legacy homepage booking prefill survives the redirect: ' + when, async ({page}) => {
   await page.goto('/quote?service=armed_static&when=' + when + '#quote-form');
   await expect(page).toHaveURL(new RegExp('/book\\?service=armed_static&when=' + when + '#quote-form$'));
-  await expect(page.getByRole('radio', {name: /Today \/ tomorrow/})).toBeChecked();
-  await expect(page.getByLabel(/^When do you need cover/)).toHaveValue(when);
+  await expect(page.getByRole('radio', {name: /Urgent cover/})).toBeChecked();
+  await expect(page.getByLabel(/^Start date/)).toHaveValue(isoDate(when === 'tomorrow' ? 1 : 0));
   await page.getByRole('button', {name: 'Continue', exact: true}).click();
   await expect(page.locator('form.booking-flow').getByLabel(/^Security service/)).toHaveValue('armed_static');
   await expect(page.getByRole('heading', {name: 'Service and site', exact: true})).toBeFocused();
@@ -284,18 +285,20 @@ for (const when of ['today', 'tomorrow']) test('legacy homepage booking prefill 
 test('ongoing cover links prefill the Fixed model and expose every term and roster', async ({page}) => {
   await page.goto('/book?when=ongoing&service=armed_static');
   const form = page.locator('form.booking-flow');
-  await expect(form.getByRole('radio', {name: /Ongoing cover/})).toBeChecked();
-  await expect(form.getByLabel(/^Contract term/).locator('option:not([disabled])')).toHaveText(['1 month', '3 months', '6 months', '12 months']);
+  await expect(form.getByRole('radio', {name: /Full-time cover/})).toBeChecked();
+  await expect(form.getByLabel(/^Contract term/).locator('option:not([disabled])')).toHaveText(['3 months', '6 months', '12 months']);
   await expect(form.getByLabel(/^Roster/).locator('option:not([disabled])')).toHaveText(['Weekdays (Monday–Friday)', 'Mon–Sat', 'Daily']);
   await fitsViewport(page);
 });
 
-test('Flex request keeps the single-shift intent and retains details across Back', async ({page, intakeNetwork: offline}) => {
+test('Flex request keeps the weekly cover intent and retains details across Back', async ({page, intakeNetwork: offline}) => {
   await page.goto('/book?service=vip_unarmed');
   const form = page.locator('form.booking-flow');
   await expect(form.getByRole('heading', {name: 'How you need cover', exact: true})).not.toBeFocused();
-  await form.getByRole('radio', {name: /A specific date/}).check();
+  await form.getByRole('radio', {name: /Weekly cover/}).check();
   await form.getByLabel(/^Start date/).fill(isoDate(5));
+  await form.getByLabel(/^Cover duration/).fill('2');
+  await form.getByLabel(/^Roster/).selectOption('daily');
   await form.getByRole('button', {name: 'Continue', exact: true}).click();
   await expect(form.getByLabel(/^Security service/)).toHaveValue('vip_unarmed');
   await form.getByLabel(/^Shift/).selectOption('night');
@@ -310,7 +313,7 @@ test('Flex request keeps the single-shift intent and retains details across Back
   await expect(form.getByLabel(/^Site or venue address/)).toHaveValue('24 Rivonia Road, Sandton');
   await form.getByRole('button', {name: 'Back', exact: true}).click();
   await expect(form.getByRole('heading', {name: 'How you need cover', exact: true})).toBeFocused();
-  await expect(form.getByRole('radio', {name: /A specific date/})).toBeChecked();
+  await expect(form.getByRole('radio', {name: /Weekly cover/})).toBeChecked();
   await expect(form.getByLabel(/^Start date/)).toHaveValue(isoDate(5));
   await form.getByRole('button', {name: 'Continue', exact: true}).click();
   await expect(form.getByRole('heading', {name: 'Service and site', exact: true})).toBeFocused();
@@ -334,7 +337,7 @@ test('Flex request keeps the single-shift intent and retains details across Back
   expect(offline.enquiries).toHaveLength(0);
   await form.getByRole('button', {name: 'Request cover', exact: true}).click();
   expect(offline.enquiries).toHaveLength(1);
-  expect(offline.enquiries[0].booking).toEqual({coverType:'date',startDate:isoDate(5),shift:'night',officers:2,term:'single',rosterPattern:'daily'});
+  expect(offline.enquiries[0].booking).toEqual({coverType:'flex',startDate:isoDate(5),shift:'night',officers:2,term:'week',durationWeeks:2,rosterPattern:'daily'});
   await expect(page.getByRole('heading', {name: 'Your enquiry is with LOKD.'})).toBeVisible();
   await expect(page.getByText(/Operations will confirm the officers and the price/)).toBeVisible();
   await fitsViewport(page);

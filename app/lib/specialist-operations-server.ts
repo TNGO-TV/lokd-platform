@@ -1,9 +1,9 @@
 import {operationsMfaStatus} from './operations-mfa';
 import {productionOperatorControl} from './production-operator-control';
 import type {SigningActor} from './production-signing';
-import { SPECIALIST_PRICING_VERSION, specialistProfiles, type SpecialistServiceCode } from "./specialist-pricing";
+import { SPECIALIST_PRICING_VERSION, specialistProfiles } from "./specialist-pricing";
 import { SPECIALIST_TERMS_VERSION, evaluateSpecialistPack, quoteFingerprint, requiredSpecialistChecks } from "./specialist-operations-core";
-import type { SpecialistAction, SpecialistBooking, SpecialistCommercialReview, SpecialistEnvironment, SpecialistOperationsState, SpecialistPack, SpecialistPackContent, SpecialistPartner } from "./specialist-operations-types";
+import type { SpecialistAction, SpecialistBooking, SpecialistCommercialReview, SpecialistEnvironment, SpecialistOperationsState, SpecialistPack, SpecialistPackContent } from "./specialist-operations-types";
 import { NONPRODUCTION_REFERENCE_PATTERN } from "./stored-identifiers";
 
 export class SpecialistWorkflowError extends Error {
@@ -11,7 +11,6 @@ export class SpecialistWorkflowError extends Error {
   constructor(message: string, status = 400) { super(message); this.status=status; }
 }
 type PackRow = Omit<SpecialistPack,"content"|"blockers"> & {content:string};
-type PartnerRow = Omit<SpecialistPartner,"serviceCodes"> & {serviceCodes:string};
 const stamp=()=>new Date().toISOString().replace(/\.\d{3}Z$/,".000Z");
 const id=(prefix:string)=>`${prefix}-${crypto.randomUUID()}`;
 
@@ -53,38 +52,37 @@ export async function readSpecialistBookings(db:D1Database,environment:Specialis
 }
 
 export async function readSpecialistState(db:D1Database,environment:SpecialistEnvironment,actorEmail:string):Promise<SpecialistOperationsState> {
-  const [bookings,packRows,partnerRows,reviewRows,officers]=await Promise.all([
+  const [bookings,packRows,reviewRows,officers]=await Promise.all([
     readSpecialistBookings(db,environment),
     rows<PackRow>(db,`SELECT id,booking_id AS bookingId,status,version,content,quote_snapshot AS quoteSnapshot,prepared_by AS preparedBy,
       approved_by AS approvedBy,approved_at AS approvedAt,updated_at AS updatedAt FROM specialist_deployment_packs WHERE environment=? ORDER BY updated_at DESC LIMIT 200`,environment),
-    rows<PartnerRow>(db,`SELECT id,name,service_codes AS serviceCodes,evidence_reference AS evidenceReference,valid_from AS validFrom,expires_at AS expiresAt,
-      status,version,prepared_by AS preparedBy,approved_by AS approvedBy FROM specialist_partners WHERE environment=? ORDER BY name LIMIT 200`,environment),
     rows<SpecialistCommercialReview>(db,`SELECT id,status,version,evidence_reference AS evidenceReference,expires_at AS expiresAt,prepared_by AS preparedBy,approved_by AS approvedBy
       FROM specialist_commercial_reviews WHERE environment=? AND pricing_version=? AND terms_version=?`,environment,SPECIALIST_PRICING_VERSION,SPECIALIST_TERMS_VERSION),
     rows<{id:string;name:string}>(db,`SELECT DISTINCT o.id,o.full_name AS name FROM officers o JOIN workforce_engagements w ON w.officer_id=o.id WHERE w.environment=? ORDER BY o.full_name LIMIT 300`,environment),
   ]);
-  const partners=partnerRows.map(p=>({...p,serviceCodes:JSON.parse(p.serviceCodes) as SpecialistServiceCode[]}));
   const commercialReview=reviewRows[0]??null;
   const packs=packRows.map(p=>{
-    const content=JSON.parse(p.content) as SpecialistPackContent;
+    const stored=JSON.parse(p.content) as SpecialistPackContent;
+    const content: SpecialistPackContent={commandOwner:stored.commandOwner,clientBrief:stored.clientBrief,officerBrief:stored.officerBrief,officerIds:stored.officerIds,checks:stored.checks};
     const booking=bookings.find(b=>b.id===p.bookingId);
     const blockers=booking?evaluateSpecialistPack(booking,content,{
       commercialCurrent:commercialReview?.status==="approved" && Date.parse(commercialReview.expiresAt)>Math.max(Date.now(),Date.parse(booking.endsAt??"")),
-      partner:partners.find(x=>x.id===content.partnerId),quoteSnapshot:p.quoteSnapshot,
+      quoteSnapshot:p.quoteSnapshot,
     }).blockers:["Linked booking is unavailable."];
     return {...p,content,blockers};
   });
   // The database is authoritative for snapshot versions and revoked approvals too.
   const validations=await rows<{id:string;valid:number}>(db,`SELECT id,valid FROM specialist_pack_validation_v34 WHERE environment=?`,environment);
-  for(const pack of packs) if(!validations.some(v=>v.id===pack.id&&v.valid===1) && !pack.blockers.length) pack.blockers.push("An approval, supplier version, officer readiness or roster changed. Save and review this pack again.");
-  return {environment,actorEmail,bookings,packs,partners,officers,commercialReview};
+  for(const pack of packs) if(!validations.some(v=>v.id===pack.id&&v.valid===1) && !pack.blockers.length) pack.blockers.push("An approval, LOKD fleet authority, officer readiness or roster changed. Save and review this pack again.");
+  return {environment,actorEmail,bookings,packs,officers,commercialReview};
 }
 
 function normaliseContent(value:SpecialistPackContent,booking:SpecialistBooking,environment:SpecialistEnvironment):SpecialistPackContent {
   if(!value || typeof value!=="object" || !Array.isArray(value.officerIds)||!Array.isArray(value.checks)) throw new SpecialistWorkflowError("The deployment pack is incomplete.");
+  if(Object.keys(value).some(key=>!['commandOwner','clientBrief','officerBrief','officerIds','checks'].includes(key)))throw new SpecialistWorkflowError('Unsupported deployment pack field.');
   if(value.officerIds.length>100 || value.checks.length>1000) throw new SpecialistWorkflowError("The deployment pack is too large.");
   const officerIds=[...new Set(value.officerIds.map(x=>text(x,"Officer",100)))];
-  const content={commandOwner:typeof value.commandOwner==="string"?value.commandOwner.trim().slice(0,200):"",clientBrief:typeof value.clientBrief==="string"?value.clientBrief.trim().slice(0,4000):"",officerBrief:typeof value.officerBrief==="string"?value.officerBrief.trim().slice(0,8000):"",officerIds,partnerId:typeof value.partnerId==="string"?value.partnerId.trim().slice(0,100):"",checks:[] as SpecialistPackContent["checks"]};
+  const content={commandOwner:typeof value.commandOwner==="string"?value.commandOwner.trim().slice(0,200):"",clientBrief:typeof value.clientBrief==="string"?value.clientBrief.trim().slice(0,4000):"",officerBrief:typeof value.officerBrief==="string"?value.officerBrief.trim().slice(0,8000):"",officerIds,checks:[] as SpecialistPackContent["checks"]};
   const allowed=new Set(requiredSpecialistChecks(booking,officerIds).map(x=>x.code));
   for(const check of value.checks) {
     if(!check||!allowed.has(check.code)||!check.reference) continue;
@@ -114,17 +112,15 @@ export async function applySpecialistAction(db:D1Database,environment:Specialist
     if(!booking) throw new SpecialistWorkflowError("Select an existing specialist booking in this environment.",404);
     const content=normaliseContent(action.content,booking,environment);
     if(content.officerIds.some(officer=>!state.officers.some(x=>x.id===officer))) throw new SpecialistWorkflowError("Every officer must have an engagement in this environment.");
-    const partner=state.partners.find(p=>p.id===content.partnerId);
-    if(content.partnerId&&!partner) throw new SpecialistWorkflowError("Select a partner from this environment.");
     const existing=state.packs.find(p=>p.bookingId===booking.id);
     if(existing) {
       await mutate(db.prepare(`UPDATE specialist_deployment_packs SET content=?,quote_snapshot=?,status='draft',version=version+1,
         prepared_by=?,approved_by=NULL,approved_at=NULL,commercial_review_id=?,commercial_review_version=?,partner_id=?,partner_version=?,updated_at=?
-        WHERE id=? AND environment=? AND version=?`).bind(JSON.stringify(content),quoteFingerprint(booking),actor,state.commercialReview?.id??null,state.commercialReview?.version??0,partner?.id??null,partner?.version??0,now,existing.id,environment,version(action.version)));
+        WHERE id=? AND environment=? AND version=?`).bind(JSON.stringify(content),quoteFingerprint(booking),actor,state.commercialReview?.id??null,state.commercialReview?.version??0,null,0,now,existing.id,environment,version(action.version)));
     } else {
       if(version(action.version)!==0) throw new SpecialistWorkflowError("Refresh this booking before creating its pack.",409);
       await db.prepare(`INSERT INTO specialist_deployment_packs (id,booking_id,environment,integrity_state,status,version,content,quote_snapshot,commercial_review_id,commercial_review_version,partner_id,partner_version,prepared_by,updated_at)
-        VALUES (?,?,?,?,'draft',1,?,?,?,?,?,?,?,?)`).bind(id("SP"),booking.id,environment,"recorded",JSON.stringify(content),quoteFingerprint(booking),state.commercialReview?.id??null,state.commercialReview?.version??0,partner?.id??null,partner?.version??0,actor,now).run();
+        VALUES (?,?,?,?,'draft',1,?,?,?,?,?,?,?,?)`).bind(id("SP"),booking.id,environment,"recorded",JSON.stringify(content),quoteFingerprint(booking),state.commercialReview?.id??null,state.commercialReview?.version??0,null,0,actor,now).run();
     }
   } else if(action.action==="submit_pack" || action.action==="approve_pack" || action.action==="revoke_pack") {
     if(!pack||!booking) throw new SpecialistWorkflowError("Deployment pack not found.",404);
@@ -152,20 +148,7 @@ export async function applySpecialistAction(db:D1Database,environment:Specialist
     if(approving && Date.parse(current.expiresAt)<=Date.now()) throw new SpecialistWorkflowError("The review has expired.",409);
     await mutate(db.prepare(`UPDATE specialist_commercial_reviews SET status=?,version=version+1,approved_by=?,approved_at=?,updated_at=?
       WHERE id=? AND environment=? AND version=? AND status=?`).bind(approving?"approved":"revoked",approving?actor:null,approving?now:null,now,current.id,environment,version(action.version),approving?"review":current.status));
-  } else if(action.action==="add_partner") {
-    if(!Array.isArray(action.serviceCodes)||!action.serviceCodes.length||action.serviceCodes.some(c=>!Object.hasOwn(specialistProfiles,c)||c==="standard_unarmed")) throw new SpecialistWorkflowError("Select supported specialist services.");
-    const from=date(action.validFrom,"Partner evidence start"),until=date(action.expiresAt,"Partner evidence expiry");
-    if(Date.parse(from)>Date.now()||Date.parse(until)<=Date.now()) throw new SpecialistWorkflowError("Partner evidence must be current.");
-    await db.prepare(`INSERT INTO specialist_partners (id,name,service_codes,environment,integrity_state,evidence_reference,valid_from,expires_at,status,version,prepared_by,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,'review',1,?,?)`).bind(id("SUP"),text(action.name,"Partner name",200),JSON.stringify([...new Set(action.serviceCodes)]),environment,"recorded",evidenceRef(action.evidenceReference,environment),from,until,actor,now).run();
-  } else if(action.action==="approve_partner" || action.action==="revoke_partner") {
-    const current=state.partners.find(p=>p.id===action.id); if(!current) throw new SpecialistWorkflowError("Partner not found.",404);
-    const approving=action.action==="approve_partner";
-    if(approving && current.preparedBy===actor) throw new SpecialistWorkflowError("A different named operator must verify the partner.",403);
-    if(approving && Date.parse(current.expiresAt)<=Date.now()) throw new SpecialistWorkflowError("Partner evidence has expired.",409);
-    await mutate(db.prepare(`UPDATE specialist_partners SET status=?,version=version+1,approved_by=?,approved_at=?,updated_at=?
-      WHERE id=? AND environment=? AND version=? AND status=?`).bind(approving?"approved":"revoked",approving?actor:null,approving?now:null,now,current.id,environment,version(action.version),approving?"review":current.status));
-  } else throw new SpecialistWorkflowError("Choose a supported specialist action.");
+  } else { throw new SpecialistWorkflowError("Choose a supported LOKD specialist action."); }
   await db.prepare(`INSERT INTO audit_events (id,actor_type,actor_id,event_type,entity_type,entity_id,detail,created_at)
     VALUES (?,'operations',?,'specialist_workflow_action','specialist_workflow',?,?,?)`)
     .bind(id("SA"),actor,"id" in action?action.id:"bookingId" in action?action.bookingId:environment,JSON.stringify({action:action.action,environment}),now).run();

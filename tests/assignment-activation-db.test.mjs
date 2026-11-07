@@ -237,7 +237,7 @@ async function seedValid(database, secondOfficer = false) {
     (id,client_id,site_name,site_area,post_name,service_type,purpose_code,purpose_label,engagement_model,
      calendar_category,calendar_label,minimum_grade,contract_months,start_date,end_date,shift_start,shift_end,
      client_price_cents,officer_rate_cents,pricing_version,environment,integrity_state,funding_status,release_cadence,status)
-    VALUES ('BK-1','CL-1','Fixture Site','Johannesburg','Gate','Unarmed','commercial_access','Commercial access','flex',
+    VALUES ('BK-1','CL-1','Fixture Site','Johannesburg','Gate','Unarmed','commercial_access','Commercial access','bolt',
      'christmas','Christmas peak day','Grade C',0,'2039-12-25','2039-12-25','20:00','08:00',350000,200000,
      'LOKD-PREMIUM-2026.09','production','production_verified','paid_in_full','Weekly','matching')`);
   run(database, `INSERT INTO operational_sites
@@ -314,7 +314,7 @@ async function moveCandidateToCheckInWindow(database) {
   const economics = officerShiftEconomicsForRoster({
     serviceType: "Unarmed",
     riskBand: "Standard",
-    engagementModel: "flex",
+    engagementModel: "bolt",
     serviceDate: starts.slice(0, 10),
     startsAt: starts,
   });
@@ -689,17 +689,13 @@ test("stale concurrent Direct Flex activations cannot exceed the same-week ceili
   database.close();
 });
 
-for (const route of ["managed", "partner"]) {
+for (const route of ["managed"]) {
   test(`${route} activation freezes the correct employer and payroll route`, async () => {
     const database = migratedDatabase();
     await seedValid(database);
     if (route === "managed") {
       run(database, `UPDATE workforce_engagements SET model='managed',weekly_hour_cap=NULL WHERE id='WE-1'`);
       run(database, `UPDATE bookings SET engagement_model='fixed' WHERE id='BK-1'`);
-    } else {
-      run(database, `UPDATE workforce_engagements SET model='partner',weekly_hour_cap=NULL,
-        payroll_status='partner_confirmed',benefits_status='partner_confirmed' WHERE id='WE-1'`);
-      run(database, `UPDATE workforce_employers SET employer_type='partner_company',legal_name='Approved Partner Security' WHERE id='EMP-1'`);
     }
     await signFixtureAgreements(database);
     const db = new D1Adapter(database);
@@ -708,15 +704,15 @@ for (const route of ["managed", "partner"]) {
     const snapshot = database.prepare(`SELECT workforce_model AS model,employer_legal_name AS employer,
       statutory_cost_cents AS statutoryCost FROM assignment_activation_snapshots`).get();
     assert.equal(snapshot.model, route);
-    assert.equal(snapshot.employer, route === "partner" ? "Approved Partner Security" : "LOKD Security");
-    assert.equal(snapshot.statutoryCost, route === "partner" ? 0 : 30000);
-    assert.equal(JSON.parse(database.prepare('SELECT site_evidence FROM assignment_activation_snapshots').get().site_evidence).bookingModel,route==='managed'?'fixed':'flex');
+    assert.equal(snapshot.employer, "LOKD Security");
+    assert.equal(snapshot.statutoryCost, 30000);
+    assert.equal(JSON.parse(database.prepare('SELECT site_evidence FROM assignment_activation_snapshots').get().site_evidence).bookingModel,'fixed');
     assert.equal(count(database, "workforce_hour_reservations"), 0);
     database.close();
   });
 }
 
-for (const [bookingModel,workforceModel] of [['flex','managed'],['fixed','direct_flex']]) {
+for (const [bookingModel,workforceModel] of [['bolt','managed'],['flex','direct_flex'],['fixed','direct_flex']]) {
   test(`${bookingModel} booking cannot activate the ${workforceModel} workforce route`,async()=>{
     const database=migratedDatabase();
     try {
@@ -724,7 +720,7 @@ for (const [bookingModel,workforceModel] of [['flex','managed'],['fixed','direct
       run(database,'UPDATE bookings SET engagement_model=? WHERE id=\'BK-1\'',bookingModel);
       run(database,'UPDATE workforce_engagements SET model=? WHERE id=\'WE-1\'',workforceModel);
       await signFixtureAgreements(database);
-      await assert.rejects(()=>activateAssignment(new D1Adapter(database),request('booking-route:'+bookingModel),'ops@example.test'),/LOKD (Flex|Fixed) assignments require/);
+      await assert.rejects(()=>activateAssignment(new D1Adapter(database),request('booking-route:'+bookingModel),'ops@example.test'),/LOKD (Bolt|Flex|Fixed).*require/);
       assert.equal(database.prepare("SELECT COUNT(*) AS count FROM assignment_activation_blockers WHERE code='BOOKING_WORKFORCE_ROUTE_MISMATCH'").get().count,1);
       for(const table of ['shifts','roster_assignments','assignment_workforce_snapshots','assignment_activation_snapshots'])assert.equal(count(database,table),0,table);
     } finally {database.close();}
@@ -1629,7 +1625,7 @@ test('production intake prepares pending records and reconciles reviewed correct
  assert.equal(database.prepare('SELECT approval_status FROM clients WHERE id=?').get(prepared.entityId).approval_status,'approved');
  assert.equal((await reviewProductionClient(db,owner,decision)).alreadyRecorded,true);
  const {prepareProductionOrder,readProductionOrders}=await import('../app/lib/production-orders.ts');
- const quoteRequest={serviceType:'Unarmed',engagementModel:'flex',term:'single',purposeCode:'commercial_access',startDate:new Date(Date.now()+7*86400000).toISOString().slice(0,10),shift:'day',rosterPattern:'daily',riskInput:{assetExposure:'standard',publicAccess:'controlled',incidentHistory:'none',existingControls:'strong',nightOperation:false,vulnerablePeople:false}};
+ const quoteRequest={serviceType:'Unarmed',engagementModel:'bolt',term:'single',purposeCode:'commercial_access',startDate:new Date(Date.now()+1*86400000).toISOString().slice(0,10),shift:'day',rosterPattern:'daily',riskInput:{assetExposure:'standard',publicAccess:'controlled',incidentHistory:'none',existingControls:'strong',nightOperation:false,vulnerablePeople:false}};
  const quoted=await prepareProductionOrder(db,reviewer,{action:'quote_order',quoteRequest});
  const order={action:'prepare_order',orderReference:'isolated-client-review-order',clientId:prepared.entityId,caseVersion:4,quoteRequest,quoteHash:quoted.quoteHash,siteName:'Fixture Site',siteArea:'Sandton',address:'Fixture address',postName:'Gate',instructions:'Fixture post orders awaiting review.',latitude:-26.1,longitude:28.05,contractingEntityId:'FIXTURE-ENTITY'};
  await assert.rejects(()=>prepareProductionOrder(db,{...applicant,owner:false},order),/Operations/);
@@ -2026,149 +2022,8 @@ test('production destinations bind exact employee evidence with independent fres
  let raced=false;const holdDuringRead=async(...args)=>{const response=await transport(...args);if(!raced){raced=true;await operate(db,reviewer,command('hold_destination'),headers,runtime,transport);}return response;};
  await assert.rejects(()=>operate(db,reviewer,command(),headers,runtime,holdDuringRead),/source, hold/);assert.equal(row().status,'held');
  for(const table of ['payment_destination_reviews','payment_destination_decisions','payment_destination_holds'])assert.throws(()=>database.exec('DELETE FROM '+table),/immutable/);
- // Even after an employer-model change, a personal recipient cannot become a company mandate.
- const {operatePartnerDestination}=await import('../app/lib/partner-destinations.ts');
- for(const [actor,role] of [[maker,'operations_controller'],[reviewer,'finance_approver']])await operateProduction(db,reviewer,{action:'grant_operator',email:actor.email,role,limitCents:10000000},headers);
- run(database,"UPDATE workforce_employers SET employer_type='partner_company',version=version+1 WHERE id='EMP-1'");
- const company=await operatePartnerDestination(db,maker,{...input,action:'prepare_partner_destination',requestKey:'employee-account-company-conflict',employerId:'EMP-1',mode:'live',representativeUserId:'independent-company-user',representativeReference:'vault:fixture:authority',representativeHash:'d'.repeat(64),companyReference:'vault:fixture:registration',companyHash:'e'.repeat(64)},headers,runtime,transport);
- const companyRow=database.prepare('SELECT * FROM partner_destination_current WHERE id=?').get(company.destinationId);
- await assert.rejects(()=>operatePartnerDestination(db,reviewer,{action:'approve_partner_destination',destinationId:companyRow.id,payloadHash:companyRow.payload_hash,note:'Company and personal recipients must stay separate.',evidenceReviewed:true,accountNumber:'1234567890'},headers,runtime,transport),/Employee and company/);
+ assert.throws(()=>run(database,"UPDATE workforce_employers SET employer_type='partner_company',version=version+1 WHERE id='EMP-1'"),/lokd_employer_required/);
  assert.equal(count(database,'disbursement_items'),0);assert.equal(count(database,'payroll_runs'),0);database.close();
-});
-
-test('legacy partner service history independently allocates invoice evidence and suspends unpaid exports',async(testContext)=>{
- const {recordProductionService,readProductionService}=await import('../app/lib/production-service.ts');
-
- const {operatePartnerPayable,readPartnerPayables,exportPartnerPayableCsv}=await import('../app/lib/partner-payables.ts');
-
- const database=migratedDatabase();await seedValid(database);await moveCandidateToCheckInWindow(database);
- run(database,"UPDATE workforce_engagements SET model='partner',weekly_hour_cap=NULL,payroll_status='partner_confirmed',benefits_status='partner_confirmed' WHERE id='WE-1'");
- run(database,"UPDATE workforce_employers SET employer_type='partner_company',legal_name='Approved Partner Security' WHERE id='EMP-1'");await signFixtureAgreements(database);
- const db=new D1Adapter(database),headers=operatorHeaders();
- const maker={userId:process.env.LOKD_PARTNER_MAKER_USER||'partner-maker',email:process.env.LOKD_PARTNER_MAKER_EMAIL||'partner-maker@example.test',operations:true,owner:false};
- const finance={userId:process.env.LOKD_PARTNER_FINANCE_USER||'partner-finance',email:process.env.LOKD_PARTNER_FINANCE_EMAIL||'partner-finance@example.test',operations:true,owner:true};
- const officer={userId:process.env.LOKD_PARTNER_OFFICER_USER||'partner-officer',email:process.env.LOKD_PARTNER_OFFICER_EMAIL||'partner-officer@example.test',operations:false,owner:false};
- const client={userId:process.env.LOKD_PARTNER_CLIENT_USER||'partner-client',email:process.env.LOKD_PARTNER_CLIENT_EMAIL||'partner-client@example.test',operations:false,owner:false};
- const activation=await activateAssignment(db,request('partner:service'),'fixture');await passDueScheduledCheckpoints(db);
- // Keep legacy completed-service finance coverage without granting a linked officer readiness.
- const checked=await revalidateAssignment(db,activation.shiftId,'check_in',officer.userId,true);assert.equal(checked.ready,true,JSON.stringify(checked.blockers));
- run(database,"INSERT INTO production_entity_links VALUES('officer','partner-officer-case',1,?,'OFF-1','fixture',?)",officer.userId,new Date().toISOString());
- run(database,"INSERT INTO production_entity_links VALUES('client','partner-client-case',1,?,'CL-1','fixture',?)",client.userId,new Date().toISOString());
- await recordProductionService(db,officer,{action:'complete_service',shiftId:activation.shiftId,note:'Fixture completed partner service.'});
- let t=(await readProductionService(db,client)).timesheets[0];
- await recordProductionService(db,client,{action:'client_signoff',shiftId:activation.shiftId,version:t.version,note:'Fixture client confirms actual service.',serviceEvidenceReviewed:true});
- for(const [actor,role] of [[finance,'finance_approver'],[finance,'payroll_reviewer'],[maker,'operations_controller'],[maker,'finance_approver']])await operateProduction(db,finance,{action:'grant_operator',email:actor.email,role,limitCents:1000000},headers);
- t=(await readProductionService(db,finance)).timesheets[0];await recordProductionService(db,finance,{action:'review_service_pay',shiftId:activation.shiftId,version:t.version,payableMinutes:t.recorded_minutes,grossCents:80000,payEvidenceReviewed:true,note:'Fixture independent contracted wage and attendance review.'},operatorHeaders(finance));
- t=(await readProductionService(db,finance)).timesheets[0];
- const prepare={action:'prepare_partner_payable',requestKey:'partner-invoice-001',timesheetId:t.id,invoiceNumber:'INV-001',invoiceLine:'01',invoiceDate:new Date().toISOString().slice(0,10),dueDate:new Date().toISOString().slice(0,10),netCents:120000,taxCents:18000,invoiceReference:'vault:partner/invoice-001',invoiceHash:'a'.repeat(64),agreementReference:'vault:partner/signed-agreement',agreementHash:'b'.repeat(64),agreementVersion:'PARTNER-v1',taxEvidenceReference:'vault:partner/tax-review',note:'Fixture invoice line reconciled to actual contracted service.',expiresAt:new Date(Date.now()+3600000).toISOString(),sourcesReviewed:true};
- assert.equal((await readPartnerPayables(db,maker)).partnerPayableCandidates.length,1);
- for(const actor of [officer,client]){assert.equal((await readPartnerPayables(db,actor)).partnerPayableAccess,false);await assert.rejects(()=>operatePartnerPayable(db,actor,prepare,headers),/Operations/);}
- await assert.rejects(()=>operatePartnerPayable(db,maker,{...prepare,netCents:1.5},headers),/whole ZAR/);
- await assert.rejects(()=>operatePartnerPayable(db,maker,{...prepare,invoiceReference:'https://public.test/invoice'},headers),/secure source/);
- const prepared=await operatePartnerPayable(db,maker,prepare,headers);assert.equal((await operatePartnerPayable(db,maker,prepare,headers)).alreadyPrepared,true);
- await assert.rejects(()=>operatePartnerPayable(db,maker,{...prepare,taxCents:0},headers),/different invoice/);
- let r=database.prepare('SELECT * FROM production_partner_payable_current WHERE id=?').get(prepared.reviewId);assert.equal(r.status,'pending');
- const approve={action:'approve_partner_payable',reviewId:r.id,payloadHash:r.payload_hash,note:'Fixture independent finance verifies invoice, tax, agreement and service.',sourcesReviewed:true};
- await assert.rejects(()=>operatePartnerPayable(db,maker,approve,headers),/independent|maker|second|own/i);
- await assert.rejects(()=>operatePartnerPayable(db,finance,{...approve,payloadHash:'c'.repeat(64)},headers),/exact invoice/);
- await assert.rejects(()=>exportPartnerPayableCsv(db,finance,r.id,headers),/Approve and export/);
- // A source revision between the application's read and atomic decision must fail closed.
- db.afterRead=({sql})=>{if(sql==='SELECT * FROM production_partner_payable_current WHERE id=?'){db.afterRead=null;run(database,"UPDATE workforce_employers SET version=version+1 WHERE id='EMP-1'");}};
- await assert.rejects(()=>operatePartnerPayable(db,finance,approve,headers),/source|changed/i);assert.equal(count(database,'production_partner_payable_decisions'),0);assert.equal(count(database,'partner_payables'),0);
- run(database,"UPDATE workforce_employers SET version=version-1 WHERE id='EMP-1'");
- const rejected=await operatePartnerPayable(db,maker,{...prepare,requestKey:'partner-rejected',invoiceLine:'02'},headers),rejectedRow=database.prepare('SELECT * FROM production_partner_payable_current WHERE id=?').get(rejected.reviewId);
- await operatePartnerPayable(db,finance,{...approve,action:'reject_partner_payable',reviewId:rejected.reviewId,payloadHash:rejectedRow.payload_hash},headers);
- await assert.rejects(()=>operatePartnerPayable(db,finance,{...approve,reviewId:rejected.reviewId,payloadHash:rejectedRow.payload_hash},headers),/final/);
- if(process.env.LOKD_PARTNER_FIXTURE_EXPORT){const target=process.env.LOKD_PARTNER_FIXTURE_EXPORT;assert.match(target,/^\/tmp\/lokd-[a-z0-9-]+\.sqlite$/);assert.equal(fs.existsSync(target),false);database.prepare('VACUUM INTO ?').run(target);}
- await operatePartnerPayable(db,finance,approve,headers);assert.equal((await operatePartnerPayable(db,finance,approve,headers)).alreadyDecided,true);
- const payable=database.prepare('SELECT * FROM partner_payables').get();assert.equal(payable.amount_cents,138000);assert.notEqual(payable.amount_cents,t.gross_cents);assert.equal(payable.status,'approved_unpaid');assert.equal(payable.remittance_reference,null);
- assert.equal(count(database,'payroll_runs'),0);assert.equal((await readPartnerPayables(db,maker)).partnerPayableCandidates.length,0);
- await testContext.test('partner payment instructions bind invoice and mandate with durable isolated live recovery',async()=>{const {partnerPaymentJourney}=await import('./fixtures/partner-payment-journey.mjs');await partnerPaymentJourney({database,db,maker,owner:finance,finance,officer,client,headers,payableId:payable.id});});
- await assert.rejects(()=>operatePartnerPayable(db,maker,{...prepare,requestKey:'duplicate'},headers),/changed/);
- assert.throws(()=>database.exec("UPDATE partner_payables SET status='paid'"),/immutable/);
- await operatePartnerPayable(db,finance,{...approve,action:'export_partner_payable'},headers);
- const csv=await exportPartnerPayableCsv(db,finance,r.id,headers);assert.match(csv,/138000/);assert.match(csv,/NOT_PAID/);assert.doesNotMatch(csv,/vault:|signed-agreement/);
- run(database,"UPDATE workforce_employers SET version=version+1 WHERE id='EMP-1'");await assert.rejects(()=>exportPartnerPayableCsv(db,finance,r.id,headers),/current/);
- run(database,"UPDATE workforce_employers SET version=version-1 WHERE id='EMP-1'");
- await operatePartnerPayable(db,finance,{...approve,action:'hold_partner_payable',note:'Fixture conflicting invoice evidence requires permanent suspension.'},headers);
- await assert.rejects(()=>exportPartnerPayableCsv(db,finance,r.id,headers),/unsuspended/);assert.equal(database.prepare('SELECT status FROM production_partner_payable_current WHERE id=?').get(r.id).status,'held');
- const {readPartnerPayments}=await import('../app/lib/partner-payments.ts');const heldPayments=await readPartnerPayments(db,finance);assert.equal(heldPayments.partnerPaymentCandidates.length,0);assert.equal(heldPayments.partnerPayments.every(i=>!i.current),true);
- assert.throws(()=>database.exec('DELETE FROM production_partner_payable_holds'),/immutable/);
- await assert.rejects(()=>recordProductionService(db,finance,{action:'reopen_service_pay',shiftId:activation.shiftId,version:t.version,note:'Attempt correction after company invoice allocation.'},operatorHeaders(finance)),/partner|consum|payroll|allocated/i);
- database.close();
-});
-
-test('production partner destinations bind exact company evidence with independent fresh provider review and terminal recovery',async()=>{
- const {operatePartnerDestination:operate,readPartnerDestinations:read}=await import('../app/lib/partner-destinations.ts');
-
- const database=migratedDatabase();await seedValid(database);const db=new D1Adapter(database),headers=operatorHeaders();
- const users=JSON.parse(process.env.LOKD_PARTNER_DESTINATION_BROWSER_USERS??'{}'),emails=JSON.parse(process.env.LOKD_PARTNER_DESTINATION_BROWSER_EMAILS??'{}');
- const maker={userId:users.operations??'destination-maker',email:emails.operations??'destination-maker@example.test',operations:true,owner:false},reviewer={userId:users.owner??'destination-reviewer',email:emails.owner??'destination-reviewer@example.test',operations:true,owner:true},officer={userId:users.officer??'destination-officer',email:emails.officer??'destination-officer@example.test',operations:false,owner:false};
- for(const [a,roles] of [[maker,['operations_controller','finance_approver']],[reviewer,['finance_approver']]])for(const role of roles)await operateProduction(db,reviewer,{action:'grant_operator',email:a.email,role,limitCents:10000000},headers);
- run(database,"UPDATE workforce_employers SET employer_type='partner_company',legal_name='Fixture Partner' WHERE id='EMP-1'");
- const runtime={PAYSTACK_LIVE_SECRET_KEY:'sk_live_destination_fixture'};
- const recipient={id:123,integration:456,recipient_code:'RCP_fixture001',domain:'live',type:'basa',currency:'ZAR',active:true,is_deleted:false,name:'Fixture Employee',updatedAt:'2026-09-01T00:00:00.000Z',details:{account_number:'1234567890',bank_code:'632005',bank_name:'Fixture bank',account_name:'Fixture Employee'}};
- let calls=0;const transport=async(url,options)=>{calls++;assert.equal(url,'https://api.paystack.co/transferrecipient/RCP_fixture001');assert.equal(options.method,'GET');assert.equal(options.redirect,'manual');return Response.json({status:true,data:recipient});};
- const input={action:'prepare_partner_destination',requestKey:'destination-1',employerId:'EMP-1',mode:'live',recipientCode:recipient.recipient_code,accountNumber:'1234567890',integrationId:'456',ownershipReference:'vault:fixture:ownership-v1',ownershipHash:'a'.repeat(64),mandateReference:'vault:fixture:mandate-v1',mandateHash:'b'.repeat(64),capabilityReference:'vault:fixture:capability-v1',capabilityHash:'c'.repeat(64),expiresAt:new Date(Date.now()+3600000).toISOString(),representativeUserId:'company-representative',representativeReference:'vault:fixture:authority',representativeHash:'d'.repeat(64),companyReference:'vault:fixture:company',companyHash:'e'.repeat(64),documentsReviewed:true,capabilityReviewed:true,note:'Isolated fixture ownership and salary mandate; no production source approval.'};
- const prepare=(patch={})=>operate(db,maker,{...input,...patch},headers,runtime,transport);
- await assert.rejects(()=>operate(db,officer,input,headers,runtime,transport),/Operations/);
- await assert.rejects(()=>prepare({employerId:'missing'}),/current/);
- await assert.rejects(()=>prepare({accountNumber:'9999999999'}),/must agree/);
- await assert.rejects(()=>prepare({mode:'invalid'}),/live provider mode/);await assert.rejects(()=>prepare({mode:'test'}),/live provider mode/);
- await assert.rejects(()=>prepare({representativeUserId:maker.userId}),/representative/);
- await assert.rejects(()=>prepare({companyReference:'https://public.example/doc'}),/secure/);
- await assert.rejects(()=>prepare({representativeHash:''}),/digest/);
- await assert.rejects(()=>prepare({integrationId:'999'}),/must agree/);
- let prepared=await prepare(),id=prepared.destinationId;
- const row=()=>database.prepare('SELECT * FROM partner_destination_current WHERE id=?').get(id);
- const command=(action='approve_partner_destination',patch={})=>({action,destinationId:id,payloadHash:row().payload_hash,note:'Independent fixture review of exact ownership, mandate and capability.',evidenceReviewed:true,accountNumber:'1234567890',...patch});
- await assert.rejects(()=>operate(db,{...reviewer,userId:'company-representative'},command(),headers,runtime,transport),/representative/);
- assert.equal(row().status,'pending');const callCount=calls;assert.equal((await prepare()).alreadyPrepared,true);assert.equal(calls,callCount);
- await assert.rejects(()=>prepare({mandateHash:'d'.repeat(64)}),/different evidence/);
- assert.equal(row().payload_json.includes('1234567890'),false);assert.equal(row().payload_json.includes('Fixture Employee'),false);
- await assert.rejects(()=>operate(db,maker,command(),headers,runtime,transport),/maker/);
- await assert.rejects(()=>operate(db,reviewer,command('approve_partner_destination',{accountNumber:'9999999999'}),headers,runtime,transport),/does not match/);
- await assert.rejects(()=>operate(db,reviewer,command('approve_partner_destination',{payloadHash:'wrong'}),headers,runtime,transport),/exact/);
- await assert.rejects(()=>operate(db,reviewer,command(),headers,runtime,async()=>{throw Error('timeout');}),/unavailable/);assert.equal(row().status,'pending');
- await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'verified_live');
- assert.equal((await operate(db,reviewer,command(),headers,runtime,transport)).alreadyDecided,true);
- assert.equal((await read(db,officer)).partnerDestinationReviews.length,0);assert.equal((await read(db,{...officer,userId:'other-client'})).partnerDestinationCandidates.length,0);assert.equal((await read(db,{...maker,email:'ungranted@example.test'})).partnerDestinationAccess,false);
- // A second legal company cannot adopt a previously approved company account.
- const employerCols=database.prepare('PRAGMA table_info(workforce_employers)').all().map(c=>c.name);
- database.exec('INSERT INTO workforce_employers SELECT '+employerCols.map(c=>c==='id'?"'EMP-2'":c==='legal_name'?"'Second Fixture Company'":c).join(',')+" FROM workforce_employers WHERE id='EMP-1'");
- const evidenceCols=database.prepare('PRAGMA table_info(employer_compliance_evidence)').all().map(c=>c.name);
- database.exec('INSERT INTO employer_compliance_evidence SELECT '+evidenceCols.map(c=>c==='id'?"id||'-second'":c==='employer_id'?"'EMP-2'":c==='active_key'?"'EMP-2:'||control_code":c).join(',')+" FROM employer_compliance_evidence WHERE employer_id='EMP-1'");
- const original=id;id=(await prepare({requestKey:'second-company-account',employerId:'EMP-2'})).destinationId;
- await assert.rejects(()=>operate(db,reviewer,command(),headers,runtime,transport),/source, hold/);
- assert.equal(row().status,'pending');id=original;
- const first=id;await assert.rejects(()=>prepare({requestKey:'replacement-no-reference'}),/Explicitly/);
- id=(await prepare({requestKey:'destination-2',supersedesId:first})).destinationId;
- await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'verified_live');assert.equal(database.prepare('SELECT status FROM partner_destination_current WHERE id=?').get(first).status,'superseded');
- const second=id;id=(await prepare({requestKey:'destination-3',supersedesId:second})).destinationId;
- if(process.env.LOKD_PARTNER_DESTINATION_FIXTURE_EXPORT){const path=process.env.LOKD_PARTNER_DESTINATION_FIXTURE_EXPORT;assert.match(path,/^\/tmp\/lokd-[a-z0-9-]+\.sqlite$/);assert.equal(fs.existsSync(path),false);database.prepare('VACUUM INTO ?').run(path);}
- recipient.details.account_number='9999999999';await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'held');recipient.details.account_number='1234567890';
- await assert.rejects(()=>operate(db,reviewer,command(),headers,runtime,transport),/within 30 minutes/);
- id=second;await operate(db,reviewer,command('hold_partner_destination'),headers,runtime,transport);assert.equal(row().status,'held');assert.equal(database.prepare('SELECT status FROM partner_destination_current WHERE id=?').get(first).status,'superseded');
- id=(await prepare({requestKey:'destination-live',supersedesId:second})).destinationId;
- await assert.rejects(()=>operate(db,reviewer,command(),headers,{},transport),/not configured/);
- await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'verified_live');
- await operate(db,reviewer,command('recheck_partner_destination'),headers,runtime,async()=>{throw Error('timeout');});assert.equal(row().status,'held');
- id=(await prepare({requestKey:'destination-live-race',mode:'live',supersedesId:id})).destinationId;
- const raceTransport=async(...args)=>{const result=await transport(...args);run(database,"UPDATE workforce_employers SET version=version+1 WHERE id='EMP-1'");return result;};
- await assert.rejects(()=>operate(db,reviewer,command(),headers,runtime,raceTransport),/source.*changed/);assert.equal(row().status,'source_changed');
- const lastLive=database.prepare("SELECT r.id FROM partner_destination_reviews r JOIN partner_destination_decisions d ON d.review_id=r.id WHERE d.decision='verified_live' ORDER BY r.revision DESC LIMIT 1").get().id;
- id=(await prepare({requestKey:'destination-recovered',mode:'live',supersedesId:lastLive})).destinationId;
- await operate(db,reviewer,command(),headers,runtime,transport);assert.equal(row().status,'verified_live');
- const makerOp=database.prepare('SELECT id FROM operator_accounts WHERE email=?').get(maker.email).id;
- run(database,"UPDATE operator_accounts SET status='suspended' WHERE id=?",makerOp);assert.equal(row().status,'authority_changed');
- run(database,"UPDATE operator_accounts SET status='active' WHERE id=?",makerOp);
- const recovered=id;id=(await prepare({requestKey:'destination-expiry',mode:'live',supersedesId:recovered,expiresAt:new Date(Date.now()+1000).toISOString()})).destinationId;
- await new Promise(resolve=>setTimeout(resolve,1100));assert.equal(row().status,'expired');await assert.rejects(()=>operate(db,reviewer,command(),headers,runtime,transport),/within 30 minutes/);
- id=(await prepare({requestKey:'destination-approval-race',mode:'live',supersedesId:recovered})).destinationId;
- let raced=false;const holdDuringRead=async(...args)=>{const response=await transport(...args);if(!raced){raced=true;await operate(db,reviewer,command('hold_partner_destination'),headers,runtime,transport);}return response;};
- await assert.rejects(()=>operate(db,reviewer,command(),headers,runtime,holdDuringRead),/source, hold/);assert.equal(row().status,'held');
- for(const table of ['partner_destination_reviews','partner_destination_decisions','partner_destination_holds'])assert.throws(()=>database.exec('DELETE FROM '+table),/immutable/);
- assert.equal(count(database,'partner_payables'),0);assert.equal(count(database,'employee_payment_instructions'),0);assert.equal(count(database,'disbursement_items'),0);assert.equal(count(database,'payroll_runs'),0);database.close();
 });
 
 

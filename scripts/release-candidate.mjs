@@ -132,10 +132,10 @@ function validations() {
     && Array.isArray(browser.errors) && browser.errors.length === 0,
   'All 38 isolated desktop/mobile browser checks must pass.');
   const integrated = json('test-results/integrated-browser/browser.json');
-  requireCondition(integrated?.stats?.expected === 90 && integrated.stats.unexpected === 0
+  requireCondition(integrated?.stats?.expected === 92 && integrated.stats.unexpected === 0
     && integrated.stats.flaky === 0 && integrated.stats.skipped === 0
     && Array.isArray(integrated.errors) && integrated.errors.length === 0,
-  'All 90 integrated desktop/mobile browser checks must pass.');
+  'All 92 integrated desktop/mobile browser checks must pass.');
   const audit = json('test-results/dependency-audit.json');
   requireCondition([0, 1].includes(audit.npmExit), 'Audit evidence needs a completed npm process.');
   requireCondition(audit.assessment?.ok === true && Array.isArray(audit.assessment.blocked) && audit.assessment.blocked.length === 0, 'Audit assessment must pass with no blocked advisories.');
@@ -171,7 +171,7 @@ try {
     const receipt = { version: 1, kind: 'validated-native-candidate', source: started.source,
       startedAt: started.startedAt, validatedAt: new Date().toISOString(), command: 'LOKD_NATIVE_CF=1 npm run check:security',
       node: process.version, config, validations: validations(), artifacts: artifacts(),
-      migrationRequirement: 'Apply migrations through 0189 before deploying the Client, Officer and Operations Zones, reviewed training and private location sharing; preserve receipt protection, consent revocation and linked-record retention holds. Migration execution is a separate authorized operation.' };
+      migrationRequirement: 'Apply migrations through 0191 before deploying the Client, Officer and Operations Zones, reviewed training and private location sharing; preserve receipt protection, consent revocation and linked-record retention holds. Migration execution is a separate authorized operation.' };
     writeFileSync(candidate, JSON.stringify(receipt, null, 2) + '\n');
     rmSync(pending, { force: true });
     // Reviewable CI summary: selected evidence fields only, never config/vars

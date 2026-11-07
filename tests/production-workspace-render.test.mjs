@@ -8,6 +8,7 @@ import * as jsx from 'react/jsx-runtime';
 import {renderToStaticMarkup} from 'react-dom/server';
 import * as signup from '../app/lib/signup-types.ts';
 import * as psira from '../app/lib/psira-pathway.ts';
+import * as bookingModels from '../app/lib/booking-models.ts';
 import * as contracts from '../app/lib/workspace-response-contracts.ts';
 import * as receipts from '../app/lib/workspace-command-receipt.ts';
 import * as publicSite from '../app/lib/public-site.ts';
@@ -26,7 +27,7 @@ function load(name,modules,extra='') {
  return exports;
 }
 const modules={react:React,'react/jsx-runtime':jsx,'next/link':{default:link},'next/image':{default:image},'next/navigation':{usePathname:()=>'/officer',useSearchParams:()=>new URLSearchParams()},'../lib/signup-types':signup,'../lib/psira-pathway':psira};
-modules['../lib/workspace-response-contracts']=contracts;modules['../lib/workspace-command-receipt']=receipts;modules['./workspace-request']=load('workspace-request.tsx',modules);
+modules['../lib/booking-models']=bookingModels;modules['../lib/workspace-response-contracts']=contracts;modules['../lib/workspace-command-receipt']=receipts;modules['./workspace-request']=load('workspace-request.tsx',modules);
 modules['./officer-presence-panel']=load('officer-presence-panel.tsx',modules);
 modules['./booking-enquiry-detail']=load('booking-enquiry-detail.tsx',modules);
 const Shell=load('workspace-shell.tsx',modules).default;
@@ -41,9 +42,7 @@ test('production finance screens retain live controls while hiding mixed test re
  const testRow={id:'hidden-test',reference:'hidden-test',officer_id:'hidden-test',employer_id:'hidden-test',order_id:'hidden-test',mode:'test',payload_json:'invalid JSON',source_json:'invalid JSON'};
  const cases=[
   ['employee-payment-controls.tsx',{employeePaymentAccess:true,employeePaymentCandidates:[testRow,{...payment,payroll_item_id:'live-item',destination_id:'live-destination'}],employeePayments:[testRow,payment]},/Approve payment instruction/],
-  ['partner-payment-controls.tsx',{partnerPaymentAccess:true,partnerPaymentCandidates:[testRow,{...payment,payable_id:'live-payable',destination_id:'live-destination'}],partnerPayments:[testRow,payment]},/Approve payment instruction/],
   ['payment-destination-controls.tsx',{destinationAccess:true,destinationCandidates:[],destinationReviews:[testRow,review]},/Verify live destination/],
-  ['partner-destination-controls.tsx',{partnerDestinationAccess:true,partnerDestinationCandidates:[],partnerDestinationReviews:[testRow,review]},/Verify live destination/],
   ['booking-collection-controls.tsx',{collections:[testRow,collection]},/Independently approve collection/],
   ['booking-settlement-controls.tsx',{collections:[testRow,collection],collectionRecoveries:[],settlementReviews:[testRow,{id:'live-settlement',reference:'live-collection',mode:'live',settlement_id:'live-settlement',decision:null,payload_json:'{}'}]},/Confirm cleared settlement/],
  ];

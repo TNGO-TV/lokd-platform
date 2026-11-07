@@ -1,30 +1,13 @@
-export type WorkforceModel = "direct_flex" | "partner" | "managed";
-export type BookingModel = "flex" | "fixed";
-
-export const BOOKING_WORKFORCE_ROUTES = {
-  flex: ["direct_flex", "partner"],
-  fixed: ["managed", "partner"],
-} as const;
-
+import type { BookingModel } from './booking-models';
+export type { BookingModel } from './booking-models';
+export type WorkforceModel = "direct_flex" | "managed";
+export const BOOKING_WORKFORCE_ROUTES = { bolt: ["direct_flex"], flex: ["managed"], fixed: ["managed"] } as const;
 export function bookingWorkforceRouteDecision(bookingModel: string | null | undefined, route: string | null) {
-  if (bookingModel !== "flex" && bookingModel !== "fixed") {
-    return { ready: false, code: "BOOKING_MODEL_INVALID", detail: "Record a LOKD Flex or LOKD Fixed booking model before activating an assignment." };
-  }
-  const allowed: readonly string[] = BOOKING_WORKFORCE_ROUTES[bookingModel];
-  const ready = route !== null && allowed.includes(route);
-  return {
-    ready,
-    code: ready ? null : "BOOKING_WORKFORCE_ROUTE_MISMATCH",
-    detail: ready ? null : bookingModel === "flex"
-      ? "LOKD Flex assignments require a Direct Flex (direct_flex) or approved partner workforce route."
-      : "LOKD Fixed assignments require a Managed (managed) or approved partner workforce route.",
-  };
+ if (!bookingModel || !Object.hasOwn(BOOKING_WORKFORCE_ROUTES, bookingModel)) return { ready: false, code: "BOOKING_MODEL_INVALID", detail: "Record LOKD Bolt, LOKD Flex or LOKD Fixed before activating an assignment." };
+ const allowed: readonly string[] = BOOKING_WORKFORCE_ROUTES[bookingModel as BookingModel], ready = route !== null && allowed.includes(route);
+ return { ready, code: ready ? null : "BOOKING_WORKFORCE_ROUTE_MISMATCH", detail: ready ? null : bookingModel === 'bolt' ? 'LOKD Bolt requires direct LOKD employment through the direct_flex route.' : 'LOKD Flex and LOKD Fixed require direct LOKD employment through the managed route.' };
 }
-
-export function workforceReadinessStatuses(model: WorkforceModel) {
-  const status = model === "partner" ? "partner_confirmed" : "ready";
-  return { payrollStatus: status, benefitsStatus: status };
-}
+export function workforceReadinessStatuses(model: WorkforceModel) { if(!['direct_flex','managed'].includes(model))throw new Error('Only LOKD employment routes are supported.'); return { payrollStatus: 'ready', benefitsStatus: 'ready' }; }
 export type LaunchGateStatus = "passed" | "reported" | "pending" | "blocked";
 
 export const REQUIRED_LAUNCH_GATE_CODES = [
@@ -128,12 +111,6 @@ export function workforceActivationDecision(input: WorkforceActivationInput) {
   if (input.model === "direct_flex" || input.model === "managed") {
     if (input.payrollStatus !== "ready") blockers.push("Direct payroll activation is not ready.");
     if (input.benefitsStatus !== "ready") blockers.push("Direct employment benefit controls are not ready.");
-  }
-  if (input.model === "partner" && input.payrollStatus !== "partner_confirmed") {
-    blockers.push("The partner has not confirmed payroll responsibility.");
-  }
-  if (input.model === "partner" && input.benefitsStatus !== "partner_confirmed") {
-    blockers.push("The partner has not confirmed statutory benefit responsibility.");
   }
   return { ready: blockers.length === 0, blockers };
 }

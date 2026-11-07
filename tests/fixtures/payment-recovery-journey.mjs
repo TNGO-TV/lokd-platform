@@ -2,13 +2,12 @@ import assert from 'node:assert/strict';
 import {operatePaymentRecovery as recover} from '../../app/lib/payment-recovery.ts';
 import {operatePaymentExecution as execute,receiveLiveTransferWebhook} from '../../app/lib/payment-execution.ts';
 import {operateEmployeePayment} from '../../app/lib/employee-payments.ts';
-import {operatePartnerPayment} from '../../app/lib/partner-payments.ts';
 
-// Extends an approved live employee / partner instruction. The live claim is
+// Extends an approved live employee instruction. The live claim is
 // made inside a savepoint with injected transports and rolled back at the end;
 // no checkout, destination or real transfer is created.
 export async function paymentRecoveryJourney({kind,database,db,maker,finance,officer,headers,runtime,reference,input,recipient}){
- const operate=kind==='employee'?operateEmployeePayment:operatePartnerPayment;
+ assert.equal(kind,'employee'); const operate=operateEmployeePayment;
  const current=()=>database.prepare(`SELECT * FROM ${kind}_payment_instructions WHERE reference=?`).get(reference);
  const approved={...current()};assert.equal(approved.mode,'live');assert.equal(approved.status,'approved');
  const transfer={id:1987,transfer_code:'TRF_fixture001',reference,domain:'live',amount:approved.amount_cents,currency:'ZAR',source:'balance',recipient:123,integration:456,status:'pending'};
@@ -88,7 +87,7 @@ export async function paymentRecoveryJourney({kind,database,db,maker,finance,off
   // A late contradictory original event blocks the child claim, even with a fresh exact recipient.
   await signed(final==='failed'?'success':'failed');
   assert.ok(database.prepare(`SELECT * FROM ${kind}_recovery_chain_holds WHERE reference=?`).get(child.reference));
-  const destination=database.prepare(`SELECT payload_json FROM ${kind==='employee'?'payment':'partner'}_destination_reviews WHERE id=?`).get(child.destination_id);
+  const destination=database.prepare(`SELECT payload_json FROM payment_destination_reviews WHERE id=?`).get(child.destination_id);
   assert.throws(()=>database.prepare(`INSERT INTO ${kind}_payment_commands VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run('forged-child-dispatch',child.reference,2,'dispatch_live',current().approved_by,finance.userId,child.source_hash,JSON.parse(destination.payload_json).providerHash,'Claim after late evidence','owner_mfa_exception',new Date().toISOString()),/ancestor evidence|durable independently authorized claim/);
   await verify();assert.equal(terminal(),undefined,'verification cannot erase contradictory history');
   assert.throws(()=>database.exec(`DELETE FROM ${kind}_transfer_observations`),/immutable/);

@@ -21,7 +21,7 @@ test('production finance policy rejects non-live preparation before provider wor
  const {sqlite,db}=operationsDatabase();
  try{
   const headers=addOperator(sqlite,'finance-policy-operator',['finance_approver']),named=await operationsAccess(db,headers);
-  for(const action of ['prepare_collection','prepare_destination','prepare_partner_destination'])await assert.rejects(()=>operateProduction(db,named,{action,mode:'test'},headers),e=>e.status===423);
+  for(const action of ['prepare_collection','prepare_destination'])await assert.rejects(()=>operateProduction(db,named,{action,mode:'test'},headers),e=>e.status===423);
   assert.throws(()=>collectionKey({PAYSTACK_LIVE_SECRET_KEY:'sk_live_fixture'},'live'),e=>e.status===503&&/Card payments are unavailable/.test(e.message),'unconfigured card payments return a clear availability error');
  }finally{sqlite.close();}
 });
@@ -30,10 +30,10 @@ test('saved test-mode records cannot be relabeled through production mutations o
   const actions=['approve_collection','initialize_collection','verify_collection','prepare_settlement','approve_settlement','reject_settlement','hold_collection','apply_booking_funding','approve_destination','reject_destination','hold_destination','recheck_destination','prepare_employee_payment','approve_employee_payment','cancel_employee_payment','prepare_partner_payment','approve_partner_payment','cancel_partner_payment','approve_partner_destination','reject_partner_destination','hold_partner_destination','recheck_partner_destination'];
   for(const action of actions){
    const input={action,mode:'live',reference:'test-record',reviewId:'test-record',destinationId:'test-record'};
-   await assert.rejects(()=>requireLiveFinanceCommand(db,input),e=>e.status===423,action);
-   await requireLiveFinanceCommand(db,{...input,reference:'live-record',reviewId:'live-record',destinationId:'live-record'});
+   await assert.rejects(()=>requireLiveFinanceCommand(db,input),e=>e.status===423||e.status===410,action);
+   if(action.includes('partner'))await assert.rejects(()=>requireLiveFinanceCommand(db,{...input,reference:'live-record',reviewId:'live-record',destinationId:'live-record'}),e=>e.status===410);else await requireLiveFinanceCommand(db,{...input,reference:'live-record',reviewId:'live-record',destinationId:'live-record'});
   }
-  for(const kind of ['employee','partner'])for(const key of ['replacesReference','replacesCancelledReference'])await assert.rejects(()=>requireLiveFinanceCommand(db,{action:`prepare_${kind}_payment`,destinationId:'live-record',[key]:'test-record'}),e=>e.status===423);
+  for(const kind of ['employee'])for(const key of ['replacesReference','replacesCancelledReference'])await assert.rejects(()=>requireLiveFinanceCommand(db,{action:`prepare_${kind}_payment`,destinationId:'live-record',[key]:'test-record'}),e=>e.status===423);
   for(const table of tables)assert.equal(sql.prepare(`SELECT count(*) n FROM ${table}`).get().n,2,'history retained');
  }finally{sql.close();}
 });

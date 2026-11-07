@@ -76,7 +76,7 @@ export default function PrivacyPage() {
             <>
               <LegalList
                 items={[
-                  "Personnel and subcontractors bound to confidentiality and, where applicable, POPIA operator duties",
+                  "LOKD personnel bound to confidentiality and, where applicable, POPIA operator duties",
                   "Providers that host systems we operate, and providers of email, authentication, and payments",
                   "Emergency services and authorities when required for safety or law",
                   "Professional advisers",

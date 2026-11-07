@@ -49,6 +49,8 @@ const serviceSections = [
               <p>4.2 Inspections and assessments, if included, are limited observational or consultative inputs to scoping Services. They are not engineering, fire, or occupational-health certifications unless expressly stated.</p>
               <p>4.3 The scope of Services is only what is written in the accepted quote or schedule, including posts, hours, duties, reporting cadence, and equipment. Work outside scope requires a written change order and may adjust fees.</p>
               <p>4.4 We may decline or withdraw from engagements that present unlawful instructions, unsafe conditions we cannot reasonably mitigate, or inaccurate Site information that materialises as unacceptable risk.</p>
+              <p>4.5 LOKD Bolt is urgent cover requested with less than 72 hours’ notice. LOKD Flex is at least seven days of cover requested at least 72 hours before the first shift. LOKD Fixed is full-time cover for a term of at least three months. Notice is measured from receipt of the request to the requested cover start in South African Standard Time. Availability and our written confirmation remain required.</p>
+              <p>4.6 LOKD supplies and manages its officers directly. We do not subcontract your security staffing to other security firms. LOKD remains responsible for its officer employment, payroll and statutory employment controls.</p>
             </>
           ),
         },

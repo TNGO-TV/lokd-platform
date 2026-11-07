@@ -3,7 +3,7 @@ import {SignupError,type SignupActor} from './signup-server';
 import {agreementHash,canonicalAgreementContext,prepareAgreementReceipt,storeAgreementReceipt,type AgreementVersion} from './agreement-acceptance';
 import {activationAgreementContext,type ActivationAgreementRole} from './agreement-activation';
 import {evaluateAssignmentActivation} from './assignment-activation-server';
-const roles=['CLIENT_MSA','SERVICE_ORDER','OFFICER_EMPLOYMENT','PARTNER_SERVICE'];
+const roles=['CLIENT_MSA','SERVICE_ORDER','OFFICER_EMPLOYMENT'];
 const field=(v:unknown,label:string,min=1,max=200)=>{if(typeof v!=='string'||v.trim().length<min||v.length>max)throw new SignupError(`Provide ${label} (${min}–${max} characters).`);return v.trim();};
 export type SigningActor=SignupActor&{owner:boolean};
 export async function manageProductionDocument(db:D1Database,actor:SigningActor,input:Record<string,unknown>){
@@ -29,7 +29,7 @@ export async function manageProductionDocument(db:D1Database,actor:SigningActor,
 async function document(db:D1Database,id:string){
  const d=await db.prepare(`SELECT v.*,b.wording FROM agreement_document_versions v JOIN signing_document_bodies b ON b.id=v.id WHERE v.id=? AND v.status='approved' AND v.environment='production' AND v.integrity_state='production_verified' AND NOT EXISTS(SELECT 1 FROM signing_document_withdrawals w WHERE w.document_id=v.id)`).bind(id).first<Record<string,string|null>>();
  if(!d||!d.wording||await agreementHash(d.wording)!==d.content_hash)throw new SignupError('A current approved document is required.',409);
- return {raw:d,version:{id:d.id!,version:d.document_version!,purpose:d.document_code==='OFFICER_EMPLOYMENT'?'officer_employment':d.document_code==='PARTNER_SERVICE'?'partner_service':'client_service',entityId:d.entity_id!,locale:d.locale!,status:'approved',approvedBy:d.approved_by,approvedAt:d.approved_at,effectiveFrom:d.effective_from!,effectiveTo:d.effective_to,wording:d.wording,contentHash:d.content_hash!} as AgreementVersion};
+ return {raw:d,version:{id:d.id!,version:d.document_version!,purpose:d.document_code==='OFFICER_EMPLOYMENT'?'officer_employment':'client_service',entityId:d.entity_id!,locale:d.locale!,status:'approved',approvedBy:d.approved_by,approvedAt:d.approved_at,effectiveFrom:d.effective_from!,effectiveTo:d.effective_to,wording:d.wording,contentHash:d.content_hash!} as AgreementVersion};
 }
 export async function issueProductionEnvelope(db:D1Database,actor:SigningActor,input:Record<string,unknown>){
  if(!actor.operations)throw new SignupError('Operations access required.',403);
@@ -39,7 +39,7 @@ export async function issueProductionEnvelope(db:D1Database,actor:SigningActor,i
  const role=d.document_code as ActivationAgreementRole,context=activationAgreementContext(evaluation.facts,role),contextJson=canonicalAgreementContext(context),contextHash=await agreementHash(contextJson),kind=role==='CLIENT_MSA'||role==='SERVICE_ORDER'?'client':'officer';
  const link=await db.prepare("SELECT l.* FROM production_entity_links l JOIN signup_cases c ON c.kind=l.kind AND c.source_id=l.case_id AND c.version=l.case_version AND c.owner_user_id=l.owner_user_id AND c.status!='withdrawn' WHERE l.kind=? AND l.entity_id=?").bind(kind,context.subjectId).first<{owner_user_id:string;case_id:string;case_version:number}>();
  if(!link||link.owner_user_id===actor.userId)throw new SignupError('An independently reviewed, current signer account must be linked to this entity.',409);
- const identity=field(input.identityEvidence,'independently reviewed identity evidence',12,2000),authority=kind==='client'||role==='PARTNER_SERVICE'?field(input.authorityEvidence,'representative authority evidence',12,2000):null;
+ const identity=field(input.identityEvidence,'independently reviewed identity evidence',12,2000),authority=kind==='client'?field(input.authorityEvidence,'representative authority evidence',12,2000):null;
  const now=new Date().toISOString();
  // Reuse the same production validator used by activation receipts before delivery.
  await prepareAgreementReceipt({document:doc,context,presentedContentHash:doc.contentHash,presentedContextHash:contextHash,expectedPurpose:doc.purpose,expectedEntityId:kind==='client'?evaluation.facts.client.contractingEntityId!:evaluation.facts.workforce.employer.id??'',expectedLocale:doc.locale,actorUserId:link.owner_user_id,identityEvidence:identity,authorityEvidence:authority??undefined,action:'agree',affirmative:true});

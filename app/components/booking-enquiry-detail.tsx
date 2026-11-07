@@ -1,4 +1,5 @@
 "use client";
+import {bookingModelLabel} from '../lib/booking-models';
 
 import {useState} from "react";
 import {readWorkspaceResponse,workspaceFailure} from "./workspace-request";
@@ -57,10 +58,10 @@ function BookingEnquiryDetail({ item, open = false }: { item: ClientEnquiry; ope
   const total = typeof draft.totalCents === "number" && Number.isSafeInteger(draft.totalCents) && draft.totalCents >= 0
     ? new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR" }).format(draft.totalCents / 100) : null;
   return <details className="booking-ops-detail" open={open}><summary>Booking request details</summary>
-    <dl><div><dt>Engagement</dt><dd>{item.engagementModel === "fixed" ? "LOKD Fixed" : "LOKD Flex"}</dd></div>
+    <dl><div><dt>Engagement</dt><dd>{bookingModelLabel(item.engagementModel??undefined)}</dd></div>
       <div><dt>Notice window</dt><dd>{item.noticeWindow}</dd></div><div><dt>Calendar type</dt><dd>{item.calendarType}</dd></div>
       <div><dt>Provisional risk band</dt><dd>{item.riskBand}</dd></div>
-      <div><dt>Term</dt><dd>{intent.term === "single" ? "Single shift" : String(intent.term) + " months"}</dd></div>
+      <div><dt>Term</dt><dd>{intent.term === "single" ? "Single shift" : intent.term === "week" ? String(intent.durationWeeks) + " weeks" : String(intent.term) + " months"}</dd></div>
       <div><dt>Roster</dt><dd>{item.schedule}</dd></div><div><dt>Dates</dt><dd>{item.startDate} to {item.endDate}</dd></div>
       <div><dt>Shift (SAST)</dt><dd>{item.startTime}–{item.endTime} · 12 hours</dd></div>
       <div><dt>Officers per shift</dt><dd>{item.officers}</dd></div><div><dt>Site address</dt><dd>{item.siteAddress}</dd></div>

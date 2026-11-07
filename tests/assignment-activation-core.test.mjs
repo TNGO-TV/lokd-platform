@@ -40,7 +40,7 @@ function validFacts() {
     environment: "production",
     checkpoint: "activation",
     evaluatedAt: "2026-08-28T10:00:00.000Z",
-    shift: { rosterSlotId: "SLOT-1", bookingId: "BK-1", bookingModel: "flex", siteId: "SITE-1", postId: "POST-1", officerId: "OFF-1", startsAt: start, endsAt: end, slotVersion: 1, slotStatus: "uncovered" },
+    shift: { rosterSlotId: "SLOT-1", bookingId: "BK-1", bookingModel: "bolt", siteId: "SITE-1", postId: "POST-1", officerId: "OFF-1", startsAt: start, endsAt: end, slotVersion: 1, slotStatus: "uncovered" },
     agreements: {ready:true,missing:[],receipts:[]},
     launchGates: gates(),
     funding: { reconciliationId: "FR-1", environment: "production", integrityState: "verified", provider: "bank_api", providerReference: "BANK-SETTLEMENT-1", status: "cleared_reconciled", currency: "ZAR", bookingAmountCents: 140000, expectedAmountCents: 140000, clearedAmountCents: 140000, clearedAt: verifiedAt, reconciledAt: verifiedAt, evidenceReference: "bank:FR-1", verifiedAt, expiresAt: expiry },
@@ -112,7 +112,7 @@ function validFacts() {
 function factsForWorkforceModel(model) {
   const facts = validFacts();
   facts.workforce.model = model;
-  facts.shift.bookingModel = model === 'managed' ? 'fixed' : 'flex';
+  facts.shift.bookingModel = model === 'managed' ? 'fixed' : 'bolt';
   if (model === "partner") {
     facts.workforce.payrollStatus = "partner_confirmed";
     facts.workforce.benefitsStatus = "partner_confirmed";
@@ -131,8 +131,8 @@ test("a fully evidenced Direct Flex activation is ready and freezes two ISO-week
   assert.equal(result.compensation.fundedOfferCents, 80000);
 });
 
-test("activation rejects incompatible or missing booking models and permits partner staffing for either", () => {
-  for (const [booking, route] of [['flex','managed'],['fixed','direct_flex']]) {
+test("activation rejects incompatible models and all external-firm staffing", () => {
+  for (const [booking, route] of [['bolt','managed'],['flex','direct_flex'],['fixed','direct_flex']]) {
     const facts = factsForWorkforceModel(route);
     facts.shift.bookingModel = booking;
     const result = evaluateAssignmentActivation(facts);
@@ -141,9 +141,9 @@ test("activation rejects incompatible or missing booking models and permits part
   }
   const missing = validFacts(); delete missing.shift.bookingModel;
   assert.ok(evaluateAssignmentActivation(missing).blockers.some(b => b.code === 'BOOKING_MODEL_INVALID'));
-  for (const booking of ['flex','fixed']) {
+  for (const booking of ['bolt','flex','fixed']) {
     const facts = factsForWorkforceModel('partner'); facts.shift.bookingModel = booking;
-    assert.equal(evaluateAssignmentActivation(facts).ready, true);
+    assert.equal(evaluateAssignmentActivation(facts).ready, false);
   }
   assert.equal(evaluateAssignmentActivation(factsForWorkforceModel('managed')).ready, true);
 });
@@ -349,24 +349,14 @@ test("Direct Flex and Managed require LOKD payroll and benefits readiness", () =
   }
 });
 
-test("partner supply separately confirms payroll and statutory-benefit responsibility", () => {
-  const facts = validFacts();
-  facts.workforce.model = "partner";
-  facts.workforce.weeklyHourCap = null;
-  facts.workforce.payrollStatus = "pending";
-  facts.workforce.benefitsStatus = "pending";
-  let codes = evaluateAssignmentActivation(facts).blockers.map((blocker) => blocker.code);
-  assert.ok(codes.includes("PARTNER_PAYROLL_NOT_CONFIRMED"));
-  assert.ok(codes.includes("PARTNER_BENEFITS_NOT_CONFIRMED"));
-  facts.workforce.payrollStatus = "partner_confirmed";
-  facts.workforce.benefitsStatus = "partner_confirmed";
-  codes = evaluateAssignmentActivation(facts).blockers.map((blocker) => blocker.code);
-  assert.ok(!codes.includes("PARTNER_PAYROLL_NOT_CONFIRMED"));
-  assert.ok(!codes.includes("PARTNER_BENEFITS_NOT_CONFIRMED"));
+test("historical external-firm confirmations cannot restore a retired workforce route", () => {
+ const facts=factsForWorkforceModel('partner');
+ const result=evaluateAssignmentActivation(facts);
+ assert.equal(result.ready,false);assert.ok(result.blockers.some(b=>b.code==='WORKFORCE_ROUTE_MISSING'));
 });
 
-test("Direct Flex, Managed and Partner routes reject missing accepted terms", () => {
-  for (const model of ["direct_flex", "managed", "partner"]) {
+test("Direct LOKD routes reject missing accepted terms", () => {
+  for (const model of ["direct_flex", "managed"]) {
     const facts = factsForWorkforceModel(model);
     facts.workforce.terms.id = null;
     facts.workforce.terms.evidenceReference = null;
@@ -375,8 +365,8 @@ test("Direct Flex, Managed and Partner routes reject missing accepted terms", ()
   }
 });
 
-test("Direct Flex, Managed and Partner routes reject terms expiring before shift end", () => {
-  for (const model of ["direct_flex", "managed", "partner"]) {
+test("Direct LOKD routes reject terms expiring before shift end", () => {
+  for (const model of ["direct_flex", "managed"]) {
     const facts = factsForWorkforceModel(model);
     facts.workforce.terms.expiresAt = "2026-09-07T05:59:59.999Z";
     const codes = evaluateAssignmentActivation(facts).blockers.map((blocker) => blocker.code);
@@ -384,8 +374,8 @@ test("Direct Flex, Managed and Partner routes reject terms expiring before shift
   }
 });
 
-test("Direct Flex, Managed and Partner routes reject a terms version that differs from the engagement", () => {
-  for (const model of ["direct_flex", "managed", "partner"]) {
+test("Direct LOKD routes reject a terms version that differs from the engagement", () => {
+  for (const model of ["direct_flex", "managed"]) {
     const facts = factsForWorkforceModel(model);
     facts.workforce.terms.version = "TERMS-v2";
     const codes = evaluateAssignmentActivation(facts).blockers.map((blocker) => blocker.code);
@@ -393,8 +383,8 @@ test("Direct Flex, Managed and Partner routes reject a terms version that differ
   }
 });
 
-test("Direct Flex, Managed and Partner routes reject terms from the wrong environment", () => {
-  for (const model of ["direct_flex", "managed", "partner"]) {
+test("Direct LOKD routes reject terms from the wrong environment", () => {
+  for (const model of ["direct_flex", "managed"]) {
     const facts = factsForWorkforceModel(model);
     facts.workforce.terms.environment = "demo";
     const codes = evaluateAssignmentActivation(facts).blockers.map((blocker) => blocker.code);

@@ -6,7 +6,7 @@ import { Icon } from "./icons";
 
 type Receipt = { saved?: boolean; reference?: string; error?: string; confirmationEmailSent?: boolean; notificationStatus?: string };
 const referencePattern = /^ENQ-[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i;
-type CoverType = "" | "soon" | "date" | "ongoing";
+type CoverType = "" | "bolt" | "flex" | "fixed";
 const steps = ["How you need cover", "Service and site", "Your details"];
 
 export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (reference: string) => void } = {}) {
@@ -20,7 +20,6 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
   const [startDate, setStartDate] = useState("");
   const [clock] = useState(() => Date.now());
   const today = new Date(clock + 7200000).toISOString().slice(0, 10);
-  const tomorrow = new Date(clock + 7200000 + 86400000).toISOString().slice(0, 10);
   const original = useRef<{ input: string; body: string } | null>(null);
   const inFlight = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -38,12 +37,13 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
         select.value = service;
         setServiceType(service);
       }
+      const model=params.get("model"); if(model && ["bolt","flex","fixed"].includes(model))setCoverType(model as CoverType);
       const when = params.get("when");
       if (when === "today" || when === "tomorrow") {
-        setCoverType("soon");
+        setCoverType("bolt");
         setStartDate(new Date(Date.now() + 7200000 + (when === "tomorrow" ? 86400000 : 0)).toISOString().slice(0, 10));
       }
-      if (when === "ongoing") setCoverType("ongoing");
+      if (when === "ongoing") setCoverType("fixed");
     }, 0);
     return () => clearTimeout(timer);
   }, []);
@@ -96,7 +96,7 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
     const input = {
       organisationName: value("organisationName"), contactName: value("contactName"), email: value("email"), mobile: value("mobile"),
       siteArea: value("siteArea"), siteType: value("siteType"), serviceType: value("serviceType"), siteAddress: value("siteAddress"), message: value("message"),
-      booking: { coverType, startDate, shift: value("shift"), officers: Number(value("officers")), term: coverType === "ongoing" ? value("term") : "single", rosterPattern: coverType === "ongoing" ? value("rosterPattern") : "daily" },
+      booking: { coverType, startDate, shift: value("shift"), officers: Number(value("officers")), term: coverType === "fixed" ? value("term") : coverType === "flex" ? "week" : "single", durationWeeks: coverType === "flex" ? Number(value("durationWeeks")) : 0, rosterPattern: coverType !== "bolt" ? value("rosterPattern") : "daily" },
       advanceFundingAcknowledged: form.get("advanceFundingAcknowledged") === "on",
       privacyConsent: form.get("privacyConsent") === "on", company: value("company"),
     };
@@ -116,26 +116,26 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
   </section>;
 
   const locked = busy || uncertain;
-  const chooseCover = (value: CoverType) => { setCoverType(value); if (value === "soon") setStartDate(today); };
+  const chooseCover = (value: CoverType) => { setCoverType(value); if (value === "bolt") setStartDate(today); };
   return <form ref={formRef} className="public-form booking-flow" onSubmit={submit} aria-busy={busy}>
     <div><p className="public-kicker">Your booking request</p><h2 ref={stepHeading} tabIndex={-1}>{steps[step - 1]}</h2><p>Step {step} of 3. Operations will review your request and confirm availability.</p></div>
     <ol className="booking-steps" aria-label="Booking progress">{steps.map((title, index) => <li key={title} aria-current={step === index + 1 ? "step" : undefined}><span>{index + 1}</span>{title}</li>)}</ol>
     <fieldset data-booking-step="1" hidden={step !== 1} disabled={locked}><legend>1. Choose how you need cover</legend>
       <div className="booking-cover-options">{([
-        ["soon", "Today / tomorrow", "LOKD Flex", "Short-notice cover for a single shift.", "clock"],
-        ["date", "A specific date", "LOKD Flex", "Plan a single shift for a date that suits you.", "calendar"],
-        ["ongoing", "Ongoing cover", "LOKD Fixed", "A planned roster for 1, 3, 6 or 12 months.", "users"],
+        ["bolt", "Urgent cover", "LOKD Bolt", "Less than 72 hours’ notice.", "clock"],
+        ["flex", "Weekly cover", "LOKD Flex", "Seven days or more of cover, booked at least 72 hours ahead.", "calendar"],
+        ["fixed", "Full-time cover", "LOKD Fixed", "A full-time roster for 3, 6 or 12 months.", "users"],
       ] as const).map(([value, label, model, description, icon]) => <label className="booking-cover-option" key={value}><input type="radio" name="coverType" value={value} checked={coverType === value} onChange={() => chooseCover(value)} required={step === 1} /><span><Icon name={icon} size={24} /><strong>{label}</strong><em>{model}</em><small>{description}</small></span></label>)}</div>
       <div className="public-form-grid booking-date-fields">
-        {coverType === "soon" ? <label>When do you need cover?<select name="when" value={startDate === tomorrow ? "tomorrow" : "today"} onChange={event => setStartDate(event.target.value === "tomorrow" ? tomorrow : today)}><option value="today">Today</option><option value="tomorrow">Tomorrow</option></select></label>
-          : coverType && <label>Start date<input name="startDate" type="date" required={step === 1} min={today} value={startDate} onChange={event => setStartDate(event.target.value)} /></label>}
-        {coverType === "ongoing" && <><label>Contract term<select name="term" required={step === 1} defaultValue=""><option value="" disabled>Choose a term</option>{[1, 3, 6, 12].map(months => <option value={months} key={months}>{months} {months === 1 ? "month" : "months"}</option>)}</select></label><label>Roster<select name="rosterPattern" required={step === 1} defaultValue=""><option value="" disabled>Choose a roster</option><option value="weekdays">Weekdays (Monday–Friday)</option><option value="monday_saturday">Mon–Sat</option><option value="daily">Daily</option></select></label></>}
+        {coverType && <label>Start date<input name="startDate" type="date" required={step === 1} min={today} max={coverType==='bolt'?new Date(clock+7200000+72*3600000).toISOString().slice(0,10):undefined} value={startDate} onChange={event => setStartDate(event.target.value)}/></label>}
+        {coverType === 'flex' && <label>Cover duration (weeks)<input name="durationWeeks" type="number" min={1} max={52} defaultValue={1} required={step===1}/></label>}
+        {coverType === "fixed" && <><label>Contract term<select name="term" required={step === 1} defaultValue=""><option value="" disabled>Choose a term</option>{[3, 6, 12].map(months => <option value={months} key={months}>{months} {months === 1 ? "month" : "months"}</option>)}</select></label></>}{(coverType === "fixed" || coverType === "flex") && <><label>Roster<select name="rosterPattern" required={step === 1} defaultValue=""><option value="" disabled>Choose a roster</option><option value="weekdays">Weekdays (Monday–Friday)</option><option value="monday_saturday">Mon–Sat</option><option value="daily">Daily</option></select></label></>}
       </div>
     </fieldset>
     <fieldset data-booking-step="2" hidden={step !== 2} disabled={locked}><legend>2. Service and site</legend><div className="public-form-grid">
       <label className="public-field-full">Security service<select name="serviceType" required={step === 2} defaultValue="" onChange={event => setServiceType(event.target.value)}><option value="" disabled>Select a service</option><option value="scheduled_unarmed_fixed_site">Unarmed guarding</option><option value="armed_static">Armed security</option><option value="vip_unarmed">VIP protection</option></select></label>
       <label>Number of officers<input name="officers" type="number" min={1} max={serviceType === "vip_unarmed" ? 4 : 6} step={1} required={step === 2} inputMode="numeric" defaultValue={1} /></label>
-      <label>Shift<select name="shift" required={step === 2} defaultValue="" aria-describedby="booking-shift-help"><option value="" disabled>Choose a shift</option><option value="day" disabled={!!startDate && Date.parse(startDate + "T06:00:00+02:00") <= clock}>Day · 06:00–18:00 SAST</option><option value="night" disabled={!!startDate && Date.parse(startDate + "T18:00:00+02:00") <= clock}>Night · 18:00–06:00 SAST</option></select><small id="booking-shift-help">Each shift is 12 hours. Night shifts end the following morning. Choose a shift that has not started.</small></label>
+      <label>Shift<select name="shift" required={step === 2} defaultValue="" aria-describedby="booking-shift-help"><option value="" disabled>Choose a shift</option><option value="day" disabled={!!startDate && Date.parse(startDate + "T06:00:00+02:00") + (coverType === "bolt" ? 43200000 : 0) <= clock}>Day · 06:00–18:00 SAST</option><option value="night" disabled={!!startDate && Date.parse(startDate + "T18:00:00+02:00") + (coverType === "bolt" ? 43200000 : 0) <= clock}>Night · 18:00–06:00 SAST</option></select><small id="booking-shift-help">Each shift is 12 hours. Night shifts end the following morning. For urgent cover during the current shift, Operations must review the actual start.</small></label>
       <label>Site type<select name="siteType" required={step === 2} defaultValue=""><option value="" disabled>Select a site type</option><option value="commercial_property">Workplace / commercial property</option><option value="logistics_industrial">Logistics / industrial</option><option value="construction">Construction</option><option value="residential_estate">Residential property</option><option value="education">Education</option><option value="retail">Retail</option><option value="other">Event / other</option></select></label>
       <label>Suburb or area<input name="siteArea" minLength={2} maxLength={100} required={step === 2} autoComplete="address-level2" /></label>
       <label className="public-field-full">Site or venue address<input name="siteAddress" minLength={5} maxLength={200} required={step === 2} autoComplete="street-address" /></label>

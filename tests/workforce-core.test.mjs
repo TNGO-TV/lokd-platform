@@ -59,7 +59,7 @@ test("Direct Flex accepts 24 hours a week and rejects the next hour", () => {
 
 test("a verified network profile cannot be activated without an employment route", () => {
   const decision = workforceActivationDecision({
-    bookingModel: "flex",
+    bookingModel: "bolt",
     launchGates: completeLaunchGates(),
     siteActive: true,
     bookingFunded: true,
@@ -77,9 +77,9 @@ test("a verified network profile cannot be activated without an employment route
   assert.ok(decision.blockers.includes("No active workforce engagement exists."));
 });
 
-test("partner supply requires the partner to confirm payroll responsibility", () => {
+test("retired external-firm supply remains ineligible even with historical responsibility confirmations", () => {
   const base = {
-    bookingModel: "flex",
+    bookingModel: "bolt",
     launchGates: completeLaunchGates(),
     siteActive: true,
     bookingFunded: true,
@@ -95,22 +95,15 @@ test("partner supply requires the partner to confirm payroll responsibility", ()
   };
   assert.equal(workforceActivationDecision(base).ready, false);
   assert.equal(workforceActivationDecision({ ...base, payrollStatus: "partner_confirmed" }).ready, false);
-  assert.equal(workforceActivationDecision({ ...base, payrollStatus: "partner_confirmed", benefitsStatus: "partner_confirmed" }).ready, true);
+  assert.equal(workforceActivationDecision({ ...base, payrollStatus: "partner_confirmed", benefitsStatus: "partner_confirmed" }).ready, false);
 });
 
-test("Flex and Fixed accept only their staffing routes, with partner supply available to either", () => {
-  for (const [booking, route, allowed] of [
-    ['flex', 'direct_flex', true], ['flex', 'managed', false], ['flex', 'partner', true],
-    ['fixed', 'managed', true], ['fixed', 'direct_flex', false], ['fixed', 'partner', true],
-  ]) assert.equal(bookingWorkforceRouteDecision(booking, route).ready, allowed, `${booking}/${route}`);
-  for (const booking of [null, undefined, '', 'unknown']) {
-    assert.equal(bookingWorkforceRouteDecision(booking, 'partner').code, 'BOOKING_MODEL_INVALID');
-  }
-  assert.equal(bookingWorkforceRouteDecision('flex', null).ready, false);
-  assert.match(bookingWorkforceRouteDecision('fixed', 'direct_flex').detail, /LOKD Fixed.*Managed.*partner/);
+test("Bolt, Flex and Fixed allow only their direct LOKD employment routes", () => {
+ for(const [booking,route,allowed] of [['bolt','direct_flex',true],['bolt','managed',false],['flex','managed',true],['flex','direct_flex',false],['fixed','managed',true],['fixed','direct_flex',false],['bolt','partner',false],['flex','partner',false],['fixed','partner',false]])assert.equal(bookingWorkforceRouteDecision(booking,route).ready,allowed,booking+'/'+route);
+ for(const booking of [null,undefined,'','unknown'])assert.equal(bookingWorkforceRouteDecision(booking,'managed').code,'BOOKING_MODEL_INVALID');
+ assert.equal(bookingWorkforceRouteDecision('bolt',null).ready,false);
 });
-
-test("partner readiness records responsibility confirmation while direct routes use LOKD payroll", () => {
-  assert.deepEqual(workforceReadinessStatuses('partner'), {payrollStatus:'partner_confirmed',benefitsStatus:'partner_confirmed'});
-  for (const route of ['direct_flex','managed']) assert.deepEqual(workforceReadinessStatuses(route), {payrollStatus:'ready',benefitsStatus:'ready'});
+test("all supported employment routes require LOKD payroll and benefits", () => {
+ assert.throws(()=>workforceReadinessStatuses('partner'),/LOKD employment/);
+ for(const route of ['direct_flex','managed'])assert.deepEqual(workforceReadinessStatuses(route),{payrollStatus:'ready',benefitsStatus:'ready'});
 });

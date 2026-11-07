@@ -15,7 +15,7 @@ for f in json.load(sys.stdin):
   if sql.strip():
    try: c.executescript(sql)
    except Exception as e: raise RuntimeError(f"{f['name']} statement {i}: {e}") from e
-for k in ['employee','partner']:
+for k in ['employee']:
  for suffix in ['terminal','reviewable','available','chain_holds']:
   c.execute('SELECT * FROM '+k+'_recovery_'+suffix).fetchall()
 `],{input:JSON.stringify(files),encoding:'utf8'});

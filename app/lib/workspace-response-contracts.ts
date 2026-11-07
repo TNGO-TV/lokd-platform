@@ -40,19 +40,15 @@ export const workspaceAutoContract=(key:string)=>(value:unknown)=>{
 export function productionOperationsResponse(value:unknown){
  try{
  if(!matchesWorkspaceContract(value,workspaceContracts.operations)||!record(value)||!savedJson(value))return false;
- for(const [key,contract] of [['employeePayments',workspaceContracts.employeeSnapshot],['employeePaymentCandidates',workspaceContracts.employeeSnapshot],['partnerPayments',workspaceContracts.partnerSnapshot],['partnerPaymentCandidates',workspaceContracts.partnerSnapshot]] as const){
+ for(const [key,contract] of [['employeePayments',workspaceContracts.employeeSnapshot],['employeePaymentCandidates',workspaceContracts.employeeSnapshot]] as const){
   if(!rows(value,key).every(row=>row.mode==='live'&&jsonMatches(row.source_json,contract)))return false;
  }
- for(const [key,contract] of [['destinationReviews',workspaceContracts.employeeDestination],['partnerDestinationReviews',workspaceContracts.partnerDestination]] as const){
+ for(const [key,contract] of [['destinationReviews',workspaceContracts.employeeDestination]] as const){
   if(!rows(value,key).every(row=>row.mode==='live'&&jsonMatches(row.payload_json,contract)&&record(JSON.parse(JSON.parse(String(row.payload_json)).sourceJson))))return false;
  }
  if(!rows(value,'collections').every(row=>row.mode==='live')||!rows(value,'settlementReviews').every(row=>row.mode==='live'))return false;
  for(const row of rows(value,'destinationCandidates'))if(!jsonFields(row.source_json,['employerId','engagementId','profileId'],['profileVersion']))return false;
- for(const row of rows(value,'partnerDestinationCandidates'))if(!jsonFields(row.source_json,['employerName','employerId'],['employerVersion']))return false;
  for(const row of rows(value,'destinationReviews'))if(!jsonFields(JSON.parse(String(row.payload_json)).sourceJson,['employerId','engagementId','profileId'],['profileVersion']))return false;
- for(const row of rows(value,'partnerDestinationReviews'))if(!jsonFields(JSON.parse(String(row.payload_json)).sourceJson,['employerName','employerId'],['employerVersion']))return false;
- for(const row of [...rows(value,'partnerPayableCandidates'),...rows(value,'partnerPayableReviews')])if(!jsonFields(row.source_json,['employerName','employerId','serviceDate','officerId','timesheetId','agreementEvidence'],['payableMinutes']))return false;
- for(const row of rows(value,'partnerPayableReviews'))if(!jsonFields(row.payload_json,['invoiceNumber','invoiceLine','invoiceDate','dueDate','invoiceReference','invoiceHash','agreementVersion','agreementReference','agreementHash','taxEvidenceReference','note'],['netCents','taxCents']))return false;
  for(const row of rows(value,'payrollPolicies'))if(!jsonFields(row.rules_json,['version']))return false;
  for(const row of rows(value,'payrollItems'))if(!jsonObject(row.calculation_json))return false;
  for(const row of rows(value,'clientReviews'))if(!jsonObject(row.snapshot_json)||!jsonObject(row.evidence_json))return false;

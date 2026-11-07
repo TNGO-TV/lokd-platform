@@ -17,7 +17,7 @@ export function documentPaymentState(rows:FinancialRow[]):'unpaid'|'pending'|'pa
 type Source={kind:DocumentKind;source_id:string;party_id:string;recipient_user:string;amount_cents:number;source_json:string;financial_json:string};
 type Version=Source&{id:string;version:number;parent_id:string|null;payload_hash:string;operator_id:string;user_id:string;note:string;created_at:string};
 const text=(v:unknown,label:string,max=1200)=>{if(typeof v!=='string'||v.trim().length<3||v.length>max)throw new SignupError(`Provide ${label}.`);return v.trim();};
-const kind=(v:unknown):DocumentKind=>{if(v!=='payslip'&&v!=='invoice'&&v!=='remittance')throw new SignupError('Choose a finance document type.');return v;};
+const kind=(v:unknown):DocumentKind=>{if(v!=='payslip'&&v!=='invoice')throw new SignupError('Choose a finance document type.');return v;};
 const auth=()=>operationsMfaRequired()?'mfa_verified':'owner_mfa_exception';
 async function operator(db:D1Database,a:SigningActor,h:Headers,amount:number,approving=false,maker?:string){return productionOperatorControl(db,a,h,approving?'payroll.second_approve':'payroll.export',amount,maker);}
 async function readAuthority(db:D1Database,a:SigningActor,h:Headers,amount:number){try{return await operator(db,a,h,amount,true);}catch(e){if(!(e instanceof SignupError)||e.status!==403)throw e;return operator(db,a,h,amount);}}
@@ -25,7 +25,7 @@ async function currentSource(db:D1Database,k:DocumentKind,id:string){return db.p
 async function canRead(db:D1Database,a:SigningActor,v:Source,h:Headers){
  if(a.operations){try{await readAuthority(db,a,h,v.amount_cents);return true;}catch(error){if(error instanceof SignupError&&error.status===403)return false;throw error;}}
  if(a.userId!==v.recipient_user)return false;
- if(v.kind==='remittance')return (await db.prepare("SELECT json_extract(r.payload_json,'$.representativeUserId') AS user FROM partner_destination_reviews r JOIN partner_destination_decisions d ON d.review_id=r.id AND d.decision='verified_live' WHERE r.mode='live' AND r.employer_id=? ORDER BY r.rowid DESC LIMIT 1").bind(v.party_id).first<{user:string}>())?.user===a.userId;
+ if(v.kind==='remittance')return false;
  return !!await db.prepare('SELECT entity_id FROM production_entity_links WHERE kind=? AND entity_id=? AND owner_user_id=?').bind(v.kind==='payslip'?'officer':'client',v.party_id,a.userId).first();
 }
 export async function prepareFinanceDocument(db:D1Database,a:SigningActor,input:Record<string,unknown>,h:Headers){
@@ -43,6 +43,7 @@ export async function prepareFinanceDocument(db:D1Database,a:SigningActor,input:
 }
 export async function decideFinanceDocument(db:D1Database,a:SigningActor,input:Record<string,unknown>,h:Headers){
  const id=text(input.documentId,'the document ID',200),v=await db.prepare('SELECT * FROM finance_document_versions WHERE id=?').bind(id).first<Version>();if(!v)throw new SignupError('Document not found.',404);
+ if(v.kind==='remittance')throw new SignupError('This historical document is read-only.',410);
  const op=await operator(db,a,h,v.amount_cents,true,v.operator_id);if(a.userId===v.user_id||a.userId===v.recipient_user)throw new SignupError('Independent document approval is required.',403);
  if(input.payloadHash!==v.payload_hash||input.evidenceReviewed!==true)throw new SignupError('Review the exact frozen source and financial evidence.',409);
  const decision=input.decision;if(decision!=='approved'&&decision!=='rejected')throw new SignupError('Choose approve or reject.');
@@ -59,7 +60,7 @@ export async function readFinanceDocuments(db:D1Database,a:SigningActor,h:Header
  }
  if(documentId&&!documents.length)throw new SignupError('Private document not found for this account.',404);
  const sources:Source[]=[];
- if(a.operations){await readAuthority(db,a,h,0);const candidates=(await db.prepare('SELECT s.*,f.financial_json FROM finance_document_sources s JOIN finance_document_financial_snapshots f ON f.kind=s.kind AND f.source_id=s.source_id ORDER BY s.kind,s.source_id LIMIT 500').all<Source>()).results;for(const source of candidates){try{await readAuthority(db,a,h,source.amount_cents);sources.push(source);}catch(error){if(!(error instanceof SignupError)||error.status!==403)throw error;}}}
+ if(a.operations){await readAuthority(db,a,h,0);const candidates=(await db.prepare("SELECT s.*,f.financial_json FROM finance_document_sources s JOIN finance_document_financial_snapshots f ON f.kind=s.kind AND f.source_id=s.source_id WHERE s.kind IN ('payslip','invoice') ORDER BY s.kind,s.source_id LIMIT 500").all<Source>()).results;for(const source of candidates){try{await readAuthority(db,a,h,source.amount_cents);sources.push(source);}catch(error){if(!(error instanceof SignupError)||error.status!==403)throw error;}}}
  return {documents,sources:sources.map(s=>({...s,currentState:documentPaymentState(JSON.parse(s.financial_json))})),calendar:'Africa/Johannesburg',communicationsSent:false};
 }
 const escape=(value:unknown)=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));

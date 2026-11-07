@@ -12,16 +12,15 @@ const fits = async page => {
   expect(failures).toEqual([]);
 };
 
-test('Client Flex follows intent, six services, review and an actual saved matching request', async ({ page, request }, info) => {
+test('Client Bolt follows intent, six services, review and an actual saved matching request', async ({ page, request }, info) => {
   await reset(request, 'client'); await page.goto('/client?view=request');
   await expect(page.getByRole('heading', { name: 'How you need cover' })).toBeVisible();
   await fits(page); await page.screenshot({ path: info.outputPath('client-how-you-need-cover.png'), fullPage: true });
-  await page.getByRole('button', { name: /Today \/ tomorrow/ }).click();
+  await page.getByRole('button', { name: /Urgent cover/ }).click();
   await expect(page.getByRole('radio')).toHaveCount(6);
   await page.getByRole('radio', { name: 'Armed movement', exact: true }).check();
   await page.getByLabel('Officers per shift').fill('2');
-  const options = await page.locator('select[name=startDate] option').evaluateAll(options => options.map(o => o.value));
-  await page.locator('select[name=startDate]').selectOption(options.at(-1));
+  await page.locator('input[name=startDate]').fill(new Date(Date.now() + 7200000 + 86400000).toISOString().slice(0,10));
   await page.getByRole('combobox', { name: 'Shift', exact: true }).selectOption('night');
   await page.getByLabel('Duties and access').fill('Control deliveries at the West Street entrance.');
   await page.getByRole('button', { name: 'Review booking' }).click();
@@ -30,8 +29,28 @@ test('Client Flex follows intent, six services, review and an actual saved match
   await page.getByRole('button', { name: 'Confirm booking' }).click();
   await expect(page.getByRole('heading', { name: 'Finding your officers' })).toBeVisible();
   const state = await saved(request), detail = JSON.parse(state.requests.find(r => r.category === 'booking_request').detail);
-  expect(detail.engagementModel).toBe('flex'); expect(detail.serviceCode).toBe('armed_movement'); expect(detail.shiftStart).toBe('18:00'); expect(detail.headcount).toBe(2);
+  expect(detail.engagementModel).toBe('bolt'); expect(detail.serviceCode).toBe('armed_movement'); expect(detail.shiftStart).toBe('18:00'); expect(detail.headcount).toBe(2);
   await fits(page);
+});
+test('Client Flex requires advance notice and saves a two-week roster', async ({ page, request }, info) => {
+  await reset(request, 'client'); await page.goto('/client?view=request');
+  await page.getByRole('button', { name: /Weekly cover/ }).click();
+  await page.getByLabel('Start date', { exact: true }).fill(new Date(Date.now() + 7200000 + 86400000).toISOString().slice(0,10));
+  await page.getByLabel('Cover duration (weeks)', { exact: true }).fill('2');
+  await page.getByRole('combobox', { name: 'Roster pattern', exact: true }).selectOption('weekdays');
+  await page.getByLabel('Duties and access').fill('Staff the reception and deliveries at the West Street offices.');
+  await page.getByRole('button', { name: 'Review booking', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('at least 72 hours');
+  const start = new Date(Date.now() + 7200000 + 5 * 86400000).toISOString().slice(0,10);
+  await page.getByLabel('Start date', { exact: true }).fill(start);
+  await page.getByRole('button', { name: 'Review booking', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Review and confirm' })).toBeVisible();
+  await page.getByRole('button', { name: 'Confirm booking', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Finding your officers' })).toBeVisible();
+  const detail = JSON.parse((await saved(request)).requests.find(r => r.category === 'booking_request').detail);
+  expect(detail.engagementModel).toBe('flex'); expect(detail.durationWeeks).toBe(2); expect(detail.rosterPattern).toBe('weekdays');
+  expect(Date.parse(detail.endDate) - Date.parse(detail.startDate)).toBe(13 * 86400000);
+  await fits(page); await page.screenshot({ path: info.outputPath('client-flex-request-saved.png'), fullPage: true });
 });
 test('Client Fixed contract detail sends reviewed roster and officer-change requests', async ({ page, request }, info) => {
   await reset(request, 'client'); await page.goto('/client?view=contracts');
@@ -48,7 +67,7 @@ test('Client Fixed contract detail sends reviewed roster and officer-change requ
 });
 test('Client Fixed saves term and roster pattern without displaying an unconfirmed price', async ({ page, request }) => {
   await reset(request, 'client'); await page.goto('/client?view=request');
-  await page.getByRole('button', { name: /Ongoing cover/ }).click();
+  await page.getByRole('button', { name: /Full-time cover/ }).click();
   await page.getByLabel('Start date').fill('2090-01-01');
   await page.getByRole('combobox', { name: 'Contract term', exact: true }).selectOption('3');
   await page.getByRole('combobox', { name: 'Roster pattern', exact: true }).selectOption('monday_saturday');

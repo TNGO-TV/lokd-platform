@@ -96,7 +96,7 @@ async function seedEnvironment(database) {
     (id,client_id,site_name,site_area,post_name,service_type,purpose_code,purpose_label,engagement_model,
      calendar_category,calendar_label,minimum_grade,contract_months,start_date,end_date,shift_start,shift_end,
      client_price_cents,officer_rate_cents,pricing_version,environment,integrity_state,funding_status,release_cadence,status)
-    VALUES ('BK-1','CL-1','Fixture Site','Johannesburg','Gate','Unarmed','commercial_access','Commercial access','flex',
+    VALUES ('BK-1','CL-1','Fixture Site','Johannesburg','Gate','Unarmed','commercial_access','Commercial access','bolt',
      'christmas','Christmas peak day','Grade C',0,'2039-12-25','2039-12-25','20:00','08:00',350000,200000,
      'LOKD-PREMIUM-2026.09','production','production_verified','paid_in_full','Weekly','matching')`);
   run(database, `INSERT INTO operational_sites
@@ -167,7 +167,7 @@ async function moveCandidateToCheckInWindow(database,officerId,serviceType="Unar
   const economics = officerShiftEconomicsForRoster({
     serviceType,specialistServiceCode,
     riskBand: "Standard",
-    engagementModel: "flex",
+    engagementModel: "bolt",
     serviceDate: starts.slice(0, 10),
     startsAt: starts,
   });

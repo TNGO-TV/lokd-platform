@@ -48,7 +48,7 @@ async function setup(){
  assert.equal(database.prepare('SELECT approval_status FROM clients WHERE id=?').get(prepared.entityId).approval_status,'approved');
  assert.equal((await reviewProductionClient(db,owner,decision)).alreadyRecorded,true);
  const {prepareProductionOrder}=await import('../app/lib/production-orders.ts');
- const quoteRequest={serviceType:'Unarmed',engagementModel:'flex',term:'single',purposeCode:'commercial_access',startDate:new Date(Date.now()+7*86400000).toISOString().slice(0,10),shift:'day',rosterPattern:'daily',riskInput:{assetExposure:'standard',publicAccess:'controlled',incidentHistory:'none',existingControls:'strong',nightOperation:false,vulnerablePeople:false}};
+ const quoteRequest={serviceType:'Unarmed',engagementModel:'flex',term:'week',durationWeeks:1,purposeCode:'commercial_access',startDate:new Date(Date.now()+7*86400000).toISOString().slice(0,10),shift:'day',rosterPattern:'daily',riskInput:{assetExposure:'standard',publicAccess:'controlled',incidentHistory:'none',existingControls:'strong',nightOperation:false,vulnerablePeople:false}};
  const quoted=await prepareProductionOrder(db,reviewer,{action:'quote_order',quoteRequest});
  const order={action:'prepare_order',orderReference:'isolated-client-review-order',clientId:prepared.entityId,caseVersion:4,quoteRequest,quoteHash:quoted.quoteHash,siteName:'Fixture Site',siteArea:'Sandton',address:'Fixture address',postName:'Gate',instructions:'Fixture post orders awaiting review.',latitude:-26.1,longitude:28.05,contractingEntityId:'FIXTURE-ENTITY'};
  await assert.rejects(()=>prepareProductionOrder(db,{...applicant,owner:false},order),/Operations/);

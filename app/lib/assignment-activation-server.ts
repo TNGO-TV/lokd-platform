@@ -403,7 +403,7 @@ async function loadAssignmentActivationFacts(
   }) : null;
   const authoritativePricing = (currentSpecialistPricing || legacyUnarmedPricing) && Boolean(shiftEconomics);
   const officerOfferCents = shiftEconomics?.officerOfferCents ?? 0;
-  const statutoryCostCents = workforce?.model === "partner" ? 0 : Math.round(officerOfferCents * 0.15);
+  const statutoryCostCents = Math.round(officerOfferCents * 0.15);
 
   const mandatoryPsiraVerified = await officerHasCurrentPsiraVerification(db, request.officerId, candidate.endsAt);
   const facts: AssignmentActivationFacts = {
@@ -608,7 +608,7 @@ async function requestHash(request: AssignmentActivationRequest) {
 
 function commitFailureBlocker(message: string) {
   const rules: Array<[RegExp, string, ActivationBlocker["category"], string]> = [
-    [/booking_workforce_route_mismatch/i, "BOOKING_WORKFORCE_ROUTE_MISMATCH", "workforce", "The booking model or workforce route changed: Flex requires Direct Flex or partner; Fixed requires Managed or partner."],
+    [/booking_workforce_route_mismatch/i, "BOOKING_WORKFORCE_ROUTE_MISMATCH", "workforce", "The booking model or workforce route changed: Bolt requires direct LOKD short-notice employment; Flex and Fixed require managed LOKD employment."],
     [/required_launch_gate/i, "LAUNCH_CHANGED_DURING_ACTIVATION", "launch", "A required launch gate changed before the atomic commit completed."],
     [/cleared_reconciled_funding|funding/i, "FUNDING_CHANGED_DURING_ACTIVATION", "funding", "Cleared and reconciled funding no longer passed the database guard."],
     [/officer_work_rest|officer_work_overlap|UNIQUE constraint failed: roster_assignments\.active_key/i, "SLOT_OR_REST_CONFLICT", "concurrency", "The slot or officer rest window was claimed by another committed transaction."],

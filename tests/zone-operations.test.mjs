@@ -29,23 +29,23 @@ test('urgency follows requested starts; nearest ranking requires actual consente
   const available = dispatchCandidates(slot, [officer('no-location'), officer('far'), officer('near'), officer('grade-low', { psira_grade: 'Grade E' }), officer('too-short', { ends_at: slot.starts_at })], [{ id: 'far', latitude: -26.3, longitude: 28.2 }, { id: 'near', latitude: -26.1, longitude: 28.05 }]);
   assert.deepEqual(available.map(o => o.id), ['near', 'far', 'no-location']); assert.equal(available[2].distance, null);
 });
-test('same-day Flex has a reviewed future start and retains the selected day or night shift end', () => {
-  const now = Date.parse('2026-11-07T09:00:00+02:00'), base = { startDate: '2026-11-07', shift: 'day', engagementModel: 'flex' };
+test('same-day Bolt has a reviewed future start and retains the selected day or night shift end', () => {
+  const now = Date.parse('2026-11-07T09:00:00+02:00'), base = { startDate: '2026-11-07', shift: 'day', engagementModel: 'bolt' };
   assert.throws(() => reviewedShiftWindow(base, now), /actual first shift start/);
   const window = reviewedShiftWindow({ ...base, firstShiftStartsAt: '2026-11-07T10:00:00+02:00' }, now);
   assert.equal(window.startsAt, '2026-11-07T08:00:00.000Z'); assert.equal(window.endsAt, '2026-11-07T16:00:00.000Z');
   for (const firstShiftStartsAt of ['2026-11-07T09:00:00+02:00', '2026-11-07T18:00:00+02:00', '2026-11-07T10:00:30+02:00']) assert.throws(() => reviewedShiftWindow({ ...base, firstShiftStartsAt }, now));
-  assert.throws(() => reviewedShiftWindow({ ...base, engagementModel: 'fixed', firstShiftStartsAt: '2026-11-07T10:00:00+02:00' }, now), /LOKD Flex/);
+  assert.throws(() => reviewedShiftWindow({ ...base, engagementModel: 'fixed', firstShiftStartsAt: '2026-11-07T10:00:00+02:00' }, now), /LOKD Bolt/);
   assert.equal(reviewedShiftWindow({ ...base, shift: 'night', firstShiftStartsAt: '2026-11-07T23:00:00+02:00' }, now).endsAt, '2026-11-08T04:00:00.000Z');
 });
 test('a reviewed first start binds the service-order quote hash without changing price-book amounts', async () => {
   const db = new ClientDatabase(); try {
-    const quoteRequest = { serviceType: 'Unarmed', engagementModel: 'flex', term: 'single', purposeCode: 'commercial_access', startDate: '2090-01-01', shift: 'day', rosterPattern: 'daily', riskInput: { assetExposure: 'standard', publicAccess: 'controlled', incidentHistory: 'none', existingControls: 'strong', nightOperation: false, vulnerablePeople: false } };
+    const quoteRequest = { serviceType: 'Unarmed', engagementModel: 'bolt', term: 'single', purposeCode: 'commercial_access', startDate: new Date(Date.now()+7200000+86400000).toISOString().slice(0,10), shift: 'day', rosterPattern: 'daily', riskInput: { assetExposure: 'standard', publicAccess: 'controlled', incidentHistory: 'none', existingControls: 'strong', nightOperation: false, vulnerablePeople: false } };
     const full = await prepareProductionOrder(db, ops, { action: 'quote_order', quoteRequest });
-    const partial = await prepareProductionOrder(db, ops, { action: 'quote_order', quoteRequest: { ...quoteRequest, firstShiftStartsAt: '2090-01-01T06:30:00+02:00' } });
+    const partial = await prepareProductionOrder(db, ops, { action: 'quote_order', quoteRequest: { ...quoteRequest, firstShiftStartsAt: quoteRequest.startDate+'T06:30:00+02:00' } });
     assert.equal(partial.quote.clientPriceCents, full.quote.clientPriceCents); assert.notEqual(partial.quoteHash, full.quoteHash);
     assert.equal(db.sql.prepare('SELECT count(*) n FROM production_order_setups').get().n, 0);
-    await assert.rejects(() => prepareProductionOrder(db, ops, { action: 'quote_order', quoteRequest: { ...quoteRequest, firstShiftStartsAt: '2090-01-01T18:00:00+02:00' } }), /inside the requested shift/);
+    await assert.rejects(() => prepareProductionOrder(db, ops, { action: 'quote_order', quoteRequest: { ...quoteRequest, firstShiftStartsAt: quoteRequest.startDate+'T18:00:00+02:00' } }), /inside the requested shift/);
   } finally { db.sql.close(); }
 });
 test('Officer state guards keep unapproved access separate and reject malformed work or pay records', () => {

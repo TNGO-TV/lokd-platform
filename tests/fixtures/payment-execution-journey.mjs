@@ -2,9 +2,8 @@ import assert from 'node:assert/strict';
 import {operatePaymentExecution as execute,receiveLiveTransferWebhook} from '../../app/lib/payment-execution.ts';
 import {operatePaymentRecovery as recover} from '../../app/lib/payment-recovery.ts';
 import {operateEmployeePayment} from '../../app/lib/employee-payments.ts';
-import {operatePartnerPayment} from '../../app/lib/partner-payments.ts';
 export async function paymentExecutionJourney({kind,database,db,maker,owner,finance,officer,headers,runtime,reference,recipient,input}){
- const operate=kind==='employee'?operateEmployeePayment:operatePartnerPayment;
+ assert.equal(kind,'employee'); const operate=operateEmployeePayment;
  const current=()=>database.prepare(`SELECT * FROM ${kind}_payment_instructions WHERE reference=?`).get(reference),original={...current()};
  let posts=0,status='success',timeout=false;
  const raw=()=>({id:1987,transfer_code:'TRF_livefixture001',reference,domain:'live',amount:original.amount_cents,currency:'ZAR',source:'balance',recipient:123,integration:456,status});

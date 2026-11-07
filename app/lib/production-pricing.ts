@@ -1,3 +1,4 @@
+import { dateAfterDays } from './booking-models';
 import type { ServiceType } from "./production-service-types";
 import {
   normalizeSpecialistConfiguration,
@@ -8,9 +9,9 @@ import {
   type SpecialistServiceCode,
 } from "./specialist-pricing";
 
-export type ContractTerm = "single" | "1" | "3" | "6" | "12";
+export type ContractTerm = "single" | "week" | "1" | "3" | "6" | "12";
 export type NoticeWindow = "standard" | "priority" | "urgent" | "immediate";
-export type EngagementModel = "fixed" | "flex";
+export type EngagementModel = "bolt" | "fixed" | "flex";
 export type RosterPattern = "weekdays" | "monday_saturday" | "daily";
 export type CalendarCategory = "ordinary" | "sunday" | "public_holiday" | "easter" | "christmas";
 export type RiskBand = "Standard" | "Enhanced" | "Elevated" | "High" | "Critical";
@@ -53,6 +54,8 @@ export type BookingQuoteRequest = {
   riskInput: RiskInput;
   specialistConfiguration?: Partial<SpecialistConfiguration>;
   now?: Date;
+  durationWeeks?: number;
+  modelVersion?: string;
 };
 
 // Retained only so already-approved Version 32 Unarmed bookings can complete
@@ -105,15 +108,16 @@ export const noticePriceBook: Record<NoticeWindow, {
   label: string;
   clientMultiplier: number;
 }> = {
-  standard: { label: "72+ hours · Scheduled Flex", clientMultiplier: 8 / 7 },
-  priority: { label: "24–72 hours · Priority Flex", clientMultiplier: 185 / 140 },
-  urgent: { label: "6–24 hours · Urgent Flex", clientMultiplier: 1.5 },
-  immediate: { label: "Under 6 hours · Immediate Flex", clientMultiplier: 12 / 7 },
+  standard: { label: "72+ hours · Planned Flex", clientMultiplier: 8 / 7 },
+  priority: { label: "24–72 hours · LOKD Bolt", clientMultiplier: 185 / 140 },
+  urgent: { label: "6–24 hours · LOKD Bolt", clientMultiplier: 1.5 },
+  immediate: { label: "Under 6 hours · LOKD Bolt", clientMultiplier: 12 / 7 },
 };
 
 export const engagementModels: Record<EngagementModel, { label: string; note: string }> = {
-  fixed: { label: "LOKD Fixed", note: "Recurring cover on a planned roster at the contracted rate." },
-  flex: { label: "LOKD Flex", note: "One-off or short-notice cover with a separate dispatch premium." },
+  bolt: { label: "LOKD Bolt", note: "Urgent bookings with less than 72 hours’ notice." },
+  fixed: { label: "LOKD Fixed", note: "Full-time cover for three months or more." },
+  flex: { label: "LOKD Flex", note: "Seven days or more of cover with at least 72 hours’ notice." },
 };
 
 export const rosterPatterns: Record<RosterPattern, { label: string; weekdays: number[] }> = {
@@ -172,6 +176,7 @@ const purposeRiskProfiles: Record<string, {
 
 export const termLabels: Record<ContractTerm, string> = {
   single: "Single shift",
+  week: "Weekly cover",
   "1": "1 month",
   "3": "3 months",
   "6": "6 months",
@@ -320,7 +325,7 @@ export function officerShiftEconomicsForRoster(input: {
   const start = new Date(input.startsAt);
   if (Number.isNaN(start.getTime()) || !/^\d{4}-\d{2}-\d{2}$/.test(input.serviceDate)) return null;
   if (!(input.serviceType in servicePriceBook) || !(input.riskBand in riskMultipliers)
-    || !["fixed", "flex"].includes(input.engagementModel)) return null;
+    || !["bolt", "fixed", "flex"].includes(input.engagementModel)) return null;
 
   const johannesburgStart = new Date(start.getTime() + 2 * 60 * 60 * 1000);
   const serviceDate = johannesburgStart.toISOString().slice(0, 10);
@@ -333,7 +338,7 @@ export function officerShiftEconomicsForRoster(input: {
   const officerShiftCents = specialist?.officerShiftCents ?? service.officerShiftCents;
   const risk = riskMultipliers[input.riskBand as RiskBand].officer;
   const calendar = calendarPriceBook[calendarCategory];
-  const calendarMultiplier = input.engagementModel === "flex"
+  const calendarMultiplier = input.engagementModel !== "fixed"
     ? calendar.flexOfficerMultiplier
     : calendar.fixedOfficerMultiplier;
   const ordinaryWageCents = Math.round(officerShiftCents * risk);
@@ -367,10 +372,12 @@ export function addMonths(dateValue: string, months: number) {
   return date.toISOString().slice(0, 10);
 }
 
-export function scheduledServiceDates(startDate: string, term: ContractTerm, engagementModel: EngagementModel, rosterPattern: RosterPattern) {
-  if (engagementModel === "flex") return [startDate];
+export function scheduledServiceDates(startDate: string, term: ContractTerm, engagementModel: EngagementModel, rosterPattern: RosterPattern, durationWeeks?: number) {
+  // Historical approved single-shift calculations remain reproducible. Active
+  // booking submission validates the product rules before pricing.
+  if (engagementModel === "bolt" || engagementModel === "flex" && !durationWeeks) return [startDate];
   const months = Number(term);
-  const endDate = addMonths(startDate, months);
+  const endDate = engagementModel === "flex" ? dateAfterDays(startDate, durationWeeks! * 7 - 1) : addMonths(startDate, months);
   const allowed = new Set(rosterPatterns[rosterPattern].weekdays);
   const dates: string[] = [];
   const cursor = new Date(`${startDate}T00:00:00.000Z`);
@@ -384,7 +391,7 @@ export function scheduledServiceDates(startDate: string, term: ContractTerm, eng
 
 export function quoteBooking(request: BookingQuoteRequest) {
   const { serviceType, engagementModel, purposeCode, startDate, shift, rosterPattern, riskInput } = request;
-  const term: ContractTerm = engagementModel === "flex" ? "single" : request.term === "single" ? "1" : request.term;
+  const term: ContractTerm = engagementModel === "bolt" || engagementModel === "flex" && !request.durationWeeks ? "single" : engagementModel === "flex" ? "week" : request.term;
   const risk = assessRisk(purposeCode, riskInput);
   if (!serviceMeetsRecommendation(serviceType, risk.recommendedService)) {
     throw new Error(`${risk.recommendedService} is the minimum service recommended by this assessment.`);
@@ -400,9 +407,9 @@ export function quoteBooking(request: BookingQuoteRequest) {
     teamSize: Math.max(initialSpecialistConfiguration.teamSize, risk.headcount),
   });
   const headcount = specialistConfiguration.teamSize;
-  const noticeWindow = engagementModel === "flex" ? deriveNoticeWindow(startDate, shift, request.now) : "standard";
+  const noticeWindow = engagementModel !== "fixed" ? deriveNoticeWindow(startDate, shift, request.now) : "standard";
   const notice = noticePriceBook[noticeWindow];
-  const dates = scheduledServiceDates(startDate, term, engagementModel, rosterPattern);
+  const dates = scheduledServiceDates(startDate, term, engagementModel, rosterPattern, request.durationWeeks);
   const categories: Record<CalendarCategory, number> = { ordinary: 0, sunday: 0, public_holiday: 0, easter: 0, christmas: 0 };
   let baseClientCents = 0;
   let calendarPremiumCents = 0;
@@ -421,7 +428,7 @@ export function quoteBooking(request: BookingQuoteRequest) {
     const officerCalendarMultiplier = engagementModel === "fixed" ? calendar.fixedOfficerMultiplier : calendar.flexOfficerMultiplier;
     const baseClient = specialist.listShiftCents;
     const afterCalendar = Math.round(baseClient * clientCalendarMultiplier);
-    const afterDispatch = Math.round(afterCalendar * (engagementModel === "flex" ? notice.clientMultiplier : 1));
+    const afterDispatch = Math.round(afterCalendar * (engagementModel !== "fixed" ? notice.clientMultiplier : 1));
     const finalClient = Math.round(afterDispatch * risk.clientMultiplier);
     const officerBase = specialist.officerShiftCents;
     const finalOfficer = Math.round(officerBase * officerCalendarMultiplier * risk.officerMultiplier);
@@ -460,10 +467,11 @@ export function quoteBooking(request: BookingQuoteRequest) {
     serviceDayCount: dates.length,
     serviceDates: dates,
     headcount,
-    contractMonths: engagementModel === "flex" ? 0 : Number(term),
+    contractMonths: engagementModel === "fixed" ? Number(term) : 0,
+    durationWeeks: engagementModel === "flex" ? request.durationWeeks ?? 0 : 0,
     requestedStartDate: startDate,
-    startDate: firstServiceDate,
-    endDate: engagementModel === "flex" ? startDate : addMonths(startDate, Number(term)),
+    startDate: request.modelVersion ? startDate : firstServiceDate,
+    endDate: engagementModel === "fixed" ? addMonths(startDate, Number(term)) : engagementModel === "flex" && request.durationWeeks ? dateAfterDays(startDate, request.durationWeeks * 7 - 1) : startDate,
     clientPriceCents,
     clientShiftCents: firstClientShiftCents,
     officerRateCents: firstOfficerShiftCents,
@@ -494,7 +502,7 @@ export function quoteBooking(request: BookingQuoteRequest) {
     serviceLabel: service.label,
     noticeWindow,
     noticeLabel: engagementModel === "fixed" ? "Planned fixed roster" : notice.label,
-    rosterLabel: engagementModel === "fixed" ? rosterPatterns[rosterPattern].label : "Single shift",
+    rosterLabel: engagementModel === "bolt" || engagementModel === "flex" && !request.durationWeeks ? "Single shift" : rosterPatterns[rosterPattern].label,
     firstCalendarCategory,
     firstCalendarLabel: calendarPriceBook[firstCalendarCategory].label,
     calendarBreakdown: categories,

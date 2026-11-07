@@ -13,7 +13,7 @@ function fixture(respond){
  vm.runInNewContext(code,{exports,require:key=>modules[key],crypto,AbortSignal,Error,TypeError,SyntaxError,FormData:class{get(key){return values[key]??'';}},fetch:async(_url,options)=>{calls.push(options.body);return respond(options.body);}});
  function find(node,predicate){if(!node||typeof node!=='object')return null;if(predicate(node))return node;for(const child of [node.props?.children].flat(Infinity)){const match=find(child,predicate);if(match)return match;}return null;}
  const render=()=>{index=0;tree=exports.default({onSubmitted:id=>submitted.push(id)});};render();
- find(tree,node=>node.type==='input'&&node.props.value==='date').props.onChange();render();
+ find(tree,node=>node.type==='input'&&node.props.value==='flex').props.onChange();render();
  find(tree,node=>node.type==='input'&&node.props.name==='startDate').props.onChange({target:{value:'2099-01-01'}});render();
  for(let i=0;i<2;i++){find(tree,node=>node.type==='button'&&node.props.type==='button'&&node.props.onClick?.name==='advance').props.onClick();render();}
  return {calls,submitted,values,submit(){return tree.props.onSubmit({preventDefault(){},currentTarget:{}});},retry(){render();return find(tree,node=>node.type==='button'&&node.props.children==='Retry original enquiry').props.onClick();},render,locked(){render();return find(tree,node=>node.type==='fieldset')?.props.disabled;},hasSuccess(){render();return Boolean(find(tree,node=>node.type==='h2'&&node.props.children==='Your enquiry is with LOKD.'));}};
