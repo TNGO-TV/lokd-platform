@@ -70,6 +70,8 @@ test('rendered production workspaces and populated intake cards expose real acti
 
 test('public legal, contact, footer and organisation metadata use the approved company identity and postal contact',async()=>{
  const legalModules={...modules,'../lib/public-site':publicSite,'next/headers':{headers:async()=>new Headers()},'../components/client-enquiry-form':{default:()=>null}};
+ legalModules['./icons']=load('icons.tsx',legalModules);
+ legalModules['../components/icons']=legalModules['./icons'];
  legalModules['./public-site-shell']=load('public-site-shell.tsx',legalModules);
  legalModules['../components/public-site-shell']=legalModules['./public-site-shell'];
  legalModules['../components/legal-document']=load('legal-document.tsx',legalModules);

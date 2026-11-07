@@ -63,17 +63,18 @@ test('homepage offers real intake paths, responsive service navigation and priva
   await expect(footer.getByRole('link', {name: 'Training', exact: true})).toHaveAttribute('href', '/training');
   await fitsViewport(page);
   const header = page.locator('header');
-  await expect(header.getByRole('link', {name: 'Book officers', exact: true})).toHaveAttribute('href', '/book');
   const mobile = page.viewportSize().width < 900;
   if (mobile) {
     await expect(page.getByRole('navigation', {name: 'Main navigation', exact: true})).toBeHidden();
     await header.getByText('Menu', {exact: true}).click();
   } else {
+    await expect(header.getByRole('link', {name: 'Book officers', exact: true})).toHaveAttribute('href', '/book');
     await expect(header.getByRole('link', {name: 'Zone', exact: true})).toHaveAttribute('href', '/sign-in');
     await expect(header.getByText('Menu', {exact: true})).toBeHidden();
   }
   const navigation = page.getByRole('navigation', {name: mobile ? 'Mobile navigation' : 'Main navigation', exact: true});
   await expect(navigation).toBeVisible();
+  await expect(navigation.getByRole('link', {name: 'Book', exact: true})).toHaveAttribute('href', '/book');
   if (mobile) await expect(navigation.getByRole('link', {name: 'Zone', exact: true})).toHaveAttribute('href', '/sign-in');
   await navigation.getByRole('link', {name: 'Security services', exact: true}).click();
   await expect(page).toHaveURL(origin + '/security-services');
