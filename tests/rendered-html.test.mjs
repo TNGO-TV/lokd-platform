@@ -1,54 +1,82 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-test("renders the canonical public LOKD launch identity with real signup entry points and no simulated offers", async () => {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
-
-  const response = await worker.fetch(
-    new Request("http://localhost/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
-  );
-
-  assert.equal(response.status, 200);
-  assert.match(
-    response.headers.get("content-type") ?? "",
-    /^text\/html\b/i,
-  );
+const context = { waitUntil() {}, passThroughOnException() {} };
+const environment = { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } };
+async function renderPublicPage(path = "/") {
+  const { default: worker } = await import(new URL("../dist/server/index.js", import.meta.url).href);
+  const response = await worker.fetch(new Request("http://localhost" + path, { headers: { accept: "text/html" } }), environment, context);
+  assert.equal(response.status, 200, path);
+  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
-  assert.match(html, /<title>Security on your terms \| LOKD<\/title>/i);
-  assert.match(html, /<link rel="canonical" href="https:\/\/lokd\.co\.za\/?"\/>/i);
-  assert.match(html, /Book PSIRA-verified officers/i);
-
-  // Check actual rendered anchors, not labels that could survive with broken
-  // destinations or occur only in the serialized React payload.
+  // Streaming SSR sends the loading boundary before the completed page.
+  const main = [...html.matchAll(/<main\b[^>]*>([\s\S]*?)<\/main>/gi)].findLast(([, content]) => /<h1\b/.test(content))?.[1] ?? "";
+  assert.ok(main, path + " must include the completed server-rendered page");
+  const visible = main.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
   const links = [...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)].map(([, attributes, content]) => ({
-    href: attributes.match(/\bhref="([^"]*)"/i)?.[1],
+    href: attributes.match(/\bhref="([^"]*)"/i)?.[1]?.replace(/&amp;/g, "&"),
     text: content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(),
   }));
-  for (const [href, label] of [
-    ["/quote", "Get a quote"], ["/join", "Apply as an officer"],
-    ["/security-services", "See our services"], ["/armed-security", "Armed security"],
-    ["/vip-protection", "VIP protection"], ["/privacy", "Privacy"], ["/terms", "Terms and conditions"],
-    ["/sign-in?return_to=%2Fclient", "Client Zone"], ["/sign-in?return_to=%2Fofficer", "Officer Zone"],
-  ]) {
-    assert.ok(links.some((link) => link.href === href && link.text.startsWith(label)), `${label} must link to ${href}`);
-  }
-  assert.doesNotMatch(html, /<dd>R800<\/dd>|Prototype offer|Passport preview ready/i);
-  assert.doesNotMatch(html, /Starter Project/i);
-  assert.match(html, /PSIRA-verified officers/);
-  assert.match(html, /Johannesburg/);
+  return {html, main, visible, links};
+}
+function hasLink(links, href, label) {
+  assert.ok(links.some(link => link.href === href && link.text.startsWith(label)), label + " must link to " + href);
+}
+function professionalCopy(visible) {
+  assert.doesNotMatch(visible, /\b(?:demo|sample|placeholder|prelaunch|pilot|coming soon|lorem ipsum)\b/i);
+  assert.doesNotMatch(visible, /\b(?:R\s?\d[\d,.]*|ZAR\s?\d|arrives? in \d+|within \d+ minutes?|\d+\s*(?:min|minutes?|hours?) (?:away|notice))\b/i);
+  assert.doesNotMatch(visible, /Thabo Mokoena|Rosebank office park|31 Mar 2027|contracted rate|dispatch premium/i);
+}
+
+test("homepage renders all three LOKD pillars with real booking, training and officer paths", async () => {
+  const {html, main, visible, links} = await renderPublicPage();
+  assert.match(html, /<title>Security on your terms \| LOKD<\/title>/i);
+  assert.match(html, /<link rel="canonical" href="https:\/\/lokd\.co\.za\/?"\/>/i);
+  assert.match(visible, /Book officers\.\s*On your terms\./);
+  assert.match(visible, /today, tomorrow or ongoing cover/i);
+  assert.match(visible, /LOKD Flex/); assert.match(visible, /LOKD Fixed/); assert.match(visible, /LOKD Training/);
+  assert.match(visible, /certified training provider/i);
+  assert.match(visible, /Training is a paid service/);
+  for (const title of ["Entry-level training", "Grade upgrades", "Firearms training", "VIP protection"]) assert.ok(visible.includes(title), title);
+  assert.match(visible, /closest available pool/); assert.match(visible, /Arrival time depends on your location/);
+  for (const [href,label] of [
+    ["/book","Book officers"], ["/book?when=ongoing","Ongoing cover"],
+    ["/book?when=today","Today"], ["/book?when=tomorrow","Tomorrow"],
+    ["/book?service=scheduled_unarmed_fixed_site","Unarmed guarding"],
+    ["/book?service=armed_static","Armed security"], ["/book?service=vip_unarmed","VIP protection"],
+    ["/training","Explore LOKD Training"], ["/verify","Verify a Passport"],
+    ["/officers","PSIRA Registered or renewal"], ["/officers","New Application"],
+    ["/sign-in?return_to=%2Fclient","Client Zone"], ["/sign-in?return_to=%2Fofficer","Officer Zone"],
+    ["/sign-in?return_to=%2Fops","Operations Zone"], ["/privacy","Privacy"], ["/terms","Terms and conditions"],
+  ]) hasLink(links, href, label);
+  const sections = ["booking-models-title","services-title","passport-title","training-title","officer-paths-title","closing-title"];
+  for (let i=1;i<sections.length;i++) assert.ok(main.indexOf('id="'+sections[i]+'"') > main.indexOf('id="'+sections[i-1]+'"'), "homepage section order");
+  assert.doesNotMatch(main, /✓|<img[^>]*src="(?!\/(?:brand\/lokd-mark\.svg|lokd-logo[^"]*))/);
+  professionalCopy(visible);
+});
+
+for (const [path, service, grade, qualification] of [
+  ["/security-services","scheduled_unarmed_fixed_site","C","Assignment readiness"],
+  ["/armed-security","armed_static","B","Firearm competency"],
+  ["/vip-protection","vip_unarmed","B","Close-protection qualifications"],
+]) test(path + " renders the correct grade, role requirements and prefilled booking CTA", async () => {
+  const {html,visible,links} = await renderPublicPage(path);
+  assert.match(html, new RegExp('href="https://lokd\\.co\\.za'+path+'"'));
+  assert.ok(visible.includes("PSIRA grade "+grade+" minimum"));
+  assert.ok(visible.includes(qualification)); assert.ok(visible.includes("LOKD Flex")); assert.ok(visible.includes("LOKD Fixed"));
+  assert.match(visible, /ongoing contract cover/i); assert.match(visible, /Identity and Passport/);
+  assert.ok(links.some(link => link.href === "/book?service="+service && link.text.startsWith("Book ")));
+  professionalCopy(visible);
+});
+
+for (const path of ["/industries","/locations/johannesburg","/about","/contact"]) test(path + " renders a professional product page with shared navigation and booking paths", async () => {
+  const {html,visible,links} = await renderPublicPage(path);
+  assert.match(html, /<h1\b/);
+  for (const [href,label] of [["/book","Book"],["/security-services","Security services"],["/clients","For clients"],["/officers","For officers"],["/training","Training"],["/about","About"],["/contact","Contact"],["/sign-in","Zone"]]) hasLink(links,href,label);
+  hasLink(links,"/book?when=ongoing","Ongoing cover");
+  if (path === "/contact") { assert.match(html, /<form\b/); assert.match(html, /name="privacyConsent"/); }
+  if (path === "/about") { assert.match(visible, /certified training provider/); assert.match(visible, /Training is a paid service/); }
+  professionalCopy(visible);
 });
 
 test('built Worker rejects rehearsal paths and router aliases on production despite forged test host headers',async()=>{

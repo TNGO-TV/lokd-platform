@@ -52,17 +52,18 @@ test('homepage offers real intake paths, responsive service navigation and priva
   // Vinext may serialize an origin-only canonical without its implicit slash.
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /^https:\/\/lokd\.co\.za\/?$/);
   const main = page.locator('main');
-  await expect(main.getByRole('heading', {level: 1})).toHaveText('Security.On your terms.');
-  await expect(main.getByRole('link', {name: /^Get a quote/})).toHaveAttribute('href', '/quote');
-  await expect(main.getByRole('link', {name: /^Apply as an officer/})).toHaveAttribute('href', '/join');
-  await expect(main.getByRole('heading', {name: 'PSIRA-verified officers', exact: true})).toBeVisible();
+  await expect(main.getByRole('heading', {level: 1})).toHaveText('Book officers.On your terms.');
+  await expect(main.getByRole('link', {name: 'Book officers', exact: true}).first()).toHaveAttribute('href', '/book');
+  await expect(main.getByRole('link', {name: /^PSIRA Registered or renewal/})).toHaveAttribute('href', '/officers');
+  await expect(main.getByRole('heading', {name: 'LOKD Flex', exact: true})).toBeVisible();
+  await expect(main.getByRole('heading', {name: 'LOKD Fixed', exact: true})).toBeVisible();
   const footer = page.locator('footer');
   await expect(footer.getByRole('link', {name: 'Client Zone', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fclient');
   await expect(footer.getByRole('link', {name: 'Officer Zone', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fofficer');
   await expect(footer.getByRole('link', {name: 'Training', exact: true})).toHaveAttribute('href', '/training');
   await fitsViewport(page);
   const header = page.locator('header');
-  await expect(header.getByRole('link', {name: 'Get a quote', exact: true})).toHaveAttribute('href', '/quote');
+  await expect(header.getByRole('link', {name: 'Book officers', exact: true})).toHaveAttribute('href', '/book');
   const mobile = page.viewportSize().width < 900;
   if (mobile) {
     await expect(page.getByRole('navigation', {name: 'Main navigation', exact: true})).toBeHidden();
@@ -107,8 +108,7 @@ async function applicantDetails(page, {training = false} = {}) {
 }
 
 test('officer application validates locally, preserves rejection and displays full UUID receipt', async ({page, intakeNetwork: offline}) => {
-  await page.goto('/');
-  await page.locator('main').getByRole('link', {name: /^Apply as an officer/}).click();
+  await page.goto('/join');
   await expect(page).toHaveURL(origin + '/join');
   await expect(page).toHaveTitle('Apply as a security officer | LOKD');
   await expect(page.getByRole('heading', {level: 1})).toHaveText('Apply as an officer.');
@@ -177,8 +177,7 @@ function isoDate(daysAhead) {
 }
 
 test('security enquiry enforces fields and consent, shows server rejection and links its receipt', async ({page, intakeNetwork: offline}) => {
-  await page.goto('/');
-  await page.locator('main').getByRole('link', {name: /^Get a quote/}).click();
+  await page.goto('/quote');
   await expect(page).toHaveURL(origin + '/quote');
   await expect(page).toHaveTitle('Get a security quote | LOKD');
   const form = page.locator('form.public-form');
