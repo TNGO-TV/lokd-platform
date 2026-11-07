@@ -9,7 +9,7 @@ import { COMPANY_NAME, BOOKINGS_EMAIL, QUOTES_EMAIL } from "../lib/public-site";
 export type PublicSection = "home" | "services" | "industries" | "clients" | "officers" | "about" | "contact";
 const navigation = [
   ["Security services", "/security-services"], ["For clients", "/clients"],
-  ["For officers", "/officers"], ["About", "/about"], ["Contact", "/contact"],
+  ["For officers", "/officers"], ["Training", "/training"], ["About", "/about"], ["Contact", "/contact"],
 ] as const;
 
 export function PublicHeader({ active = "home" }: { active?: PublicSection }) {
