@@ -56,7 +56,11 @@ test('each course explains audience, coverage and outcome and opens its booking 
  await expect(page.locator('.officers-hero').getByRole('link',{name:'Book Now',exact:true})).toHaveAttribute('href','#training-booking');
  await expect(page.locator('main')).not.toContainText('training@lokd.co.za');
  await page.screenshot({path:testInfo.outputPath('training.png'),fullPage:true});
- for(const [href,course] of selections){await page.goto(href);await expect(page.locator('select[name="course"]')).toHaveValue(course);await expect(page.getByRole('heading',{name:'Book your training',exact:true})).toBeInViewport();}
+ for(const [index,[href,course]] of selections.entries()){
+  if(index===0)await page.goto(href);else await page.locator(`.officers-course a[href="${href}"]`).click();
+  await expect(page.locator('select[name="course"]')).toHaveValue(course);await expect(page.getByRole('heading',{name:'Book your training',exact:true})).toBeInViewport();
+ }
+ await page.reload();await expect(page.getByRole('heading',{name:'Book your training',exact:true})).toBeInViewport();
  await fits(page);
 });
 test('training on Contact leads to the booking form and the shared footer covers South Africa',async({page})=>{

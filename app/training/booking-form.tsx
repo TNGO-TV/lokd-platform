@@ -9,6 +9,18 @@ import { currentIntakeMonth, trainingCourse, trainingCourses, trainingIdStatuses
 export default function TrainingBookingForm() {
   const search = useSearchParams();
   const course = trainingCourse(search.get("course"))?.id ?? "";
+  useEffect(() => {
+    if (window.location.hash !== "#training-booking") return;
+    let cancelled = false, frame = 0;
+    // Keep the booking destination visible after route hydration and font layout.
+    void document.fonts.ready.then(() => {
+      if (cancelled) return;
+      frame = requestAnimationFrame(() => {
+        if (window.location.hash === "#training-booking") document.getElementById("training-booking")?.scrollIntoView({ block: "start", behavior: "instant" });
+      });
+    });
+    return () => { cancelled = true; cancelAnimationFrame(frame); };
+  }, [course]);
   return <BookingForm key={course} initialCourse={course} />;
 }
 
