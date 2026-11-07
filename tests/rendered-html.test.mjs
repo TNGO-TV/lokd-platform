@@ -29,7 +29,7 @@ test("renders the canonical public LOKD launch identity with real signup entry p
   const html = await response.text();
   assert.match(html, /<title>Security on your terms \| LOKD<\/title>/i);
   assert.match(html, /<link rel="canonical" href="https:\/\/lokd\.co\.za\/?"\/>/i);
-  assert.match(html, /Book verified security officers/i);
+  assert.match(html, /Book PSIRA-verified officers/i);
 
   // Check actual rendered anchors, not labels that could survive with broken
   // destinations or occur only in the serialized React payload.
@@ -39,7 +39,7 @@ test("renders the canonical public LOKD launch identity with real signup entry p
   }));
   for (const [href, label] of [
     ["/quote", "Get a quote"], ["/join", "Apply as an officer"],
-    ["/security-services", "Explore our services"], ["/armed-security", "Armed security"],
+    ["/security-services", "See our services"], ["/armed-security", "Armed security"],
     ["/vip-protection", "VIP protection"], ["/privacy", "Privacy"], ["/terms", "Terms and conditions"],
     ["/sign-in?return_to=%2Fclient", "Client Zone"], ["/sign-in?return_to=%2Fofficer", "Officer Zone"],
   ]) {
