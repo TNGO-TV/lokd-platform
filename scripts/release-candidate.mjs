@@ -132,10 +132,10 @@ function validations() {
     && Array.isArray(browser.errors) && browser.errors.length === 0,
   'All 38 isolated desktop/mobile browser checks must pass.');
   const integrated = json('test-results/integrated-browser/browser.json');
-  requireCondition(integrated?.stats?.expected === 78 && integrated.stats.unexpected === 0
+  requireCondition(integrated?.stats?.expected === 90 && integrated.stats.unexpected === 0
     && integrated.stats.flaky === 0 && integrated.stats.skipped === 0
     && Array.isArray(integrated.errors) && integrated.errors.length === 0,
-  'All 78 integrated desktop/mobile browser checks must pass.');
+  'All 90 integrated desktop/mobile browser checks must pass.');
   const audit = json('test-results/dependency-audit.json');
   requireCondition([0, 1].includes(audit.npmExit), 'Audit evidence needs a completed npm process.');
   requireCondition(audit.assessment?.ok === true && Array.isArray(audit.assessment.blocked) && audit.assessment.blocked.length === 0, 'Audit assessment must pass with no blocked advisories.');

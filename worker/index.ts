@@ -1,3 +1,4 @@
+import { purgeExpiredZoneLocations } from "../app/lib/zone-location";
 import { secureRequest, secureResponse } from "../app/lib/security-headers";
 import { ownerBackup, type BackupEnv } from "./owner-backup";
 /** Production Cloudflare Worker entry point. */
@@ -83,6 +84,7 @@ const worker = {
       trigger: "scheduled",
       evidenceStoreBound: Boolean(env.BUCKET),
     }).then(() => undefined));
+    ctx.waitUntil(purgeExpiredZoneLocations(env.DB).then(() => undefined));
     ctx.waitUntil(runDataRetention(env.DB).then(() => undefined));
     ctx.waitUntil(runDueAssignmentRevalidations(env.DB, "system:scheduled-revalidation").then(() => undefined));
     ctx.waitUntil(runOperationalDelivery(env.DB, env).then(() => undefined));

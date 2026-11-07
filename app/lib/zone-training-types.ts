@@ -1,0 +1,21 @@
+export type TrainingSession = { id: string; courseId: string; startsAt: string; endsAt: string; venue: string; capacity: number; status: 'draft' | 'published' | 'cancelled'; version: number; seatsTaken: number; feeCents?: number | null; feeTerms?: string | null };
+export type TrainingEnrolment = { id: string; ownerUserId: string; fullName: string; ownerEmail?: string; courseId: string; sessionId: string | null; status: 'requested' | 'confirmed' | 'completion_pending' | 'completed' | 'cancelled'; attendance: 'unrecorded' | 'present' | 'absent' | 'excused'; version: number; createdAt: string; startsAt: string | null; endsAt: string | null; venue: string | null; agreedFeeCents?: number | null; agreedFeeTerms?: string | null };
+export type TrainingCompletionReview = { id: string; enrolmentId: string; sourceVersion: number; assessmentReference: string; evidenceSha256: string; certificateNumber: string; certificateReference: string; preparedBy: string; decision: 'pending' | 'approved' | 'rejected'; version: number };
+export type TrainingCertificate = { id: string; enrolmentId: string; courseId: string; certificateNumber: string; certificateReference: string; issuedAt: string };
+export type TrainingRenewalRequest = { id: string; ownerUserId: string; ownerEmail?: string; note: string; status: 'open' | 'under_review' | 'closed'; publicNote: string | null; version: number; createdAt: string };
+export type ZoneTrainingState = { sessions: TrainingSession[]; enrolments: TrainingEnrolment[]; completions: TrainingCompletionReview[]; certificates: TrainingCertificate[]; renewals: TrainingRenewalRequest[]; viewerUserId: string; isOwner: boolean; checkedAt: string };
+
+const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
+const strings = (value: Record<string, unknown>, keys: string[]) => keys.every(key => typeof value[key] === 'string');
+const date = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value));
+const version = (value: unknown) => Number.isSafeInteger(value) && Number(value) > 0;
+export function zoneTrainingResponse(value: unknown): value is { state: ZoneTrainingState; ok?: boolean; result?: { id: string; message: string } } {
+  if (!record(value) || !record(value.state)) return false;
+  const s = value.state;
+  return date(s.checkedAt) && typeof s.viewerUserId === 'string' && typeof s.isOwner === 'boolean'
+    && Array.isArray(s.sessions) && s.sessions.every(row => record(row) && strings(row, ['id', 'courseId', 'venue']) && date(row.startsAt) && date(row.endsAt) && version(row.version) && Number.isSafeInteger(row.capacity) && Number.isSafeInteger(row.seatsTaken) && ['draft', 'published', 'cancelled'].includes(String(row.status)))
+    && Array.isArray(s.enrolments) && s.enrolments.every(row => record(row) && strings(row, ['id', 'ownerUserId', 'fullName', 'courseId']) && version(row.version) && date(row.createdAt) && (row.startsAt === null || date(row.startsAt)) && (row.endsAt === null || date(row.endsAt)) && (row.sessionId === null || typeof row.sessionId === 'string') && (row.venue === null || typeof row.venue === 'string') && ['requested', 'confirmed', 'completion_pending', 'completed', 'cancelled'].includes(String(row.status)) && ['unrecorded', 'present', 'absent', 'excused'].includes(String(row.attendance)))
+    && Array.isArray(s.completions) && s.completions.every(row => record(row) && strings(row, ['id', 'enrolmentId', 'assessmentReference', 'evidenceSha256', 'certificateNumber', 'certificateReference', 'preparedBy']) && version(row.version) && version(row.sourceVersion) && ['pending', 'approved', 'rejected'].includes(String(row.decision)))
+    && Array.isArray(s.certificates) && s.certificates.every(row => record(row) && strings(row, ['id', 'enrolmentId', 'courseId', 'certificateNumber', 'certificateReference']) && date(row.issuedAt))
+    && Array.isArray(s.renewals) && s.renewals.every(row => record(row) && strings(row, ['id', 'ownerUserId', 'note']) && version(row.version) && date(row.createdAt) && (row.publicNote === null || typeof row.publicNote === 'string') && ['open', 'under_review', 'closed'].includes(String(row.status)));
+}

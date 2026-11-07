@@ -3259,3 +3259,42 @@ export const trainingBookings = sqliteTable("training_bookings", {
   environment: text("environment").notNull().default("production"), integrityState: text("integrity_state").notNull().default("user_submitted"),
   retentionReviewAt: text("retention_review_at").notNull(), createdAt: text("created_at").notNull(),
 }, table => [index("training_bookings_intake_idx").on(table.preferredIntakeMonth, table.createdAt), index("training_bookings_status_idx").on(table.status, table.createdAt)]);
+
+export const zoneTrainingSessions = sqliteTable('zone_training_sessions', {
+  id: text('id').primaryKey(), requestId: text('request_id').notNull(), courseId: text('course_id').notNull(),
+  startsAt: text('starts_at').notNull(), endsAt: text('ends_at').notNull(), venue: text('venue').notNull(), capacity: integer('capacity').notNull(),
+  feeCents: integer('fee_cents'), feeTerms: text('fee_terms'), status: text('status', { enum: ['draft', 'published', 'cancelled'] }).notNull().default('draft'),
+  version: integer('version').notNull().default(1), createdBy: text('created_by').notNull(), updatedBy: text('updated_by').notNull(),
+  lastEventId: text('last_event_id').notNull(), createdAt: text('created_at').notNull(), updatedAt: text('updated_at').notNull(),
+}, table => [uniqueIndex('zone_training_sessions_request_idx').on(table.createdBy, table.requestId), index('zone_training_sessions_date_idx').on(table.status, table.startsAt)]);
+export const zoneTrainingEnrolments = sqliteTable('zone_training_enrolments', {
+  id: text('id').primaryKey(), requestId: text('request_id').notNull(), ownerUserId: text('owner_user_id').notNull(), ownerEmail: text('owner_email').notNull(), fullName: text('full_name').notNull(),
+  courseId: text('course_id').notNull(), sessionId: text('session_id').references(() => zoneTrainingSessions.id),
+  status: text('status', { enum: ['requested', 'confirmed', 'completion_pending', 'completed', 'cancelled'] }).notNull().default('requested'),
+  agreedFeeCents: integer('agreed_fee_cents'), agreedFeeTerms: text('agreed_fee_terms'), eligibilityReference: text('eligibility_reference'), confirmedBy: text('confirmed_by'),
+  attendance: text('attendance', { enum: ['unrecorded', 'present', 'absent', 'excused'] }).notNull().default('unrecorded'), attendanceBy: text('attendance_by'), attendanceReference: text('attendance_reference'),
+  version: integer('version').notNull().default(1), lastEventId: text('last_event_id').notNull(), createdAt: text('created_at').notNull(), updatedAt: text('updated_at').notNull(), retentionReviewAt: text('retention_review_at').notNull(),
+}, table => [uniqueIndex('zone_training_enrolments_request_idx').on(table.ownerUserId, table.requestId), index('zone_training_enrolments_owner_idx').on(table.ownerUserId, table.createdAt), index('zone_training_enrolments_session_idx').on(table.sessionId, table.status), uniqueIndex('zone_training_enrolments_active_idx').on(table.ownerUserId, table.sessionId).where(sql`${table.status}!='cancelled' AND ${table.sessionId} IS NOT NULL`)]);
+export const zoneTrainingCompletionReviews = sqliteTable('zone_training_completion_reviews', {
+  id: text('id').primaryKey(), enrolmentId: text('enrolment_id').notNull().references(() => zoneTrainingEnrolments.id), sourceVersion: integer('source_version').notNull(),
+  assessmentReference: text('assessment_reference').notNull(), evidenceSha256: text('evidence_sha256').notNull(), certificateNumber: text('certificate_number').notNull(), certificateReference: text('certificate_reference').notNull(),
+  preparedBy: text('prepared_by').notNull(), decision: text('decision', { enum: ['pending', 'approved', 'rejected'] }).notNull().default('pending'), decidedBy: text('decided_by'), reason: text('reason'),
+  version: integer('version').notNull().default(1), lastEventId: text('last_event_id').notNull(), createdAt: text('created_at').notNull(), decidedAt: text('decided_at'),
+}, table => [uniqueIndex('zone_training_pending_completion_idx').on(table.enrolmentId).where(sql`${table.decision}='pending'`)]);
+export const zoneTrainingCertificates = sqliteTable('zone_training_certificates', {
+  id: text('id').primaryKey(), enrolmentId: text('enrolment_id').notNull().unique().references(() => zoneTrainingEnrolments.id), completionReviewId: text('completion_review_id').notNull().unique().references(() => zoneTrainingCompletionReviews.id),
+  certificateNumber: text('certificate_number').notNull().unique(), certificateReference: text('certificate_reference').notNull(), issuedAt: text('issued_at').notNull(), issuedBy: text('issued_by').notNull(),
+});
+export const zoneTrainingRenewalRequests = sqliteTable('zone_training_renewal_requests', {
+  id: text('id').primaryKey(), requestId: text('request_id').notNull(), ownerUserId: text('owner_user_id').notNull(), ownerEmail: text('owner_email').notNull(), note: text('note').notNull(),
+  status: text('status', { enum: ['open', 'under_review', 'closed'] }).notNull().default('open'), publicNote: text('public_note'), reviewedBy: text('reviewed_by'),
+  version: integer('version').notNull().default(1), lastEventId: text('last_event_id').notNull(), createdAt: text('created_at').notNull(), updatedAt: text('updated_at').notNull(), retentionReviewAt: text('retention_review_at').notNull(),
+}, table => [uniqueIndex('zone_training_renewals_request_idx').on(table.ownerUserId, table.requestId), index('zone_training_renewals_owner_idx').on(table.ownerUserId, table.createdAt)]);
+
+// Optional, revocable live points. Separate from retained attendance evidence.
+export const officerDispatchConsents = sqliteTable('officer_dispatch_consents', {
+ ownerUserId: text('owner_user_id').primaryKey(), officerId: text('officer_id').notNull().references(()=>officers.id), revision: integer('revision').notNull(), sessionId: text('session_id').notNull().unique(), active: integer('active').notNull(), mode: text('mode').notNull(), shiftId: text('shift_id').references(()=>shifts.id), expiresAt: text('expires_at').notNull(), updatedAt: text('updated_at').notNull(),
+},()=>[check('dispatch_consent_revision',sql.raw('revision>0')),check('dispatch_consent_active',sql.raw('active IN (0,1)')),check('dispatch_consent_mode',sql.raw("mode IN ('dispatch','en_route')")),check('dispatch_consent_audience',sql.raw("(mode='dispatch' AND shift_id IS NULL) OR (mode='en_route' AND shift_id IS NOT NULL)"))]);
+export const officerDispatchLocations = sqliteTable('officer_dispatch_locations', {
+ ownerUserId: text('owner_user_id').primaryKey().references(()=>officerDispatchConsents.ownerUserId,{onDelete:'cascade'}), revision: integer('revision').notNull(), sessionId: text('session_id').notNull(), latitude: real('latitude').notNull(), longitude: real('longitude').notNull(), accuracyMeters: real('accuracy_meters').notNull(), capturedAt: text('captured_at').notNull(), expiresAt: text('expires_at').notNull(),
+},()=>[check('dispatch_point_latitude',sql.raw('latitude BETWEEN -35 AND -22')),check('dispatch_point_longitude',sql.raw('longitude BETWEEN 16 AND 33')),check('dispatch_point_accuracy',sql.raw('accuracy_meters>0 AND accuracy_meters<=150'))]);

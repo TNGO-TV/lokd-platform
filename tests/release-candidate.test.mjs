@@ -39,7 +39,7 @@ function fixture(t) {
     put('test-results/dependency-audit.json', JSON.stringify(passingAudit()));
     put('test-results/dependency-boundary-rsc.json', JSON.stringify(passingBoundary()));
     put('test-results/offline-browser/results.json', JSON.stringify(passingBrowser()));
-    put('test-results/integrated-browser/browser.json', JSON.stringify(passingBrowser(78)));
+    put('test-results/integrated-browser/browser.json', JSON.stringify(passingBrowser(90)));
   };
   const prepare = () => { assert.equal(run('begin').status, 0); outputs(); const sealed = run('seal'); assert.equal(sealed.status, 0, sealed.stderr); };
   return { root, put, original, env, run, outputs, prepare };
@@ -70,7 +70,7 @@ test('artifact, validation, lock and untracked source drift independently block 
     ['artifact', (f) => f.put('dist/client/index.html', 'changed')],
     ['validation', (f) => f.put('test-results/dependency-audit.json', 'changed')],
     ['browser evidence', (f) => f.put('test-results/offline-browser/results.json', 'changed')],
-    ['integrated evidence', (f) => f.put('test-results/integrated-browser/browser.json', JSON.stringify({...passingBrowser(78),duration:1}))],
+    ['integrated evidence', (f) => f.put('test-results/integrated-browser/browser.json', JSON.stringify({...passingBrowser(90),duration:1}))],
     ['lock', (f) => f.put('package-lock.json', '{"changed":true}')],
     ['untracked source', (f) => f.put('unexpected.js', 'changed')],
   ]) {
@@ -226,7 +226,7 @@ fs.writeFileSync('dist/server/wrangler.json',JSON.stringify({...original,main:'i
 fs.writeFileSync('dist/server/index.js','export default {};');fs.writeFileSync('dist/client/index.html','candidate');
 fs.writeFileSync('test-results/dependency-audit.json',${JSON.stringify(JSON.stringify(passingAudit()))});fs.writeFileSync('test-results/dependency-boundary-rsc.json',${JSON.stringify(JSON.stringify(passingBoundary()))});
 fs.writeFileSync('test-results/offline-browser/results.json',${JSON.stringify(JSON.stringify(passingBrowser()))});
-fs.writeFileSync('test-results/integrated-browser/browser.json',${JSON.stringify(JSON.stringify(passingBrowser(78)))});
+fs.writeFileSync('test-results/integrated-browser/browser.json',${JSON.stringify(JSON.stringify(passingBrowser(90)))});
 `);
   execFileSync('chmod', ['+x', 'node_modules/.bin/npm', 'node_modules/.bin/wrangler'], { cwd: f.root });
   const runShell = (mode) => spawnSync('bash', ['scripts/deploy-native-cf.sh', mode], {
@@ -268,8 +268,8 @@ test('isolated browser evidence requires all 38 checks including officer, traini
 
 test('integrated browser evidence is mandatory and failing, incomplete or malformed reports cannot seal',t=>{
  for(const replacement of [null,'not JSON','null',JSON.stringify({}),
-  ...[{expected:77},{unexpected:1},{flaky:1},{skipped:1}].map(stats=>JSON.stringify({...passingBrowser(78),stats:{...passingBrowser(78).stats,...stats}})),
-  JSON.stringify({...passingBrowser(78),errors:[{message:'worker failed'}]}),JSON.stringify({...passingBrowser(78),errors:null})]){
+  ...[{expected:89},{unexpected:1},{flaky:1},{skipped:1}].map(stats=>JSON.stringify({...passingBrowser(90),stats:{...passingBrowser(90).stats,...stats}})),
+  JSON.stringify({...passingBrowser(90),errors:[{message:'worker failed'}]}),JSON.stringify({...passingBrowser(90),errors:null})]){
   const f=fixture(t);assert.equal(f.run('begin').status,0);f.outputs();
   if(replacement===null)rmSync(path.join(f.root,'test-results/integrated-browser/browser.json'));
   else f.put('test-results/integrated-browser/browser.json',replacement);
@@ -279,7 +279,7 @@ test('integrated browser evidence is mandatory and failing, incomplete or malfor
 });
 
 test('verification rejects missing, failing, changed and malformed integrated browser evidence',t=>{
- for(const replacement of [null,'not JSON','null',JSON.stringify({...passingBrowser(78),stats:{...passingBrowser(78).stats,unexpected:1}}),JSON.stringify({...passingBrowser(78),duration:1})]){
+ for(const replacement of [null,'not JSON','null',JSON.stringify({...passingBrowser(90),stats:{...passingBrowser(90).stats,unexpected:1}}),JSON.stringify({...passingBrowser(90),duration:1})]){
   const f=fixture(t);f.prepare();
   if(replacement===null)rmSync(path.join(f.root,'test-results/integrated-browser/browser.json'));
   else f.put('test-results/integrated-browser/browser.json',replacement);

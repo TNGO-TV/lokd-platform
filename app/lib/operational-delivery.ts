@@ -125,6 +125,8 @@ export async function runOperationalDelivery(db:D1Database,runtime:OperationalRu
  if(!options.receiptsOnly){
   const training=await db.prepare("SELECT b.id FROM training_bookings b WHERE EXISTS(SELECT 1 FROM officer_email_outbox n WHERE n.id IN ('training-team:'||b.id,'training-confirmation:'||b.id) AND n.state IN ('queued','failed')) ORDER BY b.created_at,b.id LIMIT 5").all<{id:string}>();
   for(const booking of training.results)await deliverTrainingBookingEmails(db,runtime,booking.id,transport);
+  const zoneTraining=await db.prepare("SELECT id FROM officer_email_outbox WHERE id LIKE 'zone-training:%' AND state IN ('queued','failed') AND attempts<5 ORDER BY created_at,id LIMIT 5").all<{id:string}>();
+  for(const notice of zoneTraining.results)await deliverOfficerEmail(db,runtime,notice.id,transport);
  }
  return {enabled:true,processed};
 }
