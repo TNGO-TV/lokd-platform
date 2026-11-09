@@ -1,11 +1,15 @@
+import { HOURLY_PAY_POLICY_DEFAULTS } from './payroll-engine';
 import type { BookingModel } from './booking-models';
 export type { BookingModel } from './booking-models';
 export type WorkforceModel = "direct_flex" | "managed";
-export const BOOKING_WORKFORCE_ROUTES = { bolt: ["direct_flex"], flex: ["managed"], fixed: ["managed"] } as const;
-export function bookingWorkforceRouteDecision(bookingModel: string | null | undefined, route: string | null) {
- if (!bookingModel || !Object.hasOwn(BOOKING_WORKFORCE_ROUTES, bookingModel)) return { ready: false, code: "BOOKING_MODEL_INVALID", detail: "Record LOKD Bolt, LOKD Flex or LOKD Fixed before activating an assignment." };
- const allowed: readonly string[] = BOOKING_WORKFORCE_ROUTES[bookingModel as BookingModel], ready = route !== null && allowed.includes(route);
- return { ready, code: ready ? null : "BOOKING_WORKFORCE_ROUTE_MISMATCH", detail: ready ? null : bookingModel === 'bolt' ? 'LOKD Bolt requires direct LOKD employment through the direct_flex route.' : 'LOKD Flex and LOKD Fixed require direct LOKD employment through the managed route.' };
+export type PayBasis = "hourly" | "monthly";
+export const payBasisLabel = (type: string | null | undefined) => type === 'hourly' ? 'Hourly pay' : type === 'monthly' ? 'Monthly salary' : 'Pay basis not recorded';
+export const legacyPayBasisForModel = (model: string | null): PayBasis | null => model === 'direct_flex' ? 'hourly' : model === 'managed' ? 'monthly' : null;
+export const BOOKING_WORKFORCE_ROUTES = { bolt: ["direct_flex", "managed"], flex: ["direct_flex", "managed"], fixed: ["direct_flex", "managed"] } as const;
+export function bookingWorkforceRouteDecision(bookingModel:string|null|undefined,route:string|null,payBasis=legacyPayBasisForModel(route)){
+ if(!bookingModel||!Object.hasOwn(BOOKING_WORKFORCE_ROUTES,bookingModel))return {ready:false,code:"BOOKING_MODEL_INVALID",detail:"Record LOKD Bolt, LOKD Flex or LOKD Fixed before activating an assignment.",warnings:[] as string[]};
+ const ready=route==='direct_flex'||route==='managed';
+ return {ready,code:ready?null:"BOOKING_WORKFORCE_ROUTE_MISMATCH",detail:ready?null:"A directly employed LOKD officer record is required.",warnings:bookingModel==='fixed'&&payBasis==='hourly'?['Review hourly pay for this LOKD Fixed roster.']:[]};
 }
 export function workforceReadinessStatuses(model: WorkforceModel) { if(!['direct_flex','managed'].includes(model))throw new Error('Only LOKD employment routes are supported.'); return { payrollStatus: 'ready', benefitsStatus: 'ready' }; }
 export type LaunchGateStatus = "passed" | "reported" | "pending" | "blocked";
@@ -41,6 +45,7 @@ export type WorkforceActivationInput = {
   postOrdersApproved: boolean;
   engagementStatus: string | null;
   model: WorkforceModel | null;
+  payBasis?:PayBasis|null;
   employerStatus: string | null;
   employerComplianceCurrent: boolean;
   payrollStatus: string | null;
@@ -95,8 +100,8 @@ export function launchGateDecision(
 }
 
 export function workforceActivationDecision(input: WorkforceActivationInput) {
-  const blockers: string[] = [];
-  const route = bookingWorkforceRouteDecision(input.bookingModel, input.model);
+  const blockers: string[] = [],warnings:string[]=[];
+  const route = bookingWorkforceRouteDecision(input.bookingModel, input.model,input.payBasis??undefined);
   if (!route.ready && route.detail) blockers.push(route.detail);
   const launch = launchGateDecision(input.launchGates);
   if (!launch.ready) blockers.push(...launch.blockers.map((code) => `Launch gate ${code} is not passed.`));
@@ -105,14 +110,14 @@ export function workforceActivationDecision(input: WorkforceActivationInput) {
   if (!input.postOrdersApproved) blockers.push("Post orders are not approved.");
   if (!input.passportEligible) blockers.push("The officer does not pass current Passport controls.");
   if (!input.model || input.engagementStatus !== "active") blockers.push("No active workforce engagement exists.");
-  if (!input.employerStatus || input.employerStatus !== "current") blockers.push("The employer of record is not current.");
-  if (!input.employerComplianceCurrent) blockers.push("Employer compliance is incomplete or expired.");
+  if (!input.employerStatus) blockers.push("The employer record is missing."); else if(input.employerStatus!=="current")warnings.push("Employer compliance requires review.");
+  if (!input.employerComplianceCurrent) warnings.push("Employer compliance is incomplete or expired.");
   if (!input.termsVersion) blockers.push("No accepted workforce terms version is recorded.");
   if (input.model === "direct_flex" || input.model === "managed") {
-    if (input.payrollStatus !== "ready") blockers.push("Direct payroll activation is not ready.");
-    if (input.benefitsStatus !== "ready") blockers.push("Direct employment benefit controls are not ready.");
+    if (input.payrollStatus !== "ready") warnings.push("Direct payroll activation is not ready.");
+    if (input.benefitsStatus !== "ready") warnings.push("Direct employment benefit controls are not ready.");
   }
-  return { ready: blockers.length === 0, blockers };
+  return { ready: blockers.length === 0, blockers, warnings:[...warnings,...route.warnings] };
 }
 
 export function durationHours(startsAt: string, endsAt: string) {
@@ -134,12 +139,13 @@ export function isoWeekDateRange(serviceDate: string) {
   return { monday: monday.toISOString().slice(0, 10), sunday: sunday.toISOString().slice(0, 10) };
 }
 
-export function directFlexHoursDecision(existingHours: number, candidateHours: number, weeklyHourCap = 24) {
+export function directFlexHoursDecision(existingHours: number, candidateHours: number, weeklyHourCap = HOURLY_PAY_POLICY_DEFAULTS.weeklyHourThreshold) {
   const safeExisting = Number.isFinite(existingHours) ? Math.max(0, existingHours) : 0;
   const safeCandidate = Number.isFinite(candidateHours) ? Math.max(0, candidateHours) : 0;
   const projectedHours = safeExisting + safeCandidate;
   return {
-    eligible: safeCandidate > 0 && projectedHours <= weeklyHourCap,
+    eligible: safeCandidate > 0,
+    warnings: projectedHours > weeklyHourCap ? ["Weekly hours exceed the hourly-pay review threshold."] : [],
     projectedHours,
     weeklyHourCap,
   };

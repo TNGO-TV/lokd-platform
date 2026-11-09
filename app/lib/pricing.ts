@@ -1,3 +1,4 @@
+import type {PayrollPolicy} from './payroll-engine';
 import { dateAfterDays } from './booking-models';
 import { scheduledDates, type SchedulePattern } from './booking-schedule';
 export type ServiceType = "Unarmed" | "Armed" | "VIP";
@@ -45,6 +46,8 @@ export type RiskAssessment = {
 };
 
 export type BookingQuoteRequest = {
+  payrollCostPolicy?:PayrollPolicy;
+  payrollCostPolicyReference?:{id:string;hash:string};
   serviceType: ServiceType;
   engagementModel: EngagementModel;
   term: ContractTerm;
@@ -119,7 +122,7 @@ export const noticePriceBook: Record<NoticeWindow, {
 
 export const engagementModels: Record<EngagementModel, { label: string; note: string }> = {
   bolt: { label: "LOKD Bolt", note: "Urgent bookings with less than 72 hours’ notice." },
-  fixed: { label: "LOKD Fixed", note: "Full-time cover for three months or more." },
+  fixed: { label: "LOKD Fixed", note: "Ongoing cover for three months or more." },
   flex: { label: "LOKD Flex", note: "Temporary / Flexible Service · 7+ Days in a calendar month" },
 };
 
@@ -455,6 +458,8 @@ export function quoteBooking(request: BookingQuoteRequest) {
 
   const listSubtotalCents = baseClientCents + calendarPremiumCents + dispatchPremiumCents + riskPremiumCents;
   const pricingDecision = priceSpecialistCostFloor({
+    payrollPolicy:request.payrollCostPolicy,payrollPolicyReference:request.payrollCostPolicyReference,
+    engagementModel,
     serviceCode: specialistConfiguration.serviceCode,
     serviceDayCount: dates.length,
     shiftCount: dates.length * headcount * coverageShifts,

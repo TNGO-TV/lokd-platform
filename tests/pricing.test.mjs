@@ -7,6 +7,8 @@ import {
   defaultRiskInput,
   officerShiftEconomicsForRoster,
   quoteBooking,
+  servicePriceBook,
+  noticePriceBook,
 } from "../app/lib/pricing.ts";
 
 const base = {
@@ -30,7 +32,7 @@ test("Fixed ordinary Unarmed uses R1,400 client and R800 officer units", () => {
   assert.ok(quote.shiftCount >= 25 && quote.shiftCount <= 27);
 });
 
-test("Scheduled Flex charges R1,600 with no VAT while the ordinary officer offer stays R800", () => {
+test("Scheduled Flex retains the public price book and applies the internal hourly cost floor without VAT", () => {
   const quote = quoteBooking({
     ...base,
     engagementModel: "flex",
@@ -39,9 +41,12 @@ test("Scheduled Flex charges R1,600 with no VAT while the ordinary officer offer
     now: new Date("2026-08-01T00:00:00.000Z"),
   });
   assert.equal(quote.noticeWindow, "standard");
-  assert.equal(quote.subtotalCents, 160_000);
+  assert.equal(servicePriceBook.Unarmed.clientShiftCents * noticePriceBook.standard.clientMultiplier,160_000);
+  assert.equal(quote.pricingDecision.listSubtotalCents,160_000);
+  assert.equal(quote.pricingDecision.payrollCostBasisCents,92_000);
+  assert.equal(quote.subtotalCents,171_440);
   assert.equal(quote.vatCents, 0);
-  assert.equal(quote.clientPriceCents, 160_000);
+  assert.equal(quote.clientPriceCents,171_440);
   assert.equal(quote.officerRateCents, 80_000);
 });
 

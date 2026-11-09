@@ -1,3 +1,4 @@
+import {readOfficerEmploymentSummaries} from './officer-employment';
 import {operationsAccess,requireOperationsRole} from './operations-access';
 import {SignupError} from './signup-server';
 import {calendarCategoryForDate,officerShiftEconomicsForRoster} from './production-pricing';
@@ -22,5 +23,7 @@ export async function changeProductionAssignment(db:D1Database,headers:Headers,i
  return {changeId:id,replacementSlotId:starts?'REPLACE-'+id:null,status:'assignment_released'};
 }
 export async function readRosterCandidates(db:D1Database){
- return (await db.prepare(`SELECT o.id,o.full_name,o.city,o.psira_grade,a.starts_at,a.ends_at FROM officers o JOIN officer_availability_windows a ON a.officer_id=o.id WHERE o.approval_status='approved' AND a.environment='production' AND a.status='available' AND a.ends_at>? AND EXISTS(SELECT 1 FROM current_production_officer_approvals c WHERE c.officer_id=o.id) ORDER BY o.full_name,a.starts_at LIMIT 500`).bind(new Date().toISOString()).all()).results;
+ const rows=(await db.prepare(`SELECT o.id,o.full_name,o.city,o.psira_grade,a.starts_at,a.ends_at FROM officers o JOIN officer_availability_windows a ON a.officer_id=o.id WHERE o.approval_status='approved' AND a.environment='production' AND a.status='available' AND a.ends_at>? AND EXISTS(SELECT 1 FROM current_production_officer_approvals c WHERE c.officer_id=o.id) ORDER BY o.full_name,a.starts_at LIMIT 500`).bind(new Date().toISOString()).all<{id:string;full_name:string;city:string;psira_grade:string;starts_at:string;ends_at:string}>()).results;
+ const summaries=await readOfficerEmploymentSummaries(db,rows.map(o=>o.id));
+ return rows.map(o=>{const employment=summaries.get(o.id)??null;return {...o,employment,payBasis:employment?.payBasis??null};});
 }

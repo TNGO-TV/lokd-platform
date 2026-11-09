@@ -66,8 +66,8 @@ test("earning multipliers and leave accrual are integer, repeatable policy outpu
   assert.equal(result.skillsDevelopmentLevyCents, 0);
 });
 
-test("COIDA cannot be enabled without a controlled classification and cap", () => {
+test("COIDA classification review does not block policy values", () => {
   const invalid = structuredClone(ZA_2027_SARS_POLICY_CANDIDATE);
   invalid.coida.enabled = true;
-  assert.throws(() => assertPayrollPolicy(invalid), /COIDA rule requires a classification/i);
+  assert.doesNotThrow(() => assertPayrollPolicy(invalid));
 });

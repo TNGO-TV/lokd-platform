@@ -10,7 +10,7 @@ export async function projectSignedWorkforceTerms(db:D1Database,envelopeId:strin
  if(await agreementHash(e.receipt_json!)!==e.receipt_hash)throw new SignupError('Signed employment receipt integrity check failed.',409);
  const receipt=JSON.parse(e.receipt_json!),scope=receipt.context?.scope;
  if(!scope?.engagementId||receipt.actorUserId!==userId||receipt.action!=='agree'||scope.officerId!==e.officer_id)throw new SignupError('Employment signature does not match this officer and engagement.',409);
- const engagement=await db.prepare("SELECT id,terms_version,review_due_at FROM workforce_engagements WHERE id=? AND officer_id=? AND employer_id=? AND terms_version=? AND active_key=officer_id AND status='active' AND environment='production'").bind(scope.engagementId,e.officer_id,scope.employerId,scope.termsVersion).first<{id:string;terms_version:string;review_due_at:string|null}>();
+ const engagement=await db.prepare("SELECT id,terms_version,review_due_at,pay_basis FROM workforce_engagements WHERE id=? AND officer_id=? AND employer_id=? AND terms_version=? AND active_key=officer_id AND status='active' AND environment='production'").bind(scope.engagementId,e.officer_id,scope.employerId,scope.termsVersion).first<{id:string;terms_version:string;review_due_at:string|null;pay_basis:string}>();
  if(!engagement?.review_due_at)throw new SignupError('The signed employment scope has changed. Operations must issue current terms.',409);
  const expiry=Math.min(Date.parse(engagement.review_due_at),e.effective_to?Date.parse(e.effective_to):Infinity);
  if(!Number.isFinite(expiry)||expiry<=Date.now())throw new SignupError('The signed employment evidence has expired.',409);
@@ -18,6 +18,6 @@ export async function projectSignedWorkforceTerms(db:D1Database,envelopeId:strin
  if(existing){if(existing.active_key!==engagement.id)throw new SignupError('This workforce acceptance was superseded or withdrawn. Use the current agreement.',409);return;}
  await db.batch([
   db.prepare('UPDATE workforce_terms_acceptances SET active_key=NULL WHERE active_key=?').bind(engagement.id),
-  db.prepare("INSERT INTO workforce_terms_acceptances(id,workforce_engagement_id,officer_id,terms_version,acceptance_mode,environment,integrity_state,evidence_reference,accepted_at,expires_at,active_key,created_at) VALUES(?,?,?,?,'electronic_signature','production','verified',?,?,?,?,?)").bind(id,engagement.id,e.officer_id,engagement.terms_version,'agreement:LIVE-SIGN-'+envelopeId,receipt.acceptedAt,new Date(expiry).toISOString(),engagement.id,new Date().toISOString()),
+  db.prepare("INSERT INTO workforce_terms_acceptances(id,workforce_engagement_id,officer_id,terms_version,agreement_type,acceptance_mode,environment,integrity_state,evidence_reference,accepted_at,expires_at,active_key,created_at) VALUES(?,?,?,?,?,'electronic_signature','production','verified',?,?,?,?,?)").bind(id,engagement.id,e.officer_id,engagement.terms_version,['hourly','monthly'].includes(scope.payBasis)?scope.payBasis:engagement.pay_basis,'agreement:LIVE-SIGN-'+envelopeId,receipt.acceptedAt,new Date(expiry).toISOString(),engagement.id,new Date().toISOString()),
  ]);
 }

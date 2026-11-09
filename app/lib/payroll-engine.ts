@@ -10,6 +10,26 @@ export type AnnualPsiraFeePolicy = {
   reviewStatus: PolicyReviewStatus;
 };
 
+export type HourlyPayPolicy = {
+  premiumBasisPoints: number;
+  minimumShiftMinutes: number;
+  sundayPublicHolidayBasisPoints: number;
+  hourlyDivisor: number;
+  weeklyHourThreshold: number;
+};
+
+// Default calculation and review values; approval status remains informational.
+export const HOURLY_PAY_POLICY_DEFAULTS: HourlyPayPolicy = {
+  premiumBasisPoints: 1500, minimumShiftMinutes: 240,
+  sundayPublicHolidayBasisPoints: 20000, hourlyDivisor: 208, weeklyHourThreshold: 24,
+};
+
+// Fallback rates used only when a payroll policy has no private-security sector schedule. Edit the policy, not these values.
+export const PRIVATE_SECURITY_DEDUCTION_DEFAULTS = {
+  providentFund: { employeeRateBasisPoints: 750, employerRateBasisPoints: 750 },
+  councilLevy: { employeeMonthlyCents: 940, employerMonthlyCents: 0 },
+} as const;
+
 export type PayrollPolicy = {
   version: string;
   jurisdiction: "ZA";
@@ -17,6 +37,7 @@ export type PayrollPolicy = {
   effectiveFrom: string;
   effectiveTo: string | null;
   payPeriodsPerYear: number;
+  hourlyPay?: HourlyPayPolicy;
   incomeTax: {
     brackets: PayrollTaxBracket[];
     annualPrimaryRebateCents: number;
@@ -106,6 +127,7 @@ export type PayrollEarningLine = PayrollEarningInput & {
 };
 
 export type PayrollCalculationInput = {
+  payBasis?: "hourly" | "monthly";
   serviceDate: string;
   earnings: PayrollEarningInput[];
   payPeriodsPerYear?: number;
@@ -125,6 +147,7 @@ export type PayrollCalculation = {
   policyVersion: string;
   payPeriodsPerYear: number;
   grossCents: number;
+  deductionShortfallCents?: number;
   taxableRemunerationCents: number;
   payeCents: number;
   employeeUifCents: number;
@@ -164,6 +187,7 @@ function perPeriodFromMonthly(monthlyCents: number, payPeriodsPerYear: number) {
 export function payrollPolicyWithReviewDefaults(policy: PayrollPolicy): PayrollPolicy {
   return {
     ...policy,
+    hourlyPay: policy.hourlyPay ?? structuredClone(HOURLY_PAY_POLICY_DEFAULTS),
     wageRules: policy.wageRules ? { ...policy.wageRules, nightBasisPoints: policy.wageRules.nightBasisPoints ?? null } : undefined,
     coida: policy.coida ? { ...policy.coida, classificationReviewStatus: policy.coida.classificationReviewStatus ?? "pending_review" } : undefined,
     psiraFees: policy.psiraFees ?? {
@@ -179,6 +203,13 @@ export function assertPayrollPolicy(policy: PayrollPolicy) {
   if (!isIsoDate(policy.effectiveFrom) || !isIsoDate(policy.effectiveTo)) throw new Error("Payroll policy dates must use YYYY-MM-DD.");
   if (policy.effectiveTo && policy.effectiveTo < policy.effectiveFrom) throw new Error("The payroll policy end date precedes its start date.");
   if (!integerInRange(policy.payPeriodsPerYear, 1, 366)) throw new Error("The payroll period count is invalid.");
+  if (policy.hourlyPay) {
+    const c = policy.hourlyPay;
+    if (!integerInRange(c.premiumBasisPoints, 0, 100000) || !integerInRange(c.minimumShiftMinutes, 1, 1440)
+      || !integerInRange(c.sundayPublicHolidayBasisPoints, 10000, 100000)
+      || !integerInRange(c.hourlyDivisor, 1, 744) || !integerInRange(c.weeklyHourThreshold, 1, 168)) throw new Error("The hourly employment policy inputs are invalid.");
+
+  }
   if (!Array.isArray(policy.incomeTax.brackets) || policy.incomeTax.brackets.length < 1 || policy.incomeTax.brackets.length > 20) {
     throw new Error("The payroll policy requires one to twenty ordered income-tax brackets.");
   }
@@ -226,9 +257,7 @@ export function assertPayrollPolicy(policy: PayrollPolicy) {
   if (policy.leave && (!Number.isInteger(policy.leave.hoursWorkedDivisor) || policy.leave.hoursWorkedDivisor < 1 || policy.leave.hoursWorkedDivisor > 366)) {
     throw new Error("The leave accrual divisor is invalid.");
   }
-  if (policy.coida?.enabled && (!policy.coida.classificationCode?.trim() || policy.coida.earningsCapPerPeriodCents < 1)) {
-    throw new Error("An enabled COIDA rule requires a classification and positive earnings cap.");
-  }
+
   if (policy.wageRules?.nightBasisPoints !== undefined && policy.wageRules.nightBasisPoints !== null
     && policy.wageRules.nightBasisPoints < 10_000) {
     throw new Error("The night-work multiplier cannot reduce ordinary remuneration.");
@@ -368,9 +397,7 @@ export function nightWorkAllocation(input: { startsAt: string; endsAt: string; p
 export function calculatePayrollStatement(input: PayrollCalculationInput, policy: PayrollPolicy): PayrollCalculation {
   assertPayrollPolicy(policy);
   if (!isIsoDate(input.serviceDate)) throw new Error("The service date must use YYYY-MM-DD.");
-  if (input.serviceDate < policy.effectiveFrom || (policy.effectiveTo && input.serviceDate > policy.effectiveTo)) {
-    throw new Error("No approved payroll policy covers this service date.");
-  }
+
   if (!Array.isArray(input.earnings) || input.earnings.length < 1 || input.earnings.length > 100) {
     throw new Error("A payroll calculation requires one to one hundred earning lines.");
   }
@@ -428,19 +455,16 @@ export function calculatePayrollStatement(input: PayrollCalculationInput, policy
   const uifBaseCents = Math.min(grossCents, uifCapCents);
   const employeeUifCents = basisPoints(uifBaseCents, policy.uif.employeeRateBasisPoints);
   const employerUifCents = basisPoints(uifBaseCents, policy.uif.employerRateBasisPoints);
-  const sector = policy.privateSecuritySector;
-  const employeeProvidentFundCents = sector
-    ? basisPoints(grossCents, sector.providentFund.employeeRateBasisPoints)
-    : 0;
-  const employerProvidentFundCents = sector
-    ? basisPoints(grossCents, sector.providentFund.employerRateBasisPoints)
-    : 0;
-  const employeeCouncilLevyCents = sector
-    ? perPeriodFromMonthly(sector.councilLevy.employeeMonthlyCents, payPeriodsPerYear)
-    : 0;
-  const employerCouncilLevyCents = sector
-    ? perPeriodFromMonthly(sector.councilLevy.employerMonthlyCents, payPeriodsPerYear)
-    : 0;
+  // These deductions apply to every employee; neither pay basis nor a ruling flag disables them.
+  // Provident fund and council levy always apply; the rates come from the active payroll policy so rate changes need no code change.
+  const sectorDeductions = policy.privateSecuritySector, defaults = PRIVATE_SECURITY_DEDUCTION_DEFAULTS;
+  const rate = (value: number | undefined, fallback: number) => value && value > 0 ? value : fallback; // a zero rate cannot switch the deduction off
+  const fund = { employeeRateBasisPoints: rate(sectorDeductions?.providentFund.employeeRateBasisPoints, defaults.providentFund.employeeRateBasisPoints), employerRateBasisPoints: rate(sectorDeductions?.providentFund.employerRateBasisPoints, defaults.providentFund.employerRateBasisPoints) };
+  const levy = { employeeMonthlyCents: rate(sectorDeductions?.councilLevy.employeeMonthlyCents, defaults.councilLevy.employeeMonthlyCents), employerMonthlyCents: sectorDeductions?.councilLevy.employerMonthlyCents ?? defaults.councilLevy.employerMonthlyCents };
+  const employeeProvidentFundCents = basisPoints(grossCents, fund.employeeRateBasisPoints);
+  const employerProvidentFundCents = basisPoints(grossCents, fund.employerRateBasisPoints);
+  const employeeCouncilLevyCents = perPeriodFromMonthly(levy.employeeMonthlyCents, payPeriodsPerYear);
+  const employerCouncilLevyCents = perPeriodFromMonthly(levy.employerMonthlyCents, payPeriodsPerYear);
   const employeeHealthCoverCents = input.employeeHealthCoverCents ?? 0;
   const otherLawfulDeductionCents = input.otherLawfulDeductionCents ?? 0;
   const sdlExemptionCents = policy.skillsDevelopmentLevy.annualPayrollExemptionCents;
@@ -452,16 +476,14 @@ export function calculatePayrollStatement(input: PayrollCalculationInput, policy
     && (sdlExemptionCents === undefined || (input.employerProjectedAnnualPayrollCents ?? 0) > sdlExemptionCents)
     ? basisPoints(grossCents, policy.skillsDevelopmentLevy.employerRateBasisPoints)
     : 0;
-  const coidaBaseCents = Math.min(grossCents, policy.coida?.earningsCapPerPeriodCents ?? grossCents);
-  const coidaProvisionCents = policy.coida?.enabled && policy.coida.classificationReviewStatus === "approved"
-    ? basisPoints(coidaBaseCents, policy.coida.employerRateBasisPoints)
+  const coidaBaseCents = policy.coida?.earningsCapPerPeriodCents ? Math.min(grossCents, policy.coida.earningsCapPerPeriodCents) : grossCents;
+  const coidaProvisionCents = (policy.coida?.employerRateBasisPoints ?? 0) > 0
+    ? basisPoints(coidaBaseCents, policy.coida!.employerRateBasisPoints)
     : 0;
   const totalEmployeeDeductionsCents = payeCents + employeeUifCents + employeeProvidentFundCents
     + employeeCouncilLevyCents + employeeHealthCoverCents + otherLawfulDeductionCents;
   const cashBeforeDeductionsCents = grossCents + (input.nonTaxableReimbursementCents ?? 0);
-  if (totalEmployeeDeductionsCents > cashBeforeDeductionsCents) {
-    throw new Error("Employee deductions exceed the cash remuneration available for the period.");
-  }
+  // Preserve assessed deductions and the signed balance; Operations reviews any shortfall.
   const leaveAccruedMinutes = policy.leave
     ? Math.round(earnings.reduce((total, line) => total + line.minutes, 0) / policy.leave.hoursWorkedDivisor)
     : 0;
@@ -478,6 +500,7 @@ export function calculatePayrollStatement(input: PayrollCalculationInput, policy
     otherLawfulDeductionCents,
     totalEmployeeDeductionsCents,
     netPayCents: cashBeforeDeductionsCents - totalEmployeeDeductionsCents,
+    ...(totalEmployeeDeductionsCents>cashBeforeDeductionsCents?{deductionShortfallCents:totalEmployeeDeductionsCents-cashBeforeDeductionsCents}:{}),
     employerUifCents,
     employerProvidentFundCents,
     employerCouncilLevyCents,
@@ -511,6 +534,7 @@ export const ZA_2027_SARS_POLICY_CANDIDATE: PayrollPolicy = {
   effectiveFrom: "2026-03-01",
   effectiveTo: "2027-02-28",
   payPeriodsPerYear: 12,
+  hourlyPay: structuredClone(HOURLY_PAY_POLICY_DEFAULTS),
   incomeTax: {
     brackets: [
       { upToAnnualCents: 24_510_000, rateBasisPoints: 1_800 },
@@ -582,6 +606,7 @@ export const ZA_2027_SARS_POLICY_CANDIDATE: PayrollPolicy = {
     healthCoverTreatmentStatus: "pending_ruling",
   },
   sourceReferences: [
+    "https://nbcpss.org.za/wp-content/uploads/2023/05/NBCPSS-Main-Collective-Agreement-2023-2027.pdf",
     "https://www.sars.gov.za/tax-rates/income-tax/rates-of-tax-for-individuals/",
     "https://www.sars.gov.za/guide-for-employers-in-respect-of-employees-tax-2027/",
     "https://www.sars.gov.za/types-of-tax/unemployment-insurance-fund/",
@@ -626,4 +651,57 @@ export function privateSecurityWageFloorDecision(input: {
   const shortfallCents = Math.max(0, minimumMonthlyCents - input.monthlyBasicCents);
   if (shortfallCents > 0) blockers.push("The monthly basic remuneration is below the applicable NBCPSS minimum.");
   return { compliant: blockers.length === 0, minimumMonthlyCents, shortfallCents, blockers };
+}
+
+export function payrollPolicyWarnings(policy:PayrollPolicy,serviceDate?:string) {
+  const warnings:{code:string;detail:string}[]=[],sector=policy.privateSecuritySector;
+  if(!sector||sector.healthCoverTreatmentStatus!=='source_verified'||sector.providentFund.treatmentStatus!=='source_verified'||sector.councilLevy.treatmentStatus!=='source_verified')warnings.push({code:'SECTOR_RULING_REVIEW',detail:'Review the provident-fund, council-levy and health-cover treatment. Employee deductions remain applied.'});
+  if(!(policy.coida?.employerRateBasisPoints))warnings.push({code:'COIDA_RATE_MISSING',detail:'No COIDA rate is recorded. Review the employer assessment and enter the applicable rate.'});
+  else if(!policy.coida.classificationCode||policy.coida.classificationReviewStatus!=='approved')warnings.push({code:'COIDA_CLASSIFICATION_REVIEW',detail:'COIDA is calculated at the recorded rate; classification evidence requires review.'});
+  if(serviceDate&&(serviceDate<policy.effectiveFrom||policy.effectiveTo&&serviceDate>policy.effectiveTo))warnings.push({code:'PAYROLL_POLICY_DATE_REVIEW',detail:'The service date falls outside the policy period. Review the current payroll values.'});
+  if(sector&&(sector.providentFund.employeeRateBasisPoints!==750||sector.providentFund.employerRateBasisPoints!==750||sector.councilLevy.employeeMonthlyCents!==940))warnings.push({code:'MANDATORY_DEDUCTION_VALUES',detail:'Payroll applies PSSPF at 7.5% for employee and employer and the employee council levy at R9.40 per month; review the configured source values.'});
+  return warnings;
+}
+
+export function hourlyShiftPay(input: {
+  policy: PayrollPolicy; serviceDate: string; area: PrivateSecurityWageArea; grade: PrivateSecurityGrade;
+  attendedMinutes: number; agreedHourlyRateCents: number; sundayOrPublicHoliday: boolean;
+  lowestMonthlyBasicCents?: number;
+}) {
+  assertPayrollPolicy(input.policy);
+  const rules = input.policy.hourlyPay ?? HOURLY_PAY_POLICY_DEFAULTS, sector = input.policy.privateSecuritySector;
+  if (!sector) throw new Error("The payroll policy is missing its NBCPSS wage schedule.");
+  safeNonNegativeInteger(input.attendedMinutes, "Attended minutes");
+  safeNonNegativeInteger(input.agreedHourlyRateCents, "Agreed hourly rate");
+  safeNonNegativeInteger(input.lowestMonthlyBasicCents ?? 0, "Comparable monthly salary");
+  if (input.attendedMinutes > 7 * 1440) throw new Error("Hourly pay requires attended minutes and an agreed hourly rate.");
+  const monthlyBasisCents = Math.max(privateSecurityMinimumWage(input.policy, input.area, input.grade), input.lowestMonthlyBasicCents ?? 0);
+  // Round the hourly floor upwards so cent rounding can never undercut it.
+  const minimumHourlyRateCents = Math.ceil(monthlyBasisCents * (10000 + rules.premiumBasisPoints) / (rules.hourlyDivisor * 10000));
+  const hourlyRateCents = Math.max(input.agreedHourlyRateCents, minimumHourlyRateCents);
+  const paidMinutes = Math.max(input.attendedMinutes, rules.minimumShiftMinutes);
+  const multiplierBasisPoints = input.sundayOrPublicHoliday ? rules.sundayPublicHolidayBasisPoints : 10000;
+  const amountCents = Math.ceil(hourlyRateCents * paidMinutes * multiplierBasisPoints / 600000);
+  return { amountCents, hourlyRateCents, minimumHourlyRateCents, paidMinutes, attendedMinutes: input.attendedMinutes, multiplierBasisPoints };
+}
+
+export function calculateHourlyPayrollStatement(input: Omit<PayrollCalculationInput,'earnings'|'payBasis'> & {
+  shifts: (Omit<Parameters<typeof hourlyShiftPay>[0],'policy'> & {id:string;reviewedGrossCents?:number;useReviewedGross?:boolean})[];
+},policy:PayrollPolicy) {
+  if(!Array.isArray(input.shifts)||!input.shifts.length||input.shifts.length>2000)throw new Error('Provide bounded hourly service records.');
+  const warnings:{code:string;detail:string}[]=[];
+  const hourlyShiftCalculations=input.shifts.map(shift=>{
+    const pay=hourlyShiftPay({...shift,policy}),reviewedGrossCents=shift.reviewedGrossCents??pay.amountCents;
+    const appliedGrossCents=shift.useReviewedGross?reviewedGrossCents:pay.amountCents;
+    safeNonNegativeInteger(reviewedGrossCents,'Reviewed shift remuneration');
+    if(!shift.agreedHourlyRateCents)warnings.push({code:'AGREED_HOURLY_RATE_REVIEW:'+shift.id,detail:'No agreed hourly rate is recorded for this shift. Review the agreement reference; the NBCPSS floor remains the comparison basis.'});
+    if(reviewedGrossCents<pay.amountCents)warnings.push({code:'HOURLY_FLOOR:'+shift.id,detail:'Service record '+shift.id+' is below the hourly floor, shift minimum or Sunday/public-holiday pay. Review the difference; this calculation uses '+(shift.useReviewedGross?'the reviewed override amount.':'the hourly calculation amount.')});
+    if(shift.useReviewedGross&&reviewedGrossCents!==pay.amountCents)warnings.push({code:'REVIEWED_HOURLY_OVERRIDE:'+shift.id,detail:'A reviewed shift amount was retained instead of the hourly calculation. Review the recorded override and agreement reference.'});
+    return {id:shift.id,...pay,reviewedGrossCents,appliedGrossCents,overrideApplied:shift.useReviewedGross===true};
+  });
+  const calculation=calculatePayrollStatement({...input,payBasis:'hourly',earnings:[{
+    code:'APPROVED_SERVICE',description:'Reviewed hourly service remuneration',baseHourlyRateCents:0,multiplierBasisPoints:10000,
+    minutes:hourlyShiftCalculations.reduce((sum,s)=>sum+s.attendedMinutes,0),approvedServiceGrossCents:hourlyShiftCalculations.reduce((sum,s)=>sum+s.appliedGrossCents,0),
+  }]},policy);
+  return {...calculation,hourlyShiftCalculations,warnings};
 }

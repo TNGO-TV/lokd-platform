@@ -15,7 +15,7 @@ async function connected({clockFix=true}={}){
   database.exec('DROP TRIGGER activation_command_final_hardening_v2;'+original.replace("WHEN 'flex' THEN 2.0","WHEN 'bolt' THEN 2.0 WHEN 'flex' THEN 2.0"));
  }
  await seedEnvironment(database);
- const fields={engagementId:'CONNECTED-ENGAGEMENT',officerId:x.officerId,employerId:'EMP-1',model:'direct_flex',termsVersion:'TERMS-v1',engagementReference:'private:isolated-engagement',weeklyHourCap:'24',payrollReference:'private:isolated-payroll',benefitsReference:'private:isolated-benefits'};
+ const fields={engagementId:'CONNECTED-ENGAGEMENT',officerId:x.officerId,employerId:'EMP-1',payBasis:'monthly',agreedHourlyRateCents:'0',payCadence:'monthly',payCadenceRequestReference:'',termsVersion:'TERMS-v1',engagementReference:'private:isolated-engagement',weeklyHourCap:'24',payrollReference:'private:isolated-payroll',benefitsReference:'private:isolated-benefits'};
  const engagement=await manageProductionEvidence(x.db,maker,{action:'prepare_evidence',kind:'engagement',fields,sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString()});
  await manageProductionEvidence(x.db,checker,{action:'decide_evidence',reviewId:engagement.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Independently inspected synthetic employment sources'});
  seedOfficerSupport(database,x.officerId,fields.engagementId,'CONNECTED-TERMS');

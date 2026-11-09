@@ -51,7 +51,7 @@ test('expired or stale points disappear and scheduled maintenance removes stored
 test('a client sees only their assigned en-route officer, and only with that audience selected', async () => {
   const x = await complete(), sql = x.db.sql; try {
     await seedEnvironment(sql);
-    const fields = { engagementId: 'LOCATION-ENGAGEMENT', officerId: x.officerId, employerId: 'EMP-1', model: 'direct_flex', termsVersion: 'TERMS-v1', engagementReference: 'private:fixture-engagement', weeklyHourCap: '24', payrollReference: 'private:fixture-payroll', benefitsReference: 'private:fixture-benefits' };
+    const fields = { engagementId: 'LOCATION-ENGAGEMENT', officerId: x.officerId, employerId: 'EMP-1', payBasis: 'monthly', agreedHourlyRateCents: '0', payCadence: 'monthly', payCadenceRequestReference: '', termsVersion: 'TERMS-v1', engagementReference: 'private:fixture-engagement', weeklyHourCap: '24', payrollReference: 'private:fixture-payroll', benefitsReference: 'private:fixture-benefits' };
     const e = await manageProductionEvidence(x.db, maker, { action: 'prepare_evidence', kind: 'engagement', fields, sourceDocumentsReviewed: true, expiresAt: new Date(Date.now() + 86400000).toISOString() });
     await manageProductionEvidence(x.db, checker, { action: 'decide_evidence', reviewId: e.reviewId, decision: 'approve', evidenceIndependentlyChecked: true, reason: 'Independent isolated fixture evidence review' });
     seedOfficerSupport(sql, x.officerId, fields.engagementId, 'LOCATION-TERMS'); sql.prepare("UPDATE officers SET banking_status='verified',flex_available=1,external_work_acknowledged=1,rest_window_confirmed=1 WHERE id=?").run(x.officerId);

@@ -69,6 +69,7 @@ async function readableContrast(locator) {
 
 test('homepage offers real intake paths, responsive service navigation and privacy', async ({page}) => {
   await page.goto('/');
+  expect(await page.locator('body').innerText()).not.toMatch(/\b(?:casual|full[ -]time|part[ -]time)\b/i);
   await expect(page).toHaveTitle('Security on your terms | LOKD');
   // Vinext may serialize an origin-only canonical without its implicit slash.
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /^https:\/\/lokd\.co\.za\/?$/);

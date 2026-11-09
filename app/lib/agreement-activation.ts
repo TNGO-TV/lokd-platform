@@ -6,7 +6,7 @@ export type ActivationAgreementRole = 'CLIENT_MSA' | 'SERVICE_ORDER' | 'OFFICER_
 export function requiredActivationAgreements(): ActivationAgreementRole[] {
   return ['CLIENT_MSA','SERVICE_ORDER','OFFICER_EMPLOYMENT'];
 }
-export function activationAgreementContext(facts: AssignmentActivationFacts, role: ActivationAgreementRole): AgreementContext {
+export function activationAgreementContext(facts: AssignmentActivationFacts, role: ActivationAgreementRole, basis:'accepted'|'current'='accepted'): AgreementContext {
   const client = role==='CLIENT_MSA' || role==='SERVICE_ORDER';
   return {subjectId:client?facts.client.id:facts.officer.id,transactionId:facts.shift.rosterSlotId,
     transactionVersion:String(facts.client.orderVersion??0),scope:{
@@ -20,7 +20,7 @@ export function activationAgreementContext(facts: AssignmentActivationFacts, rol
       pricingVersion:facts.compensation.pricingVersion,workforceModel:facts.workforce.model,
       employerId:facts.workforce.employer.id,employerName:facts.workforce.employer.legalName,
       ...(client?{}:{officerId:facts.officer.id,engagementId:facts.workforce.engagementId,
-        termsVersion:facts.workforce.termsVersion,officerOfferCents:facts.compensation.officerOfferCents}),
+        payBasis:(basis==='current'?facts.workforce.payBasis:facts.workforce.agreementPayBasis??facts.workforce.payBasis) ?? (facts.workforce.model==='direct_flex'?'hourly':'monthly'),termsVersion:facts.workforce.termsVersion,officerOfferCents:facts.compensation.officerOfferCents}),
     }};
 }
 export async function readActivationAgreements(db: D1Database, facts: AssignmentActivationFacts) {
@@ -30,26 +30,35 @@ export async function readActivationAgreements(db: D1Database, facts: Assignment
   for(const role of requiredActivationAgreements()) {
     if(quote.exists&&(role==='CLIENT_MSA'||role==='SERVICE_ORDER')){if(quote.receipt){if(role==='CLIENT_MSA')receipts.push(quote.receipt);}else missing.push(role);continue;}
     const context=activationAgreementContext(facts,role),contextHash=await agreementHash(canonicalAgreementContext(context));
-    const candidates=await db.prepare(`SELECT r.id,r.receipt_json,r.receipt_hash FROM agreement_acceptance_receipts r
-      WHERE r.context_hash=? AND NOT EXISTS(SELECT 1 FROM agreement_receipt_revocations v WHERE v.receipt_id=r.id)
+    // Previously signed employment scopes did not contain payBasis. Only the
+    // actual receipt referenced by active workforce terms can use that shape.
+    const legacyContext={...context,scope:{...context.scope}};
+    delete legacyContext.scope.payBasis;
+    const legacyHash=role==='OFFICER_EMPLOYMENT'?await agreementHash(canonicalAgreementContext(legacyContext)):contextHash;
+    const candidates=await db.prepare(`SELECT r.id,r.receipt_json,r.receipt_hash,r.context_hash FROM agreement_acceptance_receipts r
+      WHERE (r.context_hash=? OR (r.context_hash=? AND EXISTS(SELECT 1 FROM workforce_terms_acceptances w
+        WHERE w.active_key=? AND w.officer_id=? AND w.environment='production' AND w.integrity_state='verified'
+        AND w.agreement_type=? AND w.evidence_reference='agreement:'||r.id)))
+      AND NOT EXISTS(SELECT 1 FROM agreement_receipt_revocations v WHERE v.receipt_id=r.id)
       AND (r.id NOT LIKE 'LIVE-SIGN-%' OR EXISTS(
         SELECT 1 FROM production_signing_envelopes e JOIN signup_cases c ON c.kind=e.case_kind AND c.source_id=e.case_id
         JOIN production_entity_links l ON l.kind=c.kind AND l.case_id=c.source_id AND l.case_version=c.version
         WHERE r.id='LIVE-SIGN-'||e.id AND c.version=e.case_version AND c.owner_user_id=e.owner_user_id
         AND c.status!='withdrawn' AND NOT EXISTS(SELECT 1 FROM production_envelope_cancellations x WHERE x.envelope_id=e.id)))
-      ORDER BY r.id`).bind(contextHash).all<{id:string;receipt_json:string;receipt_hash:string}>();
+      ORDER BY r.id`).bind(contextHash,legacyHash,facts.workforce.engagementId,facts.officer.id,facts.workforce.agreementPayBasis??facts.workforce.payBasis??(facts.workforce.model==='direct_flex'?'hourly':'monthly')).all<{id:string;receipt_json:string;receipt_hash:string;context_hash:string}>();
     let matched=false;
     for(const row of candidates.results) {
       try {
         if(await agreementHash(row.receipt_json)!==row.receipt_hash)continue;
         const receipt=JSON.parse(row.receipt_json);
+        const expectedContext=row.context_hash===contextHash?context:legacyContext,expectedContextHash=row.context_hash;
         const client=role==='CLIENT_MSA'||role==='SERVICE_ORDER';
         const expectedEntity=client?facts.client.contractingEntityId:facts.workforce.employer.id;
         const expectedPurpose=client?'client_service':'officer_employment';
         if(!expectedEntity || receipt.entityId!==expectedEntity || receipt.purpose!==expectedPurpose
           || receipt.action!=='agree' || !receipt.actorUserId || !receipt.identityEvidence
           || client&&!receipt.authorityEvidence
-          || receipt.contextHash!==contextHash || canonicalAgreementContext(receipt.context)!==canonicalAgreementContext(context)
+          || receipt.contextHash!==expectedContextHash || canonicalAgreementContext(receipt.context)!==canonicalAgreementContext(expectedContext)
           || !receipt.locale || !receipt.wording || await agreementHash(receipt.wording)!==receipt.contentHash
           || !Number.isFinite(Date.parse(receipt.acceptedAt)) || Date.parse(receipt.acceptedAt)>Date.parse(facts.evaluatedAt))continue;
         const template=await db.prepare(`SELECT document_version AS template_version,content_hash AS template_hash,approved_at,effective_from,effective_to,entity_id,locale,document_reference
@@ -62,7 +71,7 @@ export async function readActivationAgreements(db: D1Database, facts: Assignment
         if(!Number.isFinite(Date.parse(template.approved_at)) || Date.parse(template.approved_at)>signedAt
           || !Number.isFinite(Date.parse(template.effective_from)) || Date.parse(template.effective_from)>signedAt
           || template.effective_to!==null && (!Number.isFinite(Date.parse(template.effective_to)) || Date.parse(template.effective_to)<=signedAt))continue;
-        receipts.push({id:row.id,hash:row.receipt_hash,documentId:receipt.documentId,documentVersion:receipt.documentVersion,contextHash});
+        receipts.push({id:row.id,hash:row.receipt_hash,documentId:receipt.documentId,documentVersion:receipt.documentVersion,contextHash:expectedContextHash});
         matched=true;break;
       }catch{ /* Malformed evidence is unverified, never an approval. */ }
     }

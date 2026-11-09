@@ -81,7 +81,7 @@ test('HTTP corrections and independent intake review reject stale versions and i
 
 async function engagement(x){
  x.db.sql.prepare("INSERT INTO workforce_employers(id,legal_name,employer_type,environment,status,review_due_at) VALUES('fixture-employer','Isolated Employer','lokd_employer','production','current',?)").run(new Date(Date.now()+2*86400000).toISOString());
- const p=await manageProductionEvidence(x.db,maker,{action:'prepare_evidence',kind:'engagement',fields:{engagementId:'usable-engagement',officerId:x.officerId,employerId:'fixture-employer',model:'direct_flex',termsVersion:'fixture-v1',engagementReference:'private:fixture-engagement',weeklyHourCap:'24',payrollReference:'private:fixture-payroll',benefitsReference:'private:fixture-benefits'},sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString()});
+ const p=await manageProductionEvidence(x.db,maker,{action:'prepare_evidence',kind:'engagement',fields:{engagementId:'usable-engagement',officerId:x.officerId,employerId:'fixture-employer',payBasis:'monthly',agreedHourlyRateCents:'0',payCadence:'monthly',payCadenceRequestReference:'',termsVersion:'fixture-v1',engagementReference:'private:fixture-engagement',weeklyHourCap:'24',payrollReference:'private:fixture-payroll',benefitsReference:'private:fixture-benefits'},sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString()});
  await manageProductionEvidence(x.db,checker,{action:'decide_evidence',reviewId:p.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Independent fixture workforce review'});return p;
 }
 test('workforce and automatic passport holds show exact human audit and forbid that human deciding disposition',async t=>{
@@ -135,7 +135,13 @@ test('request owner/version is rechecked if correction races passport preparatio
 
 
 test('historical system holds retain unattributed status and separate related human audit',async t=>{
- const x=await setup(t,{migration:false}),eng=await engagement(x);
+ const x=await setup(t,{migration:false});
+ // Seed the actual historical schema: current pay-basis commands require 0193.
+ const now=new Date().toISOString(),expiry=new Date(Date.now()+86400000).toISOString(),eng={reviewId:'historical-engagement-review'};
+ x.db.sql.prepare("INSERT INTO workforce_employers(id,legal_name,employer_type,environment,status,review_due_at) VALUES('fixture-employer','Isolated Employer','lokd_employer','production','current',?)").run(expiry);
+ x.db.sql.prepare("INSERT INTO workforce_engagements(id,officer_id,employer_id,model,environment,status,active_key,engagement_reference,terms_version,payroll_status,benefits_status,weekly_hour_cap,activated_at,review_due_at) VALUES('usable-engagement',?,'fixture-employer','managed','production','active',?,'private:historical-engagement','fixture-v1','ready','ready',48,?,?)").run(x.officerId,x.officerId,now,expiry);
+ const payload=JSON.stringify({engagementId:'usable-engagement',officerId:x.officerId,employerId:'fixture-employer',model:'managed'}),{agreementHash}=await import('../app/lib/agreement-acceptance.ts');
+ x.db.sql.prepare("INSERT INTO production_evidence_reviews(id,kind,payload_json,payload_hash,source_revision,prepared_by,prepared_at,expires_at,state,decided_by,decided_at,reason) VALUES(?,'engagement',?,?,(SELECT revision FROM activation_evidence_epoch WHERE singleton=1),?,?,?,'approved',?,?,?)").run(eng.reviewId,payload,await agreementHash(payload),maker.userId,now,expiry,checker.userId,now,'Historical independent source review');
  await manageProductionEvidence(x.db,checker,{action:'suspend_evidence',reviewId:eng.reviewId,reason:'Historical operator inspection'});
  // Reproduce the original generic-audit format in this disposable pre-migration fixture.
  x.db.sql.prepare("UPDATE audit_events SET detail='Historical operator inspection' WHERE event_type='production_evidence_suspended'").run();

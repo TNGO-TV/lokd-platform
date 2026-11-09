@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import {DatabaseSync} from 'node:sqlite';
-import {assertPayrollPolicy,calculatePayrollStatement,nightWorkAllocation,payrollPolicyWithReviewDefaults,ZA_2027_SARS_POLICY_CANDIDATE} from '../app/lib/payroll-engine.ts';
+import {assertPayrollPolicy,payrollPolicyWarnings,calculatePayrollStatement,nightWorkAllocation,payrollPolicyWithReviewDefaults,ZA_2027_SARS_POLICY_CANDIDATE} from '../app/lib/payroll-engine.ts';
 import {indicativeSingleShiftPrice} from '../app/lib/specialist-pricing.ts';
 import {OFFICER_CONVERSION_POLICY,PERMANENT_ENGAGEMENT_CLAUSE,conversionTenurePercent} from '../app/lib/officer-conversion-core.ts';
 
@@ -82,25 +82,28 @@ test('new policy drafts add conservative review fields without altering or pre-a
   assert.deepEqual(calculatePayrollStatement(service,draft),calculatePayrollStatement(service,old));
 });
 
-test('COIDA remains zero until the classification is approved in the policy', () => {
+test('COIDA uses the recorded rate while pending classification creates review information', () => {
   const p=policy();p.coida={enabled:true,classificationCode:'REVIEWED-CLASSIFICATION',employerRateBasisPoints:200,earningsCapPerPeriodCents:200000};
   for(const status of [undefined,'pending_review','rejected']) {
     p.coida.classificationReviewStatus=status;
-    assert.equal(calculatePayrollStatement(service,p).coidaProvisionCents,0);
+    assert.equal(calculatePayrollStatement(service,p).coidaProvisionCents,2400);
+    assert.ok(payrollPolicyWarnings(p).some(w=>w.code==='COIDA_CLASSIFICATION_REVIEW'));
   }
   p.coida.classificationReviewStatus='approved';
   assert.equal(calculatePayrollStatement(service,p).coidaProvisionCents,2400);
   p.coida.classificationCode=null;
-  assert.throws(()=>assertPayrollPolicy(p),/classification/);
+  assert.doesNotThrow(()=>assertPayrollPolicy(p));
+  assert.ok(payrollPolicyWarnings(p).some(w=>w.code==='COIDA_CLASSIFICATION_REVIEW'));
 });
 
-test('pricing identifies the existing 2% reserve as provisional without changing the cost floor', () => {
+test('pricing identifies the 2% reserve as provisional on the hourly cost basis', () => {
   const q=indicativeSingleShiftPrice('standard_unarmed');
   assert.deepEqual(q.provisionalCoidaInsuranceReserve,{
     label:'Provisional COIDA/insurance reserve',status:'provisional',rateBasisPoints:200,
-    amountCents:1600,
+    amountCents:1840,
   });
-  assert.equal(q.payrollBurdenCents,9200);
+  assert.equal(q.payrollCostBasisCents,92000);
+  assert.equal(q.payrollBurdenCents,22580);
   assert.equal(q.costFloorCents,80000+q.payrollBurdenCents+q.readinessAndEquipmentCents+q.commandAndSupervisionCents+q.planningCents+q.travelCents+q.vehicleCents+q.overnightCents);
 });
 

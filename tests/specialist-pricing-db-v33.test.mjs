@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
+import {priceSpecialistCostFloor,PREVIOUS_SPECIALIST_PRICING_VERSION} from "../app/lib/specialist-pricing.ts";
 import { defaultRiskInput, quoteBooking } from "../app/lib/pricing.ts";
 
 function migratedDatabase(beforeNoVat = false) {
@@ -44,6 +45,7 @@ function quoteArmedStatic() {
 
 function insertSpecialistBooking(database, id, quote, overrides = {}) {
   const breakdown = {
+    ...quote.pricingDecision,
     baseClientCents: quote.baseClientCents,
     calendarPremiumCents: quote.calendarPremiumCents,
     dispatchPremiumCents: quote.dispatchPremiumCents,
@@ -216,7 +218,10 @@ test("no-VAT migration preserves historical amounts and prevents cross-version t
   const database = migratedDatabase(true);
   try {
     run(database, "INSERT INTO clients (id,organisation_name,contact_name,contact_email,approval_status,environment,integrity_state) VALUES ('CL-V33','Historical fixture','Client','old@example.test','approved','demo','synthetic')");
-    const current = quoteArmedStatic();
+    const quote = quoteArmedStatic();
+    // 0079 validates the original monthly cost model; current hourly costs start at 0193.
+    const decision=priceSpecialistCostFloor({engagementModel:'fixed',serviceCode:quote.specialistServiceCode,serviceDayCount:quote.serviceDayCount,shiftCount:quote.shiftCount,officerTotalCents:quote.officerTotalCents,calendarAdjustedListSubtotalCents:quote.pricingDecision.listSubtotalCents,configuration:quote.specialistConfiguration});
+    const current={...quote,version:PREVIOUS_SPECIALIST_PRICING_VERSION,pricingDecision:decision,subtotalCents:decision.subtotalCents,clientPriceCents:decision.totalCents,costFloorCents:decision.costFloorCents,marginCents:decision.marginCents,marginBasisPoints:decision.marginBasisPoints,marginFloorAdjustmentCents:decision.subtotalCents-decision.listSubtotalCents,grossPlatformContributionCents:decision.subtotalCents-quote.officerTotalCents};
     const vat = Math.round(current.subtotalCents * 0.15);
     const historical = {...current, version:'LOKD-SPECIALIST-2026.09-v1', vatRateBasisPoints:1500, vatCents:vat, clientPriceCents:current.subtotalCents+vat};
     insertSpecialistBooking(database, 'BK-HISTORICAL', historical);

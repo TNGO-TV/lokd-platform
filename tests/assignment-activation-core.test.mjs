@@ -121,7 +121,7 @@ function factsForWorkforceModel(model) {
   return facts;
 }
 
-test("a fully evidenced Direct Flex activation is ready and freezes two ISO-week segments", () => {
+test("a fully evidenced hourly-paid officer activation is ready and freezes two ISO-week segments", () => {
   const result = evaluateAssignmentActivation(validFacts());
   assert.equal(result.ready, true);
   assert.deepEqual(result.weekSegments.map((segment) => [segment.isoWeekStart, segment.minutes]), [
@@ -131,13 +131,13 @@ test("a fully evidenced Direct Flex activation is ready and freezes two ISO-week
   assert.equal(result.compensation.fundedOfferCents, 80000);
 });
 
-test("activation rejects incompatible models and all external-firm staffing", () => {
-  for (const [booking, route] of [['bolt','managed'],['flex','direct_flex'],['fixed','direct_flex']]) {
+test("Fixed hourly-pay routing warns while external-firm staffing remains invalid", () => {
+  for (const [booking, route] of [['fixed','direct_flex']]) {
     const facts = factsForWorkforceModel(route);
     facts.shift.bookingModel = booking;
     const result = evaluateAssignmentActivation(facts);
-    assert.equal(result.ready, false);
-    assert.ok(result.blockers.some(b => b.code === 'BOOKING_WORKFORCE_ROUTE_MISMATCH'));
+    assert.equal(result.ready, true);
+    assert.ok(result.warnings.some(b => b.code === 'HOURLY_FIXED_REVIEW'));
   }
   const missing = validFacts(); delete missing.shift.bookingModel;
   assert.ok(evaluateAssignmentActivation(missing).blockers.some(b => b.code === 'BOOKING_MODEL_INVALID'));
@@ -337,13 +337,13 @@ test("check-in fails closed after the roster check-in deadline", () => {
   assert.deepEqual(codes, ["CHECK_IN_WINDOW_CLOSED"]);
 });
 
-test("Direct Flex and Managed require LOKD payroll and benefits readiness", () => {
+test("hourly-paid officer and monthly-salary officer record payroll and benefits readiness warnings", () => {
   for (const model of ["direct_flex", "managed"]) {
     const facts = validFacts();
     facts.workforce.model = model;
     facts.workforce.payrollStatus = "pending";
     facts.workforce.benefitsStatus = "pending";
-    const codes = evaluateAssignmentActivation(facts).blockers.map((blocker) => blocker.code);
+    const codes = evaluateAssignmentActivation(facts).warnings.map((blocker) => blocker.code);
     assert.ok(codes.includes("PAYROLL_ROUTE_NOT_READY"), model);
     assert.ok(codes.includes("STATUTORY_BENEFITS_NOT_READY"), model);
   }
@@ -396,7 +396,7 @@ test("employer evidence and review dates are checked independently", () => {
   const facts = validFacts();
   facts.workforce.employer.evidence = facts.workforce.employer.evidence.filter((item) => item.version !== "coida");
   facts.workforce.employer.reviewDueAt = "2026-09-07T05:00:00.000Z";
-  const codes = evaluateAssignmentActivation(facts).blockers.map((blocker) => blocker.code);
+  const codes = evaluateAssignmentActivation(facts).warnings.map((blocker) => blocker.code);
   assert.ok(codes.includes("EMPLOYER_COIDA_INVALID"));
   assert.ok(codes.includes("EMPLOYER_REVIEW_EXPIRES"));
 });
@@ -420,10 +420,10 @@ test("availability and work-rest declarations require their own current evidence
   assert.ok(codes.includes("EXTERNAL_WORK_DECLARATION_MISSING"));
 });
 
-test("relief and assignment minutes share the Direct Flex weekly ceiling", () => {
+test("relief and assignment minutes share the hourly-paid officer weekly review threshold", () => {
   const facts = validFacts();
   facts.schedule.existingWeekMinutes = { "2026-08-31": 1_300, "2026-09-07": 1_000 };
-  const codes = evaluateAssignmentActivation(facts).blockers.map((blocker) => blocker.code);
+  const codes = evaluateAssignmentActivation(facts).warnings.map((blocker) => blocker.code);
   assert.ok(codes.includes("WEEKLY_HOUR_CAP_2026-08-31"));
   assert.ok(codes.includes("WEEKLY_HOUR_CAP_2026-09-07"));
 });

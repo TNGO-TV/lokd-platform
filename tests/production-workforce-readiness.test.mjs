@@ -8,7 +8,7 @@ test('independent production evidence approval records direct LOKD payroll and b
   try {
     const expires=new Date(Date.now()+86400000).toISOString();
     x.db.sql.prepare("INSERT INTO workforce_employers(id,legal_name,employer_type,environment,status,review_due_at) VALUES('LOKD-READINESS','LOKD Security','lokd_employer','production','current',?)").run(expires);
-    const fields={engagementId:'LOKD-MANAGED-ENGAGEMENT',officerId:x.officerId,employerId:'LOKD-READINESS',model:'managed',termsVersion:'LOKD-TERMS-v1',engagementReference:'evidence:lokd-engagement',weeklyHourCap:'48',payrollReference:'evidence:lokd-payroll-confirmation',benefitsReference:'evidence:lokd-benefits-confirmation'};
+    const fields={engagementId:'LOKD-MANAGED-ENGAGEMENT',officerId:x.officerId,employerId:'LOKD-READINESS',payBasis:'monthly',agreedHourlyRateCents:'0',payCadence:'monthly',payCadenceRequestReference:'',termsVersion:'LOKD-TERMS-v1',engagementReference:'evidence:lokd-engagement',weeklyHourCap:'48',payrollReference:'evidence:lokd-payroll-confirmation',benefitsReference:'evidence:lokd-benefits-confirmation'};
     const prepared=await manageProductionEvidence(x.db,maker,{action:'prepare_evidence',kind:'engagement',fields,sourceDocumentsReviewed:true,expiresAt:expires});
     assert.equal(x.db.sql.prepare('SELECT COUNT(*) AS count FROM workforce_engagements WHERE id=?').get(fields.engagementId).count,0);
     await assert.rejects(()=>manageProductionEvidence(x.db,{...maker,owner:true},{action:'decide_evidence',reviewId:prepared.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Own review must be rejected'}),/preparer/);

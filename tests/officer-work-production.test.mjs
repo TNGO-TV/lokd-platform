@@ -10,7 +10,7 @@ import {GET,POST} from '../app/api/onboarding/route.ts';
 
 async function connected(){
  const x=await complete(),database=x.db.sql;await seedEnvironment(database);
- const fields={engagementId:'OFFICER-WORK-ENGAGEMENT',officerId:x.officerId,employerId:'EMP-1',model:'direct_flex',termsVersion:'TERMS-v1',engagementReference:'private:fixture-engagement',weeklyHourCap:'24',payrollReference:'private:fixture-payroll',benefitsReference:'private:fixture-benefits'};
+ const fields={engagementId:'OFFICER-WORK-ENGAGEMENT',officerId:x.officerId,employerId:'EMP-1',payBasis:'monthly',agreedHourlyRateCents:'0',payCadence:'monthly',payCadenceRequestReference:'',termsVersion:'TERMS-v1',engagementReference:'private:fixture-engagement',weeklyHourCap:'24',payrollReference:'private:fixture-payroll',benefitsReference:'private:fixture-benefits'};
  const engagement=await manageProductionEvidence(x.db,maker,{action:'prepare_evidence',kind:'engagement',fields,sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString()});
  await manageProductionEvidence(x.db,checker,{action:'decide_evidence',reviewId:engagement.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Independent fixture evidence inspection'});
  seedOfficerSupport(database,x.officerId,fields.engagementId,'WORK-TERMS');
@@ -77,4 +77,30 @@ test('officer onboarding API requires account and rejects cross-workspace comman
  const headers={'x-lokd-verified-user-id':applicant.userId,'x-lokd-verified-email':applicant.email,'content-type':'application/json',origin:'https://officers.lokd.co.za'};
  assert.equal((await GET(new Request(url,{headers}))).status,200);
  assert.equal((await POST(new Request(url,{method:'POST',headers:{...headers,origin:'https://evil.example'},body:'{}'}))).status,403);env.DB.sql.close();
+});
+
+test('hourly offers remain visible and can be accepted above the cross-booking weekly threshold',async()=>{
+ const x=await connected();try{
+  const {changeOfficerPayBasis}=await import('../app/lib/officer-pay-basis-commands.ts');
+  const {seedBooking,seedRoster}=await import('./fixtures/client-booking-db.mjs');
+  const {isoWeekDateRange}=await import('../app/lib/workforce-core.ts');
+  const engagement=x.database.prepare('SELECT id,version FROM workforce_engagements WHERE officer_id=? AND active_key=officer_id').get(x.officerId);
+  await changeOfficerPayBasis(x.db,checker,{engagementId:engagement.id,expectedVersion:engagement.version,payBasis:'hourly',payCadence:'weekly',agreedHourlyRateCents:4000,reference:'Isolated reviewed hourly agreement reference'});
+  const candidate=x.database.prepare("SELECT r.id,r.starts_at,r.booking_id,b.client_id FROM roster_slots r JOIN bookings b ON b.id=r.booking_id WHERE r.environment='production' ORDER BY r.starts_at LIMIT 1").get();
+  const serviceDate=new Date(Date.parse(candidate.starts_at)+7200000).toISOString().slice(0,10),monday=isoWeekDateRange(serviceDate).monday;
+  const days=[0,2,4,6].map(day=>new Date(Date.parse(monday)+day*86400000).toISOString().slice(0,10)).filter(date=>date!==serviceDate).slice(0,2);
+  for(const [index,date]of days.entries()){
+    const booking='hours-booking-'+index,slot='hours-slot-'+index;
+    seedBooking({sql:x.database},candidate.client_id,booking);x.database.prepare('UPDATE bookings SET start_date=?,end_date=? WHERE id=?').run(date,date,booking);
+    seedRoster({sql:x.database},{bookingId:booking,clientId:candidate.client_id,slotId:slot,assigned:false});
+    x.database.prepare('UPDATE roster_slots SET service_date=?,starts_at=?,ends_at=? WHERE id=?').run(date,date+'T06:00:00+02:00',date+'T18:00:00+02:00',slot);
+    x.database.prepare("INSERT INTO roster_assignments(id,roster_slot_id,officer_id,status,environment,integrity_state,assigned_by,assigned_at) VALUES(?,?,?,'reserved','production','production_verified','fixture',?)").run('hours-assignment-'+index,slot,x.officerId,new Date().toISOString());
+  }
+  x.database.prepare("UPDATE booking_funding_reconciliations SET integrity_state='production_verified' WHERE booking_id=?").run(candidate.booking_id);
+  x.database.prepare("INSERT INTO offers(id,booking_id,officer_id,roster_slot_id,amount_cents,status,expires_at) VALUES('hourly-limit-offer',?,?,?,80000,'open',?)").run(candidate.booking_id,x.officerId,candidate.id,new Date(Date.now()+3600000).toISOString());
+  assert.ok((await readOfficerWork(x.db,applicant)).offers.some(o=>o.id==='hourly-limit-offer'));
+  await writeOfficerWork(x.db,applicant,{action:'accept_offer',offerId:'hourly-limit-offer'});
+  assert.equal(x.database.prepare("SELECT status FROM offers WHERE id='hourly-limit-offer'").get().status,'accepted');
+  assert.ok(x.database.prepare("SELECT count(*) n FROM workforce_policy_warnings WHERE code='WEEKLY_HOURS_REVIEW'").get().n>0);
+ }finally{x.database.close();}
 });

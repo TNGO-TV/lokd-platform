@@ -5,6 +5,7 @@ import {
   type BookingModel,
   type LaunchGateInput,
   type WorkforceModel,
+  type PayBasis,
 } from "./workforce-core";
 
 export const ACTIVATION_POLICY_VERSION = "LOKD-ACTIVATION-2026.11-v3";
@@ -110,6 +111,8 @@ export type AssignmentActivationFacts = {
     passport: DatedEvidence;
   };
   workforce: {
+    payBasis?: PayBasis | null;
+    agreementPayBasis?: PayBasis | null;
     engagementId: string | null;
     engagementVersion?: number | null;
     environment: string | null;
@@ -250,9 +253,10 @@ export function intervalsConflictWithRest(
 }
 
 export function evaluateAssignmentActivation(facts: AssignmentActivationFacts) {
-  const blockers: ActivationBlocker[] = [];
+  const blockers: ActivationBlocker[] = [], warnings: ActivationBlocker[] = [];
   const add = (code: string, category: ActivationBlocker["category"], detail: string) => {
-    if (!blockers.some((blocker) => blocker.code === code)) blockers.push({ code, category, detail });
+    const target=/^WEEKLY_HOUR_CAP|^EMPLOYER_.*_(INVALID|EXPIRES)$|^EMPLOYER_COMPLIANCE_REVIEW$|^ENGAGEMENT_REVIEW_EXPIRES$|^PAYROLL_ROUTE_NOT_READY$|^STATUTORY_BENEFITS_NOT_READY$|^HOURLY_FIXED_REVIEW$/.test(code)?warnings:blockers;
+    if (!target.some((blocker) => blocker.code === code)) target.push({ code, category, detail });
   };
   const endTime = parsedTime(facts.shift.endsAt);
   const startTime = parsedTime(facts.shift.startsAt);
@@ -353,7 +357,8 @@ export function evaluateAssignmentActivation(facts: AssignmentActivationFacts) {
   if (!evidencePasses(facts.officer.passport, facts.shift.endsAt, ["active", "expiring"], facts.evaluatedAt, facts.environment, true)) add("PASSPORT_NOT_CURRENT", "officer", "The LOKD Passport is not current through shift end.");
 
   const workforce = facts.workforce;
-  const bookingRoute = bookingWorkforceRouteDecision(facts.shift.bookingModel, workforce.model);
+  if(facts.shift.bookingModel==='fixed'&&(workforce.payBasis==='hourly'||!workforce.payBasis&&workforce.model==='direct_flex'))add("HOURLY_FIXED_REVIEW","workforce","Review hourly pay for an Officer on a LOKD Fixed roster.");
+  const bookingRoute = bookingWorkforceRouteDecision(facts.shift.bookingModel, workforce.model, workforce.payBasis ?? undefined);
   if (!bookingRoute.ready && bookingRoute.code && bookingRoute.detail) {
     add(bookingRoute.code, "workforce", bookingRoute.detail);
   }
@@ -371,11 +376,15 @@ export function evaluateAssignmentActivation(facts: AssignmentActivationFacts) {
 
   }
   const employer = workforce.employer;
-  if (!employer.id || employer.status !== "current" || employer.environment !== expectedDataEnvironment) add("EMPLOYER_NOT_CURRENT", "workforce", "The employer of record is not approved for this activation environment.");
-  if ((workforce.model === "direct_flex" || workforce.model === "managed") && employer.employerType !== "lokd_employer") add("LOKD_EMPLOYER_REQUIRED", "workforce", "Direct Flex and Managed work require LOKD as employer of record.");
+  if (!employer.id || employer.environment !== expectedDataEnvironment) add("EMPLOYER_NOT_CURRENT", "workforce", "The employer of record is not approved for this activation environment.");
+  if(employer.id&&employer.status!=="current")add("EMPLOYER_COMPLIANCE_REVIEW","workforce","Employer compliance status requires Operations review.");
+  if ((workforce.model === "direct_flex" || workforce.model === "managed") && employer.employerType !== "lokd_employer") add("LOKD_EMPLOYER_REQUIRED", "workforce", "Hourly and monthly-salary officers require LOKD as employer of record.");
   if (!Number.isFinite(parsedTime(employer.reviewDueAt)) || parsedTime(employer.reviewDueAt) < evidenceDeadline) add("EMPLOYER_REVIEW_EXPIRES", "workforce", "The employer compliance review date is missing, invalid or expires before shift end or evaluation time.");
   for (const control of REQUIRED_EMPLOYER_EVIDENCE) {
     const evidence = employer.evidence.filter((item) => item.id?.endsWith(`:${control}`) || item.version === control);
+    if(evidence.length>1)add('EMPLOYER_EVIDENCE_DUPLICATE','workforce','Duplicate employer evidence records require a data review.');
+    if(evidence.some(e=>e.id&&e.environment!==expectedDataEnvironment))add('EMPLOYER_EVIDENCE_ENVIRONMENT','workforce','Employer evidence is in the wrong environment.');
+    if(evidence.some(e=>e.id&&e.integrityState!=='verified'))add('EMPLOYER_EVIDENCE_INTEGRITY','workforce','Employer evidence integrity must be verified.');
     if (evidence.length !== 1 || !evidencePasses(evidence[0], facts.shift.endsAt, ["current"], facts.evaluatedAt, facts.environment, true)) {
       add(`EMPLOYER_${control.toUpperCase()}_INVALID`, "workforce", `Employer ${control.replaceAll("_", " ")} evidence is missing, duplicated or expires before shift end.`);
     }
@@ -400,12 +409,12 @@ export function evaluateAssignmentActivation(facts: AssignmentActivationFacts) {
     add("TRAVEL_NOT_FEASIBLE", "schedule", "Travel feasibility is not evidenced and valid through shift end.");
   }
 
-  if (workforce.model === "direct_flex") {
+  if (workforce.payBasis === "hourly" || !workforce.payBasis && workforce.model === "direct_flex") {
     const capMinutes = (workforce.weeklyHourCap ?? 0) * 60;
-    if (capMinutes <= 0) add("WEEKLY_HOUR_CAP_MISSING", "schedule", "Direct Flex requires a positive weekly hour ceiling.");
+    if (capMinutes <= 0) add("WEEKLY_HOUR_CAP_MISSING", "schedule", "Review the weekly hour threshold in the payroll policy.");
     for (const segment of weekSegments) {
       const projected = (facts.schedule.existingWeekMinutes[segment.isoWeekStart] ?? 0) + segment.minutes;
-      if (projected > capMinutes) add(`WEEKLY_HOUR_CAP_${segment.isoWeekStart}`, "schedule", `Direct Flex would reserve ${projected} minutes in the ISO week beginning ${segment.isoWeekStart}, above the ${capMinutes}-minute ceiling.`);
+      if (projected > capMinutes) add(`WEEKLY_HOUR_CAP_${segment.isoWeekStart}`, "schedule", `The assignment would reserve ${projected} minutes in the ISO week beginning ${segment.isoWeekStart}, above the ${capMinutes}-minute review threshold.`);
     }
   }
 
@@ -435,7 +444,7 @@ export function evaluateAssignmentActivation(facts: AssignmentActivationFacts) {
   return {
     policyVersion: ACTIVATION_POLICY_VERSION,
     ready: blockers.length === 0,
-    blockers,
+    blockers, warnings,
     weekSegments,
     validThrough: facts.shift.endsAt,
     compensation: { ...compensation },

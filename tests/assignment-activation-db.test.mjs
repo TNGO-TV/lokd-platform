@@ -1,3 +1,4 @@
+import {setHourlyHourLimit} from './fixtures/hourly-pay.mjs';
 import {operateWithProof as operateProduction,operatorHeaders} from './fixtures/operations-auth.mjs';
 import {observeReads} from './read-observer.mjs';
 import { activationAgreementContext, requiredActivationAgreements } from '../app/lib/agreement-activation.ts';
@@ -144,7 +145,7 @@ function run(database, sql, ...values) {
   return database.prepare(sql).run(...values);
 }
 
-function seedOfficer(database, id, engagementId, termsId) {
+function seedOfficer(database, id, engagementId, termsId, model='direct_flex') {
   run(database, `INSERT INTO officers
     (id,full_name,mobile,email,city,psira_number,psira_grade,psira_expiry,approval_status,banking_status,
      flex_available,external_work_acknowledged,rest_window_confirmed,created_at)
@@ -185,14 +186,14 @@ function seedOfficer(database, id, engagementId, termsId) {
     VALUES (?,?,?,'current','production','verified',?,?,?,?)`,
     `CR-${id}-${recordType}`, id, recordType, `compliance:evidence:${id}:${recordType}`, now, expiry, "2041-09-01T00:00:00.000Z");
   run(database, `INSERT INTO workforce_engagements
-    (id,officer_id,employer_id,model,environment,status,active_key,engagement_reference,terms_version,
+    (id,officer_id,employer_id,model,pay_basis,agreed_hourly_rate_cents,pay_cadence,environment,status,active_key,engagement_reference,terms_version,
      payroll_status,benefits_status,weekly_hour_cap,activated_at,review_due_at,version,created_at,updated_at)
-    VALUES (?,?, 'EMP-1','direct_flex','production','active',?,?, 'TERMS-v1','ready','ready',24,?,?,1,?,?)`,
-    engagementId, id, id, `ENG-${id}`, now, expiry, now, now);
+    VALUES (?,?, 'EMP-1',?,?,4000,?,'production','active',?,?, 'TERMS-v1','ready','ready',24,?,?,1,?,?)`,
+    engagementId, id, model,model==='direct_flex'?'hourly':'monthly',model==='direct_flex'?'weekly':'monthly', id, `ENG-${id}`, now, expiry, now, now);
   run(database, `INSERT INTO workforce_terms_acceptances
-    (id,workforce_engagement_id,officer_id,terms_version,acceptance_mode,environment,integrity_state,
+    (id,workforce_engagement_id,officer_id,terms_version,agreement_type,acceptance_mode,environment,integrity_state,
      evidence_reference,accepted_at,expires_at,version,active_key,created_at)
-    VALUES (?,?,?,'TERMS-v1','electronic','production','verified','terms:evidence',?,?,1,?,?)`, termsId, engagementId, id, now, expiry, engagementId, now);
+    VALUES (?,?,?,'TERMS-v1',?,'electronic','production','verified','terms:evidence',?,?,1,?,?)`, termsId, engagementId, id,model==='direct_flex'?'hourly':'monthly', now, expiry, engagementId, now);
   run(database, `INSERT INTO officer_availability_windows
     (id,officer_id,starts_at,ends_at,source,status,environment,integrity_state,evidence_reference,rest_confirmed_at,version,created_at)
     VALUES (?,?,?,?,'fixture','available','production','verified',?,?,1,?)`, `AV-${id}`, id,
@@ -211,7 +212,7 @@ function seedOfficer(database, id, engagementId, termsId) {
     VALUES (?,?,'SITE-1','feasible','production','verified',30,'route_matrix','travel:evidence',?,?,1,?,?)`, `TRAVEL-${id}`, id, now, expiry, `${id}:SITE-1`, now);
 }
 
-async function seedValid(database, secondOfficer = false) {
+async function seedValid(database, secondOfficer = false, model='direct_flex') {
   for (const [index, code] of REQUIRED_LAUNCH_GATE_CODES.entries()) run(database, `INSERT INTO launch_controls
     (code,label,category,status,evidence_level,evidence_reference,detail,hard_gate,sort_order,verified_by,verified_at,expires_at,version,updated_at)
     VALUES (?,?,'fixture','passed','independently_verified',?,'Fixture evidence',1,?,'Verifier',?,?,1,?)
@@ -275,8 +276,8 @@ async function seedValid(database, secondOfficer = false) {
   for (const control of ["psira", "nbcpss", "psspf", "uif", "coida", "insurance", "service_agreement"]) run(database, `INSERT INTO employer_compliance_evidence
     (id,employer_id,control_code,status,environment,integrity_state,evidence_reference,verified_at,expires_at,version,active_key,created_at)
     VALUES (?,'EMP-1',?,'current','production','verified',?,?,?,1,?,?)`, `ECE-${control}`, control, `evidence:${control}`, now, expiry, `EMP-1:${control}`, now);
-  seedOfficer(database, "OFF-1", "WE-1", "WTA-1");
-  if (secondOfficer) seedOfficer(database, "OFF-2", "WE-2", "WTA-2");
+  seedOfficer(database, "OFF-1", "WE-1", "WTA-1",model);
+  if (secondOfficer) seedOfficer(database, "OFF-2", "WE-2", "WTA-2",model);
   run(database, "UPDATE bookings SET contracting_entity_id='LOKD-CONTRACTOR-TEST'");
   await signFixtureAgreements(database);
 }
@@ -637,10 +638,10 @@ test("simultaneous different-slot claims cannot violate one officer's rest windo
   database.close();
 });
 
-test("stale concurrent Direct Flex activations cannot exceed the same-week ceiling", async () => {
+test("concurrent hourly activations proceed above the weekly threshold with recorded warnings", async () => {
   const database = migratedDatabase();
   await seedValid(database);
-  run(database, `UPDATE workforce_engagements SET weekly_hour_cap=10 WHERE id='WE-1'`);
+  setHourlyHourLimit(database,10);
   run(database, `UPDATE bookings SET start_date='2040-01-03',end_date='2040-01-05',
     shift_start='08:00',shift_end='14:00',calendar_category='ordinary',calendar_label='Ordinary Monday-Saturday',
     officer_rate_cents=80000 WHERE id='BK-1'`);
@@ -666,35 +667,26 @@ test("stale concurrent Direct Flex activations cannot exceed the same-week ceili
     activateAssignment(db, { ...request("activation:weekly-race:two"), rosterSlotId: "SLOT-2" }, "ops@example.test"),
   ]);
   const fulfilled = results.filter((result) => result.status === "fulfilled");
-  const rejected = results.filter((result) => result.status === "rejected");
-  assert.equal(fulfilled.length, 1);
-  assert.equal(rejected.length, 1);
-  assert.match(String(rejected[0].reason), /weekly|ceiling|rolled back/i);
+  assert.ok(fulfilled.length>=1);
+  for(const [index,result]of results.entries())if(result.status==='rejected'){
+    // A changed global evidence revision still requires a fresh integrity check.
+    assert.doesNotMatch(String(result.reason),/weekly.*exceed|weekly.*ceiling/i);
+    const slot=index===0?'SLOT-1':'SLOT-2',version=database.prepare('SELECT version FROM roster_slots WHERE id=?').get(slot).version;
+    assert.equal((await activateAssignment(new D1Adapter(database),{...request('weekly-refresh:'+index),rosterSlotId:slot,expectedSlotVersion:version},'ops@example.test')).state,'activated');
+  }
+  assert.equal(database.prepare("SELECT count(*) n FROM assignment_activation_commands WHERE state='activated'").get().n,2);
+  assert.equal(count(database,'roster_assignments'),2);assert.equal(count(database,'shifts'),2);assert.equal(count(database,'assignment_activation_snapshots'),2);
+  assert.equal(database.prepare("SELECT SUM(reserved_minutes) n FROM workforce_hour_reservations WHERE status='active'").get().n,720);
+  assert.ok(database.prepare("SELECT count(*) n FROM workforce_policy_warnings WHERE code LIKE '%WEEKLY%' OR code LIKE 'WEEKLY_HOUR_CAP%'").get().n>0);
 
-  assert.deepEqual(database.prepare(`SELECT state,COUNT(*) AS count FROM assignment_activation_commands
-    GROUP BY state ORDER BY state`).all().map((row) => ({ ...row })), [
-    { state: "activated", count: 1 },
-    { state: "blocked", count: 1 },
-  ]);
-  assert.deepEqual({ ...database.prepare(`SELECT roster_assignment_id AS assignmentId,shift_id AS shiftId
-    FROM assignment_activation_commands WHERE state='blocked'`).get() }, { assignmentId: null, shiftId: null });
-  assert.equal(database.prepare(`SELECT code FROM assignment_activation_blockers`).get().code, "WEEKLY_HOUR_CAP_CONFLICT");
-  assert.equal(count(database, "roster_assignments"), 1);
-  assert.equal(count(database, "shifts"), 1);
-  assert.equal(count(database, "assignment_activation_snapshots"), 1);
-  assert.equal(count(database, "assignment_revalidations"), 3);
-  assert.deepEqual({ ...database.prepare(`SELECT COUNT(*) AS count,SUM(reserved_minutes) AS minutes,
-    MAX(weekly_cap_minutes) AS cap FROM workforce_hour_reservations WHERE status='active'`).get() },
-  { count: 1, minutes: 360, cap: 600 });
   database.close();
 });
 
 for (const route of ["managed"]) {
   test(`${route} activation freezes the correct employer and payroll route`, async () => {
     const database = migratedDatabase();
-    await seedValid(database);
+    await seedValid(database,false,route);
     if (route === "managed") {
-      run(database, `UPDATE workforce_engagements SET model='managed',weekly_hour_cap=NULL WHERE id='WE-1'`);
       run(database, `UPDATE bookings SET engagement_model='fixed' WHERE id='BK-1'`);
     }
     await signFixtureAgreements(database);
@@ -712,22 +704,15 @@ for (const route of ["managed"]) {
   });
 }
 
-for (const [bookingModel,workforceModel] of [['bolt','managed'],['flex','direct_flex'],['fixed','direct_flex']]) {
-  test(`${bookingModel} booking cannot activate the ${workforceModel} workforce route`,async()=>{
-    const database=migratedDatabase();
-    try {
-      await seedValid(database);
-      run(database,'UPDATE bookings SET engagement_model=? WHERE id=\'BK-1\'',bookingModel);
-      run(database,'UPDATE workforce_engagements SET model=? WHERE id=\'WE-1\'',workforceModel);
-      await signFixtureAgreements(database);
-      await assert.rejects(()=>activateAssignment(new D1Adapter(database),request('booking-route:'+bookingModel),'ops@example.test'),/LOKD (Bolt|Flex|Fixed).*require/);
-      assert.equal(database.prepare("SELECT COUNT(*) AS count FROM assignment_activation_blockers WHERE code='BOOKING_WORKFORCE_ROUTE_MISMATCH'").get().count,1);
-      for(const table of ['shifts','roster_assignments','assignment_workforce_snapshots','assignment_activation_snapshots'])assert.equal(count(database,table),0,table);
-    } finally {database.close();}
-  });
-}
+test('hourly pay can activate on Fixed with a recorded routing warning',async()=>{
+ const database=migratedDatabase();try{
+  await seedValid(database);run(database,"UPDATE bookings SET engagement_model='fixed' WHERE id='BK-1'");await signFixtureAgreements(database);
+  const activated=await activateAssignment(new D1Adapter(database),request('fixed-hourly-warning'),'ops@example.test');assert.equal(activated.state,'activated');
+  assert.ok(database.prepare("SELECT count(*) n FROM workforce_policy_warnings WHERE code='HOURLY_FIXED_REVIEW'").get().n>0);
+ }finally{database.close();}
+});
 
-test('database route guards reject a forged staffing snapshot independently of the activation decision',async()=>{
+test('source-integrity guards still reject a forged workforce model',async()=>{
   const database=migratedDatabase();
   try {
     await seedValid(database);
@@ -735,7 +720,7 @@ test('database route guards reject a forged staffing snapshot independently of t
     assert.equal(activated.state,'activated');
     const original=database.prepare('SELECT * FROM assignment_workforce_snapshots').get();
     const copy={...original,id:'FORGED-ROUTE',workforce_model:'managed'};
-    assert.throws(()=>database.prepare('INSERT INTO assignment_workforce_snapshots('+Object.keys(copy).join(',')+') VALUES('+Object.keys(copy).map(()=>'?').join(',')+')').run(...Object.values(copy)),/booking_workforce_route_mismatch/);
+    assert.throws(()=>database.prepare('INSERT INTO assignment_workforce_snapshots('+Object.keys(copy).join(',')+') VALUES('+Object.keys(copy).map(()=>'?').join(',')+')').run(...Object.values(copy)),/assignment_workforce_snapshot_source_invalid/);
   } finally {database.close();}
 });
 
@@ -805,15 +790,16 @@ for (const [label, mutation] of [
   });
 }
 
-test("relief reservations are included in the weekly ceiling", async () => {
+test("existing reservations above the weekly threshold produce warnings without blocking activation", async () => {
   const database = migratedDatabase();
   await seedValid(database);
   seedReliefReservation(database);
   await signFixtureAgreements(database);
   const db = new D1Adapter(database);
-  await assert.rejects(() => activateAssignment(db, request("activation:relief-cap"), "ops@example.test"), /weekly|ceiling|reserve/i);
-  assert.equal(Number(database.prepare(`SELECT SUM(reserved_minutes) AS minutes FROM workforce_hour_reservations WHERE status='active'`).get().minutes), 1020);
-  assert.equal(count(database, "assignment_activation_snapshots"), 0);
+  assert.equal((await activateAssignment(db,request("activation:relief-cap"),"ops@example.test")).state,"activated");
+  assert.ok(database.prepare("SELECT count(*) n FROM workforce_policy_warnings WHERE code LIKE '%WEEKLY%'").get().n>0);
+  assert.equal(Number(database.prepare(`SELECT SUM(reserved_minutes) AS minutes FROM workforce_hour_reservations WHERE status='active'`).get().minutes), 1740);
+  assert.equal(count(database, "assignment_activation_snapshots"), 1);
   database.close();
 });
 
@@ -1071,7 +1057,7 @@ for (const [checkpoint, transitionCheckIn] of [
 test("revalidations reject early execution and the due runner processes T-24 and T-2 once", async () => {
   const database = migratedDatabase();
   await seedValid(database);
-  run(database, `UPDATE workforce_engagements SET weekly_hour_cap=12 WHERE id='WE-1'`);
+  setHourlyHourLimit(database,12);
   await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   const activated = await activateAssignment(db, request("activation:revalidation"), "ops@example.test");
@@ -1335,20 +1321,21 @@ test("a production work commitment conflicting with relief work is rejected", as
   database.close();
 });
 
-test("a production work commitment cannot push Direct Flex work above the weekly ceiling", async () => {
+test("a production work commitment above the hourly threshold is saved with a warning", async () => {
   const database = migratedDatabase();
   await seedValid(database);
   await signFixtureAgreements(database);
   const db = new D1Adapter(database);
   await activateAssignment(db, request("activation:commitment-weekly-cap"), "ops@example.test");
 
-  assert.throws(() => insertWorkCommitment(database, {
+  insertWorkCommitment(database, {
     id: "OWC-WEEKLY-CAP",
     starts: "2039-12-26T14:00:00.000Z",
     ends: "2039-12-27T07:00:00.000Z",
-  }), /production_work_commitment_weekly_cap_exceeded/);
+  });
+  assert.ok(database.prepare("SELECT count(*) n FROM workforce_policy_warnings WHERE code='WEEKLY_HOURS_REVIEW'").get().n>0);
   assert.equal(Number(database.prepare(`SELECT COUNT(*) AS count FROM officer_work_commitments
-    WHERE id='OWC-WEEKLY-CAP'`).get().count), 0);
+    WHERE id='OWC-WEEKLY-CAP'`).get().count), 1);
   database.close();
 });
 
@@ -1457,7 +1444,7 @@ for (const duringCommit of [false, true]) test(`PSiRA pathway withdrawal blocks 
   database.close();
 });
 
-async function signFixtureAgreements(database) {
+async function signFixtureAgreements(database,{legacyEmployment=false}={}) {
   const adapter = new D1Adapter(database);
   run(database, `INSERT OR IGNORE INTO operator_accounts
     (id,email,display_name,status,environment,integrity_state,created_at,updated_at)
@@ -1469,7 +1456,7 @@ async function signFixtureAgreements(database) {
         const wording=`Fixture ${role} wording for automated checks only; no actual contract.`;
         const hash=await agreementHash(wording),docId=`DOC-${role}`;
 
-        const context=activationAgreementContext(facts,role),contextHash=await agreementHash(canonicalAgreementContext(context));
+        const context=activationAgreementContext(facts,role);if(legacyEmployment&&role==='OFFICER_EMPLOYMENT')delete context.scope.payBasis;const contextHash=await agreementHash(canonicalAgreementContext(context));
         const client=['CLIENT_MSA','SERVICE_ORDER'].includes(role);
         const entityId=client?facts.client.contractingEntityId:facts.workforce.employer.id;
         const purpose=client?'client_service':role==='PARTNER_SERVICE'?'partner_service':'officer_employment';
@@ -1478,10 +1465,34 @@ async function signFixtureAgreements(database) {
           VALUES (?,?,'1',?,'en-ZA',?,'fixture:body','approved','LEGAL-FIXTURE',?,?,'production','production_verified')`,docId,role,entityId,hash,now,now);
         const prepared=await prepareAgreementReceipt({document:{id:docId,version:'1',purpose,entityId,locale:'en-ZA',status:'approved',approvedBy:'LEGAL-FIXTURE',approvedAt:now,effectiveFrom:now,effectiveTo:null,wording,contentHash:hash},context,presentedContentHash:hash,presentedContextHash:contextHash,expectedPurpose:purpose,expectedEntityId:entityId,expectedLocale:'en-ZA',actorUserId:'user_signer_fixture',identityEvidence:'Synthetic identity evidence',authorityEvidence:'Synthetic representative mandate',action:'agree',affirmative:true,now:Date.parse(now)});
         await storeAgreementReceipt(adapter,`SIG-${contextHash}`,prepared);
+        if(legacyEmployment&&role==='OFFICER_EMPLOYMENT')run(database,"UPDATE workforce_terms_acceptances SET evidence_reference=? WHERE active_key=?",'agreement:SIG-'+contextHash,facts.workforce.engagementId);
       }
     }
   }
 }
+
+test('legacy signed employment receipts retain exact scope verification through their actual workforce acceptance',async()=>{
+ const database=migratedDatabase();try{
+  await seedValid(database);
+  for(const r of database.prepare("SELECT id FROM agreement_acceptance_receipts WHERE json_extract(receipt_json,'$.context.scope.documentRole')='OFFICER_EMPLOYMENT'").all())run(database,'INSERT INTO agreement_receipt_revocations VALUES(?,?,?,?)',r.id,'Replaced by historical-shape fixture','reviewer',now);
+  await signFixtureAgreements(database,{legacyEmployment:true});
+  const db=new D1Adapter(database),before=await evaluateAssignmentActivation(db,request('legacy-agreement'));
+  assert.equal(before.facts.agreements.ready,true);
+  const terms=database.prepare("SELECT evidence_reference FROM workforce_terms_acceptances WHERE active_key='WE-1'").get();
+  const receiptId=terms.evidence_reference.slice('agreement:'.length),receipt=database.prepare('SELECT receipt_json FROM agreement_acceptance_receipts WHERE id=?').get(receiptId).receipt_json;
+  assert.equal(JSON.parse(receipt).context.scope.payBasis,undefined);
+  const {changeOfficerPayBasis}=await import('../app/lib/officer-pay-basis-commands.ts');
+  const version=database.prepare("SELECT version FROM workforce_engagements WHERE id='WE-1'").get().version;
+  await changeOfficerPayBasis(db,{userId:'basis-reviewer',operations:true},{engagementId:'WE-1',expectedVersion:version,payBasis:'monthly',payCadence:'monthly',agreedHourlyRateCents:4000,reference:'Reviewed monthly agreement document'});
+  const changed=await evaluateAssignmentActivation(db,request('legacy-basis-changed'));
+  assert.equal(changed.facts.agreements.ready,true);
+  assert.equal(activationAgreementContext(changed.facts,'OFFICER_EMPLOYMENT').scope.payBasis,'hourly');
+  assert.equal(activationAgreementContext(changed.facts,'OFFICER_EMPLOYMENT','current').scope.payBasis,'monthly');
+  run(database,"UPDATE workforce_terms_acceptances SET evidence_reference='unrelated-document' WHERE active_key='WE-1'");
+  assert.equal((await evaluateAssignmentActivation(db,request('legacy-unbound'))).facts.agreements.ready,false);
+  assert.equal(database.prepare('SELECT receipt_json FROM agreement_acceptance_receipts WHERE id=?').get(receiptId).receipt_json,receipt);
+ }finally{database.close();}
+});
 
 for (const mutation of ['contracting_entity','order_scope','shift_time','employer','receipt_revoked']) {
   test(`signed agreement gate rejects changed ${mutation} without rewriting accepted evidence`,async()=>{
@@ -1914,7 +1925,7 @@ test('production period payroll binds reviewed sources and profiles, enforces in
  const database=migratedDatabase();
  const {installFixtureClock}=await import('./fixtures/fixture-clock.mjs');
  const clock=installFixtureClock(testContext,database,Date.parse('2026-09-13T21:52:00Z'));
- await seedValid(database);const scheduled=await moveCandidateToCheckInWindow(database);const db=new D1Adapter(database),headers=operatorHeaders();
+ await seedValid(database,false,'managed');const scheduled=await moveCandidateToCheckInWindow(database);const db=new D1Adapter(database),headers=operatorHeaders();
  const paymentUsers=JSON.parse(process.env.LOKD_PAYMENT_BROWSER_USERS??'{}'),paymentEmails=JSON.parse(process.env.LOKD_PAYMENT_BROWSER_EMAILS??'{}');
  const owner={userId:paymentUsers.owner??'period-owner',email:paymentEmails.owner??'period-owner@example.test',operations:true,owner:true},maker={userId:paymentUsers.operations??'period-maker',email:paymentEmails.operations??'period-maker@example.test',operations:true,owner:false},finance={userId:paymentUsers.finance??'period-finance',email:paymentEmails.finance??'period-finance@example.test',operations:true,owner:false},officer={userId:paymentUsers.officer??'period-officer',email:paymentEmails.officer??'period-officer@example.test',operations:false,owner:false},client={userId:paymentUsers.client??'period-client',email:paymentEmails.client??'period-client@example.test',operations:false,owner:false};
  const activation=await activateAssignment(db,request('period:service'),'fixture');await passDueScheduledCheckpoints(db);await revalidateAssignment(db,activation.shiftId,'check_in',officer.userId,true);
@@ -2043,4 +2054,63 @@ test('production shift swap releases the unstarted assignment and creates a sepa
  assert.equal(database.prepare('SELECT count(*) n FROM roster_assignments WHERE roster_slot_id=?').get(result.replacementSlotId).n,0);
  await assert.rejects(changeProductionAssignment(db,operatorHeaders(owner),{assignmentId:assignment.id,assignmentVersion:assignment.version,reasonCode:'swap',note:'Repeated request',replacementStartsAt:slot.starts_at}),/not found/);
  database.close();
+});
+
+test('missing and expired employer paperwork records warnings while activation proceeds',async()=>{
+ const database=migratedDatabase();try{
+  await seedValid(database);
+  run(database,"UPDATE employer_compliance_evidence SET status='expired',expires_at='2020-01-01T00:00:00Z'");
+  run(database,"DELETE FROM employer_compliance_evidence WHERE control_code='insurance'");
+  run(database,"UPDATE workforce_employers SET status='pending',review_due_at='2020-01-01T00:00:00Z' WHERE id='EMP-1'");
+  await signFixtureAgreements(database);
+  const activated=await activateAssignment(new D1Adapter(database),request('employer-paperwork-warning'),'ops@example.test');assert.equal(activated.state,'activated');
+  const warnings=database.prepare("SELECT code FROM workforce_policy_warnings WHERE code LIKE 'EMPLOYER_%'").all();assert.ok(warnings.some(w=>w.code==='EMPLOYER_PSIRA_INVALID'));assert.ok(warnings.some(w=>w.code==='EMPLOYER_COIDA_INVALID'));
+  assert.ok(database.prepare("SELECT count(*) n FROM audit_events WHERE event_type='workforce_policy_warning'").get().n>0);
+ }finally{database.close();}
+});
+
+for(const [basis,reviewedGross,useReviewedHourlyAmounts] of [['hourly',10000,true],['hourly',0,true],['monthly',10000,true],['monthly',0,true],['hourly',10000,false]])test('production '+basis+' payroll runs with unapproved policy and below-floor source warnings: '+reviewedGross+' override '+useReviewedHourlyAmounts,async(testContext)=>{
+ const {prepareProductionPayroll}=await import('../app/lib/production-payroll.ts');
+ const {recordProductionService}=await import('../app/lib/production-service.ts');
+ const {manageProductionEvidence}=await import('../app/lib/production-evidence.ts');
+ const {manageProductionPayrollPolicy}=await import('../app/lib/production-payroll-policy.ts');
+ const {ZA_2027_SARS_POLICY_CANDIDATE}=await import('../app/lib/payroll-engine.ts');
+ const database=migratedDatabase();
+ const {installFixtureClock}=await import('./fixtures/fixture-clock.mjs');
+ const clock=installFixtureClock(testContext,database,Date.parse('2026-09-13T21:52:00Z'));
+ await seedValid(database,false,basis==='hourly'?'direct_flex':'managed');const scheduled=await moveCandidateToCheckInWindow(database);const db=new D1Adapter(database),headers=operatorHeaders();
+ const paymentUsers=JSON.parse(process.env.LOKD_PAYMENT_BROWSER_USERS??'{}'),paymentEmails=JSON.parse(process.env.LOKD_PAYMENT_BROWSER_EMAILS??'{}');
+ const owner={userId:paymentUsers.owner??'period-owner',email:paymentEmails.owner??'period-owner@example.test',operations:true,owner:true},maker={userId:paymentUsers.operations??'period-maker',email:paymentEmails.operations??'period-maker@example.test',operations:true,owner:false},finance={userId:paymentUsers.finance??'period-finance',email:paymentEmails.finance??'period-finance@example.test',operations:true,owner:false},officer={userId:paymentUsers.officer??'period-officer',email:paymentEmails.officer??'period-officer@example.test',operations:false,owner:false},client={userId:paymentUsers.client??'period-client',email:paymentEmails.client??'period-client@example.test',operations:false,owner:false};
+ const activation=await activateAssignment(db,request('period:service'),'fixture');await passDueScheduledCheckpoints(db);await revalidateAssignment(db,activation.shiftId,'check_in',officer.userId,true);
+ run(database,"INSERT INTO production_entity_links VALUES('officer','period-officer-case',1,?,'OFF-1','fixture',?)",officer.userId,new Date().toISOString());run(database,"INSERT INTO production_entity_links VALUES('client','period-client-case',1,?,'CL-1','fixture',?)",client.userId,new Date().toISOString());
+ for(const [actor,roles] of [[owner,['payroll_reviewer']],[maker,['payroll_preparer','payroll_reviewer']],[finance,['finance_approver']]])for(const role of roles)await operateProduction(db,owner,{action:'grant_operator',email:actor.email,role,limitCents:10000000},headers);
+ const serviceDate=database.prepare("SELECT service_date FROM roster_slots WHERE id='SLOT-1'").get().service_date;
+ assert.equal(serviceDate,'2026-09-14');
+ await assert.rejects(()=>prepareProductionPayroll(db,maker,{requestKey:'period-fixture-too-early',employerId:'EMP-1',periodStart:serviceDate,periodEnd:serviceDate,payDate:serviceDate},headers),/completed pay period/);
+ // Complete the simulated shift before preparing its pay period; no stored evidence is backdated.
+ clock.set(Date.parse(scheduled.ends)+1000);headers.set('x-lokd-verified-second-factor-at',new Date().toISOString());
+ await recordProductionService(db,officer,{action:'complete_service',shiftId:activation.shiftId,note:'Isolated service completion for payroll integration.'});let t=database.prepare('SELECT * FROM shift_timesheets WHERE shift_id=?').get(activation.shiftId);
+ await recordProductionService(db,client,{action:'client_signoff',shiftId:activation.shiftId,version:t.version,note:'Fixture client reviewed actual service.',serviceEvidenceReviewed:true});t=database.prepare('SELECT * FROM shift_timesheets WHERE shift_id=?').get(activation.shiftId);
+ await recordProductionService(db,owner,{action:'review_service_pay',shiftId:activation.shiftId,version:t.version,payableMinutes:120,grossCents:reviewedGross,payEvidenceReviewed:true,note:'Isolated reviewed contracted gross including pay treatment.'},headers);t=database.prepare('SELECT * FROM shift_timesheets WHERE shift_id=?').get(activation.shiftId);
+
+ const rules=structuredClone(ZA_2027_SARS_POLICY_CANDIDATE);rules.version='isolated-warning-policy-'+basis;rules.payPeriodsPerYear=365;rules.privateSecuritySector.providentFund.treatmentStatus='pending_ruling';rules.privateSecuritySector.councilLevy.treatmentStatus='pending_ruling';
+ const policy=await manageProductionPayrollPolicy(db,maker,{action:'prepare_payroll_policy',rules,sourcesReviewed:true,sourceReference:'Isolated source-record fixture only; no production policy approval.'},headers);
+ const profile=await manageProductionEvidence(db,maker,{action:'prepare_evidence',kind:'payroll_profile',sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString(),fields:{profileId:'WARNING-PROFILE',officerId:'OFF-1',engagementId:t.workforce_engagement_id,employerId:t.employer_id,taxToken:'vault:fixture:tax',uifToken:'vault:fixture:uif',providentToken:'vault:fixture:provident',payrollReference:'Isolated payroll source review'}});
+ await manageProductionEvidence(db,owner,{action:'decide_evidence',reviewId:profile.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Independent source profile inspection'});
+ const input={action:'prepare_payroll_period',requestKey:'warning-payroll',payBasis:basis,payCadence:basis==='hourly'?'weekly':'monthly',employerId:t.employer_id,periodStart:t.service_date,periodEnd:t.service_date,payDate:t.service_date,policyId:policy.policyId,employerAnnualPayrollCents:100000000,completePeriodReviewed:true,officerInputs:[{officerId:'OFF-1',useReviewedHourlyAmounts,ageAtTaxYearEnd:30,medicalSchemeMembers:0,deductibleRetirementContributionCents:0,employeeHealthCoverCents:0,otherLawfulDeductionCents:0,monthlyBasicCents:1,lowestMonthlyBasicCents:0,wageArea:'areas_one_and_two',sourceReference:'Isolated reviewed wage inputs',lawfulDeductionsReviewed:true}]};
+ if(basis==='hourly'&&!useReviewedHourlyAmounts){
+  database.exec("CREATE TRIGGER isolated_warning_storage_failure BEFORE INSERT ON workforce_policy_warnings WHEN NEW.code='SECTOR_RULING_REVIEW' BEGIN SELECT RAISE(ABORT,'isolated warning storage failure'); END");
+  await assert.rejects(()=>prepareProductionPayroll(db,maker,input,headers),/isolated warning storage failure/);
+  assert.equal(database.prepare('SELECT count(*) n FROM payroll_runs').get().n,0);assert.equal(database.prepare('SELECT count(*) n FROM pay_item_sources').get().n,0);
+  database.exec('DROP TRIGGER isolated_warning_storage_failure');
+ }
+ const prepared=await prepareProductionPayroll(db,maker,input,headers);
+ assert.equal(database.prepare('SELECT status FROM payroll_policy_versions WHERE id=?').get(policy.policyId).status,'draft');
+ const stored=JSON.parse(database.prepare('SELECT payload_json FROM production_payroll_snapshots WHERE run_id=?').get(prepared.runId).payload_json),calc=stored.items[0].calculation;
+ const expectedGross=basis==='hourly'&&!useReviewedHourlyAmounts?16824:reviewedGross;
+ assert.equal(calc.grossCents,expectedGross);assert.equal(calc.employeeProvidentFundCents,Math.round(expectedGross*.075));assert.equal(calc.employerProvidentFundCents,Math.round(expectedGross*.075));assert.equal(calc.employeeCouncilLevyCents,Math.round(940*12/365));
+ const codes=database.prepare("SELECT code FROM workforce_policy_warnings WHERE entity_type='payroll_run' AND entity_id=?").all(prepared.runId).map(w=>w.code);
+ if(reviewedGross===0)assert.ok(codes.some(c=>c.startsWith('DEDUCTION_SHORTFALL:')));
+ assert.ok(codes.includes('PAYROLL_POLICY_APPROVAL_PENDING'));assert.ok(codes.includes('SECTOR_RULING_REVIEW'));assert.ok(codes.some(c=>c.startsWith(basis==='hourly'?'HOURLY_FLOOR:':'MONTHLY_MINIMUM:')));
+ assert.ok(database.prepare("SELECT count(*) n FROM audit_events WHERE event_type='workforce_policy_warning'").get().n>=3);database.close();
 });

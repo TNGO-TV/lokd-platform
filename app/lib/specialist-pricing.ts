@@ -1,3 +1,4 @@
+import { HOURLY_PAY_POLICY_DEFAULTS, ZA_2027_SARS_POLICY_CANDIDATE, privateSecurityMinimumWage, type PayrollPolicy } from './payroll-engine';
 import type { ServiceType } from "./production-service-types";
 
 export type SpecialistServiceCode =
@@ -24,6 +25,10 @@ export type SpecialistConfiguration = {
 };
 
 export type SpecialistCostInput = {
+  engagementModel?: string;
+  payrollPolicy?: PayrollPolicy;
+  payrollPolicyReference?: {id:string;hash:string};
+  attendedMinutesPerShift?: number;
   serviceCode: SpecialistServiceCode;
   serviceDayCount: number;
   shiftCount: number;
@@ -38,6 +43,9 @@ export type SpecialistPricingDecision = {
   minimumMarginBasisPoints: number;
   listSubtotalCents: number;
   payrollBurdenCents: number;
+  payrollCostBasisCents: number;
+  hourlyPremiumBasisPoints:number;hourlyMinimumShiftMinutes:number;hourlyDivisor:number;monthlyWageBasisCents:number;payrollPolicyId:string|null;payrollPolicyHash:string|null;
+  employmentCostBasis: "hourly" | "monthly";
   provisionalCoidaInsuranceReserve: {
     label: "Provisional COIDA/insurance reserve";
     status: "provisional";
@@ -81,13 +89,14 @@ type SpecialistProfile = {
 };
 
 export const LEGACY_SPECIALIST_PRICING_VERSION = "LOKD-SPECIALIST-2026.09-v1" as const;
-export const SPECIALIST_PRICING_VERSION = "LOKD-SPECIALIST-2026.09-v2-no-vat" as const;
+export const PREVIOUS_SPECIALIST_PRICING_VERSION = "LOKD-SPECIALIST-2026.09-v2-no-vat" as const;
+export const SPECIALIST_PRICING_VERSION = "LOKD-SPECIALIST-2026.11-v3-employment" as const;
 // Owner-confirmed commercial policy: no VAT is charged. This is not a
 // statement that South Africa's statutory VAT rate is zero. Historical orders
 // keep their original version, tax amount and immutable acceptance receipt.
 export const LOKD_VAT_RATE_BASIS_POINTS = 0 as const;
 export function isSpecialistPricingVersion(version: string) {
-  return version === SPECIALIST_PRICING_VERSION || version === LEGACY_SPECIALIST_PRICING_VERSION;
+  return version === SPECIALIST_PRICING_VERSION || version === PREVIOUS_SPECIALIST_PRICING_VERSION || version === LEGACY_SPECIALIST_PRICING_VERSION;
 }
 
 export const specialistProfiles: Record<SpecialistServiceCode, SpecialistProfile> = {
@@ -278,15 +287,20 @@ export function priceSpecialistCostFloor(input: SpecialistCostInput): Specialist
     throw new Error("The specialist roster economics are incomplete.");
   }
 
-  // This pricing reserve is not an approved COIDA assessment or payroll rate.
-  // Keep the existing combined cost floor and its rounding unchanged.
-  const provisionalCoidaInsuranceReserve = {
-    label: "Provisional COIDA/insurance reserve" as const,
-    status: "provisional" as const,
-    rateBasisPoints: 200 as const,
-    amountCents: Math.ceil(input.officerTotalCents * 200 / 10_000),
-  };
-  const payrollBurdenCents = Math.ceil(input.officerTotalCents * 1_150 / 10_000);
+  const employmentCostBasis = input.engagementModel === 'fixed' ? 'monthly' : 'hourly';
+  const policy = input.payrollPolicy ?? ZA_2027_SARS_POLICY_CANDIDATE;
+  const rules = policy.hourlyPay ?? HOURLY_PAY_POLICY_DEFAULTS;
+  const minutes = input.attendedMinutesPerShift ?? 720;
+  if (!Number.isSafeInteger(minutes) || minutes <= 0 || minutes > 1440) throw new Error('Review the attended minutes per shift.');
+  const monthlyWageBasisCents=privateSecurityMinimumWage(policy.privateSecuritySector?policy:ZA_2027_SARS_POLICY_CANDIDATE,'areas_one_and_two','C');
+  const paidMinutes=Math.max(minutes,rules.minimumShiftMinutes),premium=10000+rules.premiumBasisPoints;
+  const ceiling=(numerator:bigint,denominator:bigint)=>{const value=Number((numerator+denominator-BigInt(1))/denominator);if(!Number.isSafeInteger(value))throw new Error('The cost basis exceeds the supported amount.');return value;};
+  // Planning reserve only. Freeze the policy inputs used; accepted historical prices stay unchanged.
+  const payrollCostBasisCents=employmentCostBasis==='monthly'?input.officerTotalCents:Math.max(input.officerTotalCents,
+    ceiling(BigInt(input.officerTotalCents)*BigInt(premium)*BigInt(paidMinutes),BigInt(7200000)),
+    ceiling(BigInt(monthlyWageBasisCents)*BigInt(premium)*BigInt(paidMinutes)*BigInt(input.shiftCount),BigInt(rules.hourlyDivisor)*BigInt(600000)));
+  const provisionalCoidaInsuranceReserve = {label:'Provisional COIDA/insurance reserve' as const,status:'provisional' as const,rateBasisPoints:200 as const,amountCents:Math.ceil(payrollCostBasisCents*200/10000)};
+  const payrollBurdenCents=payrollCostBasisCents-input.officerTotalCents+Math.ceil(payrollCostBasisCents*1150/10000);
   const readinessAndEquipmentCents = profile.readinessCostPerShiftCents * input.shiftCount;
   const commandAndSupervisionCents = profile.commandCostPerServiceDayCents * input.serviceDayCount;
   const planningCents = profile.planningHourlyCostCents * configuration.planningHours;
@@ -317,6 +331,8 @@ export function priceSpecialistCostFloor(input: SpecialistCostInput): Specialist
     minimumMarginBasisPoints: profile.minimumMarginBasisPoints,
     listSubtotalCents: input.calendarAdjustedListSubtotalCents,
     payrollBurdenCents,
+    payrollCostBasisCents, employmentCostBasis,
+    hourlyPremiumBasisPoints:rules.premiumBasisPoints,hourlyMinimumShiftMinutes:rules.minimumShiftMinutes,hourlyDivisor:rules.hourlyDivisor,monthlyWageBasisCents,payrollPolicyId:input.payrollPolicyReference?.id??null,payrollPolicyHash:input.payrollPolicyReference?.hash??null,
     provisionalCoidaInsuranceReserve,
     readinessAndEquipmentCents,
     commandAndSupervisionCents,
