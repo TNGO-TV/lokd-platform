@@ -139,9 +139,9 @@ async function seedEnvironment(database) {
 
 function seedOfficerSupport(database,id,engagementId,termsId) {
   run(database, `INSERT INTO workforce_terms_acceptances
-    (id,workforce_engagement_id,officer_id,terms_version,acceptance_mode,environment,integrity_state,
+    (id,workforce_engagement_id,officer_id,terms_version,agreement_type,acceptance_mode,environment,integrity_state,
      evidence_reference,accepted_at,expires_at,version,active_key,created_at)
-    VALUES (?,?,?,'TERMS-v1','electronic','production','verified','terms:evidence',?,?,1,?,?)`, termsId, engagementId, id, now, expiry, engagementId, now);
+    VALUES (?,?,?,'TERMS-v1','monthly','electronic','production','verified','terms:evidence',?,?,1,?,?)`, termsId, engagementId, id, now, expiry, engagementId, now);
   run(database, `INSERT INTO officer_availability_windows
     (id,officer_id,starts_at,ends_at,source,status,environment,integrity_state,evidence_reference,rest_confirmed_at,version,created_at)
     VALUES (?,?,?,?,'fixture','available','production','verified',?,?,1,?)`, `AV-${id}`, id,

@@ -1,7 +1,8 @@
+import {recordPolicyWarnings} from './workforce-policy-warnings';
 import {SignupError} from './signup-server';
 import {agreementHash} from './agreement-acceptance';
 import type {SigningActor} from './production-signing';
-import {productionEvidenceKinds,type ProductionEvidenceKind} from './production-evidence-catalogue';
+import {productionEvidenceKinds,productionEvidenceFieldOptional,type ProductionEvidenceKind} from './production-evidence-catalogue';
 import {RISK_RULES_VERSION} from './production-pricing';
 import {workforceReadinessStatuses,type WorkforceModel} from './workforce-core';
 const text=(v:unknown,label:string)=>{if(typeof v!=='string'||v.trim().length<2||v.length>1200)throw new SignupError(`Provide ${label}.`);return v.trim();};
@@ -19,16 +20,21 @@ async function plan(db:D1Database,kind:ProductionEvidenceKind,p:Record<string,st
   if(p.employerType!=='lokd_employer')throw new SignupError('Choose the actual employer type.');
   const old=await db.prepare('SELECT * FROM workforce_employers WHERE id=?').bind(p.employerId).first<{environment:string;legal_name:string;employer_type:string}>();if(old&&(old.environment!=='production'||old.legal_name!==p.legalName||old.employer_type!==p.employerType))throw new SignupError('Employer identity cannot be replaced by a compliance renewal.',409);
   if(!old)out.push(insert(db,'workforce_employers',{id:p.employerId,legal_name:p.legalName,employer_type:p.employerType,environment:'production',status:'pending'}));
-  out.push(db.prepare("UPDATE workforce_employers SET status='current',psira_status='current',nbcpss_status='current',psspf_status='current',uif_status='current',coida_status='current',insurance_status='current',service_agreement_status='current',last_reviewed_at=?,review_due_at=?,version=version+1,updated_at=? WHERE id=?").bind(now,expires,now,p.employerId));
-  for(const control of ['psira','nbcpss','psspf','uif','coida','insurance','service_agreement'])out.push(db.prepare('UPDATE employer_compliance_evidence SET active_key=NULL WHERE active_key=?').bind(p.employerId+':'+control),insert(db,'employer_compliance_evidence',{id:id+'-'+control,employer_id:p.employerId,control_code:control,status:'current',environment:'production',integrity_state:'verified',evidence_reference:p[control],verified_at:now,expires_at:expires,active_key:p.employerId+':'+control}));
+  const controls=['psira','nbcpss','psspf','uif','coida','insurance','service_agreement'];
+  out.push(db.prepare("UPDATE workforce_employers SET status=?,psira_status=?,nbcpss_status=?,psspf_status=?,uif_status=?,coida_status=?,insurance_status=?,service_agreement_status=?,last_reviewed_at=?,review_due_at=?,version=version+1,updated_at=? WHERE id=?").bind(controls.every(c=>p[c])&&Date.parse(expires)>Date.now()?'current':'pending',...controls.map(c=>p[c]?'current':'pending'),now,expires,now,p.employerId));
+  for(const control of ['psira','nbcpss','psspf','uif','coida','insurance','service_agreement'])if(p[control])out.push(db.prepare('UPDATE employer_compliance_evidence SET active_key=NULL WHERE active_key=?').bind(p.employerId+':'+control),insert(db,'employer_compliance_evidence',{id:id+'-'+control,employer_id:p.employerId,control_code:control,status:'current',environment:'production',integrity_state:'verified',evidence_reference:p[control],verified_at:now,expires_at:expires,active_key:p.employerId+':'+control}));
  }else if(kind==='engagement'){
-  const employer=await db.prepare("SELECT employer_type FROM workforce_employers WHERE id=? AND environment='production' AND status='current' AND review_due_at>=?").bind(p.employerId,expires).first<{employer_type:string}>();
-  if(!employer||!['direct_flex','managed'].includes(p.model)||employer.employer_type!=='lokd_employer')throw new SignupError('Use the current employer of record for this workforce route.',409);
+  const employer=await db.prepare("SELECT employer_type FROM workforce_employers WHERE id=? AND environment='production'").bind(p.employerId).first<{employer_type:string}>();
+  const payBasis=p.payBasis,model=payBasis==='hourly'?'direct_flex':'managed';
+  if(!employer||!['hourly','monthly'].includes(payBasis)||employer.employer_type!=='lokd_employer')throw new SignupError('Use the current employer of record for this workforce route.',409);
   const officer=await db.prepare("SELECT o.id,l.owner_user_id FROM officers o JOIN production_entity_links l ON l.kind='officer' AND l.entity_id=o.id JOIN signup_cases c ON c.kind=l.kind AND c.source_id=l.case_id AND c.version=l.case_version AND c.status='reviewed' WHERE o.id=?").bind(p.officerId).first<{id:string;owner_user_id:string}>();if(!officer||officer.owner_user_id===actor)throw new SignupError('A different reviewer must approve the current officer intake.',403);
-  const cap=Number(p.weeklyHourCap);if(!Number.isSafeInteger(cap)||cap<1||cap>60)throw new SignupError('Enter an approved hour cap from 1 to 60.');
+  const limits=await db.prepare('SELECT cap_minutes FROM current_hourly_pay_rules').first<{cap_minutes:number}>();
+  const cap=payBasis==='hourly'?(limits?.cap_minutes??1440)/60:48,rate=Number(p.agreedHourlyRateCents);
+  if(payBasis==='hourly'&&(!Number.isSafeInteger(rate)||rate<0))throw new SignupError('Record the agreed hourly rate in cents.');
+  if(!['weekly','daily','monthly'].includes(p.payCadence))throw new SignupError('Choose a valid pay cadence.');
   if(await db.prepare('SELECT id FROM workforce_engagements WHERE id=? OR (officer_id=? AND active_key=officer_id)').bind(p.engagementId,p.officerId).first())throw new SignupError('An engagement already exists. Suspend/review it before preparing a replacement with a new reference.',409);
-  const readiness=workforceReadinessStatuses(p.model as WorkforceModel);
-  out.push(insert(db,'workforce_engagements',{id:p.engagementId,officer_id:p.officerId,employer_id:p.employerId,model:p.model,environment:'production',status:'active',active_key:p.officerId,engagement_reference:p.engagementReference,terms_version:p.termsVersion,payroll_status:readiness.payrollStatus,benefits_status:readiness.benefitsStatus,weekly_hour_cap:cap,activated_at:now,review_due_at:expires}));
+  const readiness=workforceReadinessStatuses(model as WorkforceModel);
+  out.push(insert(db,'workforce_engagements',{id:p.engagementId,officer_id:p.officerId,employer_id:p.employerId,model,pay_basis:payBasis,agreed_hourly_rate_cents:payBasis==='hourly'?rate:null,pay_cadence:p.payCadence,pay_cadence_request_reference:p.payCadenceRequestReference||null,environment:'production',status:'active',active_key:p.officerId,engagement_reference:p.engagementReference,terms_version:p.termsVersion,payroll_status:readiness.payrollStatus,benefits_status:readiness.benefitsStatus,weekly_hour_cap:cap,activated_at:now,review_due_at:expires}));
   // This creates a reviewed workforce route, not the officer's acceptance. The
   // bound officer must separately accept the actual terms through their account.
  }else if(kind==='payroll_profile'){
@@ -68,9 +74,9 @@ export async function manageProductionEvidence(db:D1Database,actor:SigningActor,
  }
  if(input.action==='prepare_evidence'){
   if(!Object.hasOwn(productionEvidenceKinds,String(input.kind)))throw new SignupError('Choose an evidence review type.');const kind=input.kind as ProductionEvidenceKind,p:Record<string,string>={};
-  for(const [key,label] of Object.entries(productionEvidenceKinds[kind].fields)){const value=(input.fields as Record<string,unknown>)?.[key];p[key]=['weeklyHourCap','travelMinutes'].includes(key)&&typeof value==='string'&&/^\d{1,4}$/.test(value)?value:text(value,label);}
+  for(const [key,label] of Object.entries(productionEvidenceKinds[kind].fields)){const value=(input.fields as Record<string,unknown>)?.[key];if(productionEvidenceFieldOptional(kind,key)&&(value===undefined||value==='')){p[key]='';continue;}p[key]=['agreedHourlyRateCents','weeklyHourCap','travelMinutes'].includes(key)&&typeof value==='string'&&/^\d{1,9}$/.test(value)?value:text(value,label);}
   if(input.sourceDocumentsReviewed!==true)throw new SignupError('Confirm that you reviewed the actual source records, including the quoted site risk and instructions where applicable.');
-  const expiry=Date.parse(text(input.expiresAt,'a future review expiry'));if(!Number.isFinite(expiry))throw new SignupError('Provide a valid evidence expiry.');const expires=new Date(expiry).toISOString();if(Date.parse(expires)<=Date.now()||Date.parse(expires)>Date.now()+366*86400000)throw new SignupError('Review expiry must be within one year.');
+  const expiry=Date.parse(text(input.expiresAt,'a future review expiry'));if(!Number.isFinite(expiry))throw new SignupError('Provide a valid evidence expiry.');const expires=new Date(expiry).toISOString();if(kind!=='employer'&&Date.parse(expires)<=Date.now()||Date.parse(expires)>Date.now()+366*86400000)throw new SignupError('Review expiry must be within one year.');
   const rev=await revision(db),id='EVID-'+crypto.randomUUID();await plan(db,kind,p,id,actor.userId,now,expires);if(await revision(db)!==rev)throw new SignupError('Evidence changed during preparation. Refresh.',409);
   const json=JSON.stringify(p);await db.prepare("INSERT INTO production_evidence_reviews(id,kind,payload_json,payload_hash,source_revision,prepared_by,prepared_at,expires_at,state) VALUES(?,?,?,?,?,?,?,?,'pending')").bind(id,kind,json,await agreementHash(json),rev,actor.userId,now,expires).run();return {reviewId:id,pendingIndependentApproval:true,workEligible:false};
  }
@@ -81,9 +87,16 @@ export async function manageProductionEvidence(db:D1Database,actor:SigningActor,
  const state=input.decision==='approve'?'approved':'rejected';if(r.state!=='pending'){if(r.state===state)return {alreadyRecorded:true,workEligible:false};throw new SignupError('The decision is already final. Prepare fresh evidence.',409);}
  const reason=text(input.reason,'independent findings');let statements:D1PreparedStatement[]=[];
  if(state==='approved'){
-  if(input.evidenceIndependentlyChecked!==true||Date.parse(r.expires_at)<=Date.now()||await agreementHash(r.payload_json)!==r.payload_hash)throw new SignupError('Current, independently checked source evidence is required.',409);
+  if(input.evidenceIndependentlyChecked!==true||r.kind!=='employer'&&Date.parse(r.expires_at)<=Date.now()||await agreementHash(r.payload_json)!==r.payload_hash)throw new SignupError('Current, independently checked source evidence is required.',409);
   if(await revision(db)!==r.source_revision)throw new SignupError('Production evidence changed after preparation. Review and prepare a fresh submission.',409);
   statements=await plan(db,r.kind,JSON.parse(r.payload_json),id,actor.userId,now,r.expires_at);
  }
- await db.batch([db.prepare("UPDATE production_evidence_reviews SET state=?,decided_by=?,decided_at=?,reason=? WHERE id=? AND state='pending'").bind(state,actor.userId,now,reason,id),...statements]);return {state,workEligible:false};
+ await db.batch([db.prepare("UPDATE production_evidence_reviews SET state=?,decided_by=?,decided_at=?,reason=? WHERE id=? AND state='pending'").bind(state,actor.userId,now,reason,id),...statements]);
+ if(state==='approved'){
+  const p=JSON.parse(r.payload_json) as Record<string,string>,warnings=[];
+  if(r.kind==='employer')for(const control of ['psira','nbcpss','psspf','uif','coida','insurance','service_agreement'])if(!p[control]||Date.parse(r.expires_at)<=Date.now())warnings.push({code:'EMPLOYER_'+control.toUpperCase()+'_REVIEW',detail:'Review missing or expired employer '+control.replaceAll('_',' ')+' evidence.'});
+  if(r.kind==='engagement'&&p.payBasis==='hourly'&&p.payCadence!=='weekly'&&!p.payCadenceRequestReference)warnings.push({code:'PAY_CADENCE_REQUEST_REVIEW',detail:'Review the officer request for daily or monthly pay.'});
+  await recordPolicyWarnings(db,{entityType:'evidence_review',entityId:id,officerId:p.officerId??null,actorId:actor.userId,warnings,context:{sourceReference:id}});
+ }
+ return {state,workEligible:false};
 }

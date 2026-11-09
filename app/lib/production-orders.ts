@@ -1,3 +1,5 @@
+import {recordPolicyWarnings} from './workforce-policy-warnings';
+import {assertPayrollPolicy,type PayrollPolicy} from './payroll-engine';
 import { bookingModelSchedule, BOOKING_MODEL_VERSION } from './booking-models';
 import { reviewedShiftWindow } from './zone-shift-window';
 import {SignupError} from './signup-server';
@@ -50,10 +52,15 @@ export async function prepareProductionOrder(db:D1Database,actor:SigningActor,in
 
   if(rows.length)await db.batch(rows);const count=await db.prepare('SELECT count(*) AS n FROM roster_slots WHERE booking_id=?').bind(id).first<{n:number}>();return {preparedSlots:count!.n,totalSlots:q.shiftCount,workEligible:false};
  }
- const source=await originalRequest(db,input),qr=request(input,source?.receivedAt);let quote:ReturnType<typeof quoteBooking>;try{quote=quoteBooking({...qr,...(source?{now:new Date(source.receivedAt)}:{})});}catch(e){throw new SignupError(e instanceof Error?e.message:'Service pricing unavailable.');}
+ const source=await originalRequest(db,input),qr=request(input,source?.receivedAt);
+ const costPolicy=await db.prepare("SELECT id,rules_json,policy_hash,status FROM payroll_policy_versions WHERE environment='production' AND integrity_state='production_verified' AND status!='withdrawn' ORDER BY created_at DESC,rowid DESC LIMIT 1").first<{id:string;rules_json:string;policy_hash:string;status:string}>();
+ let payrollCostPolicy:PayrollPolicy|undefined;
+ if(costPolicy){if(await agreementHash(costPolicy.rules_json)!==costPolicy.policy_hash)throw new SignupError('Payroll cost-policy source integrity changed.',409);payrollCostPolicy=JSON.parse(costPolicy.rules_json);assertPayrollPolicy(payrollCostPolicy!);}
+ let quote:ReturnType<typeof quoteBooking>;try{quote=quoteBooking({...qr,payrollCostPolicy,payrollCostPolicyReference:costPolicy?{id:costPolicy.id,hash:costPolicy.policy_hash}:undefined,...(source?{now:new Date(source.receivedAt)}:{})});}catch(e){throw new SignupError(e instanceof Error?e.message:'Service pricing unavailable.');}
  if(source){const s=source.scope;if(s.model!==qr.engagementModel||s.startDate!==qr.startDate||s.shift!==qr.shift||s.months!==quote.contractMonths||s.weeks!==(qr.durationWeeks??0)||s.endDate!==quote.endDate||s.includePublicHolidays!==(qr.includePublicHolidays===true)||s.roster!==qr.rosterPattern||s.headcount!==quote.headcount||s.serviceCode!==quote.specialistServiceCode)throw new SignupError('The service order must match the exact saved request scope. A changed scope needs a new request and notice review.',409);}
  const sourceRequest=source?{id:source.id,version:source.version,receivedAt:source.receivedAt}:null;
  const quoteJson=JSON.stringify({...quote,firstShiftStartsAt:qr.firstShiftStartsAt??null,sourceRequest}),quoteHash=await agreementHash(quoteJson);
+ if(!costPolicy||costPolicy.status!=='active')await recordPolicyWarnings(db,{entityType:'service_quote',entityId:quoteHash,actorId:actor.userId,warnings:[{code:'PAYROLL_COST_POLICY_REVIEW',detail:costPolicy?'This quote uses the recorded payroll policy values before policy approval is complete.':'This quote uses default payroll cost inputs. Review the policy values.'}],context:{policyId:costPolicy?.id??null,policyHash:costPolicy?.policy_hash??null}});
  if(input.action==='quote_order')return {quote,quoteHash,workEligible:false};
  if(input.action!=='prepare_order')throw new SignupError('Choose quote or service-order preparation.');
  const clientId=field(input.clientId,'verified client'),client=await db.prepare("SELECT c.id,l.case_version,l.owner_user_id FROM clients c JOIN production_entity_links l ON l.kind='client' AND l.entity_id=c.id WHERE c.id=? AND c.environment='production' AND c.integrity_state='production_verified' AND c.approval_status='approved'").bind(clientId).first<{id:string;case_version:number;owner_user_id:string}>();

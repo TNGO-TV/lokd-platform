@@ -15,7 +15,7 @@ export async function POST(request: Request) { try {
   let input: unknown; try { input = JSON.parse(await readRequestText(request, 8000)); } catch (error) { if (error instanceof RequestBodyError) throw error; throw new SignupError('Enter a valid Operations command.'); }
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new SignupError('Enter a valid Operations command.');
   const command = input as Record<string, unknown>;
-  if (!['evaluate', 'prepare_activation', 'approve_activation', 'change_assignment'].includes(String(command.action))) throw new SignupError('Choose a Dispatch assignment action.');
+  if (!['evaluate', 'prepare_activation', 'approve_activation', 'change_assignment','override_policy_warning','change_pay_basis'].includes(String(command.action))) throw new SignupError('Choose a Dispatch assignment action.');
   const result = await operateProduction(env.DB, actor, command, request.headers);
   return reply({ ok: true, result, commandReceipt: await workspaceCommandReceipt('zone-operations', command), state: await readZoneOperations(env.DB, actor) });
 } catch (error) { return failure(error); } }

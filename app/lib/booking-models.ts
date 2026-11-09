@@ -4,7 +4,7 @@ export const BOOKING_MODEL_VERSION = 'LOKD-MODELS-2026.11.2';
 export const bookingModels = {
   bolt: { label: 'LOKD Bolt', description: 'Immediate / Emergency Service · Less than 72 Hours Notice' },
   flex: { label: 'LOKD Flex', description: 'Temporary / Flexible Service · 7+ Days in a calendar month' },
-  fixed: { label: 'LOKD Fixed', description: 'Full time deployment · 3 Months +' },
+  fixed: { label: 'LOKD Fixed', description: 'Ongoing deployment · 3 Months +' },
 } as const;
 export const bookingModelLabel = (model: string | undefined) => model && Object.hasOwn(bookingModels, model) ? bookingModels[model as BookingModel].label : 'Booking under review';
 export const sastDate = (now = new Date()) => new Date(now.getTime() + 7200000).toISOString().slice(0, 10);

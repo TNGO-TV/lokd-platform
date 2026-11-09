@@ -137,3 +137,18 @@ test('Operations Dispatch and Contracts use actual roster gaps and expose existi
   await expect(page.getByRole('heading', { name: 'Contracts', exact: true })).toBeVisible();
   await expect(page.getByText('1 roster gaps', { exact: true })).toBeVisible(); await fits(page);
 });
+
+test('client and officer pages retain Officer naming without pay-basis titles',async({page,request})=>{
+  const forbidden=/\b(?:casual|full[ -]time|part[ -]time)\b/i;
+  for(const [persona,paths]of [['client',['/client','/client?view=request','/client?view=bookings','/client?view=contracts','/client?view=reports','/client?view=account']],['officer',['/officer?view=today','/officer?view=shifts','/officer?view=zone','/officer?view=passport','/officer?view=earnings','/officer/training']]]){
+    await reset(request,persona);
+    for(const path of paths){
+      await page.goto(path);await expect(page.locator('main').first()).toBeVisible();
+      await expect(page.getByText(/Loading (?:your account|your records)/)).toHaveCount(0);
+      expect(await page.locator('body').innerText()).not.toMatch(forbidden);
+      await expect(page.getByRole('heading',{name:'Hourly pay',exact:true})).toHaveCount(0);
+      await expect(page.getByRole('heading',{name:'Monthly salary',exact:true})).toHaveCount(0);
+      if(persona==='officer'&&path.startsWith('/officer?view='))await expect(page.getByRole('heading',{name:'Hours this week',exact:true})).toBeVisible();
+    }
+  }
+});

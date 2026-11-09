@@ -8,7 +8,7 @@ export default function Page() {
     <PublicFeatureGrid eyebrow="Four ways forward" title="One LOKD. Built around your needs." features={[
       {icon:"clock",title:"LOKD Bolt",description:"Urgent bookings with less than 72 hours’ notice, subject to verified officer availability.",detail:"Urgent cover"},
       {icon:"calendar",title:"LOKD Flex",description:"7+ Days in a calendar month.",detail:"Temporary / Flexible Service"},
-      {icon:"calendar",title:"LOKD Fixed",description:"Full-time security cover for three months or more, with an agreed site roster.",detail:"Contract cover"},
+      {icon:"calendar",title:"LOKD Fixed",description:"Ongoing security cover for three months or more, with an agreed site roster.",detail:"Contract cover"},
       {icon:"graduationCap",title:"LOKD Training",description:"LOKD is a certified training provider. Training is a paid service, from entry-level courses to grade upgrades, firearms and VIP protection.",detail:"Certified training"}
     ]} />
     <BookingModels /><OfficerRecruitment />

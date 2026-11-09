@@ -81,7 +81,7 @@ test('HTTP corrections and independent intake review reject stale versions and i
 
 async function engagement(x){
  x.db.sql.prepare("INSERT INTO workforce_employers(id,legal_name,employer_type,environment,status,review_due_at) VALUES('fixture-employer','Isolated Employer','lokd_employer','production','current',?)").run(new Date(Date.now()+2*86400000).toISOString());
- const p=await manageProductionEvidence(x.db,maker,{action:'prepare_evidence',kind:'engagement',fields:{engagementId:'usable-engagement',officerId:x.officerId,employerId:'fixture-employer',model:'direct_flex',termsVersion:'fixture-v1',engagementReference:'private:fixture-engagement',weeklyHourCap:'24',payrollReference:'private:fixture-payroll',benefitsReference:'private:fixture-benefits'},sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString()});
+ const p=await manageProductionEvidence(x.db,maker,{action:'prepare_evidence',kind:'engagement',fields:{engagementId:'usable-engagement',officerId:x.officerId,employerId:'fixture-employer',payBasis:'monthly',agreedHourlyRateCents:'0',payCadence:'monthly',payCadenceRequestReference:'',termsVersion:'fixture-v1',engagementReference:'private:fixture-engagement',weeklyHourCap:'24',payrollReference:'private:fixture-payroll',benefitsReference:'private:fixture-benefits'},sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString()});
  await manageProductionEvidence(x.db,checker,{action:'decide_evidence',reviewId:p.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Independent fixture workforce review'});return p;
 }
 test('workforce and automatic passport holds show exact human audit and forbid that human deciding disposition',async t=>{

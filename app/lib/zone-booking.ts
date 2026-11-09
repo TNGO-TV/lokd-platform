@@ -12,7 +12,7 @@ export type ZoneCoverType = 'bolt' | 'flex' | 'fixed';
 export const zoneCoverOptions = [
   { value: 'bolt', label: 'Immediate / Emergency Service', model: 'LOKD Bolt', detail: 'Less than 72 Hours Notice', icon: 'clock' },
   { value: 'flex', label: 'Temporary / Flexible Service', model: 'LOKD Flex', detail: '7+ Days in a calendar month', icon: 'calendar' },
-  { value: 'fixed', label: 'Full time deployment', model: 'LOKD Fixed', detail: '3 Months +', icon: 'people' },
+  { value: 'fixed', label: 'Ongoing deployment', model: 'LOKD Fixed', detail: '3 Months +', icon: 'people' },
 ] as const;
 export function sastDate(now = new Date()) { return new Date(now.getTime() + 7_200_000).toISOString().slice(0, 10); }
 export function zoneService(code: unknown) { return zoneServices.find(item => item.code === code); }

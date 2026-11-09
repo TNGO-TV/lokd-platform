@@ -1,3 +1,5 @@
+import {recordPolicyWarnings} from './workforce-policy-warnings';
+import { type PayBasis } from './workforce-core';
 import {isSpecialistPricingVersion} from "./specialist-pricing";
 import {currentClientReview} from './production-client-review';
 import { readActivationAgreements } from './agreement-activation';
@@ -71,6 +73,7 @@ type CandidateRow = {
 };
 
 type WorkforceRow = {
+  payBasis: PayBasis;
   engagementId: string;
   engagementVersion: number;
   environment: string;
@@ -209,7 +212,7 @@ async function readCandidate(db: D1Database, rosterSlotId: string) {
 async function readWorkforce(db: D1Database, officerId: string) {
   return db.prepare(`SELECT we.id AS engagementId, we.version AS engagementVersion, we.environment, we.model, we.status,
     we.terms_version AS termsVersion, we.review_due_at AS reviewDueAt,
-    we.weekly_hour_cap AS weeklyHourCap, we.payroll_status AS payrollStatus,
+    we.pay_basis AS payBasis, (SELECT cap_minutes/60 FROM current_hourly_pay_rules) AS weeklyHourCap, we.payroll_status AS payrollStatus,
     we.benefits_status AS benefitsStatus, we.terms_version AS termsVersion,
     emp.id AS employerId, emp.legal_name AS employerLegalName, emp.employer_type AS employerType,
     emp.environment AS employerEnvironment,
@@ -374,11 +377,11 @@ async function loadAssignmentActivationFacts(
   ]);
   if (!officer) throw new AssignmentActivationError("The officer is unavailable.", 404);
 
-  const terms = workforce ? await db.prepare(`SELECT id, terms_version AS version, 'accepted' AS status,
+  const terms = workforce ? await db.prepare(`SELECT id, agreement_type AS agreementPayBasis, terms_version AS version, 'accepted' AS status,
     environment, integrity_state AS integrityState,
     evidence_reference AS evidenceReference, accepted_at AS verifiedAt, expires_at AS expiresAt
     FROM workforce_terms_acceptances WHERE active_key = ? LIMIT 1`).bind(workforce.engagementId)
-    .first<{ id: string; version: string; status: string; environment: string; integrityState: string; evidenceReference: string; verifiedAt: string; expiresAt: string | null }>() : null;
+    .first<{ agreementPayBasis:PayBasis;id: string; version: string; status: string; environment: string; integrityState: string; evidenceReference: string; verifiedAt: string; expiresAt: string | null }>() : null;
   const existingWeekMinutes: Record<string, number> = Object.fromEntries(hourRows.map((row) => [row.isoWeekStart, Number(row.minutes)]));
   for (const interval of legacyIntervals) {
     for (const segment of splitAcrossIsoWeeks(interval.startsAt, interval.endsAt)) {
@@ -492,6 +495,8 @@ async function loadAssignmentActivationFacts(
         evidenceReference: passport?.evidenceReference, verifiedAt: passport?.verifiedAt, expiresAt: passport?.expiresAt }),
     },
     workforce: {
+      payBasis: workforce?.payBasis ?? null,
+      agreementPayBasis:terms?.agreementPayBasis??workforce?.payBasis??null,
       engagementId: workforce?.engagementId ?? null,
       engagementVersion: workforce?.engagementVersion ?? null,
       environment: workforce?.environment ?? null,
@@ -584,6 +589,7 @@ export async function evaluateAssignmentActivation(db: D1Database, request: Assi
       result.blockers.push({code:"SPECIALIST_APPROVED_PACK_REQUIRED",category:"site",detail:"A current independently approved specialist pack must name this officer and cover the quote, roster, evidence and full cleared funding."});
       result.ready=false;
     }
+    await recordPolicyWarnings(db,{entityType:"roster_slot",entityId:request.rosterSlotId,officerId:request.officerId,actorId:"system:assignment-evaluation",warnings:result.warnings,context:{slotVersion:facts.shift.slotVersion,payBasis:facts.workforce.payBasis,employerVersion:facts.workforce.employer.version,existingWeekMinutes:facts.schedule.existingWeekMinutes}});
     const hashFacts = { ...facts, evaluatedAt: undefined };
     return {
       facts,
@@ -612,7 +618,7 @@ function commitFailureBlocker(message: string) {
     [/required_launch_gate/i, "LAUNCH_CHANGED_DURING_ACTIVATION", "launch", "A required launch gate changed before the atomic commit completed."],
     [/cleared_reconciled_funding|funding/i, "FUNDING_CHANGED_DURING_ACTIVATION", "funding", "Cleared and reconciled funding no longer passed the database guard."],
     [/officer_work_rest|officer_work_overlap|UNIQUE constraint failed: roster_assignments\.active_key/i, "SLOT_OR_REST_CONFLICT", "concurrency", "The slot or officer rest window was claimed by another committed transaction."],
-    [/weekly_cap/i, "WEEKLY_HOUR_CAP_CONFLICT", "concurrency", "Another committed reservation caused the Direct Flex weekly ceiling to be exceeded."],
+    [/weekly_cap/i, "WEEKLY_HOUR_CAP_CONFLICT", "concurrency", "Another committed reservation caused the hourly weekly hour limit to be exceeded."],
     [/evidence_token_stale|evidence clock|source revision/i, "EVIDENCE_CHANGED_DURING_ACTIVATION", "concurrency", "Authoritative funding, evidence, workforce or schedule facts changed before the atomic commit."],
   ];
   const match = rules.find(([pattern]) => pattern.test(message));
@@ -822,9 +828,9 @@ export async function activateAssignment(
       .bind(assignmentId, shiftId, commandId, hash),
     db.prepare(`INSERT INTO assignment_workforce_snapshots
       (id, roster_assignment_id, workforce_engagement_id, officer_id, employer_id, workforce_model,
-       employer_legal_name, terms_version, decision, blockers, environment, captured_at)
+       employer_legal_name, terms_version, decision, blockers, environment, captured_at,pay_basis,agreed_hourly_rate_cents,pay_cadence,pay_cadence_request_reference)
       SELECT ?, ?, we.id, ?, emp.id, we.model, emp.legal_name, wta.terms_version,
-        'production_verified', '[]', 'production', token.created_at
+        'production_verified', '[]', 'production', token.created_at,we.pay_basis,we.agreed_hourly_rate_cents,we.pay_cadence,we.pay_cadence_request_reference
       FROM workforce_engagements we
       JOIN workforce_employers emp ON emp.id = we.employer_id
       JOIN workforce_terms_acceptances wta ON wta.active_key = we.id

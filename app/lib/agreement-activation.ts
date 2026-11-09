@@ -20,7 +20,7 @@ export function activationAgreementContext(facts: AssignmentActivationFacts, rol
       pricingVersion:facts.compensation.pricingVersion,workforceModel:facts.workforce.model,
       employerId:facts.workforce.employer.id,employerName:facts.workforce.employer.legalName,
       ...(client?{}:{officerId:facts.officer.id,engagementId:facts.workforce.engagementId,
-        termsVersion:facts.workforce.termsVersion,officerOfferCents:facts.compensation.officerOfferCents}),
+        payBasis:facts.workforce.agreementPayBasis ?? facts.workforce.payBasis ?? (facts.workforce.model==='direct_flex'?'hourly':'monthly'),termsVersion:facts.workforce.termsVersion,officerOfferCents:facts.compensation.officerOfferCents}),
     }};
 }
 export async function readActivationAgreements(db: D1Database, facts: AssignmentActivationFacts) {

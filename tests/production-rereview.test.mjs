@@ -139,7 +139,7 @@ test('correction and genuine fresh identity/PSiRA review replace approval withou
 });
 
 async function engagement(x,id){
- const fields={engagementId:id,officerId:x.officerId,employerId:'fixture-employer',model:'direct_flex',termsVersion:'fixture-terms-v1',engagementReference:'private:fixture-employment-evidence',weeklyHourCap:'40',payrollReference:'private:payroll-fixture',benefitsReference:'private:benefits-fixture'};
+ const fields={engagementId:id,officerId:x.officerId,employerId:'fixture-employer',payBasis:'monthly',agreedHourlyRateCents:'0',payCadence:'monthly',payCadenceRequestReference:'',termsVersion:'fixture-terms-v1',engagementReference:'private:fixture-employment-evidence',weeklyHourCap:'40',payrollReference:'private:payroll-fixture',benefitsReference:'private:benefits-fixture'};
  const p=await manageProductionEvidence(x.db,maker,{action:'prepare_evidence',kind:'engagement',fields,sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString()});
  await manageProductionEvidence(x.db,checker,{action:'decide_evidence',reviewId:p.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Independently inspected isolated employment evidence'});return p;
 }

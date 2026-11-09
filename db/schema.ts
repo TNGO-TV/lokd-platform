@@ -285,6 +285,10 @@ export const workforceEngagements = sqliteTable(
     officerId: text("officer_id").notNull().references(() => officers.id, { onDelete: "cascade" }),
     employerId: text("employer_id").notNull().references(() => workforceEmployers.id),
     model: text("model").notNull(),
+    payBasis: text("pay_basis").notNull().default("monthly"),
+    agreedHourlyRateCents: integer("agreed_hourly_rate_cents"),
+    payCadence: text("pay_cadence").notNull().default("monthly"),
+    payCadenceRequestReference: text("pay_cadence_request_reference"),
     environment: text("environment").notNull().default("demo"),
     status: text("status").notNull().default("pending_activation"),
     activeKey: text("active_key"),
@@ -587,6 +591,10 @@ export const rosterAssignments = sqliteTable(
 export const assignmentWorkforceSnapshots = sqliteTable(
   "assignment_workforce_snapshots",
   {
+    payBasis: text("pay_basis").notNull().default("monthly"),
+    agreedHourlyRateCents: integer("agreed_hourly_rate_cents"),
+    payCadence: text("pay_cadence").notNull().default("monthly"),
+    payCadenceRequestReference: text("pay_cadence_request_reference"),
     id: text("id").primaryKey(),
     rosterAssignmentId: text("roster_assignment_id").notNull().references(() => rosterAssignments.id),
     workforceEngagementId: text("workforce_engagement_id").notNull().references(() => workforceEngagements.id),
@@ -739,6 +747,7 @@ export const offers = sqliteTable(
   "offers",
   {
     id: text("id").primaryKey(),
+    rosterSlotId: text("roster_slot_id").references(() => rosterSlots.id),
     bookingId: text("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
     officerId: text("officer_id").notNull().references(() => officers.id, { onDelete: "cascade" }),
     positionIndex: integer("position_index").notNull().default(1),
@@ -859,6 +868,8 @@ export const payrollProfiles = sqliteTable(
 export const payrollRuns = sqliteTable(
   "payroll_runs",
   {
+    payBasis: text("pay_basis").notNull().default("monthly"),
+    payCadence: text("pay_cadence").notNull().default("monthly"),
     id: text("id").primaryKey(),
     batchKey: text("batch_key").notNull(),
     employerId: text("employer_id").notNull().references(() => workforceEmployers.id),
@@ -1274,6 +1285,7 @@ export const workforceTermsAcceptances = sqliteTable(
     workforceEngagementId: text("workforce_engagement_id").notNull().references(() => workforceEngagements.id),
     officerId: text("officer_id").notNull().references(() => officers.id, { onDelete: "cascade" }),
     termsVersion: text("terms_version").notNull(),
+    agreementType: text("agreement_type").notNull().default("monthly"),
     acceptanceMode: text("acceptance_mode").notNull(),
     environment: text("environment").notNull().default("demo"),
     integrityState: text("integrity_state").notNull().default("synthetic"),
@@ -3302,3 +3314,16 @@ export const officerDispatchConsents = sqliteTable('officer_dispatch_consents', 
 export const officerDispatchLocations = sqliteTable('officer_dispatch_locations', {
  ownerUserId: text('owner_user_id').primaryKey().references(()=>officerDispatchConsents.ownerUserId,{onDelete:'cascade'}), revision: integer('revision').notNull(), sessionId: text('session_id').notNull(), latitude: real('latitude').notNull(), longitude: real('longitude').notNull(), accuracyMeters: real('accuracy_meters').notNull(), capturedAt: text('captured_at').notNull(), expiresAt: text('expires_at').notNull(),
 },()=>[check('dispatch_point_latitude',sql.raw('latitude BETWEEN -35 AND -22')),check('dispatch_point_longitude',sql.raw('longitude BETWEEN 16 AND 33')),check('dispatch_point_accuracy',sql.raw('accuracy_meters>0 AND accuracy_meters<=150'))]);
+
+
+export const workforcePolicyWarnings = sqliteTable('workforce_policy_warnings', {
+  id:text('id').primaryKey(),entityType:text('entity_type').notNull(),entityId:text('entity_id').notNull(),
+  officerId:text('officer_id').references(()=>officers.id),code:text('code').notNull(),detail:text('detail').notNull(),
+  contextJson:text('context_json').notNull(),observedBy:text('observed_by').notNull(),createdAt:text('created_at').notNull(),
+}, table=>[index('workforce_policy_warnings_entity').on(table.entityType,table.entityId,table.createdAt)]);
+export const workforcePolicyOverrides = sqliteTable('workforce_policy_overrides', {
+  warningId:text('warning_id').primaryKey().references(()=>workforcePolicyWarnings.id),actorId:text('actor_id').notNull(),reason:text('reason').notNull(),createdAt:text('created_at').notNull(),
+});
+export const workforcePayPolicyDefaults = sqliteTable('workforce_pay_policy_defaults', {
+  singleton:integer('singleton').primaryKey(),rulesJson:text('rules_json').notNull(),
+});

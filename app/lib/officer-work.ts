@@ -1,3 +1,4 @@
+import {readOfficerHoursThisWeek} from './officer-employment';
 import {SignupError} from './signup-server';
 import {revalidateAssignment} from './assignment-activation-server';
 import {recordProductionService} from './production-service';
@@ -33,13 +34,13 @@ export async function readOfficerWork(db:D1Database,a:OfficerWorkActor){
  const shifts=(await db.prepare(`SELECT s.id,s.status,s.scheduled_date AS scheduledDate,s.check_in_at AS checkInAt,s.check_out_at AS checkOutAt,s.earnings_cents AS earningsCents,b.site_name AS siteName,b.site_area AS siteArea,b.post_name AS postName,rs.starts_at AS startsAt,rs.ends_at AS endsAt,os.address_label AS address FROM shifts s JOIN bookings b ON b.id=s.booking_id JOIN roster_assignments ra ON ra.shift_id=s.id JOIN roster_slots rs ON rs.id=ra.roster_slot_id JOIN operational_sites os ON os.id=rs.site_id WHERE s.officer_id=? AND s.environment='production' AND s.integrity_state='production_verified' AND b.environment='production' ORDER BY rs.starts_at DESC LIMIT 100`).bind(o.id).all()).results;
  const timesheets=(await db.prepare("SELECT id,shift_id AS shiftId,service_date AS serviceDate,recorded_minutes AS recordedMinutes,payable_minutes AS payableMinutes,operations_status AS status,client_evidence_status AS clientStatus FROM shift_timesheets WHERE officer_id=? AND environment='production' ORDER BY service_date DESC LIMIT 100").bind(o.id).all()).results;
  const statements=(await db.prepare(`SELECT i.id,i.gross_wage_cents AS grossCents,i.employee_deduction_cents AS deductionCents,i.net_pay_cents AS netCents,r.period_start AS periodStart,r.period_end AS periodEnd,r.pay_date AS payDate,json_extract(j.value,'$.calculation') AS calculation FROM payroll_items i JOIN payroll_runs r ON r.id=i.payroll_run_id JOIN production_payroll_snapshots p ON p.run_id=r.id JOIN json_each(p.payload_json,'$.items') j ON json_extract(j.value,'$.id')=i.id WHERE i.officer_id=? AND i.environment='production' AND r.environment='production' AND r.status IN ('approved_for_export','exported') ORDER BY r.created_at DESC LIMIT 100`).bind(o.id).all()).results;
- return {officer:o,applications,offers,shifts,timesheets,statements:statements.map(s=>({...s,calculation:JSON.parse(String(s.calculation??'{}'))})),notifications,emailEnabled:preference?.email_enabled!==0};
+ return {officer:o,hoursThisWeek:await readOfficerHoursThisWeek(db,o.id),applications,offers,shifts,timesheets,statements:statements.map(s=>({...s,calculation:JSON.parse(String(s.calculation??'{}'))})),notifications,emailEnabled:preference?.email_enabled!==0};
 }
 async function notificationEmail(db:D1Database,a:OfficerWorkActor,id:string,message:string){
  const preference=await db.prepare('SELECT email_enabled FROM officer_notification_preferences WHERE user_id=?').bind(a.userId).first<{email_enabled:number}>();
  if(preference?.email_enabled===0)return {};
  const emailId='officer-work-'+id;
- await enqueueOfficerEmail(db,{id:emailId,recipient:a.email,subject:'Your LOKD shift update',text:`${message}\n\nSign in to review your shifts and hours.\nhttps://officers.lokd.co.za/officer\n\nLOKD Security`});
+ await enqueueOfficerEmail(db,{id:emailId,recipient:a.email,subject:'Your LOKD shift update',text:`${message}\n\nOpen your Officer Zone to review your shifts and hours.\nhttps://officers.lokd.co.za/officer\n\nLOKD Security`});
  return {emailId};
 }
 export async function writeOfficerWork(db:D1Database,a:OfficerWorkActor,input:Record<string,unknown>){

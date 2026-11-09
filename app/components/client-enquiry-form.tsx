@@ -125,7 +125,7 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
       <div className="booking-cover-options">{([
         ["bolt", "LOKD Bolt", "Immediate / Emergency Service", "Less than 72 Hours Notice", "clock"],
         ["flex", "LOKD Flex", "Temporary / Flexible Service", "7+ Days in a calendar month", "calendar"],
-        ["fixed", "LOKD Fixed", "Full time deployment", "3 Months +", "users"],
+        ["fixed", "LOKD Fixed", "Ongoing deployment", "3 Months +", "users"],
       ] as const).map(([value, label, model, description, icon]) => <label className="booking-cover-option" key={value}><input type="radio" name="coverType" value={value} checked={coverType === value} onChange={() => chooseCover(value)} required={step === 1} /><span><Icon name={icon} size={24} /><strong>{label}</strong><em>{model}</em><small>{description}</small></span></label>)}</div>
       <div className="public-form-grid booking-date-fields">
         {coverType && <label>Start date<input name="startDate" type="date" required={step === 1} min={today} max={coverType==='bolt'?new Date(clock+7200000+72*3600000).toISOString().slice(0,10):undefined} value={startDate} onChange={event => setStartDate(event.target.value)}/></label>}

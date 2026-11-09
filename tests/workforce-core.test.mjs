@@ -48,13 +48,15 @@ test("passed launch gates still require valid evidence through activation", () =
   assert.deepEqual(launchGateDecision(noEvidence, "2026-08-27T12:00:00.000Z").blockers, ["G0_PHASE1_SCOPE"]);
 });
 
-test("Direct Flex accepts 24 hours a week and rejects the next hour", () => {
+test("hourly-paid officer records a warning above 24 hours without rejecting the next hour", () => {
   assert.deepEqual(directFlexHoursDecision(12, 12, 24), {
     eligible: true,
     projectedHours: 24,
+    warnings: [],
     weeklyHourCap: 24,
   });
-  assert.equal(directFlexHoursDecision(24, 1, 24).eligible, false);
+  assert.equal(directFlexHoursDecision(24, 1, 24).eligible, true);
+  assert.equal(directFlexHoursDecision(24,1,24).warnings.length,1);
 });
 
 test("a verified network profile cannot be activated without an employment route", () => {
@@ -99,7 +101,7 @@ test("retired external-firm supply remains ineligible even with historical respo
 });
 
 test("Bolt, Flex and Fixed allow only their direct LOKD employment routes", () => {
- for(const [booking,route,allowed] of [['bolt','direct_flex',true],['bolt','managed',false],['flex','managed',true],['flex','direct_flex',false],['fixed','managed',true],['fixed','direct_flex',false],['bolt','partner',false],['flex','partner',false],['fixed','partner',false]])assert.equal(bookingWorkforceRouteDecision(booking,route).ready,allowed,booking+'/'+route);
+ for(const [booking,route,allowed] of [['bolt','direct_flex',true],['bolt','managed',true],['flex','managed',true],['flex','direct_flex',true],['fixed','managed',true],['fixed','direct_flex',true],['bolt','partner',false],['flex','partner',false],['fixed','partner',false]])assert.equal(bookingWorkforceRouteDecision(booking,route).ready,allowed,booking+'/'+route);
  for(const booking of [null,undefined,'','unknown'])assert.equal(bookingWorkforceRouteDecision(booking,'managed').code,'BOOKING_MODEL_INVALID');
  assert.equal(bookingWorkforceRouteDecision('bolt',null).ready,false);
 });
