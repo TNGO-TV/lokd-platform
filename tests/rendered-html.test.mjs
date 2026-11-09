@@ -139,7 +139,7 @@ test("public booking page renders Bolt, Flex and Fixed with no internal prices",
   assert.match(html, /Request security cover \| LOKD/);
   assert.match(html, /Immediate \/ Emergency Service/);
   assert.match(html, /Temporary \/ Flexible Service/);
-  assert.match(html, /Full time deployment/);
+  assert.match(html, /Ongoing deployment/);
   assert.doesNotMatch(html, /internalDraftPrice|clientShiftCents|officerRateCents|R\s*\d+[,.]\d{2}|prelaunch/i);
 });
 

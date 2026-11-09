@@ -1,4 +1,4 @@
-import {recordPolicyWarnings,readPolicyWarnings} from './workforce-policy-warnings';
+import {recordPolicyWarnings,readPolicyWarnings,preparePolicyWarningStatements} from './workforce-policy-warnings';
 import {calendarCategoryForDate} from './production-pricing';
 import {documentPaymentState,type FinancialRow} from './finance-documents';
 import {PAYROLL_CALENDAR,payrollPeriodDatesValid} from './payroll-calendar';
@@ -91,8 +91,9 @@ export async function prepareProductionPayroll(db:D1Database,actor:SigningActor,
   db.prepare("INSERT INTO payroll_runs(id,batch_key,employer_id,period_start,period_end,pay_date,pay_basis,pay_cadence,run_type,currency,status,gross_cents,employee_deduction_cents,net_pay_cents,employer_cost_cents,item_count,policy_version,calculation_version,environment,integrity_state,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,'regular','ZAR','calculated',?,?,?,?,?,?,'LOKD-PERIOD-PAYROLL-v1','production','production_verified',?,?,?)").bind(runId,'production:'+requestKey,employerId,start,end,payDate,payBasis,payBasis==='hourly'?payCadence:'monthly',gross,total('totalEmployeeDeductionsCents'),net,total('employerCostCents'),items.length,policy.version,maker.id,now,now),
   db.prepare('INSERT INTO production_payroll_snapshots VALUES(?,?,?,?,?)').bind(runId,p.id,json,hash,now),bulk(db,'payroll_items',itemRows),bulk(db,'pay_item_sources',sourceRows),
   db.prepare("INSERT INTO audit_events VALUES(?,'operations',?,'production_payroll_calculated','payroll_run',?,?,?)").bind(crypto.randomUUID(),actor.userId,runId,JSON.stringify({calculationHash:hash,sourceCount:sources.length,itemCount:items.length,completePeriodReviewed:true}),now),
+  ...await preparePolicyWarningStatements(db,{entityType:'payroll_run',entityId:runId,actorId:actor.userId,warnings:policyWarnings,context:{policyId:p.id,policyHash:p.policy_hash,payBasis}}),
  ]);
- await recordPolicyWarnings(db,{entityType:'payroll_run',entityId:runId,actorId:actor.userId,warnings:policyWarnings,context:{policyId:p.id,policyHash:p.policy_hash,payBasis}});
+
  return {runId,paymentReleased:false,warnings:policyWarnings};
 }
 

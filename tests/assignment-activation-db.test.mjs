@@ -1444,7 +1444,7 @@ for (const duringCommit of [false, true]) test(`PSiRA pathway withdrawal blocks 
   database.close();
 });
 
-async function signFixtureAgreements(database) {
+async function signFixtureAgreements(database,{legacyEmployment=false}={}) {
   const adapter = new D1Adapter(database);
   run(database, `INSERT OR IGNORE INTO operator_accounts
     (id,email,display_name,status,environment,integrity_state,created_at,updated_at)
@@ -1456,7 +1456,7 @@ async function signFixtureAgreements(database) {
         const wording=`Fixture ${role} wording for automated checks only; no actual contract.`;
         const hash=await agreementHash(wording),docId=`DOC-${role}`;
 
-        const context=activationAgreementContext(facts,role),contextHash=await agreementHash(canonicalAgreementContext(context));
+        const context=activationAgreementContext(facts,role);if(legacyEmployment&&role==='OFFICER_EMPLOYMENT')delete context.scope.payBasis;const contextHash=await agreementHash(canonicalAgreementContext(context));
         const client=['CLIENT_MSA','SERVICE_ORDER'].includes(role);
         const entityId=client?facts.client.contractingEntityId:facts.workforce.employer.id;
         const purpose=client?'client_service':role==='PARTNER_SERVICE'?'partner_service':'officer_employment';
@@ -1465,10 +1465,27 @@ async function signFixtureAgreements(database) {
           VALUES (?,?,'1',?,'en-ZA',?,'fixture:body','approved','LEGAL-FIXTURE',?,?,'production','production_verified')`,docId,role,entityId,hash,now,now);
         const prepared=await prepareAgreementReceipt({document:{id:docId,version:'1',purpose,entityId,locale:'en-ZA',status:'approved',approvedBy:'LEGAL-FIXTURE',approvedAt:now,effectiveFrom:now,effectiveTo:null,wording,contentHash:hash},context,presentedContentHash:hash,presentedContextHash:contextHash,expectedPurpose:purpose,expectedEntityId:entityId,expectedLocale:'en-ZA',actorUserId:'user_signer_fixture',identityEvidence:'Synthetic identity evidence',authorityEvidence:'Synthetic representative mandate',action:'agree',affirmative:true,now:Date.parse(now)});
         await storeAgreementReceipt(adapter,`SIG-${contextHash}`,prepared);
+        if(legacyEmployment&&role==='OFFICER_EMPLOYMENT')run(database,"UPDATE workforce_terms_acceptances SET evidence_reference=? WHERE active_key=?",'agreement:SIG-'+contextHash,facts.workforce.engagementId);
       }
     }
   }
 }
+
+test('legacy signed employment receipts retain exact scope verification through their actual workforce acceptance',async()=>{
+ const database=migratedDatabase();try{
+  await seedValid(database);
+  for(const r of database.prepare("SELECT id FROM agreement_acceptance_receipts WHERE json_extract(receipt_json,'$.context.scope.documentRole')='OFFICER_EMPLOYMENT'").all())run(database,'INSERT INTO agreement_receipt_revocations VALUES(?,?,?,?)',r.id,'Replaced by historical-shape fixture','reviewer',now);
+  await signFixtureAgreements(database,{legacyEmployment:true});
+  const db=new D1Adapter(database),before=await evaluateAssignmentActivation(db,request('legacy-agreement'));
+  assert.equal(before.facts.agreements.ready,true);
+  const terms=database.prepare("SELECT evidence_reference FROM workforce_terms_acceptances WHERE active_key='WE-1'").get();
+  const receiptId=terms.evidence_reference.slice('agreement:'.length),receipt=database.prepare('SELECT receipt_json FROM agreement_acceptance_receipts WHERE id=?').get(receiptId).receipt_json;
+  assert.equal(JSON.parse(receipt).context.scope.payBasis,undefined);
+  run(database,"UPDATE workforce_terms_acceptances SET evidence_reference='unrelated-document' WHERE active_key='WE-1'");
+  assert.equal((await evaluateAssignmentActivation(db,request('legacy-unbound'))).facts.agreements.ready,false);
+  assert.equal(database.prepare('SELECT receipt_json FROM agreement_acceptance_receipts WHERE id=?').get(receiptId).receipt_json,receipt);
+ }finally{database.close();}
+});
 
 for (const mutation of ['contracting_entity','order_scope','shift_time','employer','receipt_revoked']) {
   test(`signed agreement gate rejects changed ${mutation} without rewriting accepted evidence`,async()=>{
@@ -2074,6 +2091,12 @@ for(const [basis,reviewedGross,useReviewedHourlyAmounts] of [['hourly',10000,tru
  const profile=await manageProductionEvidence(db,maker,{action:'prepare_evidence',kind:'payroll_profile',sourceDocumentsReviewed:true,expiresAt:new Date(Date.now()+86400000).toISOString(),fields:{profileId:'WARNING-PROFILE',officerId:'OFF-1',engagementId:t.workforce_engagement_id,employerId:t.employer_id,taxToken:'vault:fixture:tax',uifToken:'vault:fixture:uif',providentToken:'vault:fixture:provident',payrollReference:'Isolated payroll source review'}});
  await manageProductionEvidence(db,owner,{action:'decide_evidence',reviewId:profile.reviewId,decision:'approve',evidenceIndependentlyChecked:true,reason:'Independent source profile inspection'});
  const input={action:'prepare_payroll_period',requestKey:'warning-payroll',payBasis:basis,payCadence:basis==='hourly'?'weekly':'monthly',employerId:t.employer_id,periodStart:t.service_date,periodEnd:t.service_date,payDate:t.service_date,policyId:policy.policyId,employerAnnualPayrollCents:100000000,completePeriodReviewed:true,officerInputs:[{officerId:'OFF-1',useReviewedHourlyAmounts,ageAtTaxYearEnd:30,medicalSchemeMembers:0,deductibleRetirementContributionCents:0,employeeHealthCoverCents:0,otherLawfulDeductionCents:0,monthlyBasicCents:1,lowestMonthlyBasicCents:0,wageArea:'areas_one_and_two',sourceReference:'Isolated reviewed wage inputs',lawfulDeductionsReviewed:true}]};
+ if(basis==='hourly'&&!useReviewedHourlyAmounts){
+  database.exec("CREATE TRIGGER isolated_warning_storage_failure BEFORE INSERT ON workforce_policy_warnings WHEN NEW.code='SECTOR_RULING_REVIEW' BEGIN SELECT RAISE(ABORT,'isolated warning storage failure'); END");
+  await assert.rejects(()=>prepareProductionPayroll(db,maker,input,headers),/isolated warning storage failure/);
+  assert.equal(database.prepare('SELECT count(*) n FROM payroll_runs').get().n,0);assert.equal(database.prepare('SELECT count(*) n FROM pay_item_sources').get().n,0);
+  database.exec('DROP TRIGGER isolated_warning_storage_failure');
+ }
  const prepared=await prepareProductionPayroll(db,maker,input,headers);
  assert.equal(database.prepare('SELECT status FROM payroll_policy_versions WHERE id=?').get(policy.policyId).status,'draft');
  const stored=JSON.parse(database.prepare('SELECT payload_json FROM production_payroll_snapshots WHERE run_id=?').get(prepared.runId).payload_json),calc=stored.items[0].calculation;

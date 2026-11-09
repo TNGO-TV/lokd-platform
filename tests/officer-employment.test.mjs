@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {ZA_2027_SARS_POLICY_CANDIDATE,hourlyShiftPay,calculateHourlyPayrollStatement,calculatePayrollStatement,privateSecurityWageFloorDecision,payrollPolicyWithReviewDefaults,payrollPolicyWarnings} from '../app/lib/payroll-engine.ts';
 import {bookingWorkforceRouteDecision} from '../app/lib/workforce-core.ts';
-import {readOfficerEmployment} from '../app/lib/officer-employment.ts';
+import {readOfficerEmployment,readOfficerHoursThisWeek} from '../app/lib/officer-employment.ts';
 import {recordPolicyWarnings,readPolicyWarnings,overridePolicyWarning} from '../app/lib/workforce-policy-warnings.ts';
 import {changeOfficerPayBasis} from '../app/lib/officer-pay-basis-commands.ts';
 import {priceSpecialistCostFloor,defaultSpecialistConfiguration} from '../app/lib/specialist-pricing.ts';
@@ -74,6 +74,14 @@ test('Operations can change pay basis; the actual person, time and request are a
     assert.equal(db.sql.prepare("SELECT model FROM workforce_engagements WHERE id='engagement'").get().model,'direct_flex');assert.equal(db.sql.prepare("SELECT pay_basis FROM workforce_engagements WHERE id='engagement'").get().pay_basis,'monthly');
     const audit=db.sql.prepare("SELECT actor_id,created_at FROM audit_events WHERE event_type='officer_pay_basis_reviewed'").get();assert.equal(audit.actor_id,actor.userId);assert.ok(Date.parse(audit.created_at));
   }finally{db.sql.close();}
+});
+test('Officer hours use the SAST Monday boundary and retain attendance after engagement suspension',async()=>{
+ const db=new ClientDatabase();try{
+  employment(db);seedClient(db);seedBooking(db,'CLIENT-FIXTURE-A','worked-hours');
+  db.sql.prepare("INSERT INTO shifts(id,booking_id,officer_id,scheduled_date,status,check_in_at,check_out_at,earnings_cents,environment,integrity_state) VALUES('worked-hours-shift','worked-hours','pay-officer','2026-11-01','completed','2026-11-01T20:00:00Z','2026-11-02T06:00:00Z',80000,'production','production_verified')").run();
+  db.sql.prepare("UPDATE workforce_engagements SET status='suspended',active_key=NULL WHERE id='engagement'").run();
+  assert.equal(await readOfficerHoursThisWeek(db,'pay-officer',Date.parse('2026-11-02T08:00:00Z')),8);
+ }finally{db.sql.close();}
 });
 test('warnings and overrides retain immutable audit history; repeat overrides preserve the original actor and time',async()=>{
   const db=new ClientDatabase();try{
