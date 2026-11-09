@@ -28,6 +28,11 @@ test('hourly premium, minimum, multiplier, divisor and threshold are editable po
   const result=wage({policy:p,attendedMinutes:60,sundayOrPublicHoliday:true});assert.equal(result.minimumHourlyRateCents,4202);assert.equal(result.paidMinutes,300);assert.equal(result.amountCents,52525);
   assert.equal(payrollPolicyWithReviewDefaults({...p,hourlyPay:undefined}).hourlyPay.weeklyHourThreshold,24);
 });
+test('PSSPF and levy rates follow the payroll policy when it changes them',()=>{
+  const p=policy();p.privateSecuritySector.providentFund.employeeRateBasisPoints=800;p.privateSecuritySector.providentFund.employerRateBasisPoints=850;p.privateSecuritySector.councilLevy.employeeMonthlyCents=1050;
+  const result=calculatePayrollStatement({payBasis:'monthly',serviceDate:'2026-11-02',employerProjectedAnnualPayrollCents:100000000,earnings:[{code:'APPROVED_SERVICE',description:'Reviewed service',minutes:720,baseHourlyRateCents:0,multiplierBasisPoints:10000,approvedServiceGrossCents:60000}]},p);
+  assert.equal(result.employeeProvidentFundCents,4800);assert.equal(result.employerProvidentFundCents,5100);assert.equal(result.employeeCouncilLevyCents,1050);
+});
 test('PSSPF and levy always apply to hourly and monthly pay, including pending rulings and disabled old settings',()=>{
   const p=policy();p.privateSecuritySector.providentFund.employeeRateBasisPoints=0;p.privateSecuritySector.providentFund.employerRateBasisPoints=0;p.privateSecuritySector.councilLevy.employeeMonthlyCents=0;
   for(const payBasis of ['hourly','monthly']){

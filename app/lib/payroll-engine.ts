@@ -24,6 +24,12 @@ export const HOURLY_PAY_POLICY_DEFAULTS: HourlyPayPolicy = {
   sundayPublicHolidayBasisPoints: 20000, hourlyDivisor: 208, weeklyHourThreshold: 24,
 };
 
+// Fallback rates used only when a payroll policy has no private-security sector schedule. Edit the policy, not these values.
+export const PRIVATE_SECURITY_DEDUCTION_DEFAULTS = {
+  providentFund: { employeeRateBasisPoints: 750, employerRateBasisPoints: 750 },
+  councilLevy: { employeeMonthlyCents: 940, employerMonthlyCents: 0 },
+} as const;
+
 export type PayrollPolicy = {
   version: string;
   jurisdiction: "ZA";
@@ -450,10 +456,15 @@ export function calculatePayrollStatement(input: PayrollCalculationInput, policy
   const employeeUifCents = basisPoints(uifBaseCents, policy.uif.employeeRateBasisPoints);
   const employerUifCents = basisPoints(uifBaseCents, policy.uif.employerRateBasisPoints);
   // These deductions apply to every employee; neither pay basis nor a ruling flag disables them.
-  const employeeProvidentFundCents = basisPoints(grossCents, 750);
-  const employerProvidentFundCents = basisPoints(grossCents, 750);
-  const employeeCouncilLevyCents = perPeriodFromMonthly(940, payPeriodsPerYear);
-  const employerCouncilLevyCents = 0;
+  // Provident fund and council levy always apply; the rates come from the active payroll policy so rate changes need no code change.
+  const sectorDeductions = policy.privateSecuritySector, defaults = PRIVATE_SECURITY_DEDUCTION_DEFAULTS;
+  const rate = (value: number | undefined, fallback: number) => value && value > 0 ? value : fallback; // a zero rate cannot switch the deduction off
+  const fund = { employeeRateBasisPoints: rate(sectorDeductions?.providentFund.employeeRateBasisPoints, defaults.providentFund.employeeRateBasisPoints), employerRateBasisPoints: rate(sectorDeductions?.providentFund.employerRateBasisPoints, defaults.providentFund.employerRateBasisPoints) };
+  const levy = { employeeMonthlyCents: rate(sectorDeductions?.councilLevy.employeeMonthlyCents, defaults.councilLevy.employeeMonthlyCents), employerMonthlyCents: sectorDeductions?.councilLevy.employerMonthlyCents ?? defaults.councilLevy.employerMonthlyCents };
+  const employeeProvidentFundCents = basisPoints(grossCents, fund.employeeRateBasisPoints);
+  const employerProvidentFundCents = basisPoints(grossCents, fund.employerRateBasisPoints);
+  const employeeCouncilLevyCents = perPeriodFromMonthly(levy.employeeMonthlyCents, payPeriodsPerYear);
+  const employerCouncilLevyCents = perPeriodFromMonthly(levy.employerMonthlyCents, payPeriodsPerYear);
   const employeeHealthCoverCents = input.employeeHealthCoverCents ?? 0;
   const otherLawfulDeductionCents = input.otherLawfulDeductionCents ?? 0;
   const sdlExemptionCents = policy.skillsDevelopmentLevy.annualPayrollExemptionCents;
