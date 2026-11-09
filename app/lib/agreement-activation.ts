@@ -6,7 +6,7 @@ export type ActivationAgreementRole = 'CLIENT_MSA' | 'SERVICE_ORDER' | 'OFFICER_
 export function requiredActivationAgreements(): ActivationAgreementRole[] {
   return ['CLIENT_MSA','SERVICE_ORDER','OFFICER_EMPLOYMENT'];
 }
-export function activationAgreementContext(facts: AssignmentActivationFacts, role: ActivationAgreementRole): AgreementContext {
+export function activationAgreementContext(facts: AssignmentActivationFacts, role: ActivationAgreementRole, basis:'accepted'|'current'='accepted'): AgreementContext {
   const client = role==='CLIENT_MSA' || role==='SERVICE_ORDER';
   return {subjectId:client?facts.client.id:facts.officer.id,transactionId:facts.shift.rosterSlotId,
     transactionVersion:String(facts.client.orderVersion??0),scope:{
@@ -20,7 +20,7 @@ export function activationAgreementContext(facts: AssignmentActivationFacts, rol
       pricingVersion:facts.compensation.pricingVersion,workforceModel:facts.workforce.model,
       employerId:facts.workforce.employer.id,employerName:facts.workforce.employer.legalName,
       ...(client?{}:{officerId:facts.officer.id,engagementId:facts.workforce.engagementId,
-        payBasis:facts.workforce.agreementPayBasis ?? facts.workforce.payBasis ?? (facts.workforce.model==='direct_flex'?'hourly':'monthly'),termsVersion:facts.workforce.termsVersion,officerOfferCents:facts.compensation.officerOfferCents}),
+        payBasis:(basis==='current'?facts.workforce.payBasis:facts.workforce.agreementPayBasis??facts.workforce.payBasis) ?? (facts.workforce.model==='direct_flex'?'hourly':'monthly'),termsVersion:facts.workforce.termsVersion,officerOfferCents:facts.compensation.officerOfferCents}),
     }};
 }
 export async function readActivationAgreements(db: D1Database, facts: AssignmentActivationFacts) {

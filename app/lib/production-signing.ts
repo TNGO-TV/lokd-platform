@@ -36,7 +36,7 @@ export async function issueProductionEnvelope(db:D1Database,actor:SigningActor,i
  const {raw:d,version:doc}=await document(db,field(input.documentId,'document'));
  const evaluation=await evaluateAssignmentActivation(db,{rosterSlotId:field(input.rosterSlotId,'roster slot'),officerId:field(input.officerId,'officer'),expectedSlotVersion:Number(input.slotVersion),activationKey:'signing-read',environment:'production'});
  if(evaluation.facts.environment!=='production')throw new SignupError('Choose a production service order.',409);
- const role=d.document_code as ActivationAgreementRole,context=activationAgreementContext(evaluation.facts,role),contextJson=canonicalAgreementContext(context),contextHash=await agreementHash(contextJson),kind=role==='CLIENT_MSA'||role==='SERVICE_ORDER'?'client':'officer';
+ const role=d.document_code as ActivationAgreementRole,context=activationAgreementContext(evaluation.facts,role,'current'),contextJson=canonicalAgreementContext(context),contextHash=await agreementHash(contextJson),kind=role==='CLIENT_MSA'||role==='SERVICE_ORDER'?'client':'officer';
  const link=await db.prepare("SELECT l.* FROM production_entity_links l JOIN signup_cases c ON c.kind=l.kind AND c.source_id=l.case_id AND c.version=l.case_version AND c.owner_user_id=l.owner_user_id AND c.status!='withdrawn' WHERE l.kind=? AND l.entity_id=?").bind(kind,context.subjectId).first<{owner_user_id:string;case_id:string;case_version:number}>();
  if(!link||link.owner_user_id===actor.userId)throw new SignupError('An independently reviewed, current signer account must be linked to this entity.',409);
  const identity=field(input.identityEvidence,'independently reviewed identity evidence',12,2000),authority=kind==='client'?field(input.authorityEvidence,'representative authority evidence',12,2000):null;
@@ -77,7 +77,7 @@ export async function signProductionEnvelope(db:D1Database,actor:SigningActor,in
  if(Date.parse(e.expires_at)<=Date.now()||await db.prepare('SELECT envelope_id FROM production_envelope_cancellations WHERE envelope_id=?').bind(id).first())throw new SignupError('This envelope is cancelled or expired.',409);
  const {version:doc}=await document(db,e.document_id);
  const current=await evaluateAssignmentActivation(db,{rosterSlotId:e.roster_slot_id,officerId:e.officer_id,expectedSlotVersion:Number(e.slot_version),activationKey:'signing-read',environment:'production'});
- const context=activationAgreementContext(current.facts,e.role as ActivationAgreementRole);
+ const context=activationAgreementContext(current.facts,e.role as ActivationAgreementRole,'current');
  const prepared=await prepareAgreementReceipt({document:doc,context,presentedContentHash:e.content_hash,presentedContextHash:e.context_hash,expectedPurpose:doc.purpose,expectedEntityId:e.case_kind==='client'?current.facts.client.contractingEntityId!:current.facts.workforce.employer.id??'',expectedLocale:doc.locale,actorUserId:actor.userId,identityEvidence:e.identity_evidence,authorityEvidence:e.authority_evidence??undefined,action:'agree',affirmative:true});
  const receiptJson=JSON.stringify({...JSON.parse(prepared.receiptJson),evidenceRevision:current.sourceRevision});
  await storeAgreementReceipt(db,'LIVE-SIGN-'+id,{...prepared,receiptJson,receiptHash:await agreementHash(receiptJson)});

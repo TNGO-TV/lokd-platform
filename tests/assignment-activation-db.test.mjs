@@ -1481,6 +1481,13 @@ test('legacy signed employment receipts retain exact scope verification through 
   const terms=database.prepare("SELECT evidence_reference FROM workforce_terms_acceptances WHERE active_key='WE-1'").get();
   const receiptId=terms.evidence_reference.slice('agreement:'.length),receipt=database.prepare('SELECT receipt_json FROM agreement_acceptance_receipts WHERE id=?').get(receiptId).receipt_json;
   assert.equal(JSON.parse(receipt).context.scope.payBasis,undefined);
+  const {changeOfficerPayBasis}=await import('../app/lib/officer-pay-basis-commands.ts');
+  const version=database.prepare("SELECT version FROM workforce_engagements WHERE id='WE-1'").get().version;
+  await changeOfficerPayBasis(db,{userId:'basis-reviewer',operations:true},{engagementId:'WE-1',expectedVersion:version,payBasis:'monthly',payCadence:'monthly',agreedHourlyRateCents:4000,reference:'Reviewed monthly agreement document'});
+  const changed=await evaluateAssignmentActivation(db,request('legacy-basis-changed'));
+  assert.equal(changed.facts.agreements.ready,true);
+  assert.equal(activationAgreementContext(changed.facts,'OFFICER_EMPLOYMENT').scope.payBasis,'hourly');
+  assert.equal(activationAgreementContext(changed.facts,'OFFICER_EMPLOYMENT','current').scope.payBasis,'monthly');
   run(database,"UPDATE workforce_terms_acceptances SET evidence_reference='unrelated-document' WHERE active_key='WE-1'");
   assert.equal((await evaluateAssignmentActivation(db,request('legacy-unbound'))).facts.agreements.ready,false);
   assert.equal(database.prepare('SELECT receipt_json FROM agreement_acceptance_receipts WHERE id=?').get(receiptId).receipt_json,receipt);
