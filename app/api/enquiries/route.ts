@@ -128,7 +128,7 @@ export async function submitClientEnquiry(request: Request,database?:D1Database,
     if (!serviceTypes.has(serviceType)) throw new EnquiryError("Choose a valid security service.");
     const schedule = booking?.schedule ?? scheduleDetails(input);
     const message = booking
-      ? clean(`Booking request: LOKD ${booking.engagementModel === "fixed" ? "Fixed" : "Flex"}. Site address: ${booking.schedule.siteAddress}. Dates: ${booking.schedule.startDate} to ${booking.schedule.endDate}. Shift: ${booking.schedule.startTime} to ${booking.schedule.endTime} SAST (12 hours). Officers: ${booking.intent.officers}. Schedule: ${booking.schedule.schedule}. ${typeof input.message === "string" ? input.message : ""}`, "Site brief", 20, 2_000)
+      ? clean(`Booking request: LOKD ${booking.engagementModel === "fixed" ? "Fixed" : booking.engagementModel === "bolt" ? "Bolt" : "Flex"}. Site address: ${booking.schedule.siteAddress}. Dates: ${booking.schedule.startDate} to ${booking.schedule.endDate}. Shift: ${booking.schedule.startTime} to ${booking.schedule.endTime} SAST (12 hours). Officers: ${booking.intent.officers}. Schedule: ${booking.schedule.schedule}. ${typeof input.message === "string" ? input.message : ""}`, "Site brief", 20, 2_000)
       : clean(input.message, "Site brief", 20, 2_000);
     if(schedule&&!mobileNormalized)throw new EnquiryError("A contact phone number is required.");
     if (input.advanceFundingAcknowledged !== true) throw new EnquiryError("Confirm that you understand submitting an enquiry does not confirm service until Operations reviews fit and commercial terms.");

@@ -356,6 +356,7 @@ test('booking request saves authoritative metadata and sends SMTP to bookings an
   const row=database.prepare('SELECT * FROM client_enquiries WHERE id=?').get(saved.reference);
   assert.equal(row.engagement_model,'flex');assert.equal(row.booking_model,'bolt');assert.equal(row.booking_model_version,'LOKD-MODELS-2026.11.2');assert.equal(row.notice_window,'immediate');assert.equal(row.calendar_type,'ordinary');assert.equal(row.risk_band,'Enhanced');
   assert.equal(row.officer_count,2);assert.equal(row.start_time,'18:00');assert.equal(row.end_time,'06:00');
+  assert.match(row.message,/^Booking request: LOKD Bolt\./);
   assert.deepEqual(JSON.parse(row.booking_details),{...input.booking,durationWeeks:0,endDate:input.booking.startDate,includePublicHolidays:false,serviceDates:[input.booking.startDate],coverageShifts:1});
   const draft=JSON.parse(row.internal_draft_price);assert.ok(draft.totalCents>0);assert.equal(draft.assessedOfficers,2);
   const messages=server.messages();assert.equal(messages.length,2);assert.equal(messages[0].to,'bookings@lokd.co.za');assert.equal(messages[1].to,validEnquiry.email);
