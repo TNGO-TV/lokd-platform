@@ -83,7 +83,9 @@ test('financial execution/recovery and specialist selection cannot revive remove
     assert.throws(() => normalizeSpecialistConfiguration('Armed', { serviceCode: 'armed_movement', vehicleClass: 'armoured_partner' }), /support|vehicle/i);
   } finally { db.sql.close(); }
 });
-test('a delayed Flex order uses only its own saved, matching request as notice evidence', async () => {
+test('a delayed Flex order uses only its own saved, matching request as notice evidence', async (t) => {
+  // Pin the clock mid-month so a seven-day Flex window starting tomorrow stays inside one calendar month.
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-12-10T08:00:00Z') });
   const db = new ClientDatabase(), actor = { userId: 'operator', email: 'operator@example.test', operations: true };
   try {
     const clientId = seedClient(db), startDate = dateAfterDays(sastDate(), 1), receivedAt = new Date(Date.parse(startDate+'T06:00:00+02:00')-100*3600000).toISOString();
