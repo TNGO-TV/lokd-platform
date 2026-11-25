@@ -76,12 +76,20 @@ test('homepage offers real intake paths, responsive service navigation and priva
   const main = page.locator('main');
   await expect(main.getByRole('heading', {level: 1})).toHaveText('Book officers.On your terms.');
   await expect(main.getByRole('link', {name: 'Book officers', exact: true}).first()).toHaveAttribute('href', '/book');
-  await expect(main.getByRole('link', {name: /^PSIRA Registered or renewal/})).toHaveAttribute('href', '/officers');
+  await expect(main.getByRole('link', {name: /^PSIRA Registered or renewal/})).toHaveAttribute('href', '/join?path=registered');
+  await expect(main.getByRole('link', {name: /^New Application/})).toHaveAttribute('href', '/join?path=new');
   await expect(main.getByRole('heading', {name: 'LOKD Bolt', exact: true})).toBeVisible();
   await expect(main.getByRole('heading', {name: 'LOKD Flex', exact: true})).toBeVisible();
   await expect(main.getByRole('heading', {name: 'LOKD Fixed', exact: true})).toBeVisible();
-  await readableContrast(main.locator('.home-pillars small').first());
-  await readableContrast(main.locator('.site-section-head > p').first());
+  await readableContrast(main.locator('.hero-note').first());
+  await readableContrast(main.locator('.scale-intro').first());
+  await readableContrast(main.locator('.scale-tick').first());
+  // The booking time scale shows one model's detail at a time and switches on selection.
+  await expect(main.locator('#scale-panel-bolt')).toBeVisible();
+  await main.getByRole('button', {name: /^LOKD Fixed/}).click();
+  await expect(main.locator('#scale-panel-fixed')).toBeVisible();
+  await expect(main.locator('#scale-panel-bolt')).toBeHidden();
+  await expect(main.getByRole('link', {name: 'Plan ongoing cover', exact: true})).toHaveAttribute('href', '/book?model=fixed');
   const footer = page.locator('footer');
   await expect(footer.getByRole('link', {name: 'Client Zone', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fclient');
   await expect(footer.getByRole('link', {name: 'Officer Zone', exact: true})).toHaveAttribute('href', '/sign-in?return_to=%2Fofficer');
@@ -297,10 +305,10 @@ test('ongoing cover links prefill the Fixed model and expose every term and rost
 test('Flex request keeps the calendar-month service intent and retains details across Back', async ({page, intakeNetwork: offline}) => {
   await page.goto('/book?service=vip_unarmed');
   const form = page.locator('form.booking-flow');
-  await expect(form.getByRole('heading', {name:"Let's Get You Secured",exact:true})).not.toBeFocused();
+  await expect(form.getByRole('heading', {name:"Choose your cover",exact:true})).not.toBeFocused();
   await form.getByRole('radio', {name: /LOKD Flex/}).check();
   await form.getByLabel(/^Start date/).fill(plannedDate(1));
-  await form.getByLabel(/^Service End Date/).fill(plannedDate(14));
+  await form.getByLabel(/^Service end date/).fill(plannedDate(14));
   await form.getByRole('button', {name: 'Continue', exact: true}).click();
   await expect(form.getByLabel(/^Security service/)).toHaveValue('vip_unarmed');
   await form.getByLabel(/^Coverage/).selectOption('night');
@@ -314,7 +322,7 @@ test('Flex request keeps the calendar-month service intent and retains details a
   await expect(form.getByLabel(/^Coverage/)).toHaveValue('night');
   await expect(form.getByLabel(/^Site or venue address/)).toHaveValue('24 Rivonia Road, Sandton');
   await form.getByRole('button', {name: 'Back', exact: true}).click();
-  await expect(form.getByRole('heading', {name:"Let's Get You Secured",exact:true})).toBeFocused();
+  await expect(form.getByRole('heading', {name:"Choose your cover",exact:true})).toBeFocused();
   await expect(form.getByRole('radio', {name: /LOKD Flex/})).toBeChecked();
   await expect(form.getByLabel(/^Start date/)).toHaveValue(plannedDate(1));
   await form.getByRole('button', {name: 'Continue', exact: true}).click();
@@ -343,4 +351,35 @@ test('Flex request keeps the calendar-month service intent and retains details a
   await expect(page.getByRole('heading', {name: 'Your enquiry is with LOKD.'})).toBeVisible();
   await expect(page.getByText(/Operations will confirm the officers and the price/)).toBeVisible();
   await fitsViewport(page);
+});
+
+test('homepage sentence builder opens the booking flow with officers, service, area and timing', async ({page}) => {
+  await page.goto('/');
+  const builder = page.locator('form.hero-builder');
+  await builder.getByLabel('Number of officers').selectOption('3');
+  await builder.getByLabel('Service').selectOption('armed_static');
+  await builder.getByLabel('Area').selectOption('Rosebank');
+  await builder.getByLabel('When').selectOption('tomorrow');
+  await builder.getByRole('button', {name: 'Book officers', exact: true}).click();
+  await expect(page).toHaveURL(origin + '/book?officers=3&service=armed_static&area=Rosebank&when=tomorrow');
+  const form = page.locator('form.booking-flow');
+  await expect(form.getByRole('radio', {name: /LOKD Bolt/})).toBeChecked();
+  await expect(form.getByLabel(/^Start date/)).toHaveValue(isoDate(1));
+  const summary = page.locator('.booking-summary');
+  await expect(summary).toContainText('LOKD Bolt');
+  await expect(summary).toContainText('Rosebank');
+  await form.getByRole('button', {name: 'Continue', exact: true}).click();
+  await expect(form.getByLabel(/^Security service/)).toHaveValue('armed_static');
+  await expect(form.getByLabel(/^Number of officers/)).toHaveValue('3');
+  await expect(form.getByLabel(/^Suburb or area/)).toHaveValue('Rosebank');
+  await fitsViewport(page);
+});
+
+for (const [when, cover] of [['date', 'LOKD Flex'], ['ongoing', 'LOKD Fixed']]) test('sentence builder timing maps to its booking model: ' + when, async ({page}) => {
+  await page.goto('/book?officers=12&service=vip_unarmed&area=Midrand&when=' + when);
+  const form = page.locator('form.booking-flow');
+  await expect(form.getByRole('radio', {name: new RegExp(cover)})).toBeChecked();
+  // VIP requests take up to four officers online; a larger team is pointed to Bookings.
+  await expect(page.getByRole('status').filter({hasText: 'You asked for 12 officers'})).toContainText('bookings@lokd.co.za');
+  await expect(form.getByLabel(/^Number of officers/)).toHaveValue('4');
 });

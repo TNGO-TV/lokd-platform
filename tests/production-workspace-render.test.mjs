@@ -13,6 +13,7 @@ import * as contracts from '../app/lib/workspace-response-contracts.ts';
 import * as receipts from '../app/lib/workspace-command-receipt.ts';
 import * as publicSite from '../app/lib/public-site.ts';
 import * as conversion from '../app/lib/officer-conversion-core.ts';
+import * as siteImages from '../app/lib/site-images.ts';
 
 const link=({children,...props})=>{delete props.prefetch;return React.createElement('a',props,children);};
 const image=props=>{const attributes={...props};delete attributes.unoptimized;delete attributes.priority;return React.createElement('img',attributes);};
@@ -75,6 +76,9 @@ test('public legal, contact, footer and organisation metadata use the approved c
  const legalModules={...modules,'../lib/public-site':publicSite,'../lib/officer-conversion-core':conversion,'next/headers':{headers:async()=>new Headers()},'../components/client-enquiry-form':{default:()=>null}};
  legalModules['./icons']=load('icons.tsx',legalModules);
  legalModules['../components/icons']=legalModules['./icons'];
+ legalModules['../lib/site-images']=siteImages;
+ legalModules['./public-visuals']=load('public-visuals.tsx',legalModules);
+ legalModules['../components/public-visuals']=legalModules['./public-visuals'];
  legalModules['./public-site-shell']=load('public-site-shell.tsx',legalModules);
  legalModules['../components/public-site-shell']=legalModules['./public-site-shell'];
  legalModules['../components/legal-document']=load('legal-document.tsx',legalModules);

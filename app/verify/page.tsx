@@ -60,10 +60,10 @@ export default function VerifyPage() {
   }, []);
   function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!busy) void verify(input); }
   return <div className="public-site"><PublicHeader /><main id="main-content" className="public-system" tabIndex={-1}>
-    <p className="public-kicker">LOKD Passport</p><h1>Check an officer’s Passport.</h1><p>See the current status of the LOKD Passport shared with you.</p>
+    <h1>Check an officer’s Passport.</h1><p>See the current status of the LOKD Passport shared with you.</p>
     <form className="public-verify-form" onSubmit={submit}><label>Passport verification link<input type="text" value={input} onChange={event => setInput(event.target.value)} autoComplete="off" spellCheck={false} maxLength={1024} required aria-describedby="passport-link-help" /></label><p id="passport-link-help">Scan the QR code on the officer’s current Passport, or paste the link they shared. Your link is used only for this check.</p><button className="public-button public-button--primary" disabled={busy}>{busy ? "Checking…" : "Check Passport"}</button></form>
     {busy && <p role="status">Checking the current LOKD record…</p>}
     {result && <section className="public-passport-result" data-status={result.state} aria-live="polite"><h2 ref={heading} tabIndex={-1}>{result.title}</h2><p>{result.message}</p>{result.passport && <dl><dt>Officer</dt><dd>{result.passport.officerName}</dd><dt>Passport</dt><dd>{result.passport.passportNumber}</dd><dt>PSIRA grade</dt><dd>{result.passport.psiraGrade}</dd><dt>Checked at</dt><dd>{checkedAt(result.passport.verifiedAt)}</dd>{result.passport.nextReviewAt && <><dt>Next review</dt><dd>{checkedAt(result.passport.nextReviewAt)}</dd></>}</dl>}{canRefresh && <button className="public-button public-button--secondary" disabled={busy} onClick={() => void verify(token.current)}>Check again</button>}</section>}
-    <p>A valid Passport confirms the current officer record. Check the officer’s name and your booking details before they start the assignment.</p><Link className="public-text-link" href="/contact">Contact LOKD →</Link>
+    <p>A valid Passport confirms the current officer record. Check the officer’s name and your booking details before they start the assignment.</p><Link className="public-text-link" href="/contact">Contact LOKD</Link>
   </main><PublicFooter /></div>;
 }

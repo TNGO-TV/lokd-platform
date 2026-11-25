@@ -110,7 +110,12 @@ test('production intake appears in the operations queue with confirmation delive
   const queue=await response.json();assert.equal(queue.applications.length,1);assert.equal(queue.applications[0].id,reference);
   assert.equal(queue.applications[0].confirmationEmailStatus,'failed');assert.match(queue.applications[0].confirmationEmailError,/RESEND_API_KEY/);
   assert.equal(database.prepare('SELECT count(*) AS n FROM officers').get().n,officersBefore);
-  assert.equal(database.prepare('SELECT count(*) AS n FROM officer_email_outbox').get().n,1);
+  assert.equal(database.prepare('SELECT count(*) AS n FROM officer_email_outbox').get().n,2);
+  const team=database.prepare("SELECT application_id,recipient,subject,message,state FROM officer_email_outbox WHERE id=?").get('application-team:'+reference);
+  assert.equal(team.application_id,reference);assert.equal(team.recipient,'verification@lokd.co.za');assert.match(team.subject,new RegExp(reference));
+  for(const line of ['Reference: '+reference,'Name: Public Applicant','Pathway: PSIRA Registered or renewal','PSIRA status: Registered and current','PSIRA grade: Grade C','Province: Gauteng','https://operations.lokd.co.za/ops/intake?kind=officer'])assert.ok(team.message.includes(line),line);
+  assert.doesNotMatch(team.message,/082|queue@example\.test|1234567/,'team notice carries no contact details or PSIRA number');
+  assert.equal(team.state,'failed','team notice uses the same mailbox delivery as the confirmation');
   const bad=await applications.PATCH(ownerRequest('PATCH',{id:reference,action:'start_demo_identity'}));assert.equal(bad.status,400);
   assert.equal(database.prepare('SELECT identity_verification_status AS s FROM officer_applications WHERE id=?').get(reference).s,'consent_pending');
  }finally{database.close();delete env.LOKD_OWNER_ACCESS_JSON;}

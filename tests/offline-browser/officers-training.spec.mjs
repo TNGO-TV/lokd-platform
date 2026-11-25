@@ -27,7 +27,7 @@ test('officers offers exactly the registered and new application routes',async({
  await expect(page.getByRole('link',{name:'New Application',exact:true})).toHaveAttribute('href','/join?path=new');
  await expect(page.getByRole('heading',{name:'On-demand and roster work'})).toBeVisible();
  await expect(page.getByRole('heading',{name:'Work matched to your grade'})).toBeVisible();
- await expect(page.getByRole('link',{name:'Book Now',exact:true})).toHaveAttribute('href','/training#training-booking');
+ await expect(page.getByRole('link',{name:'Book now',exact:true})).toHaveAttribute('href','/training#training-booking');
  await fits(page);await page.screenshot({path:testInfo.outputPath('officers.png'),fullPage:true});
 });
 test('new application explains all six steps and preselects the unregistered route',async({page})=>{
@@ -50,10 +50,12 @@ test('each course explains audience, coverage and outcome and opens its booking 
  const selections=[];
  for(const course of await courses.all()){
   await expect(course.getByText('Who it is for',{exact:true})).toBeVisible();await expect(course.getByText('What it covers',{exact:true})).toBeVisible();await expect(course.getByText('The outcome',{exact:true})).toBeVisible();
-  const action=course.getByRole('link',{name:/Book Now/});await expect(action).toHaveText('Book Now');
+  const action=course.getByRole('link',{name:/Book now/});await expect(action).toHaveText('Book now');
   const href=await action.getAttribute('href');const url=new URL(href,origin);expect(url.hash).toBe('#training-booking');selections.push([href,url.searchParams.get('course')]);
  }
- await expect(page.locator('.officers-hero').getByRole('link',{name:'Book Now',exact:true})).toHaveAttribute('href','#training-booking');
+ await expect(page.locator('.officers-hero').getByRole('link',{name:'Book now',exact:true})).toHaveAttribute('href','#training-booking');
+ await expect(page.locator('.officers-course').filter({hasText:'SAPS-certified'})).toHaveCount(1);
+ await expect(page.locator('.officers-course').filter({hasText:'SAPS-certified'}).getByRole('heading')).toContainText('Firearms competency');
  await expect(page.locator('main')).not.toContainText('training@lokd.co.za');
  await page.screenshot({path:testInfo.outputPath('training.png'),fullPage:true});
  for(const [index,[href,course]] of selections.entries()){
@@ -65,7 +67,7 @@ test('each course explains audience, coverage and outcome and opens its booking 
 });
 test('training on Contact leads to the booking form and the shared footer covers South Africa',async({page})=>{
  await page.goto('/contact');
- const training=page.locator('.site-contact-channels').getByRole('link',{name:'Training Book Now'});
+ const training=page.locator('.site-contact-channels').getByRole('link',{name:'Training Book now'});
  await expect(training).toHaveAttribute('href','/training#training-booking');
  await expect(page.locator('a[href="mailto:training@lokd.co.za"]')).toHaveCount(0);
  await expect(page.locator('.site-footer-location')).toHaveText('South Africa');
@@ -74,15 +76,15 @@ test('training on Contact leads to the booking form and the shared footer covers
 });
 test('training validation retains the form and server rejection keeps the original entries',async({page})=>{
  await page.goto('/training?course=grade-e');await fillBooking(page);await page.getByLabel(/^Mobile number/).fill('123');
- await page.getByRole('button',{name:'Book Now'}).click();await expect(page.getByRole('alert')).toContainText('Enter a South African mobile number');
+ await page.getByRole('button',{name:'Book now'}).click();await expect(page.getByRole('alert')).toContainText('Enter a South African mobile number');
  await page.getByLabel(/^Mobile number/).fill('0821234567');
  await page.route('**/api/training',route=>route.fulfill({status:400,json:{error:'Choose an available intake month.'}}));
- await page.getByRole('button',{name:'Book Now'}).click();await expect(page.getByRole('alert')).toHaveText('Choose an available intake month.');await expect(page.getByLabel(/^Full name/)).toHaveValue('Browser Applicant');await expect(page.getByRole('button',{name:'Book Now'})).toBeEnabled();
+ await page.getByRole('button',{name:'Book now'}).click();await expect(page.getByRole('alert')).toHaveText('Choose an available intake month.');await expect(page.getByLabel(/^Full name/)).toHaveValue('Browser Applicant');await expect(page.getByRole('button',{name:'Book now'})).toBeEnabled();
 });
 test('uncertain training requests retry the identical body and show a saved confirmation',async({page})=>{
  const posts=[];let response={status:503,json:{error:'Your request could not be confirmed.'}};
  await page.route('**/api/training',route=>{posts.push(route.request().postDataJSON());return route.fulfill(response);});
- await page.goto('/training?course=grade-e');await fillBooking(page);await page.getByRole('button',{name:'Book Now'}).click();
+ await page.goto('/training?course=grade-e');await fillBooking(page);await page.getByRole('button',{name:'Book now'}).click();
  await expect(page.getByRole('alert')).toHaveText('Your request could not be confirmed.');await expect(page.getByLabel(/^Full name/)).toBeDisabled();
  response={status:202,json:{saved:true,reference,teamEmailSent:true,confirmationEmailSent:true}};
  await page.getByRole('button',{name:'Retry original training request'}).click();await expect(page.getByRole('heading',{name:'Your training request is with LOKD.'})).toBeFocused();
@@ -90,7 +92,7 @@ test('uncertain training requests retry the identical body and show a saved conf
 });
 test('a saved training booking with delayed email keeps its reference without inviting an email booking',async({page})=>{
  await page.route('**/api/training',route=>route.fulfill({status:202,json:{saved:true,reference,teamEmailSent:false,confirmationEmailSent:false}}));
- await page.goto('/training?course=grade-e');await fillBooking(page);await page.getByRole('button',{name:'Book Now',exact:true}).click();
+ await page.goto('/training?course=grade-e');await fillBooking(page);await page.getByRole('button',{name:'Book now',exact:true}).click();
  const receipt=page.locator('.public-form-success');
  await expect(receipt.getByRole('heading')).toBeFocused();await expect(receipt.locator('dd')).toHaveText(reference);
  await expect(receipt).toContainText('Your request has been saved');

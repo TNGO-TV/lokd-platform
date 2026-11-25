@@ -35,7 +35,6 @@ export function LegalList({ items }: { items: ReactNode[] }) {
 }
 
 export function LegalDocument({
-  kicker,
   title,
   lede,
   asideNote,
@@ -54,7 +53,6 @@ export function LegalDocument({
       <PublicHeader active="about" />
       <main id="main-content" tabIndex={-1}>
       <section className="legal-hero">
-        <p className="public-kicker">{kicker}</p>
         <h1>{title}</h1>
         <p>{lede}</p>
         <span>Last updated {LEGAL_EFFECTIVE_LABEL}</span>
