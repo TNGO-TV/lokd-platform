@@ -8,7 +8,11 @@ import { Icon } from "./icons";
 type Receipt = { saved?: boolean; reference?: string; error?: string; confirmationEmailSent?: boolean; notificationStatus?: string };
 const referencePattern = /^ENQ-[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i;
 type CoverType = "" | "bolt" | "flex" | "fixed";
-const steps = ["Let's Get You Secured", "Service and site", "Your details"];
+const steps = ["Choose your cover", "Service and site", "Your details"];
+const coverLabels: Record<Exclude<CoverType, "">, string> = { bolt: "LOKD Bolt", flex: "LOKD Flex", fixed: "LOKD Fixed" };
+const serviceLabels: Record<string, string> = { scheduled_unarmed_fixed_site: "Unarmed guarding", armed_static: "Armed security", vip_unarmed: "VIP protection" };
+const shiftLabels: Record<string, string> = { day: "Day, 06:00–18:00", night: "Night, 18:00–06:00", both: "Day and night" };
+type Summary = { officers: string; area: string; shift: string; term: string; requested: number };
 
 export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (reference: string) => void } = {}) {
   const [busy, setBusy] = useState(false);
@@ -19,6 +23,7 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
   const [coverType, setCoverType] = useState<CoverType>("");
   const [serviceType, setServiceType] = useState("");
   const [startDate, setStartDate] = useState("");
+  const [summary, setSummary] = useState<Summary>({ officers: "1", area: "", shift: "day", term: "", requested: 0 });
   const [clock] = useState(() => Date.now());
   const today = new Date(clock + 7200000).toISOString().slice(0, 10);
   const original = useRef<{ input: string; body: string } | null>(null);
@@ -44,7 +49,22 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
         setCoverType("bolt");
         setStartDate(new Date(Date.now() + 7200000 + (when === "tomorrow" ? 86400000 : 0)).toISOString().slice(0, 10));
       }
+      if (when === "date") setCoverType("flex");
       if (when === "ongoing") setCoverType("fixed");
+      // Homepage sentence builder: officers and area carry into step two.
+      const elements = formRef.current?.elements;
+      const requested = Math.trunc(Number(params.get("officers")));
+      const officers = elements?.namedItem("officers");
+      let requestedLarger = 0;
+      if (Number.isFinite(requested) && requested >= 1 && requested <= 20 && officers instanceof HTMLInputElement) {
+        const limit = service === "vip_unarmed" ? 4 : 6;
+        officers.value = String(Math.min(requested, limit));
+        if (requested > limit) requestedLarger = requested;
+      }
+      const area = (params.get("area") ?? "").trim().slice(0, 100);
+      const siteArea = elements?.namedItem("siteArea");
+      if (area.length >= 2 && siteArea instanceof HTMLInputElement) siteArea.value = area;
+      if (formRef.current) readSummary(formRef.current, requestedLarger);
     }, 0);
     return () => clearTimeout(timer);
   }, []);
@@ -54,6 +74,11 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
     if (previousStep.current !== step) stepHeading.current?.focus();
     previousStep.current = step;
   }, [step]);
+
+  function readSummary(form: HTMLFormElement, requested?: number) {
+    const field = (name: string) => { const element = form.elements.namedItem(name); return element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement ? element.value.trim() : ""; };
+    setSummary(current => ({ officers: field("officers"), area: field("siteArea"), shift: field("shift"), term: field("term"), requested: requested ?? current.requested }));
+  }
 
   function advance(event?: { preventDefault(): void }) {
     // Continue becomes the submit button when this update reveals step three.
@@ -113,23 +138,23 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
     {receipt.confirmationEmailSent === false && <div className="public-retry"><p>Your request is saved, but its emails have not been confirmed. You can check delivery without submitting another request.</p><button type="button" disabled={busy} onClick={() => { if (original.current) void send(original.current.body); }}>{busy ? "Checking delivery…" : "Retry email confirmation"}</button>{error && <p role="alert">{error}</p>}</div>}
     <dl><dt>Enquiry reference</dt><dd>{receipt.reference}</dd></dl>
     <p>Use the same email in the Client Zone to follow your request. Cover is confirmed only after you and LOKD agree the service details and price.</p>
-    <Link className="public-button public-button--primary" href="/sign-in?return_to=%2Fclient">Track your enquiry <Icon name="arrowUpRight" size={20} /></Link>
+    <Link className="public-button public-button--primary" href="/sign-in?return_to=%2Fclient">Track your enquiry</Link>
   </section>;
 
   const locked = busy || uncertain;
   const chooseCover = (value: CoverType) => { setCoverType(value); if (value === "bolt") setStartDate(today); };
-  return <form ref={formRef} className="public-form booking-flow" onSubmit={submit} aria-busy={busy}>
-    <div><p className="public-kicker">Your booking request</p><h2 ref={stepHeading} tabIndex={-1}>{steps[step - 1]}</h2><p>Step {step} of 3. Operations will review your request and confirm availability.</p></div>
-    <ol className="booking-steps" aria-label="Booking progress">{steps.map((title, index) => <li key={title} aria-current={step === index + 1 ? "step" : undefined}><span>{index + 1}</span>{title}</li>)}</ol>
+  return <form ref={formRef} className="public-form booking-flow" onSubmit={submit} onChange={event => readSummary(event.currentTarget)} aria-busy={busy}>
+    <div><h2 ref={stepHeading} tabIndex={-1}>{steps[step - 1]}</h2><p>Step {step} of 3. LOKD Operations reviews your request and confirms availability.</p></div>
+    <ol className="booking-steps" aria-label="Booking progress">{steps.map((title, index) => <li key={title} aria-current={step === index + 1 ? "step" : undefined} data-done={step > index + 1 ? "" : undefined}><span>{index + 1}</span>{title}</li>)}</ol>
     <fieldset data-booking-step="1" hidden={step !== 1} disabled={locked}><legend>1. Choose your LOKD service</legend>
       <div className="booking-cover-options">{([
-        ["bolt", "LOKD Bolt", "Immediate / Emergency Service", "Less than 72 Hours Notice", "clock"],
-        ["flex", "LOKD Flex", "Temporary / Flexible Service", "7+ Days in a calendar month", "calendar"],
-        ["fixed", "LOKD Fixed", "Ongoing deployment", "3 Months +", "users"],
+        ["bolt", "LOKD Bolt", "Immediate / emergency service", "Less than 72 hours’ notice", "clock"],
+        ["flex", "LOKD Flex", "Temporary / flexible service", "7+ days in a calendar month", "calendar"],
+        ["fixed", "LOKD Fixed", "Ongoing deployment", "3 months or more", "users"],
       ] as const).map(([value, label, model, description, icon]) => <label className="booking-cover-option" key={value}><input type="radio" name="coverType" value={value} checked={coverType === value} onChange={() => chooseCover(value)} required={step === 1} /><span><Icon name={icon} size={24} /><strong>{label}</strong><em>{model}</em><small>{description}</small></span></label>)}</div>
       <div className="public-form-grid booking-date-fields">
         {coverType && <label>Start date<input name="startDate" type="date" required={step === 1} min={today} max={coverType==='bolt'?new Date(clock+7200000+72*3600000).toISOString().slice(0,10):undefined} value={startDate} onChange={event => setStartDate(event.target.value)}/></label>}
-        {coverType === 'flex' && <label>Service End Date<input name="endDate" type="date" min={startDate||today} required={step===1}/></label>}
+        {coverType === 'flex' && <label>Service end date<input name="endDate" type="date" min={startDate||today} required={step===1}/></label>}
         {coverType === "fixed" && <><label>Contract term<select name="term" required={step === 1} defaultValue=""><option value="" disabled>Choose a term</option>{[3, 6, 12].map(months => <option value={months} key={months}>{months} {months === 1 ? "month" : "months"}</option>)}</select></label></>}
       </div>
     </fieldset>
@@ -154,6 +179,15 @@ export default function ClientEnquiryForm({ onSubmitted }: { onSubmitted?: (refe
     </div></fieldset>
     {error && <p className="public-form-error" role="alert" ref={errorRef} tabIndex={-1}>{error}</p>}
     {uncertain && <div className="public-retry"><p>Keep this page open. Retrying checks the same request and avoids a duplicate.</p><button type="button" disabled={busy} onClick={() => { if (original.current) void send(original.current.body); }}>Retry original enquiry</button></div>}
-    <div className="booking-actions">{step > 1 && <button className="booking-back" type="button" disabled={locked} onClick={() => { setError(""); setStep(step - 1); }}>Back</button>}{step < 3 ? <button className="public-button public-button--primary" type="button" disabled={locked} onClick={advance}>Continue <Icon name="arrowUpRight" size={18} /></button> : <button className="public-button public-button--primary" type="submit" disabled={locked}>{busy ? "Sending your request…" : "Request cover"}</button>}</div>
+    <div className="booking-actions">{step > 1 && <button className="booking-back" type="button" disabled={locked} onClick={() => { setError(""); setStep(step - 1); }}>Back</button>}{step < 3 ? <button className="public-button public-button--primary" type="button" disabled={locked} onClick={advance}>Continue</button> : <button className="public-button public-button--primary" type="submit" disabled={locked}>{busy ? "Sending your request…" : "Request cover"}</button>}</div>
+    <aside className="booking-summary" aria-label="Your booking so far">
+      <h2>Your booking</h2>
+      <dl>{([
+        ["Cover", coverType ? coverLabels[coverType] : ""], ["Start", startDate], ["Term", coverType === "fixed" && summary.term ? summary.term + " months" : ""],
+        ["Service", serviceLabels[serviceType] ?? ""], ["Officers", summary.officers], ["Shift", shiftLabels[summary.shift] ?? ""], ["Area", summary.area],
+      ] as const).filter(([label, value]) => label !== "Term" || value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd data-empty={value ? undefined : ""}>{value || "Not chosen yet"}</dd></div>)}</dl>
+      {summary.requested > 0 && <p className="booking-help booking-help--alert" role="status">You asked for {summary.requested} officers. An online request covers up to {serviceType === "vip_unarmed" ? 4 : 6}; for a larger team, contact <a href="mailto:bookings@lokd.co.za">bookings@lokd.co.za</a> and we will plan it with you.</p>}
+      <p>PSIRA-verified officers. Operations confirms officers and price before cover starts.</p>
+    </aside>
   </form>;
 }

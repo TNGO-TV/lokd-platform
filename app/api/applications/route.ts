@@ -1,6 +1,6 @@
 import {agreementHash} from '../../lib/agreement-acceptance';
 import {officerApiActor,requireOfficerJson,OfficerAccessError} from '../../lib/officer-api-access';
-import {officerEmailStatement,deliverOfficerEmail} from '../../lib/officer-email';
+import {officerEmailStatement,deliverOfficerEmail,officerApplicationTeamNotice} from '../../lib/officer-email';
 import {SignupError,writeSignup} from '../../lib/signup-server';
 import {readRequestText, RequestBodyError} from '../../lib/request-body';
 import { applicationPsiraDeclaration, officerAvailability, renewalStatuses, psiraIntakeStatus } from '../../lib/psira-pathway';
@@ -199,7 +199,7 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
       if(receipt.payload_hash!==payloadHash)throw new ApplicationError('This submission key already binds different application details. Keep the original request; changed details require a new key.',409);
       return savedReceipt(receipt.application_id);
     };
-    const recovered=await recover();if(recovered){const receipt=await db.prepare('SELECT application_id FROM officer_application_receipts WHERE request_key_hash=?').bind(keyHash).first<{application_id:string}>();if(receipt)await deliverOfficerEmail(db,env,'application-confirmation:'+receipt.application_id);return recovered;}
+    const recovered=await recover();if(recovered){const receipt=await db.prepare('SELECT application_id FROM officer_application_receipts WHERE request_key_hash=?').bind(keyHash).first<{application_id:string}>();if(receipt){await deliverOfficerEmail(db,env,'application-confirmation:'+receipt.application_id);await deliverOfficerEmail(db,env,'application-team:'+receipt.application_id);}return recovered;}
     const now = new Date();
     const nowIso = now.toISOString();
     const retentionReview = new Date(now);
@@ -229,11 +229,14 @@ export async function submitOfficerApplication(request: Request, database?:D1Dat
     const confirmationId='application-confirmation:'+id;
     const writes=[application,audit,officerEmailStatement(db,{id:confirmationId,applicationId:id,recipient:email,
       subject:'We received your LOKD application',
-      text:`Hello ${fullName},\n\nThank you for applying to LOKD. Your application reference is ${id}.\n\nOpen the Officer Zone with this email address to follow your application, complete your identity check and submit your PSIRA details:\nhttps://officers.lokd.co.za/officer\n\n${psiraStatus==='expired'?'LOKD can help with PSIRA renewal and refresher training. Your registration must be current and all required checks complete before work is offered.':'Our team will review your application and contact you about the next step.'}\n\nLOKD Security`})];
+      text:`Hello ${fullName},\n\nThank you for applying to LOKD. Your application reference is ${id}.\n\nOpen the Officer Zone with this email address to follow your application, complete your identity check and submit your PSIRA details:\nhttps://officers.lokd.co.za/officer\n\n${psiraStatus==='expired'?'LOKD can help with PSIRA renewal and refresher training. Your registration must be current and all required checks complete before work is offered.':'Our team will review your application and contact you about the next step.'}\n\nLOKD Security`}),
+      // The verification team reviews every new officer application.
+      officerEmailStatement(db,officerApplicationTeamNotice({id,fullName,pathway,psiraStatus,psiraGrade,province}))];
     if(hasPreferences)writes.push(db.prepare('INSERT INTO officer_application_preferences(application_id,availability,renewal_status,created_at) VALUES(?,?,?,?)').bind(id,JSON.stringify(availability),renewalStatus,nowIso));
     if(keyHash)writes.push(db.prepare('INSERT INTO officer_application_receipts(request_key_hash,payload_hash,application_id,created_at) VALUES(?,?,?,?)').bind(keyHash,payloadHash,id,nowIso));
     try{await db.batch(writes);}catch(cause){const concurrent=await recover();if(concurrent)return concurrent;throw cause;}
     await deliverOfficerEmail(db,env,confirmationId);
+    await deliverOfficerEmail(db,env,'application-team:'+id);
     return savedReceipt(id);
   } catch (cause) {
     return responseError(cause);

@@ -6,6 +6,15 @@ export function officerEmailStatement(db:D1Database,input:OfficerEmail){
  const now=new Date().toISOString();
  return db.prepare('INSERT OR IGNORE INTO officer_email_outbox(id,application_id,recipient,subject,message,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').bind(input.id,input.applicationId??null,input.recipient,input.subject,input.text,now,now);
 }
+export const OFFICER_APPLICATION_TEAM_EMAIL='verification@lokd.co.za';
+export const OFFICER_INTAKE_URL='https://operations.lokd.co.za/ops/intake?kind=officer';
+const applicationPathways:Record<string,string>={qualified:'PSIRA Registered or renewal',training:'New Application'};
+const applicationPsiraStatuses:Record<string,string>={active:'Registered and current',expired:'Registered, renewal needed',in_training:'Currently in training',not_registered:'Not yet registered'};
+/** Team notice for a new officer application, queued with the applicant confirmation. */
+export function officerApplicationTeamNotice(input:{id:string;fullName:string;pathway:string;psiraStatus:string;psiraGrade:string|null;province:string}):OfficerEmail{
+ return {id:'application-team:'+input.id,applicationId:input.id,recipient:OFFICER_APPLICATION_TEAM_EMAIL,subject:'New LOKD officer application '+input.id,
+  text:`A new officer application is ready for review.\n\nReference: ${input.id}\nName: ${input.fullName}\nPathway: ${applicationPathways[input.pathway]??input.pathway}\nPSIRA status: ${applicationPsiraStatuses[input.psiraStatus]??input.psiraStatus}\nPSIRA grade: ${input.psiraGrade??'Not provided'}\nProvince: ${input.province}\n\nReview the application in Operations:\n${OFFICER_INTAKE_URL}\n\nLOKD Security`};
+}
 export async function enqueueOfficerEmail(db:D1Database,input:OfficerEmail){await officerEmailStatement(db,input).run();}
 export async function deliverOfficerEmail(db:D1Database,runtime:OfficerEmailRuntime,id:string,transport:typeof fetch=fetch){
  const row=await db.prepare('SELECT * FROM officer_email_outbox WHERE id=?').bind(id).first<{id:string;recipient:string;subject:string;message:string;state:string;created_at:string;updated_at:string;attempts:number;from_address:string|null}>();

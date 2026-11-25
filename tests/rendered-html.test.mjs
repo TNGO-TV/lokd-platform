@@ -53,21 +53,35 @@ test("homepage renders all three LOKD pillars with real booking, training and of
   assert.match(visible, /LOKD Flex/); assert.match(visible, /LOKD Fixed/); assert.match(visible, /LOKD Training/);
   assert.match(visible, /certified training provider/i);
   assert.match(visible, /Training is a paid service/);
-  for (const title of ["Entry-level training", "Grade upgrades", "Firearms training", "VIP protection"]) assert.ok(visible.includes(title), title);
+  for (const title of ["Entry-level training", "Grade upgrades", "Firearms competency", "SAPS-certified", "Armed readiness", "VIP / close protection"]) assert.ok(visible.includes(title), title);
+  // SAPS certification is claimed only for firearms competency.
+  assert.equal(visible.match(/SAPS-certified/g)?.length, 1);
+  // The hero sentence builder is a plain GET form that opens /book prefilled.
+  const builder = html.match(/<form[^>]*class="hero-builder"[^>]*>([\s\S]*?)<\/form>/)?.[0] ?? "";
+  assert.match(builder, /action="\/book"/); assert.match(builder, /method="get"/i);
+  for (const [name, values] of [["officers", ["1", "20"]], ["service", ["scheduled_unarmed_fixed_site", "armed_static", "vip_unarmed"]], ["area", ["Sandton", "Rosebank", "Randburg", "Fourways", "Midrand", "Bryanston", "Melrose"]], ["when", ["today", "tomorrow", "date", "ongoing"]]]) {
+    const select = builder.match(new RegExp('<select[^>]*name="' + name + '"[^>]*>([\\s\\S]*?)</select>'))?.[1] ?? "";
+    for (const value of values) assert.ok(select.includes('value="' + value + '"') || select.includes(">" + value + "<"), name + " offers " + value);
+  }
+  assert.match(builder, /<button[^>]*type="submit"[^>]*>Book officers<\/button>/);
   assert.match(visible, /closest available pool/); assert.match(visible, /Arrival time depends on your location/);
   for (const [href,label] of [
     ["/book","Book officers"], ["/book?when=ongoing","Ongoing cover"],
-    ["/book?when=today","Today"], ["/book?when=tomorrow","Tomorrow"],
-    ["/book?service=scheduled_unarmed_fixed_site","Unarmed guarding"],
-    ["/book?service=armed_static","Armed security"], ["/book?service=vip_unarmed","VIP protection"],
+    ["/book?model=bolt","Book urgent cover"], ["/book?model=flex","Plan LOKD Flex cover"], ["/book?model=fixed","Plan ongoing cover"],
+    ["/book?service=scheduled_unarmed_fixed_site","Book unarmed officers"],
+    ["/book?service=armed_static","Book armed officers"], ["/book?service=vip_unarmed","Book VIP protection"],
+    ["/security-services","Unarmed guarding"], ["/armed-security","Armed security"], ["/vip-protection","VIP protection"],
     ["/training","Explore LOKD Training"], ["/verify","Verify a Passport"],
-    ["/officers","PSIRA Registered or renewal"], ["/officers","New Application"],
+    ["/join?path=registered","PSIRA Registered or renewal"], ["/join?path=new","New Application"],
     ["/sign-in?return_to=%2Fclient","Client Zone"], ["/sign-in?return_to=%2Fofficer","Officer Zone"],
     ["/sign-in?return_to=%2Fops","Operations Zone"], ["/privacy","Privacy"], ["/terms","Terms and conditions"],
   ]) hasLink(links, href, label);
   const sections = ["booking-models-title","services-title","passport-title","training-title","officer-paths-title","closing-title"];
   for (let i=1;i<sections.length;i++) assert.ok(main.indexOf('id="'+sections[i]+'"') > main.indexOf('id="'+sections[i-1]+'"'), "homepage section order");
-  assert.doesNotMatch(main, /✓|<img[^>]*src="(?!\/(?:brand\/lokd-mark\.svg|lokd-logo[^"]*))/);
+  // Only the brand marks, the Passport QR and the owner's processed photography in /images may appear.
+  assert.doesNotMatch(main, /✓|<img[^>]*src="(?!\/(?:brand\/lokd-mark\.svg|lokd-logo[^"]*|lokd-passport-qr\.svg|images\/[a-z0-9-]+-\d+\.jpg))/);
+  for (const [, set] of main.matchAll(/srcSet="([^"]*)"/gi)) for (const source of set.split(",")) assert.match(source.trim(), /^\/images\/[a-z0-9-]+-\d+\.(?:avif|webp|jpg) \d+w$/);
+  assert.doesNotMatch(main, /class="(?:public-kicker|eyebrow)"/);
   professionalCopy(visible);
 });
 
@@ -137,8 +151,8 @@ test("public booking page renders Bolt, Flex and Fixed with no internal prices",
   assert.equal(response.status,200);
   const html = await response.text();
   assert.match(html, /Request security cover \| LOKD/);
-  assert.match(html, /Immediate \/ Emergency Service/);
-  assert.match(html, /Temporary \/ Flexible Service/);
+  assert.match(html, /Immediate \/ emergency service/);
+  assert.match(html, /Temporary \/ flexible service/);
   assert.match(html, /Ongoing deployment/);
   assert.doesNotMatch(html, /internalDraftPrice|clientShiftCents|officerRateCents|R\s*\d+[,.]\d{2}|prelaunch/i);
 });

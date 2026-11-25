@@ -127,6 +127,8 @@ export async function runOperationalDelivery(db:D1Database,runtime:OperationalRu
   for(const booking of training.results)await deliverTrainingBookingEmails(db,runtime,booking.id,transport);
   const zoneTraining=await db.prepare("SELECT id FROM officer_email_outbox WHERE id LIKE 'zone-training:%' AND state IN ('queued','failed') AND attempts<5 ORDER BY created_at,id LIMIT 5").all<{id:string}>();
   for(const notice of zoneTraining.results)await deliverOfficerEmail(db,runtime,notice.id,transport);
+  const applicationTeam=await db.prepare("SELECT id FROM officer_email_outbox WHERE id LIKE 'application-team:%' AND state IN ('queued','failed') AND attempts<5 ORDER BY created_at,id LIMIT 5").all<{id:string}>();
+  for(const notice of applicationTeam.results)await deliverOfficerEmail(db,runtime,notice.id,transport);
  }
  return {enabled:true,processed};
 }

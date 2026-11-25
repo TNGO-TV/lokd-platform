@@ -36,7 +36,7 @@ async function Login({ searchParams }: { searchParams: Promise<{ return_to?: str
     redirect(host ? new URL(target, host).toString() : target);
   }
   const label = hostRole === "operations" ? "Operations" : hostRole === "officer" ? "Officer" : hostRole === "client" ? "Client" : "LOKD";
-  return <div className="public-site"><PublicHeader /><main id="main-content" className="public-auth" tabIndex={-1}><section className="public-auth-card"><p className="public-kicker">LOKD Zone</p><h1>{label === "LOKD" ? "LOKD Zone" : `${label} Zone`}</h1><p>Use the email linked to your LOKD application or booking.</p>
+  return <div className="public-site"><PublicHeader /><main id="main-content" className="public-auth" tabIndex={-1}><section className="public-auth-card"><h1>{label === "LOKD" ? "LOKD Zone" : `${label} Zone`}</h1><p>Use the email linked to your LOKD application or booking.</p>
     {/* The sign-in form for the connected identity provider renders here (see worker/identity.ts). */}
     <p role="status">The LOKD Zone is not yet open. To request cover or apply as an officer, use the forms on this site or <Link href="/contact">contact LOKD</Link>.</p>
     {!hostRole && <nav aria-label="Choose your Zone"><Link href="/sign-in?return_to=%2Fclient">Client Zone</Link><Link href="/sign-in?return_to=%2Fofficer">Officer Zone</Link><Link href="/sign-in?return_to=%2Fops">Operations Zone</Link></nav>}
